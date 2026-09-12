@@ -186,7 +186,15 @@ static func colors_of(list: DeckList) -> int:
 ## the creature decks used in the full game, you must save your version of
 ## the deck under a new name."*
 static func is_user_deck(path: String) -> bool:
-	return path.begins_with(USER_DIR)
+	# [QoL] Reproduced 2026-09-12: delete_deck("user://decks_guard_...deck")
+	# returned "" and removed a fixture OUTSIDE user://decks. A string
+	# prefix also admitted parent escapes. Check the directory boundary
+	# after normalisation, and keep linked/external places out of deletion.
+	if not GamePaths.is_own(path):
+		return false
+	var root := ProjectSettings.globalize_path(USER_DIR).simplify_path().trim_suffix("/")
+	var full := ProjectSettings.globalize_path(path.replace("\\", "/")).simplify_path()
+	return full.begins_with(root + "/")
 
 
 # ------------------------------------------- provenance: the shipped decks --

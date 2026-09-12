@@ -24,10 +24,6 @@ packs/
 # own path in it, and keep it out of the history.
 export_presets.cfg
 
-# Local pointer to CONTRIBUTING.md, for tooling that looks for this name.
-# The house rules themselves are in CONTRIBUTING.md, which IS committed.
-CLAUDE.md
-
 # Python bytecode. The tools are run from the repo (the test suite, the
 # importer, the catalogue), so every run used to rewrite files that were
 # once committed by mistake and leave the working tree dirty — which cost

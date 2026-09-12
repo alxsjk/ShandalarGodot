@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # THE DUEL SOAK — whole duels played through the LIVE duel screen under
-# Xvfb, and a FAILURE on anything Godot prints while they play. The
+# Xvfb on Linux or native windows on macOS, and a FAILURE on anything
+# Godot prints while they play. The
 # player is tools/duel_soak.gd; read its header for what the two modes do.
 #
 # Usage:
@@ -40,7 +41,7 @@ BANNER_ROW_0='┌┬┐┬ ┬┌─┐┬    ┌─┐┌─┐┌─┐┬┌�
 BANNER_ROW_1=' │││ │├┤ │    └─┐│ │├─┤├┴┐'
 BANNER_ROW_2='─┴┘└─┘└─┘┴─┘  └─┘└─┘┴ ┴┴ ┴'
 BANNER_CAP_0='Shandalar 1997 · live duels'
-BANNER_CAP_1='whole games under Xvfb'
+BANNER_CAP_1='whole games through the live screen'
 # THE MINI-HELP, for a bare `./duel_soak.sh` and no other: the two
 # invocations from the Usage block at the top of this file, so there is
 # nothing here to keep in step by hand, and the flag that has the rest. A
@@ -58,8 +59,9 @@ for arg in "$@"; do
 done
 shandalar_banner .
 
-GODOT="${GODOT:-../tools/godot}"
-if [ ! -x "$GODOT" ]; then GODOT=godot; fi
+. tools/runtime.sh
+shandalar_find_godot || exit $?
+shandalar_find_timeout || exit $?
 
 # THE SOAK DOES NOT WRITE THE PLAYER'S PROFILE — the same isolation
 # `run_tests.sh` carries, and for the same reason: `user://` is the
@@ -72,25 +74,31 @@ if [ ! -x "$GODOT" ]; then GODOT=godot; fi
 # `--rules` argument plays under the BUILT-IN rules defaults rather than
 # under whatever the player last chose — which is what a soak wanted
 # anyway. Override with SHANDALAR_TEST_DATA_HOME.
-: "${SHANDALAR_TEST_DATA_HOME:=${TMPDIR:-/tmp}/shandalar-test-data}"
-mkdir -p "$SHANDALAR_TEST_DATA_HOME"
-export XDG_DATA_HOME="$SHANDALAR_TEST_DATA_HOME"
+shandalar_test_profile || exit $?
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 
 for arg in "$@"; do
 	if [ "$arg" = "--help" ] || [ "$arg" = "-h" ]; then
-		timeout -k 5 60 "$GODOT" --headless --path . -s res://tools/duel_soak.gd -- --help \
+		"$SHANDALAR_TIMEOUT" -k 5 60 "$GODOT" --headless --path . -s res://tools/duel_soak.gd -- --help \
 			> "$log" 2>&1 </dev/null
+		status=$?
 		grep -v '^Godot Engine' "$log"
+		[ "$status" -eq 0 ] || exit "$status"
 		echo
 		shandalar_banner_help
 		exit 0
 	fi
 done
 
-xvfb-run -a timeout -k 5 "${SOAK_TIMEOUT:-1800}" "$GODOT" --path . \
+display_runner=("$SHANDALAR_TIMEOUT" -k 5 "${SOAK_TIMEOUT:-1800}")
+if [ "$(uname -s)" != Darwin ]; then
+	command -v xvfb-run >/dev/null 2>&1 || { echo "Install xvfb to run the duel soak." >&2; exit 3; }
+	display_runner=(xvfb-run -a "${display_runner[@]}")
+fi
+"${display_runner[@]}" "$GODOT" --path . \
+	--log-file "$SHANDALAR_TEST_DATA_HOME/soak-engine.log" \
 	-s res://tools/duel_soak.gd -- "$@" > "$log" 2>&1 </dev/null
 status=$?
 

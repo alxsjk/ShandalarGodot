@@ -54,7 +54,7 @@ static var location := ""
 static func game_dir() -> String:
 	if OS.has_feature("editor"):
 		return ProjectSettings.globalize_path("user://")
-	var beside := OS.get_executable_path().get_base_dir()
+	var beside := GamePaths.executable_dir(OS.get_executable_path(), OS.has_feature("macos"))
 	var probe := FileAccess.open(beside.path_join(FILE_NAME), FileAccess.READ_WRITE)
 	if probe == null:
 		probe = FileAccess.open(beside.path_join(FILE_NAME), FileAccess.WRITE)

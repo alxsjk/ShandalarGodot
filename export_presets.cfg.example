@@ -138,3 +138,32 @@ progressive_web_app/icon_144x144=""
 progressive_web_app/icon_180x180=""
 progressive_web_app/icon_512x512=""
 progressive_web_app/background_color=Color(0, 0, 0, 1)
+
+; Local macOS app: ./build_release.sh --macos. Extract templates/macos.zip
+; from the official 4.7.2 export_templates.tpz into the sibling path below.
+; Both architectures use the same archive. Ad-hoc signing needs no account.
+[preset.2]
+name="macOS"
+platform="macOS"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter="*.deck, *.txt"
+exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
+export_path="../shandalar-build/macos/Shandalar.app"
+script_export_mode=2
+
+[preset.2.options]
+export/distribution_type=0
+binary_format/architecture="universal"
+custom_template/debug="../tools/export_templates/4.7.2.stable/macos.zip"
+custom_template/release="../tools/export_templates/4.7.2.stable/macos.zip"
+application/bundle_identifier="org.shandalar.godot"
+application/icon="res://game/icon.png"
+application/short_version=""
+application/version=""
+codesign/codesign=1
+codesign/identity=""
+notarization/notarization=0

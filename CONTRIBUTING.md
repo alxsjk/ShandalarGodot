@@ -9,7 +9,22 @@ gate commands and their exit-code contracts, how a change is measured and
 refused here, and the traps that have already cost this project days. This
 file stays the authority on the rules themselves.
 
+## Publication
+
+Keep commit subjects short and descriptive. Use a pseudonymous author and
+committer with a GitHub noreply address. Keep personal home paths, private
+email addresses and local tooling metadata out of tracked files. Ignore
+machine-local tooling through `.git/info/exclude`, not the shared ignore file.
+
 ## Commands
+
+macOS setup and the local baseline record: `docs/macos-baseline-2026-09-12.md`.
+The shared `tools/runtime.sh` discovers the sibling macOS Godot app and
+GNU `timeout`/`gtimeout`. `./build_release.sh --macos` exports a native app;
+the Linux and web commands below retain their behavior. Test/soak profile
+isolation uses XDG on Linux and a distinct `Shandalar Tests` profile on Mac
+(Godot ignores XDG there). Manual Mac probes must use that runtime feature
+or their own named project; changing XDG alone does not protect player data.
 
 - Test suite: `./run_tests.sh` (headless GUT; pinned binary `../tools/godot`).
   Single test: `./run_tests.sh -gunit_test_name=<name>`.

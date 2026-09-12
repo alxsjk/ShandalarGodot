@@ -12176,6 +12176,34 @@ correcting**: a redirected run was never silent — it has always logged a heart
 a minute — it only looked silent because of the bug above. Nothing any mode can be
 set to puts a byte on stdout, and ten configurations are checked for that.
 
+## 2026-09-12 — Ubuntu checkout, macOS baseline, and deletion boundaries
+
+The imported tree is pinned locally at `baseline/macos-2026-09-12`
+(`59dc81b`); the Mac work is on `local/macos-baseline`. No remote was used.
+The original launch reproduced `timeout: command not found`; Mac runtime
+discovery, GNU timeout and matching Godot 4.7.2 export templates made the
+existing 6085-test suite green without changing rules or cards. The Ubuntu
+binary remains in place. `build_release.sh --macos` produces a universal,
+locally ad-hoc-signed app and checks its boot in a separate profile.
+
+Three ownership defects were reproduced before correction. Godot ignored
+`XDG_DATA_HOME` on Mac, so the wrappers now select the separate `Shandalar
+Tests` profile before settings load. `GamePaths.is_own()` accepted three
+parent escapes (the regression printed `Asserts 47/50`), and
+`DeckStore.delete_deck()` actually deleted a disposable sibling outside
+`user://decks`, returning `""`. Normalized directory boundaries and a walk
+rejecting traversed symlinks now guard those deletion paths. Finally, an
+exported duel created a 464-byte log inside `Contents/MacOS`; portable log
+and skin paths now mean beside the `.app`, and the repeated duel probe
+left the bundle intact. Regression tests pin these contracts.
+
+The Mac terminal test helper also lost buffered output when its last PTY
+slave closed: seven assertions failed with `'W U B R G' not found in ''`.
+Keeping that slave open through the drain fixes the test harness. No AI,
+card or rules-engine behavior changed. The complete evidence, final gate
+results, build commands and visual-inspection limitation are in
+[`macos-baseline-2026-09-12.md`](macos-baseline-2026-09-12.md).
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

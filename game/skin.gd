@@ -54,7 +54,8 @@ const SEARCH_DIRS := ["user://original_skin", "res://assets/original"]
 static func portable_dir() -> String:
 	if OS.has_feature("editor") or OS.has_feature("web"):
 		return ""
-	return OS.get_executable_path().get_base_dir().path_join("skin")
+	return GamePaths.executable_dir(OS.get_executable_path(),
+		OS.has_feature("macos")).path_join("skin")
 
 
 ## THE SKIN PACK — the same art as ONE ZIP, `original_skin.zip`, mounted

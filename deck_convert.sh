@@ -37,10 +37,11 @@ for arg in "$@"; do
 done
 shandalar_banner .
 
-GODOT="${GODOT:-../tools/godot}"
-if [ ! -x "$GODOT" ]; then GODOT=godot; fi
+. tools/runtime.sh
+shandalar_find_godot
+shandalar_find_timeout
 
-"$GODOT" --headless --import . >/dev/null 2>&1 || true
+"$SHANDALAR_TIMEOUT" -k 5 600 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
 
 # `--no-header` keeps Godot's own version line out of stdout, the same
 # reason DeckLab/deck_lab.sh passes it: stdout belongs to the tool, and

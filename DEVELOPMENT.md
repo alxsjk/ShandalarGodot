@@ -69,9 +69,11 @@ answer.
 
 ### The engine binary
 
-The project pins **Godot 4.7.2**. Every script looks for it at `../tools/godot`
-— the sibling of the checkout, *outside* the repository — and falls back to
-`godot` on `PATH`. Note that the repository has its own `tools/` directory as
+The project pins **Godot 4.7.2**. The wrappers share `tools/runtime.sh`:
+on macOS they first look for `../tools/Godot.app/Contents/MacOS/Godot`,
+then use `../tools/godot` or `godot` on `PATH`. On Linux the sibling
+`../tools/godot` remains the first choice. Both live *outside* the repository.
+Note that the repository has its own `tools/` directory as
 well, holding Python pipelines; they are two different places with the same
 name, and the Godot binary is never in the one you can see.
 
@@ -83,11 +85,13 @@ the same variable:
 export GODOT=/path/to/ShandalarGodot/tools/godot
 ```
 
-`DeckLab/deck_lab.sh` is the only one that fails honestly without it — exit 3
-and a message naming the two places it looked. `run_tests.sh` and
-`duel_soak.sh` fall through to a bare `godot`, and what you see is `timeout`
-complaining about a missing file, which does not look like a missing engine at
-all.
+Every wrapper refuses a missing explicit `GODOT` with exit 3 and names the
+path; it never silently substitutes another engine. The timeout guard accepts
+GNU `timeout` or `gtimeout` (on macOS: `brew install coreutils`).
+
+For the native Mac setup, build command and verification record, read
+`docs/macos-baseline-2026-09-12.md`. `./build_release.sh --macos` exports a
+local universal `Shandalar.app`; Linux and web retain their existing commands.
 
 ### The gate
 
@@ -128,9 +132,14 @@ $GODOT --headless --path . --quit-after 3       # boot smoke: does the project l
 ./duel_soak.sh                                  # whole duels through the live screen
 ```
 
+For an isolated manual boot smoke, source `tools/runtime.sh`, then run
+`shandalar_find_godot; shandalar_test_profile` before the Godot command and
+pass an explicit `--log-file` under your scratch directory.
+
 The boot smoke is what catches a card file that will not parse, and you want
 it after touching any card — see the trap in §6. The soak plays complete duels
-through the real duel screen under Xvfb with AI seats and a fuzzed human seat;
+through the real duel screen under Xvfb on Linux or a native window on macOS,
+with AI seats and a fuzzed human seat;
 a bare run is three seeds in both modes — six whole duels, about three
 minutes, ending in `SOAK done: 6 duel(s) finished`. Run it after
 touching anything under `game/duel/`: the suite drives one widget at a time
@@ -143,10 +152,15 @@ rest.
 ### Where `user://` goes
 
 `user://` is the same directory for a dev run as for the shipped game, because
-it is the same project name. `run_tests.sh` and `duel_soak.sh` therefore point
+it is the same project name. On Linux, `run_tests.sh` and `duel_soak.sh` point
 `XDG_DATA_HOME` at a scratch directory (`$TMPDIR/shandalar-test-data`,
-override `SHANDALAR_TEST_DATA_HOME`) so a test can never write a player's real
-profile. Anything you run by hand does **not** get that for free. The incident
+override `SHANDALAR_TEST_DATA_HOME`). **macOS ignores XDG_DATA_HOME:** the
+wrappers instead enable Godot's `shandalar_test` runtime feature, selecting
+`~/Library/Application Support/Godot/app_userdata/Shandalar Tests/` before
+autoloads start. On macOS the scratch variable controls tool logs, not that
+profile location. Runs share their test profile; run suite and soak sequentially
+when measuring settings-dependent behavior. Anything run by hand does **not**
+get this isolation for free. The incident
 that made it a rule is in `run_tests.sh`'s header and in `docs/ROADMAP.md`
 ("WHY THE THREE DOTS DID NOT REACH THE OWNER").
 
@@ -526,8 +540,7 @@ the working view.
   a land type, against every retyper that writes one — is resolved by
   construction, in two waves, and `engine/continuous.gd` says exactly that at
   the site. If a future card makes a second one, this is where it lands.
-  (`docs/ARCHITECTURE.md` still states the flat "613.8 is missing" from before
-  the two waves went in, 2026-09-10.)
+  `docs/ARCHITECTURE.md` points to this distinction too.
 - **The web build has been checked in a desktop browser pretending to be a
   tablet, not on a real one** (`README.md`, "Play in the browser").
 - **Set packages** (`docs/set-packages-plan.md`) are a design with the pack

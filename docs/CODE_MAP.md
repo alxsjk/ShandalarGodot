@@ -2098,6 +2098,13 @@ shandalar/
 │                              MOVE file into cards/sets/<set>/
 │
 ├── tools/                   Pipelines (Python 3, stdlib only)
+│   ├── runtime.sh           Shared Godot/timeout discovery for Ubuntu and
+│   │                          macOS; test-profile isolation via XDG on Linux
+│   │                          and the shandalar_test runtime feature on Mac
+│   │                          (used by all five shell entry points)
+│   ├── test_tool_banner.py  Banner/terminal contracts, including
+│   │                          RuntimeContractTest: missing explicit Godot
+│   │                          paths and soak-help engine failure status
 │   ├── fetch_cards.py       Scryfall → cards/data/<set>.json for the 8-set
 │   │                          pool (base game + Duels of the Planeswalkers);
 │   │                          excludes Chaos Orb/Falling Star/Shahrazad/
@@ -3944,7 +3951,9 @@ shandalar/
 │    key written only when moved (a hand-typed "yes" read as on), expand
 │    touching only a leading tilde, shown() a path a human can open,
 │    is_own() only under user://, PLACE_KEYS the ones the Options note
-│    names — every key remembered and put back;
+│    names — every key remembered and put back. Also pins normalized
+│    deletion boundaries, symlink rejection, deck-folder siblings/escapes,
+│    and portable paths beside a macOS app bundle (2026-09-12);
 │    tests/unit/test_skin_pack.gd — THE SKIN PACK (SkinPack): a probe
 │    zip built with ZIPPacker (a 4x6 PNG, a sidecar, a portrait) so the
 │    contract is tested with no 1997 art on the machine — inspect()
@@ -6717,6 +6726,9 @@ shandalar/
 │
 ├── addons/gut/              Vendored GUT 9.6.1 test framework (unmodified)
 └── docs/
+    ├── macos-baseline-2026-09-12.md  Local Git baseline, Mac setup/build,
+    │                          measured portability and deletion-boundary
+    │                          fixes, verification commands and evidence
     ├── ARCHITECTURE.md      Design decisions & layer model — READ FIRST
     ├── CODE_MAP.md          This file
     ├── adding-cards.md      The card-authoring pipeline + checklist

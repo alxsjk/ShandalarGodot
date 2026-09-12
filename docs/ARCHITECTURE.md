@@ -80,8 +80,9 @@ timestamp order deciding within a layer; the file header lists the exact
 sequence and `docs/mechanics.md` explains it card by card. Recompute-the-world
 is the approach XMage/mage-go use; it trades negligible CPU for correctness
 that never drifts, and `docs/audit-2026-09.md` has the measurements behind
-the parts that were made cheaper. What is still missing from CR 613 is
-dependency analysis (613.8).
+the parts that were made cheaper. General dependency analysis (613.8) is
+still missing; `engine/continuous.gd` handles this pool's land-type
+reader/writer dependency in two waves. See `DEVELOPMENT.md` for the scope.
 
 ### Cards as composition
 
@@ -124,15 +125,17 @@ replays, and AI self-play later.
 ## Testing (tests/)
 
 Framework: **GUT 9.x** (addons/gut, vendored). Run via `./run_tests.sh`
-(headless, uses the pinned Godot in `../tools/godot`). The suite is
-~1200 tests / ~26k asserts and runs in about twelve seconds.
+(headless, uses the pinned Godot discovered by `tools/runtime.sh`). Current
+measured test counts and timings live in `DEVELOPMENT.md` and the dated
+verification records; this architecture overview does not keep another count.
 
 - `tests/game_test.gd` — `GameTest`, the harness DSL: `put_battlefield`,
   `give_hand`, `add_mana`, `resolve_stack`, `run_combat`,
   `assert_ok`/`assert_refused`. Setup helpers may bend rules; every action
   under test goes through the real public API.
 - `tests/unit/` — engine behavior (mana, turn/priority/stack, combat).
-- `tests/cards/` — one file per set; at least one test per non-vanilla card.
+- `tests/cards/` — card behavior and interaction regressions.
+- `tests/ui/`, `tests/ai/`, `tests/tools/` — presentation, pilot and tool gates.
 
 Policy, inherited from mage-go: **cards are implemented test-first**, and a
 card is not "done" until its test quotes the oracle-text behavior.
@@ -150,14 +153,17 @@ card is not "done" until its test quotes the oracle-text behavior.
   `docs/audit-2026-09.md`, `docs/code-review-2026-09.md` — the four audit
   records, each with the test that pins every fix.
 
-## Presentation layer (game/) — not built yet
+## Presentation layer (game/)
 
-`game/main.tscn` is a placeholder boot scene proving the engine loads in-game.
-The intended shape (mirroring s30's screen architecture, see
-`docs/ROADMAP.md`): a screen-stack (title → overworld → city → duel), where
-the duel screen holds an `MtgGame`, renders from its state + signals, and
-calls the same public API the tests use. The adventure layer (overworld,
-cities, quests) is a separate milestone with its own future doc.
+`game/main.tscn` is the working title screen. Magic Battle leads through
+battle setup to the duel screen; the shell also exposes Gauntlet, Deck
+Builder, Options and Help. The duel screen holds an `MtgGame`, renders its
+state and signals, and calls the same public API the tests use. Whole duels
+through this presentation layer are checked by `duel_soak.sh` in addition to
+the component tests. See `docs/CODE_MAP.md` for the implemented scene layout.
+
+The adventure layer (overworld, cities, quests) remains a separate future
+milestone. Its title-screen entries currently explain that status.
 
 ## Why these technology choices
 

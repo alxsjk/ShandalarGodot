@@ -86,6 +86,10 @@ Environment:
                             the player's own profile (default
                             $TMPDIR/shandalar-test-data)
 
+On macOS, user:// is the separate "Shandalar Tests" profile in Library/
+Application Support/Godot/app_userdata; SHANDALAR_TEST_DATA_HOME controls
+the tool log directory, since Godot ignores XDG_DATA_HOME on macOS.
+
 Exit 0 only when GUT's own tally says every test passed AND Godot exited
 0 AND the log holds no parse error, no risky/pending test, no ERROR line
 and no leaked-object line. Read the header of this file for why each of
@@ -103,13 +107,14 @@ for arg in "$@"; do
 done
 shandalar_banner .
 
-GODOT="${GODOT:-../tools/godot}"
-if [ ! -x "$GODOT" ]; then GODOT=godot; fi
+. tools/runtime.sh
+shandalar_find_godot
+shandalar_find_timeout
 SUITE_TIMEOUT="${SUITE_TIMEOUT:-1800}"
 
 # THE SUITE DOES NOT WRITE THE PLAYER'S PROFILE
 # ---------------------------------------------
-# `user://` is `$XDG_DATA_HOME/godot/app_userdata/Shandalar` — the SAME
+# On Linux, `user://` is `$XDG_DATA_HOME/godot/app_userdata/Shandalar` — the SAME
 # directory the EXPORTED game uses, because it is the same project name.
 # So every suite run in this checkout was reading and rewriting the
 # player's real `settings.cfg`, decks and portraits, and the tests that
@@ -127,24 +132,24 @@ SUITE_TIMEOUT="${SUITE_TIMEOUT:-1800}"
 # ever reaching them (docs/ROADMAP.md, "WHY THE THREE DOTS DID NOT REACH
 # THE OWNER"). A test suite must not be able to do that.
 #
+# macOS uses the separate feature-selected profile in tools/runtime.sh.
 # One directory, reused so the shader cache and GUT's temp dir stay warm.
 # Override with SHANDALAR_TEST_DATA_HOME to put it elsewhere; point it at
 # "$HOME/.local/share" to get the old behaviour back, which no test needs
 # — the whole suite is green from an empty one (`GameSkin` falls back to
 # `res://assets/original` in a dev checkout, which is why).
-: "${SHANDALAR_TEST_DATA_HOME:=${TMPDIR:-/tmp}/shandalar-test-data}"
-mkdir -p "$SHANDALAR_TEST_DATA_HOME"
-export XDG_DATA_HOME="$SHANDALAR_TEST_DATA_HOME"
+shandalar_test_profile
 
 # Import step (quick no-op when the .godot cache is warm; a cold import
 # of the card art is minutes, not hours, so 600 s is generous).
-timeout -k 5 600 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
+"$SHANDALAR_TIMEOUT" -k 5 600 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 
 set +e
-timeout -k 5 "$SUITE_TIMEOUT" "$GODOT" --headless --path . \
+"$SHANDALAR_TIMEOUT" -k 5 "$SUITE_TIMEOUT" "$GODOT" --headless --path . \
+	--log-file "$SHANDALAR_TEST_DATA_HOME/gut-engine.log" \
 	-s addons/gut/gut_cmdln.gd \
 	-gdir=res://tests -ginclude_subdirs -gexit "$@" </dev/null 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}

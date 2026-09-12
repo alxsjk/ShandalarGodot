@@ -137,8 +137,46 @@ static func settings_file() -> String:
 	return shown(Settings.PATH)
 
 
+## [QoL] A macOS app is one bundle to the player. Portable files belong
+## beside it. An exported duel probe on 2026-09-12 created a 464-byte
+## Contents/MacOS/duel_log.txt inside the signed app before this fix.
+## Explicit arguments let the same path contract be checked on any host.
+static func executable_dir(executable: String, macos: bool) -> String:
+	var folder := executable.get_base_dir()
+	if macos and folder.to_lower().ends_with(".app/contents/macos"):
+		return folder.get_base_dir().get_base_dir().get_base_dir()
+	return folder
+
+
 ## Whether [param path] is inside the game's own home. "Forget my zips"
 ## deletes only there: a folder the player pointed elsewhere is theirs
 ## to empty.
 static func is_own(path: String) -> bool:
-	return path.begins_with("user://")
+	if not path.begins_with("user://"):
+		return false
+	# [QoL] A written user:// prefix is not a containment check. Before
+	# this fix the regression reported "Asserts 47/50": all three parent
+	# escapes were accepted, so own_zips() could offer another folder's
+	# packs to forget(). Compare resolved, normalised directory boundaries.
+	var root := ProjectSettings.globalize_path("user://").simplify_path().trim_suffix("/")
+	var full := ProjectSettings.globalize_path(path.replace("\\", "/")).simplify_path()
+	if full != root and not full.begins_with(root + "/"):
+		return false
+	# A symlink inside the profile can still lead outside it. Treat linked
+	# places as the player's to manage, just like an absolute folder key.
+	# Walk the written components BEFORE collapsing '..': link/../file
+	# follows the link on disk, so normalisation must not hide that link.
+	var current := root
+	for part in path.trim_prefix("user://").replace("\\", "/").split("/", false):
+		if part == ".":
+			continue
+		if part == "..":
+			if current == root:
+				return false
+			current = current.get_base_dir()
+			continue
+		var parent := DirAccess.open(current)
+		if parent != null and parent.is_link(part):
+			return false
+		current = current.path_join(part)
+	return true

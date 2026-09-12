@@ -116,3 +116,56 @@ func test_the_place_keys_are_the_ones_the_options_note_names() -> void:
 		"portraits_folder", "music_folder"] as Array[String])
 	assert_false(GamePaths.KEY_USE_SKIN_FOLDER in GamePaths.PLACE_KEYS,
 		"the switch has its own row; it is not a place")
+
+
+func test_a_user_prefix_does_not_make_a_parent_folder_ours_to_delete() -> void:
+	assert_false(GamePaths.is_own("user://../other-game/cardpacks"))
+	assert_false(GamePaths.is_own("user://cardpacks/../../other-game"))
+	assert_false(GamePaths.is_own("user://..\\other-game\\cardpacks"))
+	assert_true(GamePaths.is_own("user://cardpacks/../skins"),
+		"a normalised path that stays inside the profile is still ours")
+
+
+func test_a_linked_folder_is_the_players_to_manage() -> void:
+	var root := "user://game_paths_link_%d" % Time.get_ticks_usec()
+	var target := root.path_join("target")
+	var link := root.path_join("link")
+	assert_eq(DirAccess.make_dir_recursive_absolute(target), OK)
+	var dir := DirAccess.open(root)
+	assert_eq(dir.create_link(ProjectSettings.globalize_path(target), "link"), OK)
+	assert_false(GamePaths.is_own(link))
+	assert_false(GamePaths.is_own(link.path_join("pack.zip")))
+	assert_false(GamePaths.is_own(link.path_join("../target")),
+		"normalisation must not hide a traversed symlink")
+	assert_true(GamePaths.is_own(target))
+	assert_eq(DirAccess.remove_absolute(link), OK)
+	assert_eq(DirAccess.remove_absolute(target), OK)
+	assert_eq(DirAccess.remove_absolute(root), OK)
+
+
+func test_deck_delete_refuses_a_sibling_whose_name_starts_with_decks() -> void:
+	var path := "user://decks_guard_probe_%d.deck" % Time.get_ticks_usec()
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string("this is a test fixture outside the decks directory")
+	file.close()
+	assert_false(DeckStore.is_user_deck(path))
+	assert_ne(DeckStore.delete_deck(path), "")
+	assert_true(FileAccess.file_exists(path), "delete must leave the sibling intact")
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+
+
+func test_deck_delete_classification_rejects_parent_escapes() -> void:
+	assert_false(DeckStore.is_user_deck("user://decks/../music/keep.deck"))
+	assert_false(DeckStore.is_user_deck("user://decks/../../other-game/keep.deck"))
+	assert_false(DeckStore.is_user_deck("user://decks"))
+	assert_true(DeckStore.is_user_deck("user://decks/my_deck.deck"))
+
+
+func test_portable_files_live_beside_a_macos_bundle() -> void:
+	assert_eq(GamePaths.executable_dir("/Games/Shandalar.app/Contents/MacOS/Shandalar", true), "/Games")
+	assert_eq(GamePaths.executable_dir("/Games/My Game.app/Contents/MacOS/Shandalar", true), "/Games")
+	assert_eq(GamePaths.executable_dir("/Games/Shandalar.x86_64", false), "/Games")
+	assert_eq(GamePaths.executable_dir("/Games/Shandalar", true), "/Games")
+	assert_eq(GamePaths.executable_dir("/Games/Other/Contents/MacOS/game", true),
+		"/Games/Other/Contents/MacOS", "only a real .app path is unwrapped")

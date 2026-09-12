@@ -4,6 +4,7 @@
 # `--web`, the "Web" preset, which a browser boots instead.
 #
 #   ./build_release.sh              # -> ../shandalar-build/linux64/
+#   ./build_release.sh --macos      # native Shandalar.app -> ../shandalar-build/macos/
 #   ./build_release.sh --out DIR    # somewhere else
 #   ./build_release.sh --skin       # also (re)link the original graphics
 #                                   #    into user://original_skin, so the
@@ -148,6 +149,7 @@ PRESET="Linux 64"
 LINK_SKIN=0
 PACKAGE=0
 WEB=0
+MACOS=0
 CARDART=0
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -157,24 +159,31 @@ while [ $# -gt 0 ]; do
 		--package) PACKAGE=1; shift ;;
 		--cardart) CARDART=1; shift ;;
 		--web) WEB=1; PRESET="Web"; [ "$OUT" = "../shandalar-build/linux64" ] && OUT="../shandalar-build/web"; shift ;;
+		--macos) MACOS=1; PRESET="macOS"; [ "$OUT" = "../shandalar-build/linux64" ] && OUT="../shandalar-build/macos"; shift ;;
 		-h|--help) usage; exit 0 ;;
 		-V|--version) shandalar_version_line "build_release.sh" .; exit 0 ;;
 		*) echo "build_release: unknown argument '$1'" >&2; exit 3 ;;
 	esac
 done
+if [ "$MACOS" = 1 ] && { [ "$WEB" = 1 ] || [ "$PACKAGE" = 1 ] || [ "$LINK_SKIN" = 1 ]; }; then
+	echo "build_release: --macos builds the local app; --web, --package and --skin are separate workflows. Import local art through Options > Skin." >&2
+	exit 3
+fi
 if [ "$CARDART" = 1 ] && { [ "$WEB" != 1 ] || [ "$LINK_SKIN" != 1 ]; }; then
 	echo "build_release: --cardart goes with --web --skin (the Linux play copy gets the card art on its own)" >&2
 	exit 3
 fi
 shandalar_banner .
 
-GODOT="${GODOT:-../tools/godot}"
-if [ ! -x "$GODOT" ]; then GODOT=godot; fi
+. tools/runtime.sh
+shandalar_find_godot
+shandalar_find_timeout
 
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 BIN="$OUT/Shandalar.x86_64"
 [ "$WEB" = 1 ] && BIN="$OUT/index.html"
+[ "$MACOS" = 1 ] && BIN="$OUT/Shandalar.app"
 VERSION="$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)"
 LOG="${TMPDIR:-/tmp}/shandalar-export.log"
 
@@ -292,7 +301,7 @@ zip_stage() {  # zip_stage STAGE_DIR NAME — writes PKG_DIR/NAME.zip and NAME-w
 }
 
 # Warm the import cache quietly (a cold checkout has no .godot/).
-timeout -k 5 900 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
+"$SHANDALAR_TIMEOUT" -k 5 900 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
 
 # THE DESKTOP BUILD USES THE DEBUG TEMPLATE (2026-09-08), ON PURPOSE.
 # Godot's optimized (release) templates carry a bug in embedded popups
@@ -345,8 +354,9 @@ case "$LINUX_TEMPLATE" in
 esac
 MODE="--export-$LINUX_TEMPLATE"
 [ "$WEB" = 1 ] && MODE=--export-release
+[ "$MACOS" = 1 ] && MODE=--export-debug
 echo "exporting '$PRESET' ($MODE) -> $BIN"
-if ! timeout -k 5 1200 "$GODOT" --headless --path . \
+if ! "$SHANDALAR_TIMEOUT" -k 5 1200 "$GODOT" --headless --path . \
 		"$MODE" "$PRESET" "$BIN" > "$LOG" 2>&1 </dev/null; then
 	echo "BUILD FAILED: the export did not finish (log: $LOG)" >&2
 	tail -20 "$LOG" >&2
@@ -411,6 +421,32 @@ if [ "$WEB" = 1 ]; then
 	fi
 	exit 0
 fi
+if [ "$MACOS" = 1 ]; then
+	APP="$BIN"
+	BIN="$APP/Contents/MacOS/Shandalar"
+	PACK="$APP/Contents/Resources/Shandalar.pck"
+	[ -x "$BIN" ] && [ -s "$PACK" ] || { echo "BUILD FAILED: incomplete macOS app at $APP" >&2; exit 1; }
+	# Temporary profile override beside the exported pack; removed even
+	# on failure, leaving the signed bundle's contents exactly as exported.
+	# Official macOS templates disable --main-pack path overrides.
+	SMOKE_OVERRIDE="$APP/Contents/Resources/override.cfg"
+	[ ! -e "$SMOKE_OVERRIDE" ] || { echo "BUILD FAILED: unexpected override.cfg in exported app" >&2; exit 1; }
+	trap 'rm -f "$SMOKE_OVERRIDE"' EXIT
+	printf '%s\n' '[application]' 'config/name="Shandalar Build Smoke"' > "$SMOKE_OVERRIDE"
+	SMOKE="$OUT/smoke.log"
+	if ! "$SHANDALAR_TIMEOUT" -k 5 120 "$BIN" --headless \
+		--quit-after 120 --log-file "$OUT/smoke-engine.log" > "$SMOKE" 2>&1 </dev/null; then
+		tail -20 "$SMOKE" >&2
+		exit 1
+	fi
+	if grep -qE '^(ERROR|SCRIPT ERROR)|ObjectDB instances were leaked' "$SMOKE"; then
+		tail -20 "$SMOKE" >&2
+		exit 1
+	fi
+	echo "ok: $(du -sh "$APP" | cut -f1) macOS app (debug template, local ad-hoc signature)"
+	echo "run it with: open \"$APP\""
+	exit 0
+fi
 [ -x "$BIN" ] || { echo "BUILD FAILED: no executable at $BIN" >&2; exit 1; }
 
 if [ "$LINK_SKIN" = 1 ]; then
@@ -430,7 +466,7 @@ fi
 # Smoke-boot it: a release build that cannot reach its main scene is not a
 # build. --quit-after counts FRAMES, so this is a second or two.
 SMOKE="${TMPDIR:-/tmp}/shandalar-smoke.log"
-if ! timeout -k 5 120 "$BIN" --headless --quit-after 120 \
+if ! "$SHANDALAR_TIMEOUT" -k 5 120 "$BIN" --headless --quit-after 120 \
 		> "$SMOKE" 2>&1 </dev/null; then
 	echo "BUILD FAILED: the exported game did not boot (log: $SMOKE)" >&2
 	tail -20 "$SMOKE" >&2

@@ -46,18 +46,9 @@ case "${SHANDALAR_NO_BANNER:-}" in
 	*) export DECK_LAB_NO_BANNER=1 ;;
 esac
 
-GODOT="${GODOT:-../tools/godot}"
-if [ ! -x "$GODOT" ] && ! command -v "$GODOT" >/dev/null 2>&1; then
-	GODOT=godot
-fi
-if [ ! -x "$GODOT" ] && ! command -v "$GODOT" >/dev/null 2>&1; then
-	# A MISSING ENGINE IS NOT A DECK PROBLEM, and `exec: not found` does
-	# not say which of the two it is. Exit 3, and say where to point it.
-	echo "deck_lab: no Godot binary to run." >&2
-	echo "  looked for: ../tools/godot (the project-pinned 4.7.2), then godot on PATH." >&2
-	echo "  set one explicitly:  GODOT=/path/to/godot DeckLab/deck_lab.sh ..." >&2
-	exit 3
-fi
+. tools/runtime.sh
+shandalar_find_godot
+shandalar_find_timeout
 
 # WHETHER THERE IS A HUMAN LOOKING, which GDScript cannot ask on its own.
 # stderr is the channel the banner and the progress bar use, so stderr is
@@ -83,7 +74,7 @@ if [ ! -f "$CACHE" ] \
 	if [ -t 2 ]; then
 		echo "deck_lab: importing project resources (first run after an edit)..." >&2
 	fi
-	"$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
+	"$SHANDALAR_TIMEOUT" -k 5 600 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
 fi
 
 # `--no-header` keeps Godot's own version line out of the report: stdout

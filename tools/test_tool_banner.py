@@ -29,6 +29,7 @@ catch the bug — `skin_catalogue.py --stdout` piped, redirected and
 """
 
 import io
+import errno
 import os
 import pty
 import re
@@ -131,15 +132,20 @@ def run_on_a_pty(argv: list[str], env=None) -> tuple[bytes, bytes, int]:
         proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=slave,
                                 stdin=subprocess.DEVNULL, cwd=str(ROOT),
                                 env=env if env is not None else env_without_optouts())
-        os.close(slave)
-        slave = -1
+        # macOS discards unread PTY output when the last slave closes.
+        # Keep our slave alive while the child exits and drain without
+        # waiting for EOF. Before this fix all seven real-terminal tests
+        # failed with: AssertionError: 'W U B R G' not found in ''.
         out, _ = proc.communicate(timeout=120)
+        os.set_blocking(master, False)
         terminal = b""
         while True:
             try:
                 chunk = os.read(master, 65536)
-            except OSError:
-                break          # EIO: every slave is closed, we have it all
+            except OSError as exc:
+                if exc.errno in (errno.EAGAIN, errno.EWOULDBLOCK, errno.EIO):
+                    break
+                raise
             if not chunk:
                 break
             terminal += chunk
@@ -873,6 +879,35 @@ class StdoutDidNotMoveTest(unittest.TestCase):
             self.assertNotIn(glyph, log)
         for line in hint_of("import_original"):
             self.assertNotIn(line, log)
+
+
+class RuntimeContractTest(unittest.TestCase):
+    """A broken explicit engine path fails honestly before any work starts."""
+
+    def test_every_wrapper_refuses_a_missing_explicit_godot(self):
+        commands = {
+            "run_tests.sh": ["-gselect=test_game_paths.gd"],
+            "duel_soak.sh": ["--help"],
+            "build_release.sh": ["--macos"],
+            "deck_convert.sh": ["--help"],
+            "DeckLab/deck_lab.sh": ["--help"],
+        }
+        for script, args in commands.items():
+            with self.subTest(script=script):
+                proc = subprocess.run(
+                    ["bash", script, *args], cwd=ROOT, capture_output=True,
+                    text=True, timeout=10,
+                    env=env_without_optouts(GODOT="/no/such/shandalar-godot"))
+                self.assertEqual(proc.returncode, 3, proc.stderr)
+                self.assertIn("/no/such/shandalar-godot", proc.stderr)
+                self.assertNotIn("GUT printed no summary", proc.stderr)
+
+    def test_soak_help_propagates_an_engine_failure(self):
+        proc = subprocess.run(
+            ["bash", "duel_soak.sh", "--help"], cwd=ROOT,
+            capture_output=True, timeout=10,
+            env=env_without_optouts(GODOT="/usr/bin/false"))
+        self.assertEqual(proc.returncode, 1)
 
 
 if __name__ == "__main__":

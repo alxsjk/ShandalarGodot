@@ -12,6 +12,11 @@ running duel log, `duel_log.txt`, is kept beside the executable so it is
 where you look for it (and under `user://` instead when that directory
 cannot be written). Nothing else is written outside your home directory.
 
+On macOS, "beside the executable" means **beside `Shandalar.app`**:
+`duel_log.txt` and the optional `skin/` folder live alongside the bundle.
+They are never written inside its signed `Contents/` directory. The packaged
+`Shandalar.pck` itself lives inside `Shandalar.app/Contents/Resources/`.
+
 `res://` is inside `Shandalar.pck`, the pack beside the executable. It is
 read-only and the game ships everything it needs there. Of ART it ships
 exactly nine pictures, all of them this project's own (below); the 1997
@@ -22,7 +27,9 @@ material is never shipped and is read off your own copy at runtime (see
 project has the same project name, so its `user://` is the same directory
 — it reads and writes YOUR files. `run_tests.sh` and `duel_soak.sh`
 therefore point `XDG_DATA_HOME` at a scratch directory of their own
-(`SHANDALAR_TEST_DATA_HOME`) and cannot touch it; anything else run by
+(`SHANDALAR_TEST_DATA_HOME`) on Linux. On macOS, Godot ignores XDG; the
+wrappers instead select a separate `Shandalar Tests` profile using their
+`shandalar_test` runtime feature. Anything else run by
 hand (`../tools/godot --path .`, `tools/screenshot_tour.tscn`) still can,
 so give it the same treatment when it writes.
 
