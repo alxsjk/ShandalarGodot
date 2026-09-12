@@ -114,8 +114,22 @@ static func _place(key: String, fallback: String) -> String:
 ## A leading `~` is the home folder, as a shell would read it.
 static func expand(path: String) -> String:
 	if path == "~" or path.begins_with("~/"):
-		return OS.get_environment("HOME") + path.substr(1)
+		var home := _home_dir()
+		if home != "":
+			return home if path == "~" else home.path_join(path.substr(2))
 	return path
+
+
+## [QoL] A native Windows launch need not have the Unix HOME variable.
+## With only USERPROFILE set, ~/Music used to become /Music (reproduced
+## with an isolated environment, 2026-09-13). Never invent a root path
+## when neither home is known; browsers can keep using user:// instead.
+static func _home_dir() -> String:
+	var home := OS.get_environment("HOME")
+	if home == "":
+		home = OS.get_environment("USERPROFILE")
+	home = home.replace("\\", "/")
+	return home if home == "/" or home.ends_with(":/") else home.trim_suffix("/")
 
 
 ## A place as a human can find it: the absolute path on a desktop, with
@@ -126,7 +140,7 @@ static func shown(path: String) -> String:
 	if path == "" or OS.has_feature("web"):
 		return path
 	var full := ProjectSettings.globalize_path(path)
-	var home := OS.get_environment("HOME")
+	var home := _home_dir()
 	if home.length() > 1 and (full == home or full.begins_with(home + "/")):
 		return "~" + full.substr(home.length())
 	return full

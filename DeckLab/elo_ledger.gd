@@ -68,7 +68,7 @@ static func _on_disk(p: String) -> String:
 	return here.get_current_dir().path_join(p) if here else p
 
 
-func save() -> void:
+func save() -> bool:
 	# The exported game has no decks/ beside its binary (the decks ride
 	# in the .pck), so the default ledger's folder is made on the first
 	# rated run — as DeckLab/README.md promises. Fails quietly where it
@@ -78,8 +78,9 @@ func save() -> void:
 		DirAccess.make_dir_recursive_absolute(on_disk.get_base_dir())
 	var file := FileAccess.open(on_disk, FileAccess.WRITE)
 	if file == null:
-		push_error("EloLedger: cannot write %s" % path)
-		return
+		printerr("EloLedger: cannot write %s (%s)" % [path,
+			error_string(FileAccess.get_open_error())])
+		return false
 	file.store_line("# Shandalar Deck Lab — Elo ledger (see DeckLab/README.md)")
 	file.store_line("# Standard Elo, K=%d per game, start %d. Safe to hand-edit." % [
 		int(K), int(STARTING_ELO)])
@@ -91,6 +92,12 @@ func save() -> void:
 		var e: Dictionary = entries[deck_name]
 		file.store_line("%s | %.1f | %d | %d | %d | %s" % [
 			deck_name, e.elo, e.games, e.wins, e.losses, e.updated])
+	file.flush()
+	var err := file.get_error()
+	file.close()
+	if err != OK:
+		printerr("EloLedger: cannot finish writing %s (%s)" % [path, error_string(err)])
+	return err == OK
 
 
 func rating(deck_name: String) -> float:

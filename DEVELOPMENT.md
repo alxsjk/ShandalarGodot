@@ -95,12 +95,16 @@ local universal `Shandalar.app`; Linux and web retain their existing commands.
 
 ### Platform contract
 
-Linux, macOS and Windows are core targets. Keep shared game code portable,
-isolate OS-specific integration, and preserve Web and other Godot export
-options. A green run on one host does not certify the others. The tracked
-example currently contains Linux, Web and macOS presets; native Windows
-build/runtime verification and additional platform presets remain separate
-work, not something the macOS gate proves.
+**Windows, Linux, macOS and Web are the four core release targets.** Web
+already has a release workflow; it is not merely a possible future export.
+Keep shared game code portable and isolate platform-specific integration.
+Other Godot export options should remain possible too.
+
+A green run on one target does not certify the others: Web needs browser
+verification as well as a successful export. The tracked example currently
+contains Linux, Web and macOS presets; Windows preset setup and native
+build/runtime verification remain separate work, not something the macOS
+gate proves.
 
 ### The gate
 
@@ -113,7 +117,8 @@ python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
 Measured counts and timings live in the dated verification records rather
-than another counter here: `docs/bug-hunt-2026-09-13.md` for the current pass
+than another counter here: `docs/decklab-audit-2026-09-13.md` for the latest
+DeckLab/game pass, `docs/bug-hunt-2026-09-13.md` for the deck-input pass,
 and `docs/macos-baseline-2026-09-12.md` for the imported baseline.
 
 `run_tests.sh` checks its own log because **GUT lies by omission**: a test

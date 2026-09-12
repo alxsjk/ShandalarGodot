@@ -2404,6 +2404,10 @@ shandalar/
 │   │                          null game for game (exit 4 when it does
 │   │                          not); one report, sweep.json/csv,
 │   │                          games.csv. Manual: DeckLab/README.md
+│   │                          2026-09-13: worker JSON carries full-width
+│   │                          seeds as strings; CSV preserves punctuation;
+│   │                          an unsaved Elo ledger means exit 1 while
+│   │                          matchup reports are retained
 │   ├── lab_console.gd       class LabConsole — the terminal side of the
 │   │                          Lab: the banner, the in-place progress bar
 │   │                          with its ETA, colour that degrades to plain
@@ -2435,6 +2439,8 @@ shandalar/
 │   │                          (2026-09-08: a relative one is served from
 │   │                          the .pck first, so a play copy's ledger never
 │   │                          accumulated), the folder made on first save
+│   │                          save() returns whether opening/writing/
+│   │                          flushing succeeded, not just a diagnostic
 │   ├── README.md            The manual (methodology, every switch, the
 │   │                          measured experiments, the sweep)
 │   └── results/             Where a run writes unless --out says otherwise
@@ -4866,6 +4872,8 @@ shandalar/
 │   ├── settings.gd          class Settings — user://settings.cfg wrapper;
 │   │                          saved on every set, except set_value(...,
 │   │                          false) + flush() for a slider's drag;
+│   │                          failed saves remain dirty for a later retry
+│   │                          and do not increment the saved-write count;
 │   │                          `touch_controls()` reads auto/on/off and
 │   │                          answers `auto` to anything else
 │   ├── display.gd           class GameDisplay — THE WINDOW: the one
@@ -4980,7 +4988,9 @@ shandalar/
 │   │                          until the player changes it (a default
 │   │                          materialised can never change). A value is
 │   │                          absolute, user://, or ~/…; _place tidies it
-│   │                          (expand, edges, a trailing slash) and falls
+│   │                          (expand, edges, a trailing slash), uses
+│   │                          HOME or USERPROFILE for `~` (preserving it
+│   │                          when no home is known), and falls
 │   │                          back on a non-string; shown() is the path a
 │   │                          human can open (globalized on the desktop,
 │   │                          the home folder as `~`, the user:// name in
@@ -6740,6 +6750,9 @@ shandalar/
     │                          fixes, verification commands and evidence
     ├── bug-hunt-2026-09-13.md  Deck parser/save-name regressions, reproduced
     │                          failures, verification and platform limits
+    ├── decklab-audit-2026-09-13.md  DeckLab and base-game audit: seed
+    │                          transport, Elo failure status, CSV titles,
+    │                          settings retries, home paths and verification
     ├── ARCHITECTURE.md      Design decisions & layer model — READ FIRST
     ├── CODE_MAP.md          This file
     ├── adding-cards.md      The card-authoring pipeline + checklist

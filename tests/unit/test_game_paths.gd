@@ -49,7 +49,7 @@ func test_a_key_moves_its_place() -> void:
 	assert_eq(GamePaths.skin_folder(), "/srv/mtg/skin")
 	assert_eq(GamePaths.cardpacks_folder(), "/srv/mtg/packs", "a trailing slash dropped")
 	assert_eq(GamePaths.portraits_folder(), "user://faces", "edges trimmed")
-	var home := OS.get_environment("HOME")
+	var home := GamePaths._home_dir()
 	assert_eq(GamePaths.music_folder(), home + "/Music/shandalar", "~ is the home folder")
 	assert_eq(GamePaths.skin_zip(), home + "/skins/mine.zip")
 
@@ -78,7 +78,7 @@ func test_the_folder_switch_is_a_key_written_only_when_moved() -> void:
 
 
 func test_expand_touches_only_a_leading_tilde() -> void:
-	var home := OS.get_environment("HOME")
+	var home := GamePaths._home_dir()
 	assert_eq(GamePaths.expand("~"), home)
 	assert_eq(GamePaths.expand("~/x"), home + "/x")
 	assert_eq(GamePaths.expand("/a/~/b"), "/a/~/b")
@@ -86,10 +86,34 @@ func test_expand_touches_only_a_leading_tilde() -> void:
 	assert_eq(GamePaths.expand("user://x"), "user://x")
 
 
+func test_audit_home_expansion_without_unix_home() -> void:
+	# Emulate the environment of a Windows desktop launch, without
+	# touching the filesystem or yielding while process-wide vars differ.
+	var original_env := {}
+	for key in ["HOME", "USERPROFILE"]:
+		original_env[key] = OS.get_environment(key) if OS.has_environment(key) else null
+	OS.unset_environment("HOME")
+	OS.set_environment("USERPROFILE", "C:\\Users\\Deck Tester")
+	var expanded := GamePaths.expand("~/Music")
+	var bare := GamePaths.expand("~")
+	OS.unset_environment("USERPROFILE")
+	var unknown := GamePaths.expand("~/Music")
+	var unknown_bare := GamePaths.expand("~")
+	for key in original_env:
+		if original_env[key] == null:
+			OS.unset_environment(key)
+		else:
+			OS.set_environment(key, original_env[key])
+	assert_eq(expanded, "C:/Users/Deck Tester/Music")
+	assert_eq(bare, "C:/Users/Deck Tester")
+	assert_eq(unknown, "~/Music", "unknown home must not become the filesystem root")
+	assert_eq(unknown_bare, "~", "unknown home must not disappear")
+
+
 func test_a_place_is_shown_as_a_path_a_human_can_open() -> void:
 	assert_eq(GamePaths.shown(""), "")
 	assert_eq(GamePaths.shown("/srv/x"), "/srv/x")
-	var home := OS.get_environment("HOME")
+	var home := GamePaths._home_dir()
 	assert_eq(GamePaths.shown(home + "/Music"), "~/Music", "the home folder as ~")
 	assert_eq(GamePaths.shown(home), "~")
 	assert_eq(GamePaths.shown(home + "sib/x"), home + "sib/x", "a sibling that shares the prefix is not home")

@@ -172,7 +172,7 @@ OPTIONS
   --jobs N            Worker threads INSIDE one process (default 4).
                       More is not faster: measured on 22 idle cores, one
                       duel runs at 12 games/s on 1 thread, 18 on 4, and
-                      4.4 on 22. --jobs 0 means every core, and is slower.
+                      4.4 on 22. --jobs 0 uses the default min(4, cores).
   --procs N           Separate worker PROCESSES (default 8 once a run is
                       big enough to pay for starting them; 1 turns it
                       off). This is where the speed is: the same
@@ -577,8 +577,8 @@ func _main(argv: PackedStringArray) -> int:
 	#
 	# The cause is not this loop: the curve is identical on the unmodified
 	# script, so it is the engine or the pool oversubscribing. Until that is
-	# understood, the default is the measured plateau and `--jobs 0` still
-	# means every core for anyone who wants it. Determinism is unaffected —
+	# understood, the default (also `--jobs 0`) is the measured plateau.
+	# An explicit positive N selects another cap. Determinism is unaffected —
 	# `matchups.csv` is byte-identical at every job count, which is what
 	# made it safe to move.
 	var jobs: int = opts.jobs if opts.jobs > 0 else mini(4, OS.get_processor_count())
@@ -707,6 +707,7 @@ func _main(argv: PackedStringArray) -> int:
 
 	# ---- Elo ledger ----
 	var elo_lines := PackedStringArray()
+	var elo_saved := true
 	if not opts.no_elo:
 		var ledger := EloLedger.load_from(opts.elo_file)
 		# THE PLACEHOLDER IS NOT A DECK, so it neither takes a rating nor
@@ -744,13 +745,16 @@ func _main(argv: PackedStringArray) -> int:
 			else:
 				ledger.record_matchup(opponent, row["name"],
 					stats.a_wins, stats.b_wins)
-		ledger.save()
-		elo_lines.append("Elo (%s):" % opts.elo_file)
-		for deck in rated:
-			var old: float = before[deck.deck_name]
-			var new := ledger.rating(deck.deck_name)
-			elo_lines.append("  %-24s %7.1f -> %7.1f  (%+.1f)" % [
-				deck.deck_name, old, new, new - old])
+		elo_saved = ledger.save()
+		if elo_saved:
+			elo_lines.append("Elo (%s):" % opts.elo_file)
+			for deck in rated:
+				var old: float = before[deck.deck_name]
+				var new := ledger.rating(deck.deck_name)
+				elo_lines.append("  %-24s %7.1f -> %7.1f  (%+.1f)" % [
+					deck.deck_name, old, new, new - old])
+		else:
+			elo_lines.append("Elo NOT SAVED (%s); matchup reports are retained." % opts.elo_file)
 
 	# ---- report ---- (out_dir was resolved and created with the plan)
 	var report := PackedStringArray()
@@ -794,7 +798,7 @@ func _main(argv: PackedStringArray) -> int:
 			SimStats.percent(stats.winrate_on_draw.mid),
 			stats.avg_turns, stats.median_turns])
 		csv.append("%s,%s,%d,%d,%d,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.2f,%d" % [
-			row_name.replace(",", " "), col_name.replace(",", " "),
+			csv_cell(row_name), csv_cell(col_name),
 			stats.games, stats.a_wins, stats.b_wins, stats.stalled,
 			stats.winrate.mid, stats.winrate.low, stats.winrate.high,
 			stats.winrate_on_play.mid, stats.winrate_on_draw.mid,
@@ -896,6 +900,9 @@ func _main(argv: PackedStringArray) -> int:
 		printerr("deck_lab: not every file of %s was written (see above); the run is not a result" % out_dir)
 		return 1
 	print("\nwrote %s/{%s}" % [out_dir, ", ".join(chart_names)])
+	if not elo_saved:
+		printerr("deck_lab: reports written, but Elo was not saved; the run is incomplete")
+		return 1
 	return 0
 
 
@@ -1039,8 +1046,7 @@ func _fan_out(procs: int, unit: String, started_at: int) -> bool:
 		var in_path := dir.path_join("slice_%d.json" % p)
 		var out_path := dir.path_join("done_%d.json" % p)
 		var prog_path := dir.path_join("beat_%d.txt" % p)
-		var payload := {"offset": lo, "duel": _duel_opts,
-			"tasks": _tasks.slice(lo, hi)}
+		var payload := _worker_payload(lo, hi)
 		var f := FileAccess.open(in_path, FileAccess.WRITE)
 		if f == null:
 			_clean_fan(dir, pids)
@@ -1143,6 +1149,20 @@ func _fan_out(procs: int, unit: String, started_at: int) -> bool:
 	return true
 
 
+## JSON numbers are doubles when read back. A seed above 2^53 used to
+## change the game just by enabling --procs: 9007199254740993 became
+## 9007199254740992, 17 turns became 38 (2026-09-13). Carry seeds as
+## decimal strings on this private wire, then restore ints before play.
+## A shallow copy keeps the parent's task and report seed untouched.
+func _worker_payload(lo: int, hi: int) -> Dictionary:
+	var tasks: Array = []
+	for i in range(lo, hi):
+		var task: Dictionary = _tasks[i].duplicate()
+		task["seed"] = str(task["seed"])
+		tasks.append(task)
+	return {"offset": lo, "duel": _duel_opts, "tasks": tasks}
+
+
 ## How many games a child has finished, from the little file it rewrites
 ## as it plays. Nothing here may fail a run: a heartbeat that is missing,
 ## empty or half-written reads as 0, the caller keeps the largest count it
@@ -1196,6 +1216,7 @@ func _run_worker(in_path: String, out_path: String, beat_path := "") -> int:
 	_results.resize(_tasks.size())
 	var last_beat := Time.get_ticks_msec()
 	for i in _tasks.size():
+		_tasks[i]["seed"] = int(_tasks[i]["seed"])
 		var record := _play_task(_tasks[i])
 		# `rng` is a RandomNumberGenerator — used inside a MATCH and never
 		# read again afterwards, and not a thing JSON can carry.
@@ -1623,7 +1644,7 @@ const FLAG_HINTS := {
 	"--deck-pool": "--deck-pool LIST|DIR: what `random` draws from (default decks/)",
 	"--games": "--games N: games per matchup, default 1000",
 	"--seed": "--seed N: base RNG seed, default 1 — the same seed replays a run",
-	"--jobs": "--jobs N: worker threads INSIDE one process, default 4 (0 = every core, which is slower — see --procs)",
+	"--jobs": "--jobs N: worker threads INSIDE one process, default min(4, cores) (0 = default — see --procs)",
 	"--procs": "--procs N: separate worker processes, default 8 when the run is big enough (1 = none). Each is ~235 MB and about 8x the speed of threads",
 	"--profile-a": "--profile-a NAME[:knob=value,...]: apprentice|magician|sorcerer|wizard, default wizard",
 	"--profile-b": "--profile-b NAME[:knob=value,...]: apprentice|magician|sorcerer|wizard, default wizard",
@@ -1786,7 +1807,7 @@ func _parse_args(argv: PackedStringArray) -> Dictionary:
 			"--jobs":
 				opts.jobs = value.to_int()
 				if opts.jobs < 0:
-					return {"error": "--jobs must be >= 0 (0 = every core)"}
+					return {"error": "--jobs must be >= 0 (0 = default min(4, cores))"}
 			"--profile-a", "--profile-b":
 				# `wizard` or `wizard:knob=value,...` (see _profile): the
 				# preset is checked by name, the knobs by trying them on.
@@ -2064,6 +2085,16 @@ func _settings_line(opts: Dictionary) -> String:
 	for key in opts.rule_overrides:
 		parts.append("%s=%s" % [key, "on" if opts.rule_overrides[key] else "off"])
 	return "settings: " + "   ".join(parts) if not parts.is_empty() else ""
+
+
+## CSV text is data, not a label to sanitize. A real run with the title
+## `Audit, "Burn"` wrote `Audit  "Burn"` before this fix (2026-09-13).
+## Quote only when needed, so ordinary names keep byte-identical CSVs.
+static func csv_cell(value: String) -> String:
+	if value.contains(",") or value.contains('"') \
+			or value.contains("\n") or value.contains("\r"):
+		return '"' + value.replace('"', '""') + '"'
+	return value
 
 
 ## False when the file could not be opened — and `_main` then exits 1,
@@ -2454,7 +2485,7 @@ func _run_sweep(opts: Dictionary, decks: Array[DeckList], pairs: Array,
 			var verdict: Dictionary = verdicts[arm_index] if is_control else {}
 			csv.append("%s,%s,%s,%s,%s,%d,%d,%d,%d,%.4f,%.4f,%.4f,%s,%s,%s" % [
 				"control" if is_control else "test",
-				row_name.replace(",", " "), col_name.replace(",", " "),
+				csv_cell(row_name), csv_cell(col_name),
 				arm.value, "null" if arm.is_null else "candidate",
 				summary.games, summary.a_wins, summary.b_wins, summary.stalled,
 				summary.winrate.mid, summary.winrate.low, summary.winrate.high,
@@ -2504,8 +2535,8 @@ func _run_sweep(opts: Dictionary, decks: Array[DeckList], pairs: Array,
 		var record: Dictionary = _results[i]
 		games.append("%s,%s,%s,%s,%s,%d,%d,%s,%s,%d,%s,%s,%s" % [
 			"control" if int(task.pair) == control_pair else "test",
-			decks[pairs[task.pair][0]].deck_name.replace(",", " "),
-			decks[pairs[task.pair][1]].deck_name.replace(",", " "),
+			csv_cell(decks[pairs[task.pair][0]].deck_name),
+			csv_cell(decks[pairs[task.pair][1]].deck_name),
 			arm.value, "null" if arm.is_null else "candidate",
 			task.game, task.seed, task.a_on_play, record.a_won, int(record.turns),
 			record.stalled, record.get("drawn", false),

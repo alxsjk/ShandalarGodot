@@ -239,7 +239,7 @@ flyers rule the starter meta.
 | `--gauntlet LIST\|DIR` | comma list of .deck files, or a directory of them (deck A excluded, whichever flag was typed first) → gauntlet mode | — |
 | `--games N` | games **per matchup** | 1000 |
 | `--seed N` | base RNG seed — same seed + decks = identical results at ANY `--jobs` | 1 |
-| `--jobs N` | worker threads | all cores |
+| `--jobs N` | worker threads per process (0 = default) | min(4, cores) |
 | `--profile-a NAME` / `--profile-b NAME` | pilot skill: `apprentice`, `magician`, `sorcerer`, `wizard` | wizard |
 | `--profile-a NAME:knob=value,...` | the same preset with knobs overridden — `wizard:pays_sacrifices=off`, `wizard:minds_pain=off,counter_threshold=4`. Booleans read on/off (true/false, 1/0), numbers as the knob's own type; an unknown knob is refused at parse time. How one AI capability is measured against its own null: the candidate on seat A, the knob off on seat B, same seeds | — |
 | `--sweep KNOB=V1,V2,...` | the three-pair measurement of one AI knob in ONE run over one seed set: per value the CANDIDATE pair (deck A with the knob at that value vs deck B at the null), once the NULL pair (both seats at the null), and per value the CONTROL pair (below), which must replay its own null run game for game. One report with a row per value: win rate, interval, delta vs null, and the control's PASS/FAIL. Needs `--deck-a`/`--deck-b` or `--gauntlet` plus both control decks; never writes the Elo ledger; refuses `--matrix`, `random`, and a knob also set in `--profile-a/-b`. An unknown knob or a value the knob cannot read is exit 2 (see [the sweep](#the-sweep--one-knob-three-pairs-one-run-2026-09-06)) | — |
@@ -1105,6 +1105,8 @@ Printed to stdout AND written to `--out`:
   50% sat inside `[37.3%, 50.9%]` all along.
 - **results.json** — everything machine-readable, for scripts.
 - **matchups.csv** — one row per matchup, for spreadsheets.
+  Deck titles containing commas, quotes or line breaks are CSV-quoted,
+  preserving the exact title rather than replacing its punctuation.
 - **winrates.svg** — win-rate bars with CI whiskers and a 50% reference
   line (opens in any browser; no plotting software involved anywhere).
 - **turns.svg** — game-length histograms per matchup on a shared axis.
@@ -1191,6 +1193,11 @@ profile cannot read); 3 no Godot binary (`deck_lab.sh`; set
 but its control pair did not replay the null game for game — the report
 names the first game that moved.
 
+A rated run whose Elo ledger cannot be saved exits **1** too. Its matchup
+reports are still written, with **Elo NOT SAVED** instead of apparent rating
+updates. Experimental runs should continue to use `--no-elo` or a scratch
+`--elo-file`; the failure case does not write to a fallback ledger.
+
 ## Methodology (why the numbers can be trusted)
 
 - **Wilson intervals**, not naive ±: correct near 0/100% and at small n.
@@ -1200,8 +1207,9 @@ names the first game that moved.
   aggregate would hide it.
 - **Determinism**: every game seeds as `base_seed + matchup_offset +
   game_index` and each thread writes only its own result slot, so a run
-  reproduces bit-for-bit regardless of `--jobs`. Quote the seed when
-  sharing results.
+  reproduces bit-for-bit regardless of `--jobs` or `--procs`. Worker
+  transport preserves the full signed 64-bit seed, including values above
+  JSON's exact-number range. Quote the seed when sharing results.
 - **Stalls** (the AI driver bailing out — expected zero, and treated as a
   bug if seen) are counted separately, never attributed to either deck.
 - **Pilot skill** is a variable, not noise: `wizard` vs `wizard` (default)
@@ -1261,8 +1269,10 @@ on an idle 22-core machine, the same 60-game duel:
 
 Twenty-two threads runs at **a third of the speed of one**. The default
 used to be every core, so every long measurement this project has made
-was paying that; it is `min(4, cores)` now. `--jobs 0` still means every
-core, and `--jobs N` still caps threads on a shared machine.
+was paying that; it is `min(4, cores)` now. `--jobs 0` selects that same
+default; a positive `--jobs N` selects an explicit thread cap. Earlier help
+text incorrectly described 0 as every core; the implementation already
+used the four-thread cap, and this clarification does not change it.
 
 The curve is identical on the pre-2026-09-05 script, so the cause is the
 engine or the pool oversubscribing rather than anything in the fan-out —

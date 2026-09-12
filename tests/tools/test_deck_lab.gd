@@ -145,11 +145,61 @@ func test_elo_ledger_round_trips_through_its_file() -> void:
 	var ledger := EloLedger.new()
 	ledger.path = ELO_TMP
 	ledger.record_matchup("Alpha", "Beta", 10, 5)
-	ledger.save()
+	assert_true(ledger.save())
 	var reloaded := EloLedger.load_from(ELO_TMP)
 	assert_almost_eq(reloaded.rating("Alpha"), ledger.rating("Alpha"), 0.05)
 	assert_eq(reloaded.entries["Beta"].games, 15)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(ELO_TMP))
+
+
+func test_audit_elo_save_reports_failure_and_can_retry() -> void:
+	var path := "user://elo_blocked_%d" % Time.get_ticks_usec()
+	assert_eq(DirAccess.make_dir_absolute(path), OK)
+	var ledger := EloLedger.new()
+	ledger.path = path
+	ledger.record_matchup("Alpha", "Beta", 3, 1)
+	assert_false(ledger.save(), "a directory is not a saved ledger")
+	assert_eq(ledger.entries["Alpha"].games, 4, "unsaved results remain available")
+	DirAccess.remove_absolute(path)
+	assert_true(ledger.save(), "retry after the obstruction is gone")
+	assert_eq(EloLedger.load_from(path).entries["Alpha"].games, 4)
+	DirAccess.remove_absolute(path)
+
+
+func test_audit_worker_wire_preserves_full_width_seeds() -> void:
+	var lab := _lab()
+	var seeds := [0, 4242, -7, 9007199254740993, -9007199254740993,
+		9223372036854775807, -9223372036854775807 - 1]
+	for seed_value in seeds:
+		lab._tasks.append({"seed": seed_value})
+	var payload: Dictionary = JSON.parse_string(JSON.stringify(
+		lab._worker_payload(0, seeds.size())))
+	for i in seeds.size():
+		assert_eq(int(payload.tasks[i].seed), seeds[i], "wire round-trip")
+		assert_eq(lab._tasks[i].seed, seeds[i], "parent task is unchanged")
+		assert_eq(typeof(lab._tasks[i].seed), TYPE_INT)
+
+
+func test_audit_worker_replays_the_large_seed_duel_and_match() -> void:
+	var lab := _lab()
+	var deck := DeckList.load_file("res://decks/mountain_artillery.deck")
+	var in_path := "user://worker_seed_%d.json" % Time.get_ticks_usec()
+	var out_path := in_path + ".out"
+	for best_of in [0, 3]:
+		lab._duel_opts = {"fingerprint": true, "best_of": best_of, "sideboard": true}
+		lab._tasks = [{"seed": 9007199254740993, "a_on_play": true,
+			"deck_a": deck.cards, "deck_b": deck.cards,
+			"sb_a": deck.sideboard, "sb_b": deck.sideboard,
+			"profile_a": "wizard", "profile_b": "wizard"}]
+		var direct: Dictionary = lab._play_task(lab._tasks[0])
+		assert_true(lab._write(in_path, JSON.stringify(lab._worker_payload(0, 1))))
+		assert_eq(lab._run_worker(in_path, out_path), 0)
+		var records: Array = JSON.parse_string(FileAccess.get_file_as_string(out_path))
+		assert_eq(records.size(), 1)
+		assert_eq(records[0].fingerprint, direct.fingerprint, "same game, not just same winner")
+		assert_eq(int(records[0].turns), direct.turns)
+	DirAccess.remove_absolute(in_path)
+	DirAccess.remove_absolute(out_path)
 
 
 # --------------------------------------------------------------- matrix svg --
@@ -587,7 +637,7 @@ func test_non_numbers_are_refused_not_read_as_zero() -> void:
 			"the refusal names the flag: " + str(opts.get("error", "")))
 	assert_true(_parse(BASE + ["--lives", "20,abc"]).has("error"))
 	assert_true(_parse(BASE + ["--jobs", "-1"]).has("error"))
-	assert_eq(_parse(BASE + ["--jobs", "0"]).jobs, 0, "0 is 'every core'")
+	assert_eq(_parse(BASE + ["--jobs", "0"]).jobs, 0, "0 selects the default thread cap")
 	assert_eq(_parse(BASE + ["--seed", "-7"]).seed, -7,
 		"a negative seed is still a whole number")
 
@@ -637,6 +687,15 @@ func test_a_file_that_cannot_be_written_is_a_failure_the_caller_hears() -> void:
 	assert_true(lab._write(path, "hello\n"))
 	assert_eq(FileAccess.get_file_as_string(path), "hello\n")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_audit_csv_preserves_deck_titles_and_plain_baselines() -> void:
+	var lab := _lab()
+	assert_eq(lab.csv_cell("Big Green"), "Big Green", "ordinary reports do not change")
+	assert_eq(lab.csv_cell('Audit, "Burn"'), '"Audit, ""Burn"""')
+	assert_eq(lab.csv_cell("Line\nBreak"), '"Line\nBreak"')
+	assert_eq(lab.csv_cell("Line\rBreak"), '"Line\rBreak"')
+	assert_eq(lab.csv_cell("Črna magija"), "Črna magija")
 
 
 func test_a_crashed_run_is_not_exit_zero() -> void:

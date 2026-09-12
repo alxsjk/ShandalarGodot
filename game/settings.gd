@@ -45,9 +45,16 @@ static func set_value(key: String, value, persist := true) -> void:
 
 
 static func _save() -> void:
-	_config.save(PATH)
-	_dirty = false
-	write_count += 1
+	# [QoL] A failed write is still pending. Before this guard a blocked
+	# settings.cfg reported `dirty=false counted_writes=1` (2026-09-13),
+	# so leaving the options screen could never retry the player's change.
+	var err := _config.save(PATH)
+	_dirty = err != OK
+	if err == OK:
+		write_count += 1
+	else:
+		printerr("settings: cannot save %s (%s); changes remain pending" % [
+			PATH, error_string(err)])
 
 
 ## Write out whatever [method set_value] was asked not to. A no-op when

@@ -121,3 +121,34 @@ func test_a_persisting_set_carries_the_dirty_keys_with_it() -> void:
 	Settings.set_value("sfx_volume_db", -9.0)
 	assert_false(Settings.is_dirty())
 	assert_almost_eq(float(_on_disk("ai_pace")), 0.55, 0.001)
+
+
+func test_audit_failed_save_stays_dirty_and_flush_retries() -> void:
+	# 2026-09-13, before the fix: SETTINGS dirty=false counted_writes=1
+	# with a directory blocking settings.cfg. Restore the file before any
+	# assertions, including on fixture failure; the suite profile is shared.
+	Settings.flush()
+	var path := ProjectSettings.globalize_path(Settings.PATH)
+	var backup := path + ".audit-%d" % Time.get_ticks_usec()
+	var existed := FileAccess.file_exists(path)
+	if existed and DirAccess.rename_absolute(path, backup) != OK:
+		fail_test("could not protect the test profile's settings")
+		return
+	if DirAccess.make_dir_absolute(path) != OK:
+		if existed:
+			DirAccess.rename_absolute(backup, path)
+		fail_test("could not create the blocked-save fixture")
+		return
+	var before := Settings.write_count
+	Settings.set_value("ai_pace", 0.65)
+	var dirty_after_failure := Settings.is_dirty()
+	var writes_after_failure := Settings.write_count - before
+	DirAccess.remove_absolute(path)
+	if existed:
+		DirAccess.rename_absolute(backup, path)
+	Settings.flush()
+	assert_true(dirty_after_failure, "failed save must remain pending")
+	assert_eq(writes_after_failure, 0, "failed writes are not counted as saved")
+	assert_false(Settings.is_dirty(), "flush retries after the obstruction is gone")
+	assert_eq(Settings.write_count - before, 1, "one successful retry")
+	assert_eq(_on_disk("ai_pace"), 0.65)

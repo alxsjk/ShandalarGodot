@@ -12228,6 +12228,41 @@ and other Godot exports stay possible. Full verification and the unproven
 follow-up candidates are recorded in
 [`bug-hunt-2026-09-13.md`](bug-hunt-2026-09-13.md).
 
+## 2026-09-13 — Four core release targets, including the existing Web release
+
+Owner clarification: "we have a web release also. Add it to the mix".
+Windows, Linux, macOS and Web are all core release targets. DEVELOPMENT.md
+now states this explicitly; Web is no longer described as just an optional
+export. Its browser checks belong alongside native build/runtime checks.
+This is a documentation-only clarification; no export preset or runtime
+behavior changed.
+
+## 2026-09-13 — DeckLab reliability and a second base-game audit
+
+Five defects reproduced before production changes. Worker JSON changed
+`SEED before=9007199254740993 after=9007199254740992`; the same duel then
+reported `direct_turns=17 worker_turns=38`. The private worker payload now
+carries seeds as decimal strings and restores the exact integer before play.
+A directory as `--elo-file` printed `EloLedger: cannot write` but returned
+`CLI_EXIT=0`; save status now reaches the CLI, which returns 1 and retains
+the matchup reports with an explicit **Elo NOT SAVED** label. A CSV title
+`Audit, "Burn"` became `Audit  "Burn"`; shared CSV quoting preserves it in
+plain and sweep reports without changing ordinary-title baselines.
+
+On the base game, a blocked settings file reported
+`SETTINGS dirty=false counted_writes=1`. Failed saves now remain pending for
+retry, and only successful writes are counted. With HOME absent and a
+Windows USERPROFILE set, `~/Music` became `/Music`; home lookup now uses
+USERPROFILE as its fallback and leaves `~` intact if neither home is known.
+This is an environment-simulated regression, not native Windows certification.
+
+Six new regressions pass 50 assertions. The CLI's documented `--jobs 0`
+meaning now matches its existing four-thread cap; no scheduling behavior,
+AI knob, card rule, release preset or tracked Elo rating changed. The full
+gate evidence, headless duel/match/matrix/gauntlet/field/sweep checks and
+review boundaries are in [`decklab-audit-2026-09-13.md`](decklab-audit-2026-09-13.md).
+Windows, Linux, macOS and Web remain core targets.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

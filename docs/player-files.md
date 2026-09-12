@@ -12,6 +12,13 @@ running duel log, `duel_log.txt`, is kept beside the executable so it is
 where you look for it (and under `user://` instead when that directory
 cannot be written). Nothing else is written outside your home directory.
 
+In configurable paths, `~` uses `HOME`, or `USERPROFILE` when `HOME` is
+absent (a native Windows launch). If neither is known, the spelling is
+left unchanged rather than turned into a root-relative path. In the browser,
+prefer `user://` paths. A settings save that fails stays pending in memory
+and is retried by the next save or options-screen flush; it is not durable
+until a write succeeds, so resolve the storage problem before quitting.
+
 On macOS, "beside the executable" means **beside `Shandalar.app`**:
 `duel_log.txt` and the optional `skin/` folder live alongside the bundle.
 They are never written inside its signed `Contents/` directory. The packaged
