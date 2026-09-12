@@ -93,6 +93,15 @@ For the native Mac setup, build command and verification record, read
 `docs/macos-baseline-2026-09-12.md`. `./build_release.sh --macos` exports a
 local universal `Shandalar.app`; Linux and web retain their existing commands.
 
+### Platform contract
+
+Linux, macOS and Windows are core targets. Keep shared game code portable,
+isolate OS-specific integration, and preserve Web and other Godot export
+options. A green run on one host does not certify the others. The tracked
+example currently contains Linux, Web and macOS presets; native Windows
+build/runtime verification and additional platform presets remain separate
+work, not something the macOS gate proves.
+
 ### The gate
 
 Two commands, and both are gates rather than reports — read their exit codes,
@@ -103,9 +112,9 @@ not their output.
 python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
-On this tree today: **6085 passing tests / 156 339 asserts across 353 scripts**
-in about 365 s, exit 0; and **217 tests OK** in three seconds for the Python
-side.
+Measured counts and timings live in the dated verification records rather
+than another counter here: `docs/bug-hunt-2026-09-13.md` for the current pass
+and `docs/macos-baseline-2026-09-12.md` for the imported baseline.
 
 `run_tests.sh` checks its own log because **GUT lies by omission**: a test
 script it cannot parse is silently skipped and the summary still reads "All

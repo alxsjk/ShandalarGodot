@@ -251,6 +251,32 @@ func test_a_deck_with_no_notes_reads_back_as_none() -> void:
 	assert_eq(DeckModel.notes_from_text(deck.to_text()), "")
 
 
+func test_bug_hunt_title_guard_ignores_name_prefixed_comments() -> void:
+	var text := "// NAME : Keep This Title\n// Names to try: Changed\n" + \
+		"// Nameless idea: Also Changed\n2 Forest\n"
+	assert_eq(DeckStore.title_in(text), "Keep This Title")
+
+
+func test_bug_hunt_deck_file_names_avoid_windows_devices_on_every_host() -> void:
+	var device_names := ["CON", "PRN", "AUX", "NUL"]
+	for number in range(1, 10):
+		device_names.append("COM%d" % number)
+		device_names.append("LPT%d" % number)
+	for reserved in device_names:
+		assert_eq(DeckStore.file_stem(reserved), "deck_" + reserved.to_lower(), reserved)
+		assert_eq(DeckStore.file_stem("  " + reserved.to_lower() + "! "),
+			"deck_" + reserved.to_lower(), "punctuation must not expose a device name")
+	for ordinary in ["com0", "com10", "lpt0", "lpt10", "console", "auxiliary", "burn"]:
+		assert_eq(DeckStore.file_stem(ordinary), ordinary, "ordinary save paths stay unchanged")
+	assert_eq(DeckStore.path_for("CON"), "user://decks/deck_con.deck")
+	deck.deck_name = "CON"
+	_add("Forest", 2)
+	var reloaded := DeckList.new()
+	reloaded.parse(deck.to_text())
+	assert_eq(reloaded.deck_name, "CON", "only the filename changes, never the title")
+	assert_eq(reloaded.errors, [] as Array[String])
+
+
 func test_the_decklist_export_round_trips() -> void:
 	deck.deck_name = "Burn"
 	_add("Lightning Bolt", 4)

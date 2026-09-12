@@ -12204,6 +12204,30 @@ card or rules-engine behavior changed. The complete evidence, final gate
 results, build commands and visual-inspection limitation are in
 [`macos-baseline-2026-09-12.md`](macos-baseline-2026-09-12.md).
 
+## 2026-09-13 — One bug-hunt pass: deck input and portable save names
+
+Reproduced before changing production code: four new tests failed,
+`Asserts 9/34`, exit 1. The DCK reader silently treated `2oops`, `1.5`
+and `3x` as counts, reporting no errors and inserting six unwanted copies.
+It now validates the whole integer token in both strict and lenient modes.
+The DEC reader and the provenance title scan also read
+`// Nameless idea: Also Changed` as a title; both now require exactly the
+NAME field. The observed failure was
+`["Also Changed"] expected to equal ["Keep This Title"]`.
+
+`path_for("CON")` returned `user://decks/con.deck`, a Windows device name
+despite its extension. The shared filename mapping now prefixes reserved
+device stems with `deck_` on every host, preserving the title inside the
+deck. The expanded regression checks all 22 ASCII device names plus
+punctuation/case variants and ordinary names that must not move. The four
+tests now pass all 64 assertions, exit 0.
+
+No rules, AI, card data or export preset changed. The platform contract is
+now explicit in DEVELOPMENT.md: Linux/macOS/Windows remain core targets,
+and other Godot exports stay possible. Full verification and the unproven
+follow-up candidates are recorded in
+[`bug-hunt-2026-09-13.md`](bug-hunt-2026-09-13.md).
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

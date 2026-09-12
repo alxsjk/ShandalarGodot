@@ -340,10 +340,10 @@ static func title_in(text: String) -> String:
 			continue
 		if line.begins_with("//"):
 			var body := line.trim_prefix("//").strip_edges()
-			if body.to_lower().begins_with("name"):
-				var colon := body.find(":")
-				if colon != -1:
-					found = body.substr(colon + 1).strip_edges()
+			# Match DeckList's exact NAME field, not "Names to try:".
+			var colon := body.find(":")
+			if colon != -1 and body.substr(0, colon).strip_edges().to_lower() == "name":
+				found = body.substr(colon + 1).strip_edges()
 			continue
 		if line.to_lower().begins_with("name:"):
 			found = line.substr(5).strip_edges()
@@ -370,6 +370,14 @@ static func file_stem(deck_name: String) -> String:
 	while out.contains("__"):
 		out = out.replace("__", "_")
 	out = out.trim_prefix("_").trim_suffix("_")
+	# [QoL] Portable even when the deck is created on Linux or macOS.
+	# Reproduced 2026-09-13: path_for("CON") -> user://decks/con.deck.
+	# Windows reserves these device stems even with an extension:
+	# https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+	var numbered_device := out.length() == 4 and out.left(3) in ["com", "lpt"] \
+		and out[3] >= "1" and out[3] <= "9"
+	if out in ["con", "prn", "aux", "nul"] or numbered_device:
+		return "deck_" + out
 	return out if out != "" else "new_deck"
 
 

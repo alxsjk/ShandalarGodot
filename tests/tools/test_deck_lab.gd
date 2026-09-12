@@ -95,6 +95,26 @@ func test_sideboard_lines_are_validated_too() -> void:
 	assert_eq(deck.errors.size(), 1, "bad sideboard cards are reported, not dropped")
 
 
+func test_bug_hunt_dck_counts_are_whole_integers_in_both_piles() -> void:
+	for strict in [true, false]:
+		var deck := DeckList.new()
+		deck.parse_dck("Count Probe\n.1\t2oops\tForest\n.1\t1.5\tMountain\n" +
+			".1\t2\tPlains\n.vNone\n.1\t3x\tShatter\n.1\t1\tDisenchant\n",
+			"fallback", strict)
+		assert_eq(deck.errors.size(), 3, "malformed counts must not silently become card copies")
+		assert_eq(deck.cards, ["Plains", "Plains"] as Array[String])
+		assert_eq(deck.sideboard, ["Disenchant"] as Array[String])
+
+
+func test_bug_hunt_dec_comments_do_not_rename_the_deck() -> void:
+	var deck := DeckList.new()
+	deck.parse("// nAmE : Keep This Title\n// Names to try: Changed\n" +
+		"// Nameless idea: Also Changed\n2 Forest\n")
+	assert_eq(deck.errors, [] as Array[String])
+	assert_eq(deck.deck_name, "Keep This Title")
+	assert_eq(deck.cards.size(), 2)
+
+
 # --------------------------------------------------------------- EloLedger --
 
 const ELO_TMP := "user://test_elo_ledger.txt"

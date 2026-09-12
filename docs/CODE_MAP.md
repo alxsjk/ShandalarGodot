@@ -976,7 +976,11 @@ shandalar/
 │   │                          whole proxy boundary: strict makes an unknown
 │   │                          name an ERROR (every duel door loads that
 │   │                          way), lenient keeps it and lists it in
-│   │                          `proxies` (Import and the converter do)
+│   │                          `proxies` (Import and the converter do).
+│   │                          DCK counts require whole integers in either
+│   │                          mode; DEC titles require an exact NAME field
+│   │                          (2026-09-13 regression cases in
+│   │                          tests/tools/test_deck_lab.gd)
 │   ├── proxy_card.gd        class ProxyCard — **[QoL]** THE PROXY, a paper
 │   │                          stand-in for a card this game does not
 │   │                          implement. Definition: a card NAME the
@@ -3605,7 +3609,9 @@ shandalar/
 │    through the .deck format that keeps a saved deck playable — one
 │    helper (`_assert_survives`) holds the shipped decks and a
 │    PROXY-carrying deck to the same field-by-field yardstick, and the
-│    three export formats each round-trip a proxy;
+│    three export formats each round-trip a proxy. Also pins portable
+│    deck filenames against Windows device stems and the title guard's
+│    exact NAME-field recognition (2026-09-13);
 │    tests/unit/test_proxy_card.gd — THE PROXY BOUNDARY, door by door: a
 │    proxy never enters the CardRegistry, a strict load refuses it in all
 │    three formats and in a sideboard, the Deck Lab refuses a proxy deck
@@ -5762,7 +5768,10 @@ shandalar/
 │   │   └── deck_store.gd    class DeckStore — where decks live
 │   │                          (res://decks + user://decks) and the 1997
 │   │                          save/load messages; setup_screen.gd scans
-│   │                          the same list. Since 2026-09-02
+│   │                          the same list. file_stem prefixes Windows
+│   │                          device names on every host, keeping the
+│   │                          deck's displayed title unchanged (2026-09-13).
+│   │                          Since 2026-09-02
 │   │                          `all_deck_paths` also walks res://decks'
 │   │                          SUBFOLDERS (the ported groups) after the
 │   │                          top-level starters, so [0] is still Big
@@ -6729,6 +6738,8 @@ shandalar/
     ├── macos-baseline-2026-09-12.md  Local Git baseline, Mac setup/build,
     │                          measured portability and deletion-boundary
     │                          fixes, verification commands and evidence
+    ├── bug-hunt-2026-09-13.md  Deck parser/save-name regressions, reproduced
+    │                          failures, verification and platform limits
     ├── ARCHITECTURE.md      Design decisions & layer model — READ FIRST
     ├── CODE_MAP.md          This file
     ├── adding-cards.md      The card-authoring pipeline + checklist

@@ -100,7 +100,14 @@ func parse_dck(text: String, fallback_name := "deck", strict := true) -> void:
 			errors.append("line %d: not a .dck card line: '%s'" % [
 				line_number, line.strip_edges()])
 			continue
-		var count := parts[1].strip_edges().to_int()
+		# [QoL] Reproduced 2026-09-13: 2oops / 1.5 / 3x yielded
+		# zero errors and six unwanted copies across the two piles.
+		# to_int() alone accepts a numeric prefix, not a whole count.
+		var count_token := parts[1].strip_edges()
+		if not count_token.is_valid_int():
+			errors.append("line %d: bad count '%s'" % [line_number, count_token])
+			continue
+		var count := count_token.to_int()
 		var card_name := parts[2].strip_edges()
 		if count < 1:
 			errors.append("line %d: bad count" % line_number)
@@ -141,10 +148,11 @@ func parse(text: String, fallback_name := "deck", strict := true) -> void:
 		if line.begins_with("//"):
 			# .dec headers: "// NAME : Deck Name" names the deck.
 			var body := line.trim_prefix("//").strip_edges()
-			if body.to_lower().begins_with("name"):
-				var colon := body.find(":")
-				if colon != -1:
-					deck_name = body.substr(colon + 1).strip_edges()
+			# A NAME field, not every comment starting with those letters:
+			# "// Nameless idea: Also Changed" used to rename the deck.
+			var colon := body.find(":")
+			if colon != -1 and body.substr(0, colon).strip_edges().to_lower() == "name":
+				deck_name = body.substr(colon + 1).strip_edges()
 			continue
 		if line.begins_with("name:"):
 			deck_name = line.trim_prefix("name:").strip_edges()
