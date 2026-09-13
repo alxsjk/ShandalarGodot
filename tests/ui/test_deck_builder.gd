@@ -39,6 +39,67 @@ func _find(type: String) -> Array:
 	return found
 
 
+# -------------------------------------------- playtest #8: hover text --
+
+func test_playtest_8_every_cards_tooltip_fits_without_losing_rules_text() -> void:
+	var cell := CardArea.Cell.new()
+	add_child_autofree(cell)
+	var room := get_viewport().get_visible_rect().size
+	var border := cell.get_theme_stylebox("panel", "TooltipPanel").get_minimum_size()
+	for card_name in CardRegistry.all_names():
+		var data := CardRegistry.get_card(card_name)
+		var text := "%s\n%s" % [data.card_name, data.oracle_text]
+		var tip: Label = cell._make_custom_tooltip(text)
+		# The declared minimum is read when the popup mounts the label;
+		# get_combined_minimum_size() still has its pre-tree cached value.
+		var before_mount := tip.custom_minimum_size
+		add_child(tip)
+		assert_gte(before_mount.y, tip.get_minimum_size().y,
+			"placement must already know the full height: " + card_name)
+		var required := tip.get_combined_minimum_size() + border
+		assert_lte(required.x, room.x - 32.0, card_name)
+		assert_lte(required.y, room.y - 32.0, card_name)
+		assert_eq(tip.text, text, "full name and oracle text: " + card_name)
+		assert_eq(tip.max_lines_visible, -1, "no truncated rules: " + card_name)
+		tip.free()
+
+
+func test_playtest_8_all_three_surfaces_use_wrapped_tooltips() -> void:
+	screen._add_one("Animate Dead")
+	screen._add_one_side("Animate Dead")
+	screen.filter.set_text("Animate Dead")
+	screen._refresh_inventory()
+	await get_tree().process_frame
+	for area in [screen._inventory, screen._deck_area, screen._sideboard_area]:
+		var cell: CardArea.Cell = area.cell_nodes()[0]
+		var tip: Label = cell._make_custom_tooltip(cell.tooltip_text)
+		add_child_autofree(tip)
+		assert_eq(tip.theme_type_variation, &"TooltipLabel", "keep the game's tooltip theme")
+		assert_eq(tip.autowrap_mode, TextServer.AUTOWRAP_WORD_SMART)
+		assert_eq(tip.mouse_filter, Control.MOUSE_FILTER_IGNORE, "never steal card clicks")
+		assert_eq(tip.text, cell.tooltip_text)
+		assert_gt(tip.get_line_count(), 2, "Animate Dead used to overflow on one rules line")
+
+
+func test_playtest_8_tooltips_adapt_to_a_small_viewport_and_long_proxy_name() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(320, 240)
+	add_child_autofree(viewport)
+	var cell := CardArea.Cell.new()
+	viewport.add_child(cell)
+	var border := cell.get_theme_stylebox("panel", "TooltipPanel").get_minimum_size()
+	for text in ["A short card\nFlying", "Proxy " + "unbroken".repeat(400),
+			"Long text\n" + "Another line of rules.\n".repeat(200)]:
+		var tip: Control = cell._make_custom_tooltip(text)
+		viewport.add_child(tip)
+		var label: Label = tip if tip is Label else tip.get_child(0)
+		var required := tip.get_combined_minimum_size() + border
+		assert_lte(required.x, 288.0, "including long unbroken names")
+		assert_lte(required.y, 208.0, "including many explicit newlines")
+		assert_eq(label.text, text, "the underlying text is kept intact")
+		tip.free()
+
+
 # --------------------------------------------------------- the regions --
 
 func test_the_screen_has_the_1997_regions() -> void:

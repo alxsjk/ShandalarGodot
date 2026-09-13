@@ -3563,8 +3563,11 @@ shandalar/
 │    the relist keeps the ring by name; and WHO GETS THE KEYS driven
 │    through Viewport.push_input — nothing focused, a focused stone (the
 │    arrow goes to the strip, not the next stone; Enter adds and leaves
-│    the stone alone), the type-ahead keeping its own keys, click-then-
-│    Enter, an open dialog and the Q menu keeping theirs;
+│    the stone alone), the type-ahead keeping Enter-to-add, click-then-
+│    Enter, an open dialog and the Q menu keeping theirs. Playtest #7
+│    (2026-09-13): Left/Right return to the bottom strip after adding in
+│    search or focusing the Deck/Sideboard; those surfaces do not move,
+│    Enter still removes from the Deck, modifier chords stay in search;
 │    tests/ui/test_deck_scroll.gd — the two scroll arrows and the corner
 │    count: an arrow at each end running the full height, the bar and the
 │    cards both INSIDE them, the triangle MOUSE_FILTER_IGNORE, one press
@@ -3627,7 +3630,10 @@ shandalar/
 │    tests/ui/test_deck_builder.gd — the screen: every region and every
 │    @DECKSURFACE_STANDALONE command present, add/remove, the paged
 │    Inventory, Clear/Restore, Stats, Load, Save, and that the main
-│    menu's Deck Builder entry points at a scene that exists; and the
+│    menu's Deck Builder entry points at a scene that exists. Playtest #8
+│    (2026-09-13): every card's tooltip fits with full rules text, all
+│    three surfaces use smart wrapping, and tiny viewports bound long
+│    unbroken proxy names and explicit paragraphs; and the
 │    audit pass's own bugs — the scroll surviving a card going into the
 │    deck, bar and wheel landing on the same page, the window resize,
 │    Escape closing a dialog rather than the screen, the @SAVE prompt, a
@@ -5752,7 +5758,11 @@ shandalar/
 │   │   │                      the card, z above the pile marker, shown
 │   │   │                      only while the surface has the keyboard.
 │   │   │                      `owns_key`/`KEYS` name the keys for the
-│   │   │                      screen's routing (DeckBuilderScreen._input)
+│   │   │                      screen's routing (DeckBuilderScreen._input).
+│   │   │                      Cell._make_custom_tooltip wraps card/proxy
+│   │   │                      hover text within the viewport, reserving
+│   │   │                      border space and retaining Godot's tooltip
+│   │   │                      theme, placement and dismissal (2026-09-13)
 │   │   ├── proxy_face.gd    class ProxyFace — **[QoL]** THE PROXY CARD,
 │   │   │                      DRAWN: a card-shaped, card-sized piece of
 │   │   │                      plain paper carrying the name and the word

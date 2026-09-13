@@ -417,20 +417,81 @@ func test_from_a_focused_stone_enter_adds_a_card_and_leaves_the_stone_alone() ->
 	assert_eq(screen.deck.count_of(first), 1, "the card went in")
 
 
-func test_the_type_ahead_keeps_its_own_keys() -> void:
+func test_the_type_ahead_keeps_enter_to_add() -> void:
 	var box := screen._filter_bar.search_field
 	box.text = "lightning bol"
 	screen.filter.set_text("lightning bol")
 	screen._refresh_inventory()
 	await get_tree().process_frame
 	box.grab_focus()
-	_press(KEY_LEFT)
-	assert_true(box.has_focus(), "an arrow in the box moves the caret, nothing else")
-	assert_eq(_strip().cursor_index(), -1)
 	_press(KEY_ENTER)
 	assert_eq(screen.deck.count_of("Lightning Bolt"), 1,
 		"Enter in the box still adds the first match")
 	assert_true(box.has_focus(), "and keeps the keyboard, so four Enters are four Bolts")
+
+
+# Owner's playtest #7, 2026-09-13: Left/Right ALWAYS browse the bottom
+# strip, including after adding without clicking back into that strip.
+func test_playtest_7_arrows_return_from_search_after_enter_adds() -> void:
+	var box := screen._filter_bar.search_field
+	box.text = "lightning"
+	screen.filter.set_text(box.text)
+	screen._refresh_inventory()
+	await get_tree().process_frame
+	box.grab_focus()
+	_press(KEY_ENTER)
+	assert_eq(screen.deck.total(), 1)
+	assert_true(box.has_focus())
+	_press(KEY_RIGHT)
+	assert_true(_strip().has_focus(), "no click back into the strip required")
+	assert_eq(_strip().cursor_index(), 0)
+	_press(KEY_RIGHT)
+	assert_eq(_strip().cursor_index(), 1)
+	_press(KEY_LEFT)
+	assert_eq(_strip().cursor_index(), 0)
+	assert_eq(box.text, "lightning", "browsing does not clear the filter")
+
+
+func test_playtest_7_arrows_return_from_deck_and_sideboard_without_moving_them() -> void:
+	screen._add_one("Lightning Bolt")
+	screen._add_one("Serra Angel")
+	screen._add_one_side("Lightning Bolt")
+	screen._add_one_side("Serra Angel")
+	await get_tree().process_frame
+	for area in [screen._deck_area, screen._sideboard_area]:
+		for arrow in [KEY_LEFT, KEY_RIGHT]:
+			_strip().set_cursor(2)
+			area.set_cursor(0)
+			area.grab_focus()
+			_press(arrow)
+			assert_true(_strip().has_focus())
+			assert_eq(_strip().cursor_index(), 1 if arrow == KEY_LEFT else 3)
+			assert_eq(area.cursor_index(), 0, "the other surface must not move")
+
+
+func test_playtest_7_deck_still_owns_enter_to_remove() -> void:
+	screen._add_one("Lightning Bolt")
+	screen._add_one("Lightning Bolt")
+	await get_tree().process_frame
+	screen._deck_area.set_cursor(0)
+	screen._deck_area.grab_focus()
+	_press(KEY_ENTER)
+	assert_eq(screen.deck.count_of("Lightning Bolt"), 1)
+	assert_true(screen._deck_area.has_focus())
+	assert_eq(_strip().cursor_index(), -1)
+
+
+func test_playtest_7_modified_arrows_stay_in_the_search_field() -> void:
+	var box := screen._filter_bar.search_field
+	box.grab_focus()
+	for modifier in ["ctrl_pressed", "alt_pressed", "meta_pressed"]:
+		var event := _key(KEY_LEFT)
+		event.set(modifier, true)
+		get_viewport().push_input(event)
+		event.pressed = false
+		get_viewport().push_input(event)
+		assert_true(box.has_focus(), modifier)
+	assert_eq(_strip().cursor_index(), -1)
 
 
 func test_a_click_on_a_card_then_enter_adds_another() -> void:
@@ -467,6 +528,8 @@ func test_the_q_menu_keeps_its_arrows() -> void:
 	await get_tree().process_frame
 	assert_true(screen.is_menu_open())
 	_press(KEY_DOWN)
+	_press(KEY_LEFT)
+	_press(KEY_RIGHT)
 	assert_true(screen.is_menu_open(), "still up")
 	assert_eq(_strip().cursor_index(), -1, "the arrow was the menu's")
 	screen._close_deck_menu()

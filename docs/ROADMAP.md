@@ -12263,6 +12263,59 @@ gate evidence, headless duel/match/matrix/gauntlet/field/sweep checks and
 review boundaries are in [`decklab-audit-2026-09-13.md`](decklab-audit-2026-09-13.md).
 Windows, Linux, macOS and Web remain core targets.
 
+## 2026-09-13 — Deck-builder playtest fixes #7 and #8
+
+**#7, Left/Right always browse the bottom Inventory.** Reproduced before
+the routing change through `Viewport.push_input`: search "lightning",
+Enter to add, Right left the strip cursor at `-1`; with the Deck or
+Sideboard focused, the strip stayed at `2` while Right moved the other
+surface's cursor to `1`. Two regression tests failed 13 assertions on the
+old code. Horizontal arrows now return to the Inventory without a click,
+including from the search field. Enter still adds from search and removes
+from the Deck; other surface keys, dialogs, Q/Esc menus and Ctrl/Alt/Meta
+chords retain their existing roles.
+
+**#8, card hover text stays inside the window.** Native macOS rendering
+reproduced Animate Dead's popup at `(0, 725)`, size `(1899, 53)`, in a
+1280x800 window: its rules ran off the right edge. `CardArea.Cell` now
+supplies a smart-wrapped tooltip, normally 420px of text plus the theme's
+border. Width and height account for the viewport and edge margins; unusually
+tall text first gets more width, and pathological imported proxy text has a
+bounded holder. All 897 registered cards retain their complete name and
+rules text without truncation in the normal viewport. This applies to the
+Inventory, Deck and Sideboard and leaves Godot in charge of popup placement,
+theme, hover delay and dismissal. The corrected native Animate Dead popup
+measured `(436, 142)` and displayed all its text inside the window. A native
+bottom-right check also caught post-placement height growth; the label now
+declares its measured height before mounting, including empty rules lines.
+Native captures at 960x600, 1280x800 and 1920x1080 checked the popup's entire
+rectangle against the logical viewport (Godot scales it on smaller windows).
+
+Seven new regressions cover the focus transitions, preserved keyboard
+behavior, the entire card pool and 320x240 viewport stress cases, including
+the pre-placement height of every card (4,535 targeted assertions, exit 0).
+These are shared GDScript UI changes;
+no engine rules, AI, card data or Windows/Linux/macOS/Web export settings
+changed. Final `./run_tests.sh`: 6,107 tests, 161,084 assertions, 353 scripts,
+217.426 seconds, wrapper exit 0 (including its error/leak checks). Existing
+anchor-size warnings and GUT deprecation notices remain; this is not a claim
+of a warning-free suite. Python tools: 219 tests, one platform-specific skip,
+exit 0. The separate Mac debug-template app built and smoke-booted, and
+`codesign --verify --deep --strict` passed. Its `skin/` links to the existing
+local skin and card-art packs; neither the old play app nor its baselines
+were overwritten. Evidence and the new app are outside Git under
+`../shandalar-build/deckbuilder-playtest-2026-09-13/`.
+
+Native live-duel smoke: `./duel_soak.sh --count 1 --rules modern --stall 45`
+completed both seed-1000 modes, 19 turns in demo and 14 in human-fuzz with
+119 clicks; wrapper exit 0 and no ERROR/WARNING/STALL lines. This is a
+two-duel smoke check, not a new six-duel soak measurement. The final native
+tooltip capture also completed without errors or warnings; the temporary
+capture script/scene were removed and its screenshots and logs retained.
+
+No native Windows/Linux run or browser playtest is implied by these Mac
+checks. No remote Git operation or publication was performed.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

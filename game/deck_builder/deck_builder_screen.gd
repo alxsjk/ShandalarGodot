@@ -4741,13 +4741,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## from button to button and Enter on pressing the stone again — nothing
 ## a builder ever asked of either key.
 ##
-## So the keys go to the CARDS unless something that genuinely reads them
-## has the keyboard: a text field (the type-ahead, a finder, the deck's
-## name — Enter there still adds the first match), a card surface (it
-## answers them itself, [method CardArea.handle_key] — the surface last
-## clicked, exactly as the wheel already works), an open dialog or the
-## Q/Esc menu. With a button or nothing at all focused they go to the
-## Inventory, *"the below strip"*, which takes the keyboard with them.
+## Owner's playtest #7, 2026-09-13: Left/Right should ALWAYS select the
+## bottom strip, even after adding without clicking back into it. Repro:
+## search "lightning", Enter, Right left the strip cursor at -1; with
+## the Deck focused, Right moved the Deck cursor instead of the strip.
+## Left/Right now take the Inventory's keyboard from any builder control.
+## Other keys still belong to a focused text field or card surface
+## ([method CardArea.handle_key]): Enter in search adds its first match,
+## Enter on the Deck removes a copy, and Up/Down navigate that surface.
+## Dialogs, the Q/Esc menu and Ctrl/Alt/Meta chords keep ALL their keys.
+## With a button or nothing focused, all card keys go to the Inventory.
 ## `_input` rather than [method _unhandled_key_input] because the focus
 ## hop happens between the two and would eat the arrow first.
 func _input(event: InputEvent) -> void:
@@ -4756,7 +4759,8 @@ func _input(event: InputEvent) -> void:
 	if _dialog_busy() or is_menu_open():
 		return
 	var owner := get_viewport().gui_get_focus_owner()
-	if owner is LineEdit or owner is TextEdit or owner is CardArea:
+	var horizontal: bool = event.keycode == KEY_LEFT or event.keycode == KEY_RIGHT
+	if not horizontal and (owner is LineEdit or owner is TextEdit or owner is CardArea):
 		return
 	if owner != null and not is_ancestor_of(owner):
 		return
