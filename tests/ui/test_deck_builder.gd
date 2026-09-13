@@ -135,7 +135,7 @@ func test_every_deck_surface_command_is_on_the_mini_menu() -> void:
 		assert_true(texts.has(screen._menu_text(label)),
 			"@DECKSURFACE_STANDALONE: %s" % label)
 	for label in DeckBuilderScreen.EXTRA_COMMANDS:
-		assert_true(texts.has("%s  [QoL]" % label),
+		assert_true(texts.has(screen._menu_text(label)),
 			"[QoL] %s, marked as ours" % label)
 
 
@@ -1437,8 +1437,8 @@ func test_the_legality_line_never_grows_the_left_column() -> void:
 		DeckBuilderScreen.LEGALITY_CHARS, "the line is clipped")
 	assert_gt(screen._legality_label.tooltip_text.length(),
 		screen._legality_label.text.length(), "with the whole of it on the cue card")
-	assert_lt(screen._left_column.position.y + screen._left_column.size.y,
-		screen._filter_bar.position.y, "and the column still clears the strip")
+	assert_lt(screen._left_column.global_position.y + screen._left_column.size.y,
+		screen._filter_bar.global_position.y, "and the column still clears the strip")
 
 
 # ------------------------------------------- paging, limits and geometry --
@@ -1510,8 +1510,8 @@ func test_the_regions_do_not_overlap_at_either_window_height() -> void:
 		assert_lte(screen._filter_bar.position.y + screen._filter_bar.size.y,
 			inv.position.y, "the strip clears the Inventory at %d" % height)
 		assert_lte(inv.position.y + inv.size.y, height, "and the Inventory fits")
-		assert_lte(screen._left_column.position.y + screen._left_column.size.y,
-			screen._filter_bar.position.y,
+		assert_lte(screen._left_column.global_position.y + screen._left_column.size.y,
+			screen._filter_bar.global_position.y,
 			"the left column clears the strip at %d" % height)
 		assert_lte(screen._filter_bar.get_combined_minimum_size().x, 1280.0,
 			"and twenty-four medallions plus the tail still fit 1280")

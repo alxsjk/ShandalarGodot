@@ -208,7 +208,7 @@ const MENU_COMMANDS: Array[String] = [
 ## `@DECKEXISTS` are about file names — and its Inventory was the cards
 ## the game HAS, so it had nothing to stand in for a card it did not.
 const EXTRA_COMMANDS: Array[String] = [
-	"Undo", "Filters", "Add basic land", "Add proxy card", "Copy deck to",
+	"Undo", "Big cards", "Filters", "Add basic land", "Add proxy card", "Copy deck to",
 	"Deck notes", "Sideboard", "Import deck", "Export deck",
 ]
 
@@ -224,6 +224,8 @@ const FORMAT_WARNING := "%d card%s break%s the tournament rules (four copies, th
 const RARITY_SETTING := "deck_rarity_marks"
 ## [QoL] Whether the mini cards wear their mana cost — see [member CardArea.show_cost].
 const COST_SETTING := "deck_cost_marks"
+## [QoL] An optional duel-sized Showcase; the original compact layout stays default.
+const BIG_CARDS_SETTING := "deck_big_cards"
 ## [QoL] The Sealed Deck window's four numbers, remembered between visits
 ## the way the two switches above are — see [member sealed].
 const SEALED_SETTINGS := {
@@ -309,6 +311,7 @@ var _undo: DeckModel = null
 var _undo_label := ""
 
 var _showcase: CardPreview
+var _big_cards := false
 ## [QoL] The Showcase's proxy face — the enlarged [ProxyFace], stacked in
 ## the same slot as [member _showcase] and shown instead of it.
 var _proxy_showcase: ProxyFace
@@ -338,6 +341,8 @@ var _dice_button: Button
 ## the packs and [method _open_sealed_window] for the door.
 var sealed: SealedPool = null
 var _left_column: VBoxContainer
+var _left_scroll: ScrollContainer
+var _well: PanelContainer
 var _stats_label: Label
 ## A flat 1997 choice line, not a Label — it is clickable ([QoL], see
 ## [method _open_the_complaint]).
@@ -359,6 +364,7 @@ var _status_timer := 0.0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	_big_cards = bool(Settings.get_value(BIG_CARDS_SETTING, false))
 	CardRegistry.ensure_loaded()
 	for card_name in CardRegistry.all_names():
 		_pool.append(CardRegistry.get_card(card_name))
@@ -504,14 +510,48 @@ func _layout() -> void:
 	# SHOWCASE_SCALE]), so the title stood twelve pixels proud of the
 	# picture it names — the owner's own crop of 2026-09-06 shows the
 	# marble's right edge past the card's. The two are one stack now.
-	_header_slab.size = Vector2(CardPreview.SIZE.x * SHOWCASE_SCALE, HEADER_H)
+	var card_scale := _showcase_scale()
+	_header_slab.size = Vector2(CardPreview.SIZE.x * card_scale, HEADER_H)
 
 	_showcase.position = Vector2(MARGIN, MARGIN + HEADER_H + 6.0)
+	_showcase.scale = Vector2.ONE * card_scale
 	_proxy_showcase.position = _showcase.position
-	_left_column.position = Vector2(MARGIN,
-		_showcase.position.y + CardPreview.SIZE.y * SHOWCASE_SCALE + 6.0)
-	_left_column.size.x = LEFT_W
+	_proxy_showcase.scale = _showcase.scale
+	_left_scroll.position = Vector2(MARGIN,
+		_showcase.position.y + CardPreview.SIZE.y * card_scale + 6.0)
+	_left_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if _big_cards \
+		else ScrollContainer.SCROLL_MODE_DISABLED
+	_left_scroll.size = Vector2(_left_width(),
+		maxf(0.0, _filter_bar.position.y - 5.0 - _left_scroll.position.y))
+	# Reserve the scrollbar's width in big mode even while it is hidden,
+	# so a complaint appearing does not rewrap the whole column.
+	var text_width := _left_width()
+	if _big_cards:
+		text_width -= _left_scroll.get_v_scroll_bar().get_combined_minimum_size().x
+	for control in [_left_column, _stats_label, _legality_label, _well]:
+		control.custom_minimum_size.x = text_width
+	_count_label.custom_minimum_size.x = text_width - 16.0
+	_status_label.custom_minimum_size.x = text_width - 16.0
+	_left_column.size = Vector2(text_width, 0.0)
 	_fit_the_well()
+
+
+func _showcase_scale() -> float:
+	return 1.0 if _big_cards else SHOWCASE_SCALE
+
+
+func _left_width() -> float:
+	return LEFT_W + CardPreview.SIZE.x * (_showcase_scale() - SHOWCASE_SCALE)
+
+
+## [QoL] Owner request, 2026-09-13. The pre-change regression kept the
+## preview at 0.8, the deck at x=270 and never saved the menu choice.
+## A layout change only: leave filters, selection, deck slots and Undo alone.
+func _toggle_big_cards() -> void:
+	_big_cards = not _big_cards
+	Settings.set_value(BIG_CARDS_SETTING, _big_cards)
+	_left_scroll.scroll_vertical = 0
+	_layout()
 
 
 ## THE WELL YIELDS ITS SECOND LINE BEFORE THE COLUMN OVERRUNS THE STRIP.
@@ -525,7 +565,7 @@ func _layout() -> void:
 func _fit_the_well() -> void:
 	if _status_label == null or _filter_bar == null:
 		return
-	var room := _filter_bar.position.y - 5.0 - _left_column.position.y
+	var room := _filter_bar.position.y - 5.0 - _left_scroll.position.y
 	var line := _status_label.get_line_height()
 	var complaint: float = _legality_label.get_theme_font("font").get_height(
 		_legality_label.get_theme_font_size("font_size"))
@@ -545,7 +585,7 @@ func _filter_height() -> float:
 ## and from the right edge of the left column to the right margin.
 func _deck_rect() -> Rect2:
 	var top := MARGIN
-	var left := MARGIN + LEFT_W + 10.0
+	var left := MARGIN + _left_width() + 10.0
 	var bottom := _sideboard_rect().position.y - 6.0
 	return Rect2(left, top, maxf(0.0, size.x - left - MARGIN),
 		maxf(0.0, bottom - top))
@@ -570,7 +610,7 @@ func _deck_rect() -> Rect2:
 
 
 func _sideboard_rect() -> Rect2:
-	var left := MARGIN + LEFT_W + 10.0
+	var left := MARGIN + _left_width() + 10.0
 	var bottom := _filter_bar.position.y - COMMAND_BAR_H - 8.0
 	return Rect2(left, maxf(MARGIN, bottom - SIDEBOARD_H),
 		maxf(0.0, size.x - left - MARGIN), SIDEBOARD_H)
@@ -852,7 +892,7 @@ func _build_showcase() -> void:
 	# not a [CardInstance] and `CardPreview.show_card` takes one (and
 	# because `game/duel/` is not this screen's to change).
 	#
-	# Same slot, same [constant SHOWCASE_SCALE]: the two are stacked and
+	# Same slot and scale: the two are stacked and
 	# exactly one is visible, so the pointer crossing from a card to a
 	# proxy swaps the picture without moving it.
 	_proxy_showcase = ProxyFace.new("", true)
@@ -865,6 +905,7 @@ func _build_showcase() -> void:
 
 	_left_column = VBoxContainer.new()
 	_left_column.custom_minimum_size.x = LEFT_W
+	_left_column.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_left_column.add_theme_constant_override("separation", 2)
 	_stats_label = OriginalDialog.label("", 12)
 	_stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -895,7 +936,8 @@ func _build_showcase() -> void:
 	# Grey, not the Situation Bar's red-brown Telluser stone: the
 	# screenshot's bar is the same pale speckle as the command buttons, and
 	# `bar_style` put a salmon slab down the left of the first capture.
-	var bar := PanelContainer.new()
+	_well = PanelContainer.new()
+	var bar := _well
 	# A WELL, NOT A BUTTON. This strip carries the game's line TO the
 	# player — how long the filtered list is, and the screen's last word —
 	# and it wore `button_normal`, the original's raised button face. Two
@@ -967,7 +1009,13 @@ func _build_showcase() -> void:
 	lines.add_child(_status_label)
 	bar.add_child(lines)
 	_left_column.add_child(bar)
-	add_child(_left_column)
+	# The full-sized card leaves less vertical room. Scroll just the
+	# information underneath it, never the card or the bottom Inventory.
+	_left_scroll = ScrollContainer.new()
+	_left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_left_scroll.follow_focus = true
+	_left_scroll.add_child(_left_column)
+	add_child(_left_scroll)
 
 
 # --------------------------------------------------------- the Deck area --
@@ -1646,6 +1694,7 @@ func _run_command(label: String) -> void:
 		"Move by color out of deck": _open_group_move()
 		"Filters": _filter_bar.open_all_menu()
 		"Undo": _undo_last()
+		"Big cards": _toggle_big_cards()
 		"Add basic land": _open_land_dialog()
 		"Add proxy card": _open_proxy_dialog()
 		"Copy deck to": _open_copy_dialog()
@@ -3130,6 +3179,8 @@ func _menu_text(label: String) -> String:
 			"[x]" if Settings.get_value(CHECKED_COMMANDS[label], true) else "[  ]",
 			label]
 	var text := _undo_menu_label() if label == "Undo" else label
+	if label == "Big cards":
+		text = "%s %s" % ["[x]" if _big_cards else "[  ]", label]
 	return "%s  [QoL]" % text if EXTRA_COMMANDS.has(label) else text
 
 

@@ -12354,6 +12354,55 @@ The final native live-screen smoke also completed both seed-1000 duels
 (demo: 19 turns; human-fuzz: 14 turns, 119 clicks), wrapper exit 0 with
 no ERROR/WARNING/STALL lines.
 
+## 2026-09-13 — Optional duel-sized deck-builder Showcase
+
+Owner request: keep the current GUI, add a remembered right-click option
+with a wider left bar and a card the same size as the duel's. Before the
+change, the three regression tests failed ten assertions: no menu entry,
+the preview remained at scale 0.8, the Deck stayed at x=270 and no setting
+was saved. Evidence: `../shandalar-build/deckbuilder-big-cards-2026-09-13/before.log`.
+
+`Big cards [QoL]` in the Deck/right-click mini-menu now switches both real
+and proxy Showcases from 240×342.4 to the duel's native 300×428 logical
+pixels. The header follows the card; the left column grows by 60px and the
+Deck, Sideboard and command row shift together. The bottom Inventory and
+filter strip do not change. Classic is still the default, and toggling back
+restores its geometry. `deck_big_cards` persists through Settings without
+writing a default on startup. It is independent of the existing expanded
+card-text option and changes no deck contents, filter, cursor or Undo state.
+
+Only the information beneath the full-sized card scrolls when height is
+tight; the card and Inventory remain fixed. Ten layout regressions cover
+defaults, menu activation/checkmark, disk reload/reopen, repeated toggles,
+proxy faces, text expansion, short-window bounds and the existing keyboard
+shortcuts. Actual native macOS captures at 1280×800, 960×600 and 1920×1080
+show the new layout, and a second Godot process restored scale 1.0 from the
+saved choice. Screenshots/logs are in the same scratch directory. No card
+rules, duel sizing, AI or export presets changed; the implementation uses
+shared Godot controls for Windows, Linux, macOS and Web. Mac verification
+does not certify native Windows/Linux or browser runtime behavior.
+
+The first full gate caught the missing Big cards entry in the in-game Help
+page (6,123/6,124 tests passed). That existing coverage now also guards the
+new menu item; the page explains the remembered layout, return to classic,
+short-window scrolling and independence from the card-text switch.
+The same page's outdated focus-dependent Enter description was also
+corrected to the earlier playtest fixes: Inventory Left/Right, Enter adds,
+Backspace removes, and text fields/dialogs retain editing and submission.
+
+Final verification: full GUT gate 6,124 tests / 161,222 assertions in
+212.746 seconds, wrapper exit 0; Python tools 219 tests, one platform skip,
+exit 0. Native modern-rules smoke completed seed 1000 in both modes:
+demo 19 turns in 23.0s; human-fuzz 14 turns in 19.2s with 119 clicks;
+wrapper exit 0, no ERROR/WARNING/STALL lines. The native layout and restart
+probes also exited 0 without errors/warnings. Their temporary source files
+were removed; screenshots and logs remain. The final macOS app built and
+smoke-booted at
+`../shandalar-build/deckbuilder-big-cards-2026-09-13/macos/Shandalar.app`,
+with its ad-hoc signature verified and existing local art packs linked
+beside it. Previous playtest apps remain available. All changes stay on
+`local/decklab-audit-2026-09-13`; no branch creation or online push.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

@@ -3549,6 +3549,11 @@ shandalar/
 │    of that file, the other seat keeping its row's text, the seed
 │    replaying the name, a pooled `<random from …>` naming a deck under
 │    its pool) and the label rule one rule for the row and the duel;
+│    tests/ui/test_deck_layout.gd — optional duel-sized Showcase (2026-09-13):
+│    classic default, checked Big cards mini-menu, 1:1 real/proxy previews,
+│    aligned wider Deck/Sideboard, unchanged Inventory and disk persistence,
+│    repeatable classic restoration, short-window information scrolling,
+│    filter/selection/Undo preservation and arrows/Enter/Backspace in big mode;
 │    tests/ui/test_deck_keyboard.gd — the keyboard cursor (2026-09-08):
 │    the first arrow selects the page's first card, Left/Right walk it a
 │    card at a time and stop at the ends, Up/Down are the same walk on the
@@ -5295,6 +5300,9 @@ shandalar/
 │   │   └── help_pages.gd    class HelpPages — the CONTENT, as pure data
 │   │                          (title + blocks; TEXT / QUOTE / HEADING /
 │   │                          ICONS), so it is testable without a scene.
+│   │                          The Deck Builder page also explains the
+│   │                          remembered Big cards layout and how it differs
+│   │                          from expanding the card's rules text box.
 │   │                          Every QUOTE names its source — the 1997
 │   │                          manual by printed page, a `Duel.hlp` topic,
 │   │                          or a `@CUECARD_*` string — and unquoted
@@ -5377,7 +5385,13 @@ shandalar/
 │   │   │                      surface's right-click mini-menu, which the
 │   │   │                      `Deck` button also opens. Every region is
 │   │   │                      laid out from the current size, so the
-│   │   │                      screen follows the window; Escape closes the
+│   │   │                      screen follows the window. [QoL] Big cards
+│   │   │                      in that mini-menu remembers `deck_big_cards`:
+│   │   │                      `_toggle_big_cards` switches `_showcase_scale`
+│   │   │                      from 0.8 to the duel's 1.0, `_left_width` grows
+│   │   │                      by 60px and the information below scrolls in
+│   │   │                      short windows; classic stays default and the
+│   │   │                      Inventory stays unchanged. Escape closes the
 │   │   │                      front-most dialog before it closes the
 │   │   │                      screen; @SAVE asks before New deck / Load
 │   │   │                      deck / Exit throw a modified deck away; the
