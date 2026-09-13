@@ -675,8 +675,16 @@ func test_the_main_menu_wears_our_name_in_the_bottom_left() -> void:
 		Vector2(0, 1), "anchored bottom-LEFT")
 	assert_eq(column.grow_horizontal, Control.GROW_DIRECTION_END)
 	assert_eq(column.grow_vertical, Control.GROW_DIRECTION_BEGIN)
-	assert_eq(Vector2(version.anchor_left, version.anchor_top),
-		Vector2(1, 1), "and the version tag bottom-RIGHT")
+	# The version now closes the online-button/download stack, just as
+	# the wordmark heads the badge stack. Their containers own the anchors.
+	var status := version.get_parent() as Control
+	assert_true(status is VBoxContainer)
+	assert_eq(Vector2(status.anchor_left, status.anchor_top),
+		Vector2(1, 1), "and the version's stack bottom-RIGHT")
+	assert_eq(status.grow_horizontal, Control.GROW_DIRECTION_BEGIN)
+	assert_eq(status.grow_vertical, Control.GROW_DIRECTION_BEGIN)
+	assert_almost_eq(version.get_global_rect().end.x, menu.get_global_rect().end.x - 10.0, 0.5)
+	assert_almost_eq(version.get_global_rect().end.y, menu.get_global_rect().end.y - 8.0, 0.5)
 	assert_gt(column.position.x, 0.0, "inset from the left edge")
 	assert_lt(column.position.x, 40.0, "but only just")
 	# The badges hang UNDER the name — the owner's ask, and the reason the

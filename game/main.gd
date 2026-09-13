@@ -1,8 +1,8 @@
 class_name MainScreen
 extends Control
-## Title screen — three stone buttons aligned center-right over the
-## original title art (the 1997 shell's composition): Magic Battle opens
-## the battle-setup screen, Options the options screen, Exit quits.
+## Title screen — the stone menu column over the original title art,
+## plus the corner wordmark, card sets, version and future Manalink entry.
+## Magic Battle opens setup; adventure and online games are placeholders.
 ## The adventure mode (M5) will grow this menu; the flow stays:
 ## menu -> setup -> duel.
 
@@ -16,6 +16,8 @@ const MENU_GAP := 6
 const MENU_FONT := 21
 ## Faked weight — MagicMedieval ships no bold ([method UiChrome.menu_button]).
 const MENU_BOLD := 0.05
+## [QoL] The future online mode's square, separate from the menu column.
+const MANALINK_SIZE := Vector2(72, 72)
 
 
 
@@ -37,6 +39,7 @@ const DECK_LAB_FLAG := "--deck-lab"
 
 ## The corner line that reports a skin zip on its way (web builds).
 var _fetching: Label
+var _manalink_notice: Control
 
 
 func _ready() -> void:
@@ -164,38 +167,56 @@ func _ready() -> void:
 	box.add_child(exit_button)
 
 
-	# Version tag in the bottom-right corner, under the buttons.
+	# A bottom-right stack keeps the globe immediately above the version,
+	# with download progress above BOTH so web fetching never covers it.
+	var status := VBoxContainer.new()
+	status.name = "OnlineCorner"
+	status.add_theme_constant_override("separation", 6)
+	status.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	status.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	status.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	status.position += Vector2(-10, -8)
+	add_child(status)
+
+	# THE ART ON ITS WAY. A web build with no skin stored fetches the skin
+	# and card packs from beside its page. Reserve only the available corner
+	# width; a long progress line wraps instead of crossing the main menu.
+	var fetching := Label.new()
+	fetching.name = "Fetching"
+	_corner_label(fetching, 12)
+	fetching.custom_minimum_size.x = 240.0
+	fetching.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fetching.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fetching.visible = SkinPack.busy()
+	fetching.text = SkinPack.transfer_line(SkinPack.fetch_progress())
+	status.add_child(fetching)
+	_fetching = fetching
+	SkinPack.fetch_progressed.connect(_on_fetch_progressed)
+
+	# [QoL] Owner request, 2026-09-13: a square shell button wearing a
+	# green globe, reserved for Manalink online games. Enabled, like the
+	# adventure placeholder, so mouse and keyboard can ask what it is.
+	var online := UiChrome.menu_button("", MANALINK_SIZE, MENU_FONT, MENU_BOLD)
+	online.name = "Manalink"
+	online.tooltip_text = "Manalink online games — coming in a future update."
+	online.size_flags_horizontal = Control.SIZE_SHRINK_END
+	online.pressed.connect(_open_manalink_notice)
+	status.add_child(online)
+	var globe := ManalinkGlobe.new()
+	globe.name = "Globe"
+	online.add_child(globe)
+	globe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT,
+		Control.PRESET_MODE_MINSIZE, 10.0)
+
+	# Version tag stays at the bottom-right corner beneath the new button.
 	var version := Label.new()
+	version.name = "Version"
 	version.text = "v%s · %d cards" % [
 		ProjectSettings.get_setting("application/config/version", "dev"),
 		CardRegistry.size()]
 	_corner_label(version, 12)
-	version.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	version.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	version.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	version.position += Vector2(-10, -8)
-	add_child(version)
-
-	# THE ART ON ITS WAY. A web build with no skin stored fetches
-	# `skin/original_skin.zip`, then `skin/cardart.zip`, from beside its
-	# page ([SkinPack]); while one comes, one line above the version tag
-	# says which and how far it is, and goes away when the fetch ends
-	# either way. Bound rather than polled, and built in the corner
-	# voice like the tag it sits over.
-	var fetching := Label.new()
-	fetching.name = "Fetching"
-	_corner_label(fetching, 12)
-	fetching.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	fetching.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	fetching.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	fetching.position += Vector2(-10, -26)
-	fetching.visible = SkinPack.busy()
-	fetching.text = SkinPack.transfer_line(SkinPack.fetch_progress())
-	add_child(fetching)
-	_fetching = fetching
-	# A method, not a lambda: a bound method leaves the autoload's signal
-	# with the screen, a lambda would outlive it and write to a freed label.
-	SkinPack.fetch_progressed.connect(_on_fetch_progressed)
+	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	status.add_child(version)
 
 	# THE WORDMARK OVER THE CARD POOL, bottom-left. Both were here before
 	# in some form — the name in this corner at 16px, the badges up in the
@@ -260,6 +281,15 @@ func _ready() -> void:
 func _on_fetch_progressed(fraction: float) -> void:
 	_fetching.visible = SkinPack.busy()
 	_fetching.text = SkinPack.transfer_line(fraction)
+
+
+## The placeholder never changes rooms or attempts a network connection.
+func _open_manalink_notice() -> void:
+	if is_instance_valid(_manalink_notice):
+		return
+	_manalink_notice = UiChrome.explain_popup(self, "Manalink — online games",
+		"Online multiplayer is planned for a future update. Manalink "
+		+ "online games are not implemented yet.")
 
 
 ## Hand the rest of the command line to the Deck Lab and quit with its

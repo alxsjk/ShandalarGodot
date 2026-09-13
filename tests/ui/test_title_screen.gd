@@ -574,7 +574,7 @@ func test_the_menu_letters_are_emboldened_because_there_is_no_bold_cut() -> void
 
 func test_the_fetch_line_is_silent_when_nothing_is_on_its_way() -> void:
 	var screen := await _build()
-	var line := screen.get_node_or_null("Fetching") as Label
+	var line := screen.find_child("Fetching", true, false) as Label
 	assert_not_null(line, "the shell builds its fetch line")
 	assert_false(line.visible,
 		"nothing is fetching under the editor, so the line stays hidden")
@@ -591,7 +591,7 @@ func test_the_fetch_line_says_how_far_when_the_host_said_how_big() -> void:
 
 func test_the_fetch_line_follows_the_download() -> void:
 	var screen := await _build()
-	var line := screen.get_node_or_null("Fetching") as Label
+	var line := screen.find_child("Fetching", true, false) as Label
 	# Nothing downloads under the editor; the flags are set by hand and
 	# put back, so the line is seen following them.
 	SkinPack.fetching = true
@@ -605,3 +605,111 @@ func test_the_fetch_line_follows_the_download() -> void:
 	assert_false(line.visible,
 		"the line follows the pack's own fetching flag, not the signal alone")
 	assert_eq(line.text, "", "and says nothing when nothing is on its way")
+
+
+## [QoL] Owner request, 2026-09-13: a retro globe in a square shell
+## button above the version, reserved for future Manalink online games.
+func test_manalink_has_a_square_placeholder_above_the_version() -> void:
+	var title := await _build_at_window_size()
+	var online := title.find_child("Manalink", true, false) as Button
+	assert_not_null(online, "the future online mode has a visible front door")
+	if online == null:
+		return
+	var version := title.find_child("Version", true, false) as Label
+	assert_not_null(version)
+	if version == null:
+		return
+	assert_eq(online.size, Vector2(72, 72))
+	assert_almost_eq(online.get_global_rect().end.x, WINDOW.x - 10.0, 0.5)
+	assert_lte(online.get_global_rect().end.y, version.global_position.y - 6.0)
+	assert_false(online.disabled, "a placeholder still explains itself")
+	assert_string_contains(online.tooltip_text, "Manalink")
+	assert_string_contains(online.tooltip_text.to_lower(), "coming")
+	assert_not_null(online.get_node_or_null("Globe"), "the reference-inspired globe is drawn")
+
+
+func test_manalink_uses_the_main_menu_chrome_and_the_globe_does_not_take_input() -> void:
+	var title := await _build_at_window_size()
+	var online := title.find_child("Manalink", true, false) as Button
+	var ordinary := _menu_column(title).get_child(0) as Button
+	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		assert_true(online.has_theme_stylebox_override(state), state)
+		var actual := online.get_theme_stylebox(state)
+		var expected := ordinary.get_theme_stylebox(state)
+		assert_eq(actual.get_class(), expected.get_class(), state + " uses the same treatment")
+		assert_eq(actual.get_content_margin(SIDE_LEFT), expected.get_content_margin(SIDE_LEFT))
+		if actual is StyleBoxTexture:
+			assert_eq(actual.texture, expected.texture, state + " uses the same stone")
+		elif actual is StyleBoxFlat:
+			assert_eq(actual.bg_color, expected.bg_color, state + " uses the same fallback")
+	var globe := online.get_node("Globe") as Control
+	assert_true(globe is ManalinkGlobe)
+	assert_eq(globe.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	assert_eq(globe.focus_mode, Control.FOCUS_NONE)
+	assert_eq(online.focus_mode, Control.FOCUS_ALL, "the button is keyboard reachable")
+
+
+func test_manalink_and_download_progress_stay_clear_of_the_menu_when_resized() -> void:
+	var title := await _build_at_window_size()
+	var online := title.find_child("Manalink", true, false) as Button
+	var version := title.find_child("Version", true, false) as Label
+	var fetching := title.find_child("Fetching", true, false) as Label
+	for window in [Vector2(1280, 800), Vector2(960, 600), Vector2(1920, 1080)]:
+		title.get_parent().size = window
+		for busy in [false, true, false]:
+			fetching.visible = busy
+			fetching.text = "Fetching the card art… 100%"
+			for _i in 4:
+				await get_tree().process_frame
+			assert_eq(online.size, Vector2(72, 72), "still square after resizing")
+			assert_almost_eq(online.get_global_rect().end.x, window.x - 10.0, 0.5)
+			assert_almost_eq(version.get_global_rect().end.y, window.y - 8.0, 0.5)
+			assert_lte(online.get_global_rect().end.y, version.global_position.y - 6.0)
+			assert_false(online.get_global_rect().intersects(_menu_column(title).get_global_rect()))
+			if busy:
+				assert_lte(fetching.get_global_rect().end.y, online.global_position.y - 6.0)
+				assert_gte(fetching.global_position.x, _menu_column(title).get_global_rect().end.x)
+
+
+func test_manalink_opens_only_a_closeable_future_feature_notice() -> void:
+	var title := await _build_at_window_size()
+	var online := title.find_child("Manalink", true, false) as Button
+	online.pressed.emit()
+	await get_tree().process_frame
+	var notice: Control = title._manalink_notice
+	assert_true(is_instance_valid(notice))
+	assert_eq(notice.get_parent(), title, "the player stays on the main menu")
+	var explanation := ""
+	var ok: Button
+	for node in notice.find_children("*", "", true, false):
+		if node is Label:
+			explanation += node.text + "\n"
+		if node is Button and node.text == "OK":
+			ok = node
+	assert_string_contains(explanation, "Manalink")
+	assert_string_contains(explanation, "not implemented yet")
+	assert_not_null(ok)
+	online.pressed.emit()
+	assert_eq(title._manalink_notice, notice, "rapid activation cannot stack notices")
+	if ok != null:
+		ok.pressed.emit()
+		await get_tree().process_frame
+		assert_false(is_instance_valid(notice))
+		online.pressed.emit()
+		await get_tree().process_frame
+		assert_true(is_instance_valid(title._manalink_notice), "the placeholder can be reopened")
+
+
+func test_manalink_can_be_activated_with_the_keyboard() -> void:
+	var title := await _build_at_window_size()
+	var online := title.find_child("Manalink", true, false) as Button
+	online.grab_focus()
+	var press := InputEventKey.new()
+	press.keycode = KEY_ENTER
+	press.pressed = true
+	get_viewport().push_input(press)
+	var release := press.duplicate() as InputEventKey
+	release.pressed = false
+	get_viewport().push_input(release)
+	await get_tree().process_frame
+	assert_true(is_instance_valid(title._manalink_notice))

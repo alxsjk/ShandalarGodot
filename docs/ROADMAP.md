@@ -12441,6 +12441,57 @@ current deck-builder changes:
 - [ ] **Shandalar adventure** — the adventure/campaign mode.
 - [ ] **Manalink multiplayer** — multiplayer duels.
 
+## 2026-09-13 — Manalink globe placeholder on the main menu
+
+Owner request: a square button just above the version in the bottom-right
+corner, in the main-menu button style, with a design like the supplied
+green retro globe. The first title-screen regression failed because no
+Manalink control existed (`../shandalar-build/manalink-placeholder-2026-09-13/before.log`).
+
+A 72×72 [QoL] button now reuses `UiChrome.menu_button`, including its
+normal, hover, pressed and keyboard-focus treatment. `ManalinkGlobe` draws
+an original green sphere with dark meridians and bowed latitude lines
+directly in Godot; the reference informs the design, but no photo pixels
+or third-party asset are bundled. The icon ignores input so clicks reach
+the button. Its tooltip and mouse/keyboard-activated notice explicitly say
+that online multiplayer is planned and not implemented. The notice can be
+closed and reopened, and repeated activation cannot stack copies. No
+network connection, matchmaking, account flow or multiplayer implementation
+is added; the future-feature item above remains pending.
+
+The bottom-right stack puts web-download progress above the button and
+the version below, keeping the existing version inset and main menu
+column. Five regressions cover geometry, chrome, input, placeholder
+behavior and resize/download-status separation. Native Mac renders at
+1280×800, 960×600 and 1920×1080 verified the button, real mouse activation,
+notice dismissal and visible download progress. The initial audio-dummy
+capture reported five audio-playlist objects at exit; stopping the shell
+bed explicitly before the temporary probe quits removed that warning.
+No game audio behavior was changed.
+
+The first full gate caught one outdated test asserting that the version
+Label itself owned the bottom-right anchors (6,129/6,130 passed). Like the
+existing wordmark/badge stack, its container now owns those anchors. The
+test checks that container's anchors/growth and also verifies the version's
+actual 10px-right/8px-bottom inset. The download-status regression covers
+appearing and disappearing at each window size without moving the footer.
+
+Final verification: full GUT gate 6,130 tests / 161,327 assertions in
+218.316 seconds, wrapper exit 0; Python tools 219 tests, one platform skip,
+exit 0. The title-screen file passes 29 tests / 182 assertions. The final
+native screenshot/click-through probe exits 0 without errors/warnings;
+its temporary sources were removed and the images/logs retained in the
+scratch directory above. The new Mac app built and smoke-booted at
+`../shandalar-build/manalink-placeholder-2026-09-13/macos/Shandalar.app`,
+with its signature verified and existing local art packs linked alongside.
+Previous apps remain available. The globe uses portable Godot drawing and
+controls; these Mac checks do not certify native Windows/Linux or browser
+runtime behavior.
+The final native modern-rules smoke finished both seed-1000 duels: demo
+19 turns in 23.7s; human-fuzz 14 turns in 19.2s and 119 clicks. Wrapper
+exit 0, no ERROR/WARNING/STALL lines. All work remains on
+`local/decklab-audit-2026-09-13`; no branch creation or online push.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

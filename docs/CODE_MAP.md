@@ -3531,7 +3531,10 @@ shandalar/
 │    as numbers — minimum_display_time is 1000 ms, is <= the ceiling that
 │    keeps the game reachable in about two seconds, the image is still
 │    the owner's on black, and run/main_scene is still main.tscn (no
-│    scene was added ahead of the title screen);
+│    scene was added ahead of the title screen). Manalink placeholder
+│    (2026-09-13): square stone button above the version, matching chrome,
+│    globe input passthrough, resized/download corner bounds, a closeable
+│    future-feature notice, duplicate guard and keyboard activation;
 │    tests/ui/test_setup_screen.gd — THE BATTLE-SETUP SCREEN: `<random
 │    deck>` first and worded as 1997 worded it, the pick a pure function
 │    of the seed, every duel leaving seeded, the duelist's face per seat,
@@ -4647,9 +4650,10 @@ shandalar/
 │
 ├── game/                    ← PRESENTATION LAYER (playable duels, 3 modes)
 │   ├── main.tscn / main.gd  Title (its music is ShellMusic's, see
-│   │                          shell_music.gd): 6 stone buttons center-right over the
+│   │                          shell_music.gd): eight stone buttons center-right over the
 │   │                          original title art — Magic Battle /
-│   │                          Gauntlet / Deck Builder / Options / Help /
+│   │                          Gauntlet / Shandalar / Save / Load /
+│   │                          Deck Builder / Options / Help /
 │   │                          Exit (Gauntlet is @SHELLSCREEN_DUEL entry
 │   │                          2, directly under `1Solo &Duel`, carrying
 │   │                          that entry's own description as its
@@ -4661,6 +4665,12 @@ shandalar/
 │   │                          the version/card-count tag bottom-right,
 │   │                          same parchment ink and 1px shadow, both
 │   │                          anchored so they follow the window. The
+│   │                          bottom-right OnlineCorner now stacks web
+│   │                          download progress, a 72px Manalink globe
+│   │                          button and the version. The button reuses
+│   │                          UiChrome.menu_button and opens only a future-
+│   │                          feature notice (_open_manalink_notice), never
+│   │                          a network connection or another screen. The
 │   │                          SET BADGES sit UNDER the wordmark in that
 │   │                          same bottom-left column, on a UiChrome stone
 │   │                          plaque. MUSIC since 2026-09-04 (the owner's
@@ -4678,6 +4688,12 @@ shandalar/
 │   │                          restarting. Respects the global music switch;
 │   │                          _exit_tree and _open both stop it, so the next
 │   │                          screen starts against silence
+│   ├── manalink_globe.gd    class ManalinkGlobe — [QoL] original vector
+│   │                          drawing of a green retro-network globe, from
+│   │                          circles, ellipses and bowed parallels. The
+│   │                          owner's reference informs the design; no photo
+│   │                          pixels or external asset are shipped. Scales
+│   │                          with its control and passes input to its button.
 │   ├── set_badges.gd        class SetBadges — THE CARD POOL, said in one
 │   │                          row, and since 2026-09-03 each badge is
 │   │                          CLICKABLE: `set_clicked` carries the code to
