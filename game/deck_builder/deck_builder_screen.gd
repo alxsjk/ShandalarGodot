@@ -4746,26 +4746,49 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## search "lightning", Enter, Right left the strip cursor at -1; with
 ## the Deck focused, Right moved the Deck cursor instead of the strip.
 ## Left/Right now take the Inventory's keyboard from any builder control.
-## Other keys still belong to a focused text field or card surface
-## ([method CardArea.handle_key]): Enter in search adds its first match,
-## Enter on the Deck removes a copy, and Up/Down navigate that surface.
+## Follow-up, 2026-09-13: Enter ADDS the selected Inventory card, Backspace
+## REMOVES one copy from the main deck if present. Repro before this change:
+## Enter, Enter, Backspace left two Abu Ja'far in the deck; Enter with the
+## Deck focused removed its card. Plain Enter/keypad Enter now also return
+## to the Inventory. Backspace needs a visible selection and never chooses
+## an implicit first card; auto-repeat and an absent copy are quiet no-ops.
+## Text fields keep text deletion and Enter-to-submit (search adds its first
+## match), while Up/Down and Shift+Enter retain their surface-specific roles.
 ## Dialogs, the Q/Esc menu and Ctrl/Alt/Meta chords keep ALL their keys.
 ## With a button or nothing focused, all card keys go to the Inventory.
 ## `_input` rather than [method _unhandled_key_input] because the focus
 ## hop happens between the two and would eat the arrow first.
 func _input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed) or not CardArea.owns_key(event):
+	var key := event as InputEventKey
+	if key == null or not key.pressed:
+		return
+	var backspace := key.keycode == KEY_BACKSPACE and not key.ctrl_pressed \
+		and not key.alt_pressed and not key.meta_pressed
+	if not CardArea.owns_key(key) and not backspace:
 		return
 	if _dialog_busy() or is_menu_open():
 		return
 	var owner := get_viewport().gui_get_focus_owner()
-	var horizontal: bool = event.keycode == KEY_LEFT or event.keycode == KEY_RIGHT
-	if not horizontal and (owner is LineEdit or owner is TextEdit or owner is CardArea):
+	var horizontal := key.keycode == KEY_LEFT or key.keycode == KEY_RIGHT
+	if not horizontal and (owner is LineEdit or owner is TextEdit):
 		return
 	if owner != null and not is_ancestor_of(owner):
 		return
+	if backspace:
+		get_viewport().set_input_as_handled()
+		if key.is_echo() or not _inventory._on_page(_inventory.cursor_index()):
+			return
+		var selected := _inventory.cursor_entry()
+		if selected == null or deck.count_of(selected.card_name) == 0:
+			return
+		_inventory.grab_focus()
+		_remove_one(selected.card_name)
+		return
+	var adding := key.keycode in [KEY_ENTER, KEY_KP_ENTER] and not key.shift_pressed
+	if owner is CardArea and not horizontal and not adding:
+		return
 	_inventory.grab_focus()
-	_inventory.handle_key(event)
+	_inventory.handle_key(key)
 	get_viewport().set_input_as_handled()
 
 

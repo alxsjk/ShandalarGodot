@@ -469,16 +469,144 @@ func test_playtest_7_arrows_return_from_deck_and_sideboard_without_moving_them()
 			assert_eq(area.cursor_index(), 0, "the other surface must not move")
 
 
-func test_playtest_7_deck_still_owns_enter_to_remove() -> void:
+func test_enter_from_other_surfaces_adds_the_inventory_selection() -> void:
 	screen._add_one("Lightning Bolt")
 	screen._add_one("Lightning Bolt")
+	screen._add_one_side("Serra Angel")
 	await get_tree().process_frame
-	screen._deck_area.set_cursor(0)
-	screen._deck_area.grab_focus()
+	_strip().set_cursor(2)
+	var selected := _strip().cursor_entry().card_name
+	for area in [screen._deck_area, screen._sideboard_area]:
+		for code in [KEY_ENTER, KEY_KP_ENTER]:
+			area.set_cursor(0)
+			area.grab_focus()
+			var had := screen.deck.count_of(selected)
+			_press(code)
+			assert_eq(screen.deck.count_of(selected), had + 1)
+			assert_eq(screen.deck.count_of("Lightning Bolt"), 2, "Enter never removes")
+			assert_eq(screen.deck.sideboard.get("Serra Angel", 0), 1)
+			assert_true(_strip().has_focus())
+			assert_eq(_strip().cursor_index(), 2)
+
+
+func test_backspace_removes_one_selected_copy_and_enter_adds_it_back() -> void:
+	_press(KEY_RIGHT)
+	_press(KEY_RIGHT)
+	var selected := _strip().cursor_entry().card_name
 	_press(KEY_ENTER)
-	assert_eq(screen.deck.count_of("Lightning Bolt"), 1)
-	assert_true(screen._deck_area.has_focus())
-	assert_eq(_strip().cursor_index(), -1)
+	_press(KEY_ENTER)
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.count_of(selected), 1)
+	assert_eq(_strip().cursor_entry().card_name, selected)
+	assert_true(_strip().has_focus())
+	assert_eq(screen._undo_label, "Remove " + selected)
+	screen._undo_last()
+	assert_eq(screen.deck.count_of(selected), 2, "removal uses the normal Undo path")
+	_press(KEY_BACKSPACE)
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.count_of(selected), 0)
+	_press(KEY_ENTER)
+	assert_eq(screen.deck.count_of(selected), 1, "selection survives removal of the last copy")
+
+
+func test_backspace_ignores_auto_repeat_and_key_release() -> void:
+	_strip().set_cursor(2)
+	_strip().grab_focus()
+	var selected := _strip().cursor_entry().card_name
+	for _i in 3:
+		screen._add_one(selected)
+	_press(KEY_BACKSPACE)
+	get_viewport().push_input(_key(KEY_BACKSPACE, false, false, true))
+	var up := _key(KEY_BACKSPACE)
+	up.pressed = false
+	get_viewport().push_input(up)
+	assert_eq(screen.deck.count_of(selected), 2, "one copy per physical press")
+
+
+func test_backspace_absent_card_does_not_change_deck_sideboard_or_undo() -> void:
+	_strip().set_cursor(2)
+	_strip().grab_focus()
+	var selected := _strip().cursor_entry().card_name
+	screen._add_one_side(selected)
+	var history := screen._undo
+	var message := screen._status_label.text
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.total(), 0)
+	assert_eq(screen.deck.sideboard.get(selected, 0), 1, "main deck only")
+	assert_same(screen._undo, history)
+	assert_eq(screen._status_label.text, message, "an absent card is a quiet no-op")
+
+
+func test_backspace_without_a_visible_selection_does_not_remove_any_card() -> void:
+	var first := _card_at(_strip(), 0)
+	screen._add_one(first)
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.count_of(first), 1, "no implicit first-card removal")
+	_strip().set_cursor(30)
+	var hidden := _strip().cursor_entry().card_name
+	screen._add_one(hidden)
+	_strip().reset_scroll()
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.count_of(hidden), 1, "do not remove an off-page selection")
+	screen.filter.set_text("zzzz no matches")
+	screen._refresh_inventory()
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.total(), 2, "empty inventory is harmless too")
+
+
+func test_backspace_from_other_controls_targets_the_bottom_selection() -> void:
+	screen._add_one("Lightning Bolt")
+	screen._add_one_side("Serra Angel")
+	await get_tree().process_frame
+	_strip().set_cursor(2)
+	var selected := _strip().cursor_entry().card_name
+	for owner in [screen._filter_bar._buttons[0], screen._deck_area, screen._sideboard_area]:
+		screen._add_one(selected)
+		owner.grab_focus()
+		_press(KEY_BACKSPACE)
+		assert_eq(screen.deck.count_of(selected), 0)
+		assert_eq(screen.deck.count_of("Lightning Bolt"), 1)
+		assert_eq(screen.deck.sideboard.get("Serra Angel", 0), 1)
+		assert_true(_strip().has_focus())
+
+
+func test_backspace_edits_search_without_removing_the_selected_card() -> void:
+	_strip().set_cursor(2)
+	var selected := _strip().cursor_entry().card_name
+	screen._add_one(selected)
+	var box := screen._filter_bar.search_field
+	box.text = "abc"
+	box.grab_focus()
+	box.caret_column = 3
+	_press(KEY_BACKSPACE)
+	assert_eq(box.text, "ab")
+	assert_true(box.has_focus())
+	assert_eq(screen.deck.count_of(selected), 1)
+
+
+func test_backspace_is_blocked_by_dialogs_menus_and_modifier_chords() -> void:
+	_strip().set_cursor(2)
+	_strip().grab_focus()
+	var selected := _strip().cursor_entry().card_name
+	screen._add_one(selected)
+	for modifier in ["ctrl_pressed", "alt_pressed", "meta_pressed"]:
+		var event := _key(KEY_BACKSPACE)
+		event.set(modifier, true)
+		get_viewport().push_input(event)
+		event.pressed = false
+		get_viewport().push_input(event)
+		assert_eq(screen.deck.count_of(selected), 1, modifier)
+	screen._open_stats()
+	await get_tree().process_frame
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.count_of(selected), 1, "dialog owns the keyboard")
+	screen.open_dialogs()[-1].dismiss()
+	await get_tree().process_frame
+	screen._toggle_deck_menu()
+	await get_tree().process_frame
+	_press(KEY_BACKSPACE)
+	assert_eq(screen.deck.count_of(selected), 1, "menu owns the keyboard")
+	screen._close_deck_menu()
 
 
 func test_playtest_7_modified_arrows_stay_in_the_search_field() -> void:

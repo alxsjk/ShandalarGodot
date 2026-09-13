@@ -12316,6 +12316,44 @@ capture script/scene were removed and its screenshots and logs retained.
 No native Windows/Linux run or browser playtest is implied by these Mac
 checks. No remote Git operation or publication was performed.
 
+## 2026-09-13 — Deck-builder Enter adds, Backspace removes
+
+Owner follow-up: "enter is add selected card to deck, backspace should be
+remove selected card from deck if present in the deck". Before the change,
+Enter, Enter, Backspace left two copies of Abu Ja'far, and Enter with the
+Deck focused removed its card instead of adding the Inventory selection.
+The keyboard regression run failed four tests and 15 assertions on that
+code. This follow-up supersedes the previous entry's Deck-focused Enter
+exception: plain Enter/keypad Enter now consistently add from the bottom
+Inventory, including when the Deck or Sideboard held focus.
+
+Backspace removes one main-deck copy of the visible Inventory selection,
+using the normal removal/Undo/count-refresh path. Held-key repeat and key
+release do not remove additional copies. An absent card (including one only
+in the sideboard), no selection, an empty Inventory or an off-page selection
+is a quiet no-op. Text fields retain Backspace editing and Enter submission;
+dialogs, menus, Ctrl/Alt/Meta chords and Shift+Enter keep their prior roles.
+No card rules, AI or export settings changed. Work remains on the existing
+local branch, per the owner's instruction; no new branch or online push.
+
+Verification: the final full GUT gate passed 6,114 tests and 161,136
+assertions in 216.725 seconds, wrapper exit 0. The keyboard file has 41
+tests, including seven new Backspace regressions and the revised Enter
+routing test. Python tools: 219 tests, one platform-specific skip, exit 0.
+Native macOS input verified Lightning Bolt counts `1 → 2 → 1 → 0 → 0 → 1`
+for Enter, Enter, Backspace, Backspace, Backspace, Enter, with the Inventory
+still focused and a rendered count badge of 1. The native probe exited 0
+without errors/warnings; its temporary source files were removed afterward.
+The Mac app built and smoke-booted at
+`../shandalar-build/deckbuilder-playtest-2026-09-13/macos-backspace/Shandalar.app`,
+with the existing local art packs linked beside it and its signature
+verified. This leaves the previous app available. Evidence uses the
+`backspace-*` logs/screenshots in that scratch parent directory; these Mac
+checks do not certify native Windows/Linux or browser runtime behavior.
+The final native live-screen smoke also completed both seed-1000 duels
+(demo: 19 turns; human-fuzz: 14 turns, 119 clicks), wrapper exit 0 with
+no ERROR/WARNING/STALL lines.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

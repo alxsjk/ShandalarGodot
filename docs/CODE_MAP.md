@@ -3567,7 +3567,12 @@ shandalar/
 │    Enter, an open dialog and the Q menu keeping theirs. Playtest #7
 │    (2026-09-13): Left/Right return to the bottom strip after adding in
 │    search or focusing the Deck/Sideboard; those surfaces do not move,
-│    Enter still removes from the Deck, modifier chords stay in search;
+│    modifier chords stay in search. The same day's Enter/Backspace
+│    follow-up: Enter/keypad Enter from the Deck or Sideboard adds the
+│    Inventory selection; Backspace removes one main-deck copy through
+│    Undo, preserves the selection, ignores repeats/releases, absent
+│    copies, empty/off-page selections, menus, dialogs and modifier
+│    chords, and remains text deletion in search;
 │    tests/ui/test_deck_scroll.gd — the two scroll arrows and the corner
 │    count: an arrow at each end running the full height, the bar and the
 │    cards both INSIDE them, the triangle MOUSE_FILTER_IGNORE, one press
