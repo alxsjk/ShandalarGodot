@@ -3550,7 +3550,8 @@ shandalar/
 │    replaying the name, a pooled `<random from …>` naming a deck under
 │    its pool) and the label rule one rule for the row and the duel;
 │    tests/ui/test_deck_layout.gd — optional duel-sized Showcase (2026-09-13):
-│    classic default, checked Big cards mini-menu, 1:1 real/proxy previews,
+│    big-card default, saved classic choice, checked Big cards mini-menu,
+│    1:1 real/proxy previews,
 │    aligned wider Deck/Sideboard, unchanged Inventory and disk persistence,
 │    repeatable classic restoration, short-window information scrolling,
 │    filter/selection/Undo preservation and arrows/Enter/Backspace in big mode;
@@ -5390,7 +5391,8 @@ shandalar/
 │   │   │                      `_toggle_big_cards` switches `_showcase_scale`
 │   │   │                      from 0.8 to the duel's 1.0, `_left_width` grows
 │   │   │                      by 60px and the information below scrolls in
-│   │   │                      short windows; classic stays default and the
+│   │   │                      short windows; big cards defaults on, a saved
+│   │   │                      classic choice is honored, and the
 │   │   │                      Inventory stays unchanged. Escape closes the
 │   │   │                      front-most dialog before it closes the
 │   │   │                      screen; @SAVE asks before New deck / Load

@@ -224,7 +224,7 @@ const FORMAT_WARNING := "%d card%s break%s the tournament rules (four copies, th
 const RARITY_SETTING := "deck_rarity_marks"
 ## [QoL] Whether the mini cards wear their mana cost — see [member CardArea.show_cost].
 const COST_SETTING := "deck_cost_marks"
-## [QoL] An optional duel-sized Showcase; the original compact layout stays default.
+## [QoL] Duel-sized Showcase, on by default; a saved classic choice still wins.
 const BIG_CARDS_SETTING := "deck_big_cards"
 ## [QoL] The Sealed Deck window's four numbers, remembered between visits
 ## the way the two switches above are — see [member sealed].
@@ -311,7 +311,7 @@ var _undo: DeckModel = null
 var _undo_label := ""
 
 var _showcase: CardPreview
-var _big_cards := false
+var _big_cards := true
 ## [QoL] The Showcase's proxy face — the enlarged [ProxyFace], stacked in
 ## the same slot as [member _showcase] and shown instead of it.
 var _proxy_showcase: ProxyFace
@@ -364,7 +364,7 @@ var _status_timer := 0.0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	_big_cards = bool(Settings.get_value(BIG_CARDS_SETTING, false))
+	_big_cards = bool(Settings.get_value(BIG_CARDS_SETTING, true))
 	CardRegistry.ensure_loaded()
 	for card_name in CardRegistry.all_names():
 		_pool.append(CardRegistry.get_card(card_name))

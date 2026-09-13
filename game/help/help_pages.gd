@@ -1552,7 +1552,8 @@ static func _page_builder() -> Dictionary:
 		_text("Big cards [QoL] switches the Showcase to the dueling "
 			+ "table's full card size and widens the left column. Its "
 			+ "checkmark is remembered for the next startup; untick it to "
-			+ "restore the classic layout, which is the default. The "
+			+ "restore the classic layout. Big cards is on by default, "
+			+ "but an explicitly saved classic choice is kept. The "
 			+ "Inventory keeps its size. If the window is short, scroll "
 			+ "the information below the card to read it all. This is "
 			+ "separate from the Text switch that expands a card's rules box."),

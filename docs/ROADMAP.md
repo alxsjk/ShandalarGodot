@@ -12403,6 +12403,44 @@ with its ad-hoc signature verified and existing local art packs linked
 beside it. Previous playtest apps remain available. All changes stay on
 `local/decklab-audit-2026-09-13`; no branch creation or online push.
 
+## 2026-09-13 — Big cards becomes the default
+
+Owner follow-up: make Big cards on by default. This supersedes the preceding
+entry's classic-default decision. Before the change, the fresh-settings
+regression failed three assertions: scale 0.8 instead of 1.0, Deck x=270
+instead of 330, and an unchecked menu entry. Evidence:
+`../shandalar-build/deckbuilder-default-big-2026-09-13/before.log`.
+
+The missing-setting fallback now enables Big cards without writing a
+default into settings.cfg. Explicitly saved choices, including classic/off,
+remain respected. Help and the layout tests reflect the new default; the
+original geometry tests explicitly select classic to retain both layouts'
+coverage. No player profile is migrated or overwritten.
+
+Verification: full GUT gate 6,125 tests / 161,226 assertions in 208.254s,
+wrapper exit 0; Python tools 219 tests, one platform skip, exit 0. Native
+macOS startup confirmed scale 1.0 with the setting absent (and still absent
+after opening), then scale 0.8 after saving classic and reopening. The
+probe exited 0 without errors/warnings; its temporary sources were removed
+and the screenshot/log retained in the scratch directory above. The new
+Mac playtest app built and smoke-booted at
+`../shandalar-build/deckbuilder-default-big-2026-09-13/macos/Shandalar.app`,
+with its signature verified and existing local art linked alongside;
+previous builds remain untouched. These Mac checks do not certify native
+Windows/Linux or browser runtime behavior.
+The final native modern-rules smoke also completed both seed-1000 duels:
+demo 19 turns in 23.1s; human-fuzz 14 turns in 19.4s and 119 clicks;
+wrapper exit 0 without ERROR/WARNING/STALL lines. Work remains on the same
+local branch; no online push.
+
+## Major features for the future
+
+Added at the owner's request, 2026-09-13. Planned work, not part of the
+current deck-builder changes:
+
+- [ ] **Shandalar adventure** — the adventure/campaign mode.
+- [ ] **Manalink multiplayer** — multiplayer duels.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

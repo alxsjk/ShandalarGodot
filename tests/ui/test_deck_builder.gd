@@ -6,13 +6,27 @@ extends GutTest
 
 
 var screen: DeckBuilderScreen
+var _had_layout_setting: bool
+var _old_layout_setting: Variant
 
 
 func before_each() -> void:
+	# Retain coverage of the original layout's exact geometry. The new
+	# default and both saved choices are pinned by test_deck_layout.gd.
+	_had_layout_setting = Settings.has_value(DeckBuilderScreen.BIG_CARDS_SETTING)
+	_old_layout_setting = Settings.get_value(DeckBuilderScreen.BIG_CARDS_SETTING, true)
+	Settings.set_value(DeckBuilderScreen.BIG_CARDS_SETTING, false, false)
 	CardRegistry.ensure_loaded()
 	screen = load("res://game/deck_builder/deck_builder_screen.tscn").instantiate()
 	add_child_autofree(screen)
 	await get_tree().process_frame
+
+
+func after_each() -> void:
+	if _had_layout_setting:
+		Settings.set_value(DeckBuilderScreen.BIG_CARDS_SETTING, _old_layout_setting)
+	else:
+		Settings.clear_value(DeckBuilderScreen.BIG_CARDS_SETTING)
 
 
 func _walk(node: Node) -> Array:

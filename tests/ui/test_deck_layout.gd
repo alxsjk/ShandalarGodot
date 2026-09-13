@@ -1,6 +1,6 @@
 extends GutTest
 ## [QoL] The owner's alternate, duel-sized Showcase (2026-09-13).
-## Keep the old layout by default; a menu choice survives a settings reload.
+## Big cards is the default; an explicit classic choice survives a reload.
 
 const SETTING := "deck_big_cards"
 var screen: DeckBuilderScreen
@@ -11,7 +11,8 @@ var _old_setting: Variant
 func before_each() -> void:
 	_had_setting = Settings.has_value(SETTING)
 	_old_setting = Settings.get_value(SETTING, false)
-	Settings.clear_value(SETTING)
+	# Most tests exercise the transition from classic to big explicitly.
+	Settings.set_value(SETTING, false)
 	await _open()
 
 
@@ -35,12 +36,27 @@ func _settle() -> void:
 		await get_tree().process_frame
 
 
-func test_classic_layout_is_the_default_without_writing_a_setting() -> void:
+func test_big_cards_is_the_default_without_writing_a_setting() -> void:
+	Settings.clear_value(SETTING)
+	screen.queue_free()
+	await _settle()
+	await _open()
+	assert_eq(screen._showcase.scale, Vector2.ONE)
+	assert_eq(screen._deck_area.position.x, 330.0)
+	assert_false(Settings.has_value(SETTING), "opening does not materialize defaults")
+	assert_eq(screen._menu_text("Big cards"), "[x] Big cards  [QoL]")
+	assert_true(screen._command_labels().has("Big cards"))
+
+
+func test_a_saved_classic_choice_still_wins_after_a_settings_reload() -> void:
+	Settings.reload()
+	screen.queue_free()
+	await _settle()
+	await _open()
 	assert_eq(screen._showcase.scale, Vector2.ONE * DeckBuilderScreen.SHOWCASE_SCALE)
 	assert_eq(screen._deck_area.position.x, 270.0)
-	assert_false(Settings.has_value(SETTING), "opening does not materialize defaults")
 	assert_eq(screen._menu_text("Big cards"), "[  ] Big cards  [QoL]")
-	assert_true(screen._command_labels().has("Big cards"))
+	assert_false(bool(Settings.get_value(SETTING, true)))
 
 
 func test_big_cards_match_the_duel_and_widen_both_card_surfaces() -> void:
