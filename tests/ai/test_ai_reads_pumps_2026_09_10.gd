@@ -33,6 +33,9 @@ extends GameTest
 
 
 func _ai(profile: AiProfile, seat := 0) -> AiPlayer:
+	# Isolate the original pump reader, including its exact value scale.
+	# The newer forward study has its own public-pump fallback coverage.
+	profile.studies_combat = false
 	var ai := AiPlayer.new(seat, profile)
 	g.set_agent(seat, ai)
 	return ai

@@ -189,24 +189,28 @@ func test_the_ai_buys_one_answer_and_waits_for_it() -> void:
 	assert_eq(paid, 1, "one Mountain paid for it")
 
 
-func test_a_fog_is_never_spent_inside_the_window() -> void:
-	# `PreventCombatDamageEffect` raises `MtgGame.combat_damage_prevented`,
-	# which the damage STEP reads before each wave — so a Fog cast in the
-	# window stops the wave that has not happened yet and does nothing at
-	# all to the packets already on the table. The window still OPENS for
-	# it (that is the engine's auto-skip talking, and it is right: a Fog in
-	# the FIRST-STRIKE window really does stop the normal wave), but
-	# spending one here would throw the card away.
+func test_a_fog_stops_pending_combat_damage_inside_the_window() -> void:
 	var ai := _arm(1)
 	g.players[1].life = 3
 	put_battlefield(1, "Forest")
 	give_hand(1, "Fog")
 	var giant := put_battlefield(0, "Hill Giant")
 	var said := _combat_with_ai(ai, [giant.id])
-	assert_eq(str(said), str(PackedStringArray(["ends damage prevention"])),
-		"it looked at the window and left it")
-	assert_eq(g.players[1].hand.size(), 1, "the Fog is still in hand")
-	assert_eq(g.players[1].life, 0, "and the damage landed")
+	assert_string_contains(str(said), "Fog")
+	assert_eq(g.players[1].hand.size(), 0)
+	assert_eq(g.players[1].life, 3, "Fog prevents the packets when they land")
+
+
+func test_null_keeps_the_previous_fog_window_choice() -> void:
+	var ai := _arm(1)
+	ai.profile.forecasts_tactics = false
+	g.players[1].life = 3
+	put_battlefield(1, "Forest")
+	give_hand(1, "Fog")
+	var giant := put_battlefield(0, "Hill Giant")
+	_combat_with_ai(ai, [giant.id])
+	assert_eq(g.players[1].hand.size(), 1)
+	assert_eq(g.players[1].life, 0)
 
 
 # -------------------------------------------------------- regeneration --

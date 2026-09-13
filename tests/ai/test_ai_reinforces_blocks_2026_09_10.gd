@@ -32,6 +32,9 @@ extends GameTest
 
 
 func _ai(profile: AiProfile, seat := 0) -> AiPlayer:
+	# This A/B fixture isolates the legacy reinforcement pass. The new
+	# whole-assignment study can independently discover the same gang.
+	profile.studies_combat = false
 	var ai := AiPlayer.new(seat, profile)
 	g.set_agent(seat, ai)
 	return ai

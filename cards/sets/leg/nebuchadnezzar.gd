@@ -72,7 +72,7 @@ class NameEffect extends EffectBase:
 		for q in game.players:
 			for zone in [q.graveyard, q.battlefield, q.exile]:
 				for inst in zone:
-					if inst.is_token or inst.owner_id != pid:
+					if inst.is_token or inst.owner_id != pid or inst.face_down:
 						continue   # a token has no card name; theirs only
 					var n: String = inst.data.card_name
 					if hidden.has(n):

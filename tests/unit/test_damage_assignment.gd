@@ -139,6 +139,18 @@ func test_modern_rules_enforce_lethal_before_the_next_blocker() -> void:
 	assert_ok(g.assign_combat_damage(0, {cast[1].id: 2, cast[2].id: 1}))
 
 
+func test_overkill_must_be_assigned_even_after_all_blockers_have_lethal() -> void:
+	for edition in ["modern", "fifth"]:
+		before_each()
+		g.rules.set_edition(edition)
+		g.agents[0] = PromptAgent.new()
+		var cast := _gang_block("Craw Wurm")
+		advance_to_step(Mtg.Step.COMBAT_DAMAGE)
+		assert_refused(g.assign_combat_damage(0, {cast[1].id: 2, cast[2].id: 2}), "points left")
+		assert_true(g.awaiting_damage_assignment, edition)
+		assert_ok(g.assign_combat_damage(0, {cast[1].id: 2, cast[2].id: 4}))
+
+
 func test_the_1997_fork_lets_the_attacker_split_freely() -> void:
 	g.rules.free_damage_assignment = true
 	g.agents[0] = PromptAgent.new()

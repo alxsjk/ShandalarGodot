@@ -3,8 +3,8 @@ extends CardScript
 ## Oracle: Prevent all combat damage that would be dealt this turn.
 ##
 ## Implementation: PreventCombatDamageEffect — it raises
-## MtgGame.combat_damage_prevented; the combat-damage step checks the flag
-## and skips both waves; cleanup clears it. Cast it during the
+## MtgGame.combat_damage_prevented; the damage pipeline checks the flag
+## per recipient in both waves (CR 615.12); cleanup clears it. Cast it during the
 ## declare-blockers priority round and the whole attack fizzles into mist.
 ## Non-combat damage (Bolt, Pestilence) is untouched, as printed.
 

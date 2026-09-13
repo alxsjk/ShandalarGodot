@@ -20,17 +20,28 @@ extends RefCounted
 ## - chump_threshold: the PANIC LINE — how low (in life) before the AI
 ##   starts chump blocking to survive, and before damage already dealt is
 ##   worth a damage-prevention effect (§6.8's window).
-## Future knobs land here too (eval weight scaling, search depth when the
-## minimax lands — mage-go's search/ package is the reference).
+## Future evaluation and bounded-search knobs land here too; none may
+## change the information a seat is allowed to use (docs/fair-play.md).
 
 ## Display name, and the key the UI shows for the difficulty.
 var profile_name := "Custom"
+
+## [QoL] Independent experiment switches; none changes the information a
+## player may see. Deck style is separate from difficulty and mistakes.
+var studies_deck := false
+var studies_combat := false
+var action_search_nodes := 0
 
 ## Read mass buffs/debuffs and color changes by their visible payoff.
 ## False preserves the old caster exactly for seeded comparison. Enabled
 ## on every shipped rung: wasting a card on an empty board is not a layer
 ## of strategic weakness. No card names or hidden opposing cards are read.
 var uses_tactical_effects := false
+
+## Resolve visible damage consequences when pricing tactical effects.
+## False retains the previous mass-effect scorer byte-for-byte. This is a
+## correctness read, not extra hidden information or a new aggression weight.
+var forecasts_tactics := false
 
 ## Probability in [0, 1] that an intended action degrades — a cast skipped,
 ## an attacker left home, a block dropped. Rolled on MtgGame.rng, so a
@@ -1819,6 +1830,7 @@ func apply_overrides(spec: String) -> String:
 static func apprentice() -> AiProfile:
 	var profile := AiProfile.new("Apprentice", 0.35, 0.75, 3, false, 5.0, 0, 0, false)
 	profile.uses_tactical_effects = true
+	profile.forecasts_tactics = true
 	return profile
 
 ## Second difficulty: reactive play switches on, but the high counter
@@ -1827,6 +1839,7 @@ static func apprentice() -> AiProfile:
 static func magician() -> AiProfile:
 	var profile := AiProfile.new("Magician", 0.20, 0.60, 4, true, 7.0, 2, 0, false)
 	profile.uses_tactical_effects = true
+	profile.forecasts_tactics = true
 	profile.ranks_counters = true
 	return profile
 
@@ -1841,6 +1854,7 @@ static func sorcerer() -> AiProfile:
 		true, true, true, true, true, true)
 	profile.ranks_counters = true
 	profile.uses_tactical_effects = true
+	profile.forecasts_tactics = true
 	profile.holds_x_burn = 3
 	profile.reads_gaze = true
 	profile.reads_manlands = true
@@ -1853,6 +1867,9 @@ static func sorcerer() -> AiProfile:
 	profile.minds_the_vise = true
 	profile.counts_the_race = true
 	profile.prices_offers = true
+	profile.studies_deck = true
+	profile.studies_combat = true
+	profile.action_search_nodes = 64
 	return profile
 
 ## Top difficulty: no mistakes at all — it plays the same decision code as
@@ -1862,6 +1879,7 @@ static func wizard() -> AiProfile:
 		true, true, true, true, true, true)
 	profile.ranks_counters = true
 	profile.uses_tactical_effects = true
+	profile.forecasts_tactics = true
 	profile.holds_x_burn = 5
 	profile.reads_gaze = true
 	profile.reads_manlands = true
@@ -1877,6 +1895,9 @@ static func wizard() -> AiProfile:
 	profile.runs_loops = true
 	profile.counts_the_race = true
 	profile.prices_offers = true
+	profile.studies_deck = true
+	profile.studies_combat = true
+	profile.action_search_nodes = 96
 	return profile
 
 

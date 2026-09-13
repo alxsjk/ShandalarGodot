@@ -18,6 +18,9 @@ Lab's `--profile-a` / `--profile-b` (`apprentice`, `magician`, `sorcerer`,
 
 ## 1. The rule of the ladder
 
+**Every opponent plays fair.** Difficulty changes analysis and mistakes,
+never access to your hidden cards or future draws. See [fair play](fair-play.md).
+
 **One decision code, four profiles.** There is no "easy AI" and "hard AI"
 in the engine — every seat runs `AiPlayer` with the same evaluator, the
 same combat maths and the same plans, and the profile is a bag of knobs
@@ -56,6 +59,22 @@ ramp"*. The capabilities of The Deck's second pass stay on Sorcerer and
 Wizard; the Magician's ceiling is part of the ramp, not a gap to close.
 
 ## 2. The presets, knob by knob
+
+The coordinated [planning study](planning-study-2026-09-13.md) adds these
+independent, null-able capabilities:
+
+| Knob | Apprentice | Magician | Sorcerer | Wizard |
+|---|---|---|---|---|
+| `studies_deck` | off | off | on | on |
+| `studies_combat` | off | off | on | on |
+| `action_search_nodes` | 0 | 0 | 64 | 96 |
+
+Deck study derives overlapping strategic roles from the seat's own list;
+it is not an extra difficulty setting. Combat study shares the existing
+combat node budgets and danger threshold, including their public-ability
+fallbacks. The action budget bounds short, shared-mana development lines.
+For a fixed previous-policy control, explicitly set all three to
+`studies_deck=off,studies_combat=off,action_search_nodes=0` on the desired seat.
 
 `engine/ai/ai_profile.gd`, `apprentice()` … `wizard()`. The Deck Lab can
 override any knob on any preset for a measurement

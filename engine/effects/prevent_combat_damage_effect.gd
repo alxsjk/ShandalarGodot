@@ -3,10 +3,9 @@ extends EffectBase
 ## "Prevent all combat damage that would be dealt this turn." — the Fog
 ## effect (Fog, Holy Day, Darkness, and Angus Mackenzie's activation).
 ##
-## Raises MtgGame.combat_damage_prevented; the combat-damage step checks
-## the flag and skips BOTH damage waves (first strike and regular), and
-## the cleanup step clears it. Non-combat damage (Bolt, Pestilence) is
-## untouched, exactly as printed.
+## Raises MtgGame.combat_damage_prevented; planning and landing check each
+## combat packet, except unpreventable recipients (CR 615.12). Cleanup
+## clears it. Non-combat damage (Bolt, Pestilence) is untouched.
 
 
 ## When set, only the TARGET creature's combat damage is prevented
@@ -24,17 +23,8 @@ func _init() -> void:
 	# One of the three families `Duel.hlp` lets you use in the damage
 	# prevention window: "those that prevent, heal, or redirect damage".
 	#
-	# BUT IT CANNOT ANSWER A PACKET ALREADY ON THE TABLE, and the sentence
-	# that stood here — *"A Fog cast in the window prevents the wave that
-	# has not landed yet, which is exactly what the window is for"* — hid
-	# that (2026-09-01, building the AI's window heuristic). Whole-combat
-	# mode raises `MtgGame.combat_damage_prevented`, which
-	# `_combat_damage_step` reads BEFORE a wave; the packets waiting in
-	# `damage_pending` were planned by a wave that has already run and
-	# nothing rechecks the flag for them. So a Fog in the FIRST-STRIKE
-	# window really does stop the normal wave — the half the old sentence
-	# got right — and a Fog in the normal window is a wasted card.
-	# `AiPlayer._spend_on_packet` skips it for exactly that reason.
+	# Pending packets recheck the flag when they land, so a Fog in this
+	# window prevents their combat damage as well as later waves.
 	is_damage_prevention = true
 
 
@@ -53,7 +43,7 @@ func and_to_target() -> PreventCombatDamageEffect:
 
 
 ## Whole-combat mode sets the MtgGame.combat_damage_prevented flag, which the
-## damage step reads before either wave and the cleanup step clears.
+## damage pipeline reads per recipient and the cleanup step clears.
 ## Targeted mode instead registers a floating entry with game.continuous and
 ## recalculates, which raises the instance's cur_prevent_combat_damage_*
 ## flags — the same flags Gaseous Form's static ability sets, so

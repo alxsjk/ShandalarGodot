@@ -2991,13 +2991,9 @@ func deal_damage(source: CardInstance, target: TargetRef, amount: int,
 	return _land_damage(packet)
 
 
-## The PLANNING half: everything that decides whether a damage EVENT
-## exists at all. Returns the [DamagePacket], or null when the source's
-## own "prevent all damage it would deal" replacement means no damage is
-## ever dealt — a replacement on the SOURCE applies before the event, so
-## there is never a packet for a prevention window to point at (CR 615.8
-## orders replacements before prevention; `Duel.hlp`'s window only ever
-## sees damage that is actually about to be dealt).
+## The PLANNING half: create the damage event unless a source-wide or
+## combat-wide prevention already covers it. Unpreventable recipients are
+## exempt (CR 615.12), even when Fog prevents damage to every other target.
 ##
 ## [param from_redirect] marks a packet produced by redirection rather
 ## than by an original event — see [member DamagePacket.from_redirect].
@@ -3007,11 +3003,8 @@ func _plan_damage(source: CardInstance, target: TargetRef, amount: int,
 		return null
 	if source.face_down:
 		turn_face_up(source)   # dealing damage turns it up too
-	if source.cur_prevent_all_damage_dealt:
+	if _damage_prevented_before_gates(source, target, is_combat):
 		log_line("%s's damage is prevented" % source.data.card_name)
-		return null
-	if is_combat and source.cur_prevent_combat_damage_dealt:
-		log_line("%s's combat damage is prevented" % source.data.card_name)
 		return null
 	var packet := DamagePacket.new()
 	_rec(self, &"_next_packet_id")
@@ -3023,6 +3016,18 @@ func _plan_damage(source: CardInstance, target: TargetRef, amount: int,
 	packet.is_combat = is_combat
 	packet.from_redirect = from_redirect
 	return packet
+
+
+## Shared by planning and landing: a Fifth Edition prevention window may
+## have changed these effects after the packet was created (CR 615.12).
+func _damage_prevented_before_gates(source: CardInstance, target: TargetRef,
+		is_combat: bool) -> bool:
+	if not target.is_player:
+		var victim := find_instance(target.instance_id)
+		if victim != null and victim.damage_unpreventable_this_turn:
+			return false
+	return source.cur_prevent_all_damage_dealt or (is_combat and (
+		combat_damage_prevented or source.cur_prevent_combat_damage_dealt))
 
 
 ## The LANDING half: the victim's own prevention gates, in the order
@@ -3048,6 +3053,10 @@ func _land_damage_impl(packet: DamagePacket) -> int:
 	var target: TargetRef = packet.target
 	var amount := packet.remaining()
 	if source == null or target == null or amount <= 0:
+		return 0
+	if _damage_prevented_before_gates(source, target, packet.is_combat):
+		_rec(packet, &"prevented")
+		packet.prevent(amount)
 		return 0
 	# "ALL damage that would be dealt this turn by <this source> is dealt to
 	# <someone> instead" (Reverberation) — a replacement on the SOURCE, and
@@ -3484,6 +3493,8 @@ func _apply_damage_gate(packet: DamagePacket, p: MtgPlayer,
 ## all (docs/ROADMAP.md carries the measured price).
 func _has_creature_damage_gates(inst: CardInstance, source: CardInstance,
 		packet: DamagePacket) -> bool:
+	if inst.damage_unpreventable_this_turn:
+		return false  # Whippoorwill also forbids the redirects and Hydra's prevention
 	if source.damage_all_redirect_to >= 0 and not packet.from_redirect:
 		return true
 	if inst.damage_eats_counters != "":
@@ -3496,8 +3507,6 @@ func _has_creature_damage_gates(inst: CardInstance, source: CardInstance,
 	# another permanent or player". Everything below is a prevention or a
 	# redirection — protection included, since CR 702.16e makes protection
 	# prevent the damage — so none of it is even a candidate.
-	if inst.damage_unpreventable_this_turn:
-		return false
 	return (inst.cur_protection & source.cur_colors) != 0 \
 		or inst.cur_prevent_damage_from_creatures \
 		or inst.damage_redirects > 0 \
@@ -3528,6 +3537,8 @@ func _has_creature_damage_gates(inst: CardInstance, source: CardInstance,
 func _creature_damage_gates(packet: DamagePacket, inst: CardInstance,
 		source: CardInstance) -> Array[Dictionary]:
 	var candidates: Array[Dictionary] = []
+	if inst.damage_unpreventable_this_turn:
+		return candidates
 	if source.damage_all_redirect_to >= 0 and not packet.from_redirect:
 		candidates.append({"kind": &"source_redirect"})
 	if not packet.from_redirect:
@@ -3612,7 +3623,8 @@ func _creature_damage_gate_applies(packet: DamagePacket, inst: CardInstance,
 		gate: Dictionary) -> bool:
 	var source: CardInstance = packet.source
 	var amount := packet.remaining()
-	if source == null or amount <= 0 or inst.zone != Mtg.Zone.BATTLEFIELD:
+	if source == null or amount <= 0 or inst.zone != Mtg.Zone.BATTLEFIELD \
+			or inst.damage_unpreventable_this_turn:
 		return false
 	match StringName(gate["kind"]):
 		&"source_redirect":
@@ -4657,7 +4669,7 @@ func counter_spell(inst: CardInstance) -> void:
 		_emit_state()
 		return
 	_rec_move(inst, inst.owner_id, Mtg.Zone.GRAVEYARD)
-	inst.zone = Mtg.Zone.GRAVEYARD
+	_enter_graveyard(inst)
 	players[inst.owner_id].graveyard.append(inst)
 	_emit_state()
 
@@ -4999,7 +5011,7 @@ func return_from_exile_to_graveyard(inst: CardInstance) -> void:
 	_rec_move(inst, inst.owner_id, Mtg.Zone.GRAVEYARD)
 	_rec(inst, &"face_down")
 	players[inst.owner_id].exile.erase(inst)
-	inst.zone = Mtg.Zone.GRAVEYARD
+	_enter_graveyard(inst)
 	inst.face_down = false
 	players[inst.owner_id].graveyard.append(inst)
 	log_line("%s is put into its owner's graveyard" % inst.data.card_name)
@@ -5078,7 +5090,7 @@ func mill(pid: int, count: int) -> void:
 		var inst: CardInstance = p.library.back()
 		_rec_move(inst, p.id, Mtg.Zone.GRAVEYARD)
 		p.library.pop_back()
-		inst.zone = Mtg.Zone.GRAVEYARD
+		_enter_graveyard(inst)
 		p.graveyard.append(inst)
 		log_line("%s mills %s" % [p.player_name, inst.data.card_name])
 	_emit_state()
@@ -5697,6 +5709,7 @@ func _remove_from_zone(inst: CardInstance) -> void:
 ## Replace one seat's DecisionAgent (the AI registers itself here).
 func set_agent(pid: int, agent: DecisionAgent) -> void:
 	agents[pid] = agent
+	agent.prepare(self, pid)
 
 
 ## Discard specific cards from [param pid]'s hand (agent-chosen discards).
@@ -5720,7 +5733,7 @@ func discard_cards(pid: int, cards: Array, by_effect := true) -> void:
 			continue
 		_rec_move(inst, pid, Mtg.Zone.GRAVEYARD)
 		p.hand.erase(inst)
-		inst.zone = Mtg.Zone.GRAVEYARD
+		_enter_graveyard(inst)
 		p.graveyard.append(inst)
 		log_line("%s discards %s" % [p.player_name, inst.data.card_name])
 		_announce_discard(pid, inst, by_effect, false)
@@ -5798,7 +5811,7 @@ func put_into_graveyard(inst: CardInstance) -> void:
 	if inst == null:
 		return
 	_rec_move(inst, inst.owner_id, Mtg.Zone.GRAVEYARD)
-	inst.zone = Mtg.Zone.GRAVEYARD
+	_enter_graveyard(inst)
 	players[inst.owner_id].graveyard.append(inst)
 	log_line("%s is put into its owner's graveyard" % inst.data.card_name)
 	_emit_state()
@@ -5856,7 +5869,7 @@ func discard_hand(pid: int) -> void:
 			_announce_discard(pid, inst, true, true)
 			continue
 		p.hand.pop_back()
-		inst.zone = Mtg.Zone.GRAVEYARD
+		_enter_graveyard(inst)
 		p.graveyard.append(inst)
 		_announce_discard(pid, inst, true, false)
 	log_line("%s discards their hand" % p.player_name)
@@ -5974,7 +5987,7 @@ func discard_random(pid: int, count := 1, by_effect := true) -> void:
 		if not to_library:
 			_rec_move(inst, pid, Mtg.Zone.GRAVEYARD)
 			p.hand.remove_at(idx)
-			inst.zone = Mtg.Zone.GRAVEYARD
+			_enter_graveyard(inst)
 			p.graveyard.append(inst)
 		_announce_discard(pid, inst, by_effect, to_library)
 		if inst.data.on_discarded.is_valid():
@@ -7092,7 +7105,7 @@ func _spell_to_graveyard(inst: CardInstance) -> void:
 		_instances.erase(inst.id)
 		return
 	_rec_move(inst, inst.owner_id, Mtg.Zone.GRAVEYARD)
-	inst.zone = Mtg.Zone.GRAVEYARD
+	_enter_graveyard(inst)
 	players[inst.owner_id].graveyard.append(inst)
 
 
@@ -7301,7 +7314,7 @@ func _arrival_refused(inst: CardInstance, why: String) -> void:
 			if not home.graveyard.has(inst):
 				home.graveyard.append(inst)
 		_:
-			inst.zone = Mtg.Zone.GRAVEYARD
+			_enter_graveyard(inst)
 			if not home.graveyard.has(inst):
 				home.graveyard.append(inst)
 	_emit_state()
@@ -7427,7 +7440,7 @@ func _move_to_graveyard(inst: CardInstance, died: bool,
 	_battlefield_changed()
 	# Anything attached to it is now orphaned; SBA sweeps it to the graveyard.
 	inst.clear_battlefield_state()
-	inst.zone = Mtg.Zone.GRAVEYARD
+	_enter_graveyard(inst)
 	# A TOKEN ceases to exist instead of resting in a graveyard
 	# (CR 704.5e) — its dies-trigger still fires, then it is gone.
 	if not inst.is_token:
@@ -7443,6 +7456,7 @@ func _move_to_graveyard(inst: CardInstance, died: bool,
 			creatures_died_this_turn += 1
 		dispatch_event(Mtg.EventType.DIES,
 			{"instance": inst, "controller": controller,
+				"graveyard_entry": inst.graveyard_entry,
 				"damaged_by": damaged_by,
 				"damaged_by_amounts": damaged_by_amounts,
 				"sacrificed": sacrificed, "memory": parting_memory},
@@ -7525,6 +7539,50 @@ func schedule_delayed_trigger(trig: TriggeredAbility, controller: int,
 	_next_delayed_id += 1
 	delayed_triggers.append(entry)
 	return entry
+
+
+## CR 400.7: entering the graveyard creates a new object, even if this
+## physical card has been there before. Used by delayed zone-change effects.
+func _enter_graveyard(inst: CardInstance) -> void:
+	_rec(inst, &"zone")
+	_rec(inst, &"graveyard_entry")
+	inst.zone = Mtg.Zone.GRAVEYARD
+	inst.graveyard_entry += 1
+
+
+## Whippoorwill's three clauses: two this-turn restrictions, and a delayed
+## exile AFTER death (CR 603.7), never an exile replacement. Inspired by
+## Forge's Whippoorwill decomposition at b09a3d3f (see Provenance.md).
+func mark_unpreventable_death(inst: CardInstance, source: CardInstance,
+		controller: int) -> void:
+	if inst == null or inst.zone != Mtg.Zone.BATTLEFIELD:
+		return
+	_rec(inst, &"regeneration_banned_this_turn")
+	_rec(inst, &"damage_unpreventable_this_turn")
+	inst.regeneration_banned_this_turn = true
+	inst.damage_unpreventable_this_turn = true
+	var entry := schedule_delayed_trigger(TriggeredAbility.new(
+		Mtg.EventType.DIES, _exile_after_death,
+		"When the marked creature dies this turn, exile it.",
+		_marked_creature_died.bind(inst.id, inst.layer_timestamp, turn_number)),
+		controller, source)
+	entry["expires_turn"] = turn_number
+	log_line("%s is marked by %s" % [inst.data.card_name, source.data.card_name])
+
+
+static func _marked_creature_died(game: MtgGame, _source: CardInstance,
+		event: GameEvent, instance_id: int, timestamp: int, turn: int) -> bool:
+	var dead: CardInstance = event.data.get("instance")
+	return game.turn_number == turn and dead != null and dead.id == instance_id \
+		and dead.layer_timestamp == timestamp
+
+
+static func _exile_after_death(game: MtgGame, _source: CardInstance,
+		event: GameEvent) -> void:
+	var dead: CardInstance = event.data.get("instance")
+	if dead != null and dead.zone == Mtg.Zone.GRAVEYARD \
+			and dead.graveyard_entry == int(event.data.get("graveyard_entry", -1)):
+		game.exile_from_graveyard(dead)
 
 
 ## "... unless they pay {1} before that draw step" (Nafs Asp): the entry
@@ -9494,6 +9552,81 @@ func _enter_step(index: int) -> void:
 			_open_priority()
 
 
+## Preview the remaining DECLARED combat and, optionally, a top-of-stack
+## damage spell/ability. Uses the live assignment, prevention and SBA code
+## under the journal. No future plays or damage/death-trigger resolutions
+## are guessed; only already-present shields apply. Default public-board
+## decisions replace the live agents, so no UI prompts, agent memory or
+## opposing hidden cards are consulted. The caller validates the damage
+## effect shape before asking to resolve the top object.
+func forecast_damage(include_combat: bool, resolve_damage_top := false) -> Dictionary:
+	var nested := undo_log != null
+	var mark := make_mark()
+	_rec_turn()
+	_rec(self, &"agents")
+	agents = [DecisionAgent.new(), DecisionAgent.new()]
+	var incoming := {}
+	if resolve_damage_top and can_forecast_damage_top():
+		_resolve_top()
+	if include_combat and not game_over and not awaiting_blockers \
+			and current_step() in [Mtg.Step.DECLARE_BLOCKERS, Mtg.Step.FIRST_STRIKE_DAMAGE]:
+		if current_step() == Mtg.Step.DECLARE_BLOCKERS:
+			_remember_first_strikers()
+			if _has_first_strike_damage():
+				_forecast_damage_wave(true, incoming)
+		if not game_over:
+			_forecast_damage_wave(false, incoming)
+	var alive := {}
+	var marked := {}
+	for inst in all_battlefield():
+		alive[inst.id] = true
+		marked[inst.id] = inst.damage
+	var result := {"alive": alive, "damage": marked, "incoming": incoming,
+		"life": [players[0].life, players[1].life]}
+	unmake_to(mark)
+	if not nested:
+		end_search()
+	return result
+
+
+## Only composable damage effects are safe to resolve in this forecast.
+## No card draws, searches, arbitrary custom payloads or future choices.
+func can_forecast_damage_top() -> bool:
+	if stack.is_empty() or stack.back().effects.is_empty():
+		return false
+	for effect in stack.back().effects:
+		if not (effect is DamageEffect or effect is DamageAllEffect):
+			return false
+	return true
+
+
+func _forecast_damage_wave(first_strike_wave: bool, incoming: Dictionary) -> void:
+	_damage_requests = _collect_damage_requests(first_strike_wave)
+	_damage_splits = []
+	_damage_splits.resize(_damage_requests.size())
+	_damage_cursor = 0
+	_wave_assigned = {}
+	while _damage_cursor < _damage_requests.size():
+		_commit_split(_agent_split(_damage_requests[_damage_cursor]))
+	var before := {}
+	for inst in all_battlefield():
+		before[inst.id] = inst.damage
+	begin_simultaneous()
+	_apply_damage_requests()
+	# Read landed damage before SBAs clear a dying or regenerating body.
+	for inst in all_battlefield():
+		incoming[inst.id] = int(incoming.get(inst.id, 0)) \
+			+ maxi(inst.damage - int(before.get(inst.id, 0)), 0)
+	end_simultaneous()
+
+
+func _remember_first_strikers() -> void:
+	_first_strike_ids = {}
+	for inst in all_battlefield():
+		if inst.has_keyword(Mtg.Keyword.FIRST_STRIKE):
+			_first_strike_ids[inst.id] = true
+
+
 ## ONE combat damage STEP. Combat damage is dealt in two steps when anyone
 ## in combat has first strike (CR 510.4/510.5) — and the two are separated
 ## by a full priority round, which is when you finish off the survivor or
@@ -9504,12 +9637,6 @@ func _enter_step(index: int) -> void:
 ## [param first_strike_wave] says which step this is; membership is frozen
 ## when the FIRST one begins (see [member _first_strike_ids]).
 func _combat_damage_step(first_strike_wave: bool) -> void:
-	if combat_damage_prevented:
-		# Fog is checked per step: one cast in the first-strike window still
-		# stops the normal wave, which is exactly what the window is for.
-		log_line("All combat damage is prevented this turn (Fog)")
-		_after_combat_damage()
-		return
 	if first_strike_wave:
 		# CR 510.4: the SECOND damage step is for "the remaining attackers
 		# and blockers that had neither first strike nor double strike as
@@ -9517,10 +9644,7 @@ func _combat_damage_step(first_strike_wave: bool) -> void:
 		# here, not re-read per wave. Otherwise a creature that loses first
 		# strike between the steps (its granting lord died in the first)
 		# strikes twice.
-		_first_strike_ids = {}
-		for inst in all_battlefield():
-			if inst.has_keyword(Mtg.Keyword.FIRST_STRIKE):
-				_first_strike_ids[inst.id] = true
+		_remember_first_strikers()
 	# THE DIVISIONS (docs/duel-todo.md §1.4): every packet this step will
 	# deal is planned first, then each assigner answers for its own, then
 	# they all land together.
@@ -9663,7 +9787,8 @@ func _collect_damage_requests(first_strike_wave: bool) -> Array:
 ## remaining lethal until the damage runs out; [param already] is what this
 ## step has assigned so far, so two 2/2s gang-blocking a 3/3 split 2+1 and
 ## not 2+2. A [param trample] surplus goes to the defending player
-## (CR 702.19b); without trample it is simply dropped (CR 510.1c-d).
+## (CR 702.19b); without trample the surplus joins the final creature —
+## all power must be assigned, even when it exceeds lethal (CR 510.1c-d).
 ## [param free_order] is the defensive-banding division (CR 702.22f-h),
 ## which the DEFENDING player makes: lethal-first is exactly the wrong
 ## default there — it would kill as many of their own blockers as the
@@ -9701,6 +9826,9 @@ func default_damage_split(_source: CardInstance, targets: Array, amount: int,
 		left -= chunk
 	if left > 0 and trample:
 		out[DAMAGE_TO_PLAYER] = left
+	elif left > 0 and not targets.is_empty():
+		var last := int(targets[-1])
+		out[last] = int(out.get(last, 0)) + left
 	return out
 
 
@@ -9774,10 +9902,9 @@ func _split_illegality(request: Dictionary, split: Dictionary) -> String:
 		# True under BOTH rulesets: the original made trample its own second
 		# prompt, after the blockers had been dealt with (CR 702.19b).
 		return "every blocker needs lethal damage before any tramples through"
-	if total < amount and not spill:
-		if trample or not all_lethal:
-			return "%s: assign damage to blockers, %d points left" % [
-				request["source"].data.card_name, amount - total]
+	if total < amount and not spill and (trample or not targets.is_empty()):
+		return "%s: assign damage to blockers, %d points left" % [
+			request["source"].data.card_name, amount - total]
 	return ""
 
 
@@ -10051,6 +10178,11 @@ func _finish_cleanup() -> void:
 	no_attacks_this_turn = false
 	life_on_damage_watchers.clear()   # Glyph of Life is a this-turn watch
 	death_watchers.clear()            # "when it dies THIS TURN" (Reincarnation)
+	_rec(self, &"delayed_triggers")
+	for i in range(delayed_triggers.size() - 1, -1, -1):
+		var expiry := int(delayed_triggers[i].get("expires_turn", -1))
+		if expiry >= 0 and expiry <= turn_number:
+			delayed_triggers.remove_at(i)
 	damage_watchers.clear()           # Runesword's watch is this-turn only
 	damage_dealt_this_turn.clear()
 	for pl2 in players:

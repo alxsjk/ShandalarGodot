@@ -120,6 +120,10 @@ var attachments: Array[int] = []
 ## number counts in.
 var layer_timestamp: int = 0
 
+## Distinguish successive graveyard objects of the same physical card
+## (CR 400.7). A delayed exile must not follow a Regrowth and rediscard.
+var graveyard_entry: int = 0
+
 ## Counters on this permanent, kind -> count ("+1/+1", "-1/-1", ...).
 ## The continuous pipeline applies any counter whose NAME parses as a P/T
 ## delta in CR 613 layer 7d — after the base-P/T setters (so a Nightmare's

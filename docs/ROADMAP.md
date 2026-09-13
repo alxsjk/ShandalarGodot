@@ -1758,7 +1758,7 @@ costs **+0.9% of game time** (1,162.5 s against the null's 1,151.9 s over
 5,000 games), and makes the model agree with a rule the engine implements
 and this same AI already plays 4.5% of the time.
 
-**NOT KEPT: gangs on their side of our forward combat**, and it was built,
+**Historical result (2026-09-05): NOT KEPT — gangs on their side of our forward combat**, and it was built,
 measured and then deleted rather than left behind a flag. Three reasons,
 in order of weight: it moves 120 declarations the narrow way against 92
 wide; it costs +2.0% of game time against +0.9%; and it would make ply 2
@@ -1768,6 +1768,13 @@ price attacks below the analysis that proposed them. Lifting that half
 means moving `_cohort_value`, `_damage_through_blocks` and ply 2
 together, which is one change, not three, and it is what the narrowed
 ledger row now says.
+
+**2026-09-13 follow-up:** the coordinated `studies_combat` path now moves
+the declaration, `_cohort_value` and `_damage_through_blocks` together,
+with whole assignments using one shared resolver. The older path remains
+the null and the specialised-ability/wide-board fallback. This does not
+erase its limits or claim exhaustive combat search. See the
+[planning study and acceptance results](planning-study-2026-09-13.md).
 
 ### One pinned board changed, and the reason is worth reading
 
@@ -1798,9 +1805,9 @@ pass widens the search, this is the first constant to re-measure.
 
 ### Still open after the gang block
 
-* **The forward half of the same row** — `_attack_risk`,
-  `_cohort_value`, `_damage_through_blocks` and ply 2 — measured and left
-  out above, and the ledger row now says what lifting it would take.
+* **The forward half of the same row** was left out in this historical
+  pass. The 2026-09-13 coordinated study now covers ordinary bounded
+  boards; the legacy/specialised fallback still has the old limit.
 * **A blocker dividing its damage among several attackers** (`cur_extra_blocks`
   — Two-Headed Giant of Foriys, Blaze of Glory) is still outside every
   model: `resolve_block` takes one attacker and its gang, not the other
@@ -2682,7 +2689,7 @@ picker before tutor casts).
 | The CR 613 layer passes have no DEPENDENCY analysis (CR 613.8); layer-4 statics run twice when two share the board, which resolves one level | Real dependency ordering |
 | ~~No POTENTIAL-mana query~~ **HALF-LIFTED 2026-09-03** — `MtgGame.could_afford(pid, data, excluded)` walks the untapped sources through the shared [ManaPlanner] and prices them with `can_afford`'s own modifiers, restricted-mana keys and `spell_payment` arithmetic, so a plan and a payment cannot disagree. The **castable highlight** now uses it, which is what makes the yellow name mean what `Duel.hlp` says it means (*"you must have enough mana available"*, topic **Hands**) and what the click-then-tap flow and the auto-cast both promise. **STILL OWED:** `DuelScreen._has_affordable_fast_effect` — the Done order's third condition — is deliberately left on the FLOATING pool, so Done stops only for a fast effect the player has actually floated for; its own `SIMPLIFIED` marker still says so. Moving it to `could_afford` would make Done stop at every phase you hold an instant, which is the clicking the 2026-09-03 playtest was about. **Narrowed 2026-09-08:** the four instant windows (both combat fast-effects rounds, after first-strike damage, the opponent's end step) hold on POTENTIAL mana through `_could_respond` — see "THE INSTANT WINDOWS" | Point `_has_affordable_fast_effect` at `could_afford` when (and only when) the player asks for the stricter 1997 Done |
 | **SIMPLIFIED — `could_afford` under-reports for two cards** (`mtg_game.gd`): colour SUBSTITUTIONS (Sunglasses of Urza) and North Star's any-type charge widen only the FLOATING half of the answer, because `can_afford` is asked first and [ManaPlanner] models neither. It never over-reports, which is the safe direction for a highlight and for an auto-tapper | Teach the planner substitutions and the wildcard, or price the potential pool through `ManaPool.can_pay` once it can take a source list |
-| **SIMPLIFIED — the AI's combat maths blocks ONE creature per attacker in the FORWARD combat** (`ai_player.gd`'s `_attack_risk` / `_cohort_value` / `_damage_through_blocks`, and ply 2 of `ai/combat_search.gd`): when the AI prices its own attack, the defender's answer still puts at most one body on each attacker. **NARROWED 2026-09-05** — the DEFENSIVE half is lifted: `CombatSearch.resolve_block` puts one attacker against a whole gang (CR 509.2's damage order as `AiPlayer.order_blockers` announces it, 510.1c lethal-first down it, 702.19b trample spill, 510.4 first strike decided per assignment), and ply 4 of the crack-back search enumerates gangs, so the AI knows two bodies can hold a counter-swing one cannot. Pinned by `tests/ai/test_ai_gang_blocks_2026_09_05.gd`, including that a gang of ONE answers exactly what `_dies_to` answers. The forward half was BUILT AND MEASURED TOO and left out on the numbers: it changed 19.0% of searched declarations against the defensive half's 15.1%, but 120 of those the narrow way against 92 the wide way (the defensive half is 134 wide against 47 narrow), which is the pessimism the 2026-09-04 attack audit had just removed. Both arms measured +0.1 ± 2.0 on the win rate, so direction decided it. The 4.5% that kept the whole row until now stands: the defender gang-blocks in 46 of 1,022 logged combats | Price the same widening in `_cohort_value` and `_damage_through_blocks` — but not before the pessimism it adds is worth something a measurement can see, and not without `_cohort_value` and ply 2 moving together (they price the same board and would otherwise disagree) |
+| **SIMPLIFIED — the legacy/specialised fallback prices one blocker per attacker in forward combat. NARROWED 2026-09-13:** the `studies_combat` path coordinates `_cohort_value`, `_damage_through_blocks` and declarations over whole assignments and the shared `CombatSearch.resolve_block` resolver. Bounded gangs and an own-hand trick are included; repeatable pumps, gaze/tap execution and wide boards retain specialised policies. The historical 2026-09-05 measurement above explains why an isolated ply-2 change was rejected. The new coordinated path and its tests/measurements are documented in [the planning study](planning-study-2026-09-13.md). The old model remains an explicit reproducible null. | Extend the shared model to the remaining specialised cases only with legality, hidden-information, latency and fixed-baseline regression evidence. Multiple attackers per blocker and defensive banding remain separate limits. |
 Card-level simplifications are tracked separately in
 **docs/simplified-cards.md** — one row per card that deviates from its
 printed behavior, so future passes can lift them one by one.
@@ -12581,6 +12588,84 @@ Silicon runtime checked; Intel, native Windows/Linux and browser runtime
 were not exercised in this pass. Production changes remain platform-neutral
 Godot code. The disposable pre-change checkout was removed; its reports
 and per-game comparisons are retained. Changes remain local and uncommitted.
+
+## 2026-09-13 — Forge audit: damage forecasts and Whippoorwill
+
+Implemented the six findings reproduced at `9594098`, using the local Forge
+pin `b09a3d3f` as an architectural reference, not a competing engine benchmark.
+The source pointers and inspiration boundary are in `docs/forge/README.md`
+and `Provenance.md`; no Java implementation or heuristic constants were copied.
+
+- **Shared declared-damage forecast:** `MtgGame.forecast_damage` runs the live
+  allocation, prevention and state-based-action paths under a nested undo
+  journal. It counts trample overflow, gang/banding assignments, only the
+  remaining first-strike/normal waves, existing regeneration shields and
+  indestructibility. Pending top-of-stack objects made entirely of composable
+  damage effects may also be resolved. Live agents are replaced with default
+  public-board decisions inside the probe; RNG, agent memory, logs and game
+  state are restored. It does not inspect hidden opposing cards, anticipate
+  future choices, or resolve subsequent damage/death triggers.
+- **Tactical decisions:** Shield Wall now saves a creature from pending burn;
+  Marsh Gas recognizes lifesaving trample reduction. Fog-covered damage no
+  longer earns a second defensive spell, and already-dealt first-strike
+  damage is not counted again. Temporary stats alone still earn nothing.
+  The same forecast serves modern pre-combat regeneration and paid prevention.
+  Tactical responses respect the ordinary held-mana comparison, except when
+  their benefit outweighs the reserve, including lifesaving responses.
+- **Named decision switch:** `AiProfile.forecasts_tactics` is false in a bare
+  profile and true in all four named difficulties. False preserves the old
+  decision path within the corrected engine; mistake rates, aggression and
+  evaluator weights are unchanged. Fifth Edition responses can now use Fog
+  against pending combat packets, and decline prevention purchases for
+  Whippoorwill-marked recipients.
+- **Per-recipient prevention:** Fog and source-wide prevention check each
+  target during planning and landing. Unpreventable damage gets through,
+  while every other recipient remains protected. This closes the recorded
+  Rock Hydra, Reverberation and Blood of the Martyr exceptions too.
+- **Death, then exile:** Whippoorwill schedules a delayed trigger instead of
+  replacing death, so Sengir Vampire and other death observers still fire.
+  Battlefield incarnation and graveyard-entry serials stop an old trigger
+  following a bounced/replayed or returned/rediscarded card. The mark expires,
+  but removing Whippoorwill does not cancel an already-created trigger.
+  Disintegrate retains its genuine exile replacement.
+- **An extra integration finding:** nontrampling attackers discarded surplus
+  damage after assigning lethal to all blockers. Every point is now assigned;
+  the default adds surplus to the final blocker. Interactive incomplete
+  divisions remain open in both rulesets. The Guardian Angel regression that
+  exposed this now faces the full hit instead of a truncated one.
+
+New regression scripts cover the audit's tactical decisions, Whippoorwill
+interactions and reversible damage forecasting; existing prevention, damage
+assignment and sweeper tests were extended. The old immediate-exile assertions
+were corrected to require a death before the delayed exile resolves.
+
+**Measurement, not a strength claim.** Wizard, seeds 11–1010, 1,000 games per
+arm, four workers, `forecasts_tactics=on,off --null off --no-elo`. Undead Knight
+vs Big Green: 36.7% null, 37.4% on (+0.7 points, approximately ±4.2). Black Sky
+vs White Knights: 21.3% null, 21.4% on (+0.1 points, approximately ±3.6).
+Neither delta clears zero. Each sweep's Big Green vs White Knights control
+exactly replays all 1,000 games of its 550–450 null in every arm. The off arms
+replay their test nulls. No stalls or draws across the final 12,000 games;
+45.5 and 42.1 seconds respectively. This is a verified tactical/rules repair,
+not evidence of overall superiority to Forge or a proven win-rate increase.
+
+Final full GUT gate: **6,177 tests / 230,820 assertions**, 357 scripts,
+233.184 seconds, wrapper exit 0. Python tools: **219 tests**, one platform
+skip, exit 0. Final headless regressions include full-state/RNG round trips,
+nested journals, indestructible animated lands and Whippoorwill's delayed
+death trigger under a forecast. Local reports, per-game fingerprints and
+logs are retained under `../shandalar-build/forge-audit-2026-09-13/`.
+
+Native Mac seed-1000 soaks: modern demo 19 turns / 22.5s, human 14 turns /
+18.9s / 119 clicks; Fifth Edition demo 19 turns / 23.0s, human 14 turns /
+19.1s / 119 clicks. All four duels reached game over; both wrappers exited
+0 with no ERROR/WARNING/STALL lines. Windows, Linux and browser runtimes
+were not exercised in this pass.
+
+Work stays on the existing branch; this pass does not
+commit, push, export a release, modify ratings or use the player's profile.
+Production changes are platform-neutral GDScript; no platform/export settings
+were changed.
 
 ## Standing quality gates
 

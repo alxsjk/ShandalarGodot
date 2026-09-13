@@ -91,6 +91,9 @@ func test_the_value_blocks_take_the_panic_out_of_the_swing() -> void:
 	# is comfortable after them, because our Craw Wurm trades with theirs
 	# and only the Bears gets through. The Elves used to go under it.
 	var ai := _wizard()
+	# Pin the original ladder's panic calculation. The forward study's
+	# alternative (Elves on Wurm, Wurm on Bears) is covered separately.
+	ai.profile.studies_combat = false
 	g.players[1].life = 12
 	var wurm := put_battlefield(1, "Craw Wurm")
 	put_battlefield(1, "Llanowar Elves")

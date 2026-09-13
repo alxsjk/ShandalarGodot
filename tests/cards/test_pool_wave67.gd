@@ -183,6 +183,8 @@ func test_whippoorwill_stops_regeneration_and_exiles_the_body() -> void:
 	resolve_stack()
 	assert_true(troll.regeneration_banned_this_turn)
 	g.destroy(troll)
+	assert_eq(troll.zone, Mtg.Zone.GRAVEYARD, "it dies before the delayed exile")
+	resolve_stack()
 	assert_eq(troll.zone, Mtg.Zone.EXILE, "no regeneration, and exiled")
 
 

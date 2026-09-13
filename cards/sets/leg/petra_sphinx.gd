@@ -23,10 +23,9 @@ extends CardScript
 ## pool is left unsayable. Until 2026-09-07 the list was the names still
 ## IN the library, which could not say a card whose every copy was drawn.
 ##
-## The list is ordered by how many copies remain in the library, most
-## first — a player knows what they have drawn, so that is their own
-## information — and the heuristic's "first option" is the likeliest top
-## card, as it was before.
+## The hint counts the registered list minus cards the chooser can see,
+## never scanning the library. Unknown departures remain uncertainty,
+## not permission to inspect hidden zones (docs/fair-play.md).
 ##
 ## The card goes to the hand WITHOUT being drawn (MtgGame.
 ## top_of_library_to_hand, CR 121.8) — Underworld Dreams must stay quiet.
@@ -56,18 +55,23 @@ class RiddleEffect extends EffectBase:
 	func _init() -> void:
 		target_spec = TargetSpec.player()
 
-	## The names in [param pid]'s DECKLIST, each once — most copies still
-	## in the library first, alphabetical within a tie, so the order is
-	## deterministic and the first is the likeliest top card.
+	## The names in the chooser's own DECKLIST, each once — most copies
+	## not accounted for first, alphabetical within a tie.
 	static func nameable(game: MtgGame, pid: int) -> Array[String]:
 		var p := game.players[pid]
-		var left: Dictionary = {}   # name -> copies still in the library
+		var left: Dictionary = {}   # name -> copies not legally accounted for
 		for n in p.deck_names:
-			left[n] = 0
-		for inst in p.library:
+			left[n] = int(left.get(n, 0)) + 1
+		var known: Array = p.hand.duplicate()
+		for player in game.players:
+			for zone in [player.battlefield, player.graveyard, player.exile, player.ante]:
+				for inst in zone:
+					if not inst.face_down or inst.controller_id == pid:
+						known.append(inst)
+		for inst in known:
+			if inst.is_token or inst.owner_id != pid: continue
 			var n: String = inst.data.card_name
-			if left.has(n):
-				left[n] = int(left[n]) + 1
+			if left.has(n): left[n] = maxi(int(left[n]) - 1, 0)
 		var names: Array[String] = []
 		for n in left:
 			names.append(n)

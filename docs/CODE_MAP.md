@@ -7,6 +7,26 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
+## Fair planning additions (2026-09-13)
+
+| File | Responsibility |
+|---|---|
+| `engine/ai/deck_study.gd` (`AiDeckStudy`) | Own registered-list curve, colours, roles, multi-plan scores and potential synergies; names/numbers only. |
+| `engine/ai/observation.gd` (`AiObservation`) | Value-only permitted-information views and action-cache keys; no hidden hands, library order or RNG state. |
+| `engine/ai/action_planner.gd` (`AiActionPlanner`) | Bounded useful-action sequencing with shared resource feasibility and uncertainty boundaries. |
+| `engine/ai/combat_study.gd` (`AiCombatStudy`) | Coordinated forward gangs, whole block assignments, own-hand pump alternatives and bounded survivor counterattack. Uses the existing `CombatSearch` resolver. |
+| `tests/ai/test_ai_deck_study.gd` | Own-deck roles, curves, colours, synergies and profile gating. |
+| `tests/ai/test_ai_fair_planning.gd` | Hidden-information invariance, targets/X/evaluation, bounded sequencing and safe cache reuse/invalidation. |
+| `tests/ai/test_ai_combat_study.gd` | Joint blocks, casualties, first strike, trample, danger defence, single-trick accounting, hidden-state invariance and specialised fallbacks. |
+| `tests/cards/test_card_naming_fairness.gd` | Card-naming hints may not read hidden library contents or face-down identities. |
+| `tools/bench_planning.gd` | Repeatable combat-decision latency and hard-leaf-budget probe on small, wide and fallback boards. |
+| `docs/fair-play.md` | Player-facing fair-information contract. |
+| `docs/planning-study-2026-09-13.md` | Implementation boundaries, acceptance results and reproducible measurement. |
+
+`MtgGame.set_agent` now invokes `DecisionAgent.prepare`; `AiPlayer` uses
+that hook to study its own registered list and reset pending plans. The
+existing combat search below remains the specialised/legacy fallback.
+
 ```
 shandalar/
 ├── project.godot            Godot 4.7 project config; main scene = game/main.tscn
@@ -2634,6 +2654,10 @@ shandalar/
 │   │   ├── test_first_strike_step.gd  §1.6: FIRST_STRIKE_DAMAGE is its
 │   │   │                      own step with a priority window, skipped
 │   │   │                      when nobody has first strike (CR 510.5)
+│   │   ├── test_damage_forecast.gd  live-engine remaining damage preview:
+│   │   │                      trample, gang/banding allocation, first strike,
+│   │   │                      regeneration, indestructibility, shared shields
+│   │   │                      and full-state undo
 │   │   ├── test_discard_phase.gd  §1.1: the cleanup step holds open for
 │   │   │                      a seat that wants to pick its own discard
 │   │   ├── test_damage_assignment.gd  §1.4: the attacker orders and
@@ -3093,6 +3117,12 @@ shandalar/
 │    Disenchant), the helpful shapes, utility abilities, sweepers kept
 │    whole, kills() reading live toughness and marked damage, and an
 │    unknown card-local effect treated as removal-shaped;
+│    tests/ai/test_ai_tactical_forecast.gd — forecast-driven mass effects:
+│    burn protection, lethal trample, resolved Fog, spent first strike,
+│    held-mana reservations, both editions and the unchanged disabled arm;
+│    tests/cards/test_whippoorwill_interactions.gd — recipient-level
+│    unpreventable damage, delayed exile, death triggers, expiry and new
+│    battlefield/graveyard incarnations;
 │    tests/ai/test_ai_capabilities.gd — WHAT THE AI DOES WITH ITS CARDS
 │    (2026-09-02, one test per weakness fixed): Rod of Ruin at the X/1,
 │    Artillery holding fire at an empty board and shooting a creature it

@@ -570,6 +570,17 @@ Godot!"* — *"this is true for everything!"*
 
 ---
 
+### Forge follow-up, 2026-09-13
+
+The tactical forecast and Whippoorwill corrections are inspired by the
+separation of pending-threat evaluation in `forge-ai/.../ability/PumpAllAi.java`
+(lines 91–128, 156–164), stack-before-score in
+`forge-ai/.../simulation/GameSimulator.java` (227–243), and the delayed
+graveyard-entry trigger in `forge-gui/res/cardsfolder/w/whippoorwill.txt`
+(9–10), all at `b09a3d3f`. They use this engine's own journal, damage
+assignment and trigger APIs; no Java code, heuristic constants or resources
+were copied. Implementation and bounded scope: `docs/forge/README.md`.
+
 ## What ships, and what does not
 
 **No copyrighted MicroProse or Wizards of the Coast material is in this

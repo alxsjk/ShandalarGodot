@@ -384,14 +384,10 @@ func test_martyrs_cry_exiles_every_white_creature_in_one_go() -> void:
 
 
 func test_city_in_a_bottle_sacrifices_arabia_in_one_go() -> void:
-	# THE MASS SACRIFICE, from a triggered ability rather than a spell —
-	# and the OTHER death replacement as the microscope. MtgGame.
-	# sacrifice_permanent goes through _move_to_graveyard exactly as a
-	# destruction does, so a victim the Whippoorwill has marked
-	# (CardInstance.exile_instead_of_dying, CR 614.1c) is re-routed into
-	# MtgGame.exile_permanent — which ends with check_state_based_actions().
-	# Put the marked Arabian FIRST and an unmarked one behind it, and the
-	# second one's reading says whether that check got to run.
+	# The mass sacrifice remains simultaneous with a delayed death trigger
+	# waiting. Whippoorwill exiles AFTER death, not instead of it (CR 603.7).
+	# Put the marked Arabian first and an unmarked one behind it; neither
+	# the trigger nor the orphaned aura may interrupt the sacrifice batch.
 	var recorder := _recorder(0)
 	var bird := put_battlefield(0, "Whippoorwill")            # drk: survives
 	var maiden := put_battlefield(1, "Bird Maiden")           # arn
@@ -401,10 +397,11 @@ func test_city_in_a_bottle_sacrifices_arabia_in_one_go() -> void:
 	add_mana(0, Mtg.ManaColor.G, 2)
 	assert_ok(g.activate_ability(0, bird, 0, [TargetRef.card(maiden)]))
 	resolve_stack()
-	assert_true(maiden.exile_instead_of_dying, "the Maiden is marked")
+	assert_true(maiden.damage_unpreventable_this_turn, "the Maiden is marked")
+	assert_eq(g.delayed_triggers.size(), 1)
 	_cast(0, "City in a Bottle", [Mtg.ManaColor.C, Mtg.ManaColor.C])
 	resolve_stack()
-	assert_eq(maiden.zone, Mtg.Zone.EXILE, "exiled instead of dying")
+	assert_eq(maiden.zone, Mtg.Zone.EXILE, "exiled after dying")
 	assert_eq(djinn.zone, Mtg.Zone.GRAVEYARD)
 	assert_eq(strength.zone, Mtg.Zone.GRAVEYARD, "orphaned, then swept")
 	var seen := _seen(recorder)
@@ -415,7 +412,7 @@ func test_city_in_a_bottle_sacrifices_arabia_in_one_go() -> void:
 		"both Arabians first, the orphan afterwards")
 	assert_true(Array(seen[1]["standing"]).has("Holy Strength"),
 		"AND THE ORPHAN WAS STILL STANDING when the Djinn was sacrificed — "
-		+ "the marked Maiden's exile did not get to sweep it mid-resolution "
+		+ "the marked Maiden's death did not sweep it mid-resolution "
 		+ "(CR 704.3)")
 
 

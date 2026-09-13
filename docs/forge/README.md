@@ -296,3 +296,40 @@ Two words to keep apart, as the notes define them:
 
 Nothing in these notes was ported. Every quotation is attributed by file and
 line so that either path can be taken later with the pointer in hand.
+
+## Follow-up corrections — 2026-09-13
+
+The comparison at Shandalar `9594098` reproduced four tactical errors:
+Shield Wall declined against lethal burn, Marsh Gas declined against lethal
+trample, Marsh Gas spent after Fog, and Shield Wall spent after first-strike
+damage had already happened. `AiProfile.forecasts_tactics` now gates the
+engine-backed read; false keeps the earlier decision path. Named presets
+enable it without changing mistake rates or aggression.
+
+`MtgGame.forecast_damage` reuses declared damage requests, allocation,
+prevention and state-based actions under a nested undo journal. It forecasts
+only remaining waves, replacing live agents with public-board defaults so
+prompts and agent memory cannot change. It also permits resolution of a
+top-of-stack object composed only of `DamageEffect` / `DamageAllEffect`.
+It does not explore hidden cards, arbitrary custom effects, future player
+actions or subsequent damage/death-trigger resolutions. This same read
+serves tactical effects and pre-combat regeneration/paid-prevention choices.
+Tactical responses retain the ordinary cast path's held-mana comparison:
+a lower-value response must preserve the more valuable reserve, while a
+lifesaving play may spend it.
+
+Two engine defects were corrected alongside it: Fog now respects each
+unpreventable recipient, and Whippoorwill schedules exile after death rather
+than replacing death. The previously recorded Hydra/redirect exceptions are
+closed too. Pending Fifth Edition damage rechecks Fog when it lands; the
+new profile read lets the opponent use that response in the window.
+The integration gate exposed a related assignment error: nontrampling
+attackers discarded excess damage after assigning lethal. They now assign
+every point to blockers; incomplete interactive splits remain open under
+both rulesets. This also makes paid prevention face the full incoming hit.
+
+Reference ideas, not direct ports: `PumpAllAi.java:91-128,156-164`,
+`GameSimulator.java:227-243`, and `whippoorwill.txt:9-10` at the pinned
+commit above. Verification and measurements are recorded in the dated
+ROADMAP entry. These fixes do not reopen the measured rejection of blanket
+Main-2 development or evaluator-weight changes.

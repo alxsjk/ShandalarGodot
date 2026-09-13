@@ -30,6 +30,17 @@ what makes 50 (eventually thousands of) tests run in under a second.
 
 ## Engine design (engine/, cards/)
 
+### A fair-information player
+
+The rules engine owns complete game state; the computer player must not
+reason from secrets its seat cannot know. `AiObservation` creates value-only
+planning/cache views, `AiDeckStudy` analyses only the seat's own registered
+list at attachment, and `AiActionPlanner`/`AiCombatStudy` operate on bounded
+proposals and flat public combat models. Existing engine-facing policies
+and card-choice hints remain subject to the same information rule and
+substitution tests. No difficulty changes that boundary. See
+[fair play](fair-play.md) and the [planning design and limits](planning-study-2026-09-13.md).
+
 ### One mutation surface
 
 Every rule-relevant change to game state — zone moves, life totals, damage,

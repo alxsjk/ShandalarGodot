@@ -14,6 +14,10 @@ drift — and this project was bitten by that twice on 2026-09-11 alone: a
 when the header outgrew it, and a ledger row citing code lines a thousand
 lines from where the code had moved to.
 
+When changing computer play or card-choice hints, read
+[`docs/fair-play.md`](docs/fair-play.md) first. Fair-information access is a
+hard rule, including evaluation, search and caches—not just the visible UI.
+
 Everything here was verified against the tree on **2026-09-12** (version
 `0.20.0-dev`). Numbers that are somebody else's measurement carry the date
 they were measured.

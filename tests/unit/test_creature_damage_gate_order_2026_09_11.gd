@@ -297,10 +297,8 @@ func test_an_unshielded_creature_asks_nothing() -> void:
 
 ## Whippoorwill's "damage ... can't be prevented or dealt instead to
 ## another permanent or player" takes every prevention and redirection gate
-## off the list — so a Hydra with a pool on it is left with ONE candidate
-## (its counters) and is asked nothing. The three gates above the flag are
-## unchanged by this pass; docs/duel-todo.md carries the reading that they
-## are preventions and redirections too.
+## off the list, including Hydra's counters and the source/player-level
+## redirects (corrected 2026-09-13). No candidate remains and nobody is asked.
 func test_whippoorwill_leaves_no_choice_to_make() -> void:
 	var chooser := Chooser.new()
 	g.set_agent(0, chooser)
@@ -311,9 +309,10 @@ func test_whippoorwill_leaves_no_choice_to_make() -> void:
 	hydra.damage_unpreventable_this_turn = true
 	var bear := put_battlefield(1, "Grizzly Bears")
 	g.deal_damage(bear, TargetRef.card(hydra), 2)
-	assert_eq(chooser.asked, [], "one candidate is not a choice")
+	assert_eq(chooser.asked, [], "unpreventable damage offers no prevention choice")
 	assert_eq(hydra.prevention, 2, "the pool was not a candidate at all")
-	assert_eq(int(hydra.counters.get("+1/+1", 0)), 1, "the counters still ate it")
+	assert_eq(int(hydra.counters.get("+1/+1", 0)), 3, "unpreventable damage cannot shed counters")
+	assert_eq(hydra.damage, 2)
 
 
 # ======================= THE SURVEY, PINNED =======================

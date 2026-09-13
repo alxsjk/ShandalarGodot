@@ -2042,10 +2042,9 @@ Checked and deliberately not filed:
   a test rather than asserted in prose: two applicable SHIELDS cannot be
   told apart by anything in this pool
   (`tests/unit/test_replacement_choice_2026_09_10.gd`).
-- **Whippoorwill lets three replacements through that its printed text
-  stops** (found 2026-09-11 while building the row above, NOT fixed — it is
-  a different rules question and it is one line of engine and several
-  cards). *"Damage that would be dealt to that creature this turn can't be
+- **Whippoorwill's prevention and redirection exceptions — DONE 2026-09-13**
+  (found 2026-09-11 while building the row above).
+  *"Damage that would be dealt to that creature this turn can't be
   prevented or dealt instead to another permanent or player."*
   `CardInstance.damage_unpreventable_this_turn` takes every gate off
   `MtgGame._creature_damage_gates`'s list except the three above it:
@@ -2053,9 +2052,10 @@ Checked and deliberately not filed:
   you instead", and Rock Hydra's "prevent that 1 damage". All three are
   exactly what the printed line names — a prevention and two redirections —
   and all three were outside the guard before this pass as well, so nothing
-  changed here; the reading is simply now written down. The fix is to move
-  the three inside the guard, and the cost is that it changes what three
-  cards do.
+  changed in that earlier pass. The three are now inside the guard, and
+  Fog/source-side prevention checks each recipient too. The same pass fixes
+  Whippoorwill's exile as a delayed death trigger rather than a replacement;
+  `test_whippoorwill_interactions.gd` pins both clauses and both editions.
 - **Mana burn** — absent in mage-go. Our `mechanics.md §14` note stands
   as a deliberate era choice.
 - **Split second, snow, Phyrexian, hybrid, scry/surveil, ward,

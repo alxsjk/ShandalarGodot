@@ -66,6 +66,12 @@ before-and-after over thousands of simulated games against a null run at the
 same seed, or it does not ship. Several plausible improvements have been
 measured and thrown away.
 
+**Strong play. Fair information.** Our computer opponent studies its own
+deck and the visible game—not your hidden hand or future draws. Higher
+difficulty adds analysis, never secret information or special rules.
+That is a design principle we are proud of, backed by hidden-information
+regression tests. Read [our fair-play contract](docs/fair-play.md).
+
 **The 1997 art belongs to whoever owns their copy.** No original asset is
 distributed here. The game reads art off the filesystem at runtime and is
 fully playable with none of it, because every skinned path has a drawn

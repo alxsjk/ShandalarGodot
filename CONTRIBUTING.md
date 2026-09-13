@@ -238,6 +238,14 @@ scratch script plays through the live screen is appended there too.
    row, pin with a test.
    New files/classes get a row in `docs/CODE_MAP.md`.
 7. Deterministic engine: randomness only via `MtgGame.rng`.
+8. Fair information is non-negotiable, at every difficulty. Strategy may
+   read its own registered deck and hand, public state, and choices/reveals
+   a rule actually permits. Never inspect an opponent's hidden hand,
+   hidden face-down identity, either library's secret order, or the RNG
+   state to choose a move. Apply this to proposal generation, evaluation,
+   cache keys, speculative search and card-authored choice hints alike.
+   Add hidden-state substitution tests and public-change controls; see
+   `docs/fair-play.md` and `tests/ai/test_ai_fair_planning.gd`.
 
 ## Gotchas
 

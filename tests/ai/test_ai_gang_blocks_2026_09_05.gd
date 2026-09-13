@@ -270,14 +270,16 @@ func test_the_widening_is_a_field_so_the_before_can_still_be_stated() -> void:
 		"with the field off the move list is one blocker per attacker")
 
 
-func test_the_forward_combat_is_still_one_blocker_per_attacker() -> void:
+func test_the_legacy_forward_combat_is_one_blocker_per_attacker() -> void:
 	# The half that was measured and NOT kept, stated where a reader can
 	# see it: three untapped 2/2s could gang our 6/4 and kill it for one
 	# body, and the AI sends it anyway, because its reading of THEIR
 	# answer to OUR attack is still one blocker per attacker
 	# (`_attack_risk` / `_cohort_value`, and ply 2 of the search). When
-	# that half is lifted this test is what should fail.
+	# The coordinated study now lifts that half (test_ai_combat_study).
+	# Keep this historical null explicit so measurements remain reproducible.
 	var ai := _ai(OURS)
+	ai.profile.studies_combat = false
 	g.agents[THEIRS] = AiPlayer.new(THEIRS, AiProfile.wizard())
 	put_battlefield(OURS, "Craw Wurm")
 	for _i in 3:

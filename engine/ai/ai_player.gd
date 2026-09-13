@@ -11,9 +11,13 @@ extends DecisionAgent
 ## - [method act] performs ONE action per call and returns a short
 ##   description ("" = nothing to do / passed). The UI calls it on a
 ##   pacing timer so humans can watch; tests loop it to play whole games.
-## - Decisions are GREEDY-HEURISTIC v1: no lookahead. The upgrade path —
-##   game cloning + the minimax in mage-go's search/ package — plugs in
-##   behind this same act() surface (docs/ROADMAP.md, M4 phase 3).
+## - Heuristic proposals are refined by own-deck study, bounded shared-mana
+##   action lines, reversible tactical forecasts and coordinated combat
+##   study. Specialised card policies remain in place where a flat model
+##   cannot express the interaction (docs/planning-study-2026-09-13.md).
+## - Fair information is mandatory: no opponent hidden-hand identities,
+##   secret library order or RNG state in evaluation, planning or cache
+##   keys. Actual reveals/authorised choices are permitted (docs/fair-play.md).
 ## - Difficulty lives ENTIRELY in AiProfile: mistake injection degrades
 ##   chosen actions; aggression tilts combat risk. All randomness uses
 ##   game.rng — a seeded game with AI seats replays identically.
@@ -37,19 +41,47 @@ extends DecisionAgent
 ## the longest prefix whose whole-group exchange pays is kept, so one
 ## blocker no longer blanks a team it can only eat one of.
 ##
-## Known limits (each documented where it bites): it never plans a
-## multi-step line; there is no search or cloning, so every decision is a
-## one-ply heuristic — a Disenchant is aimed by permanent value, not by
-## what the enchantment does to the game, and a tutor fetches by card
-## value alone. Instant-speed responses (counterspells, Fog, removal on
+## Known limits: short action lines model independent development, not
+## arbitrary future turns or unknown draws. Combat is bounded and retains
+## specialised fallbacks; tutors are heuristic, with own-deck preferences.
+## Instant-speed responses (counterspells, Fog, removal on
 ## attackers and on blockers) and attack BANDS are implemented — see
 ## `_respond_action` and the band grouping in `_declare_attacks` — as are
 ## the two 1997 DAMAGE WINDOWS when the fork is on (`_window_action`,
-## §6.8). The upgrade path (cloning + minimax behind the same act()) is
-## M4.x in the roadmap.
+## §6.8). Further whole-turn modelling remains M4.x in the roadmap.
 
 var pid: int
 var profile: AiProfile
+
+var deck_study: AiDeckStudy = null
+var _prepared_game := 0
+var _action_line: Array = []
+var _action_ignored: Array = []
+var _action_completed: Array = []
+var _action_context := ""
+var last_action_nodes := 0
+var last_combat_nodes := 0
+
+
+func prepare(game: MtgGame, seat: int) -> void:
+	if seat != pid: return
+	_prepared_game = game.get_instance_id()
+	deck_study = AiDeckStudy.analyze(game.players[pid].deck_names)
+	_action_line.clear()
+	_action_ignored.clear()
+	_action_completed.clear()
+	_action_context = ""
+
+
+func _study_cast_bonus(game: MtgGame, inst: CardInstance, value: float) -> float:
+	if not profile.studies_deck or value <= 0.0 or value >= 900.0:
+		return 0.0
+	if deck_study == null or _prepared_game != game.get_instance_id():
+		prepare(game, pid)
+	var available: Array = []
+	for card in game.players[pid].hand + game.players[pid].battlefield:
+		available.append(card.data.card_name)
+	return deck_study.cast_bonus(inst.data.card_name, available)
 
 ## THE REFUSAL MEMO. The planner taps its lands BEFORE the engine gives
 ## its final answer, so a cast or activation the engine refuses for a
@@ -109,6 +141,9 @@ func _init(p_pid: int, p_profile: AiProfile = null) -> void:
 func act(game: MtgGame) -> String:
 	if game.game_over:
 		return ""
+	if _prepared_game != game.get_instance_id(): prepare(game, pid)
+	if game.stack.any(func(item: StackItem) -> bool: return item.controller != pid):
+		_action_line.clear()
 	var stamp := "%d:%d" % [game.turn_number, game.current_step()]
 	if stamp != _refused_stamp:
 		_refused_stamp = stamp
@@ -493,7 +528,56 @@ func _land_light(game: MtgGame) -> bool:
 
 
 ## Rank castable hand cards by value and cast the best one.
+func _planned_cast(game: MtgGame, proposals: Array, sources: Array,
+		reserve: Dictionary) -> Dictionary:
+	last_action_nodes = 0
+	var intact := _action_completed.all(func(id: int) -> bool:
+		return game.players[pid].battlefield.any(func(c: CardInstance) -> bool:
+			return c.id == id))
+	if intact and not _action_line.is_empty() \
+			and _action_context == AiObservation.key(game, pid, _action_ignored, true):
+		for option in proposals:
+			if int(option["id"]) == int(_action_line[0]):
+				_action_completed.append(_action_line.pop_front())
+				return option
+	_action_line.clear()
+	_action_ignored.clear()
+	_action_completed.clear()
+	var planner := AiActionPlanner.new()
+	planner.budget = profile.action_search_nodes
+	var line := planner.choose(proposals, func(cards: Array) -> bool:
+		var cost := ManaCost.new()
+		var extra := 0
+		var keys: Array = []
+		for i in cards.size():
+			var card: CardInstance = cards[i]["card"]
+			var x: int = cards[i]["x"]
+			cost = _combined_cost(cost, card.data.cost_for(x))
+			extra += _generic_x(card.data, x) + game.spell_surcharge(pid, card.data)
+			var card_keys: Array = game.mana_usage_keys(card.data)
+			if i == 0: keys = card_keys.duplicate()
+			else: keys = keys.filter(func(k: Variant) -> bool: return card_keys.has(k))
+		# Different spells must share the same finite sources. Restricted mana
+		# is used only if it is legal for every spell in this conservative line.
+		if cards.size() > 1 and not reserve.is_empty():
+			cost = _combined_cost(cost, reserve["cost"])
+		return (_cost_is_free(cost) and extra == 0) \
+			or not _plan_taps_from(sources, cost, extra, keys).is_empty())
+	last_action_nodes = planner.nodes
+	var picked: Dictionary = line[0]
+	# Only independent creature development has a predictable cache context.
+	# Targeted/unknown effects may finish a plan, but always trigger replanning.
+	if line.size() > 1 and line.all(func(p: Dictionary) -> bool: return p["independent"]):
+		for option in line:
+			_action_ignored.append(option["id"])
+			_action_line.append(option["id"])
+		_action_context = AiObservation.key(game, pid, _action_ignored, true)
+		_action_completed.append(_action_line.pop_front())
+	return picked
+
+
 func _try_cast_best(game: MtgGame) -> String:
+	var proposals: Array = []
 	var best: CardInstance = null
 	var best_value := 0.0
 	var best_targets: Array = []
@@ -599,6 +683,16 @@ func _try_cast_best(game: MtgGame) -> String:
 		# it leaves us in is worse than the one we are in.
 		if _cast_veto(game, inst, intent, targets, x):
 			continue
+		value += _study_cast_bonus(game, inst, value)
+		if profile.action_search_nodes > 0:
+			proposals.append({"id": inst.id, "card": inst, "value": value,
+				"x": x, "mode": mode, "targets": targets,
+				"independent": inst.data.is_creature() and targets.is_empty()
+					and inst.data.spell_effects.is_empty()
+					and inst.data.triggered_abilities.is_empty()
+					and inst.data.static_abilities.is_empty()
+					and not inst.data.sacrifice_condition.is_valid()
+					and inst.data.additional_sacrifice.is_empty()})
 		if value > best_value:
 			best = inst
 			best_value = value
@@ -607,6 +701,12 @@ func _try_cast_best(game: MtgGame) -> String:
 			best_mode = mode
 	if best == null:
 		return ""
+	if profile.action_search_nodes > 0 and not proposals.is_empty():
+		var picked := _planned_cast(game, proposals, sources, reserve)
+		best = picked["card"]
+		best_x = picked["x"]
+		best_mode = picked["mode"]
+		best_targets = picked["targets"]
 	var plan := _plan_taps(game, best.data.cost_for(best_x),
 		_generic_x(best.data, best_x) + game.spell_surcharge(pid, best.data),
 		game.mana_usage_keys(best.data))
@@ -5584,12 +5684,24 @@ func _combat_regeneration(game: MtgGame) -> String:
 		return ""
 	if game.current_step() != Mtg.Step.DECLARE_BLOCKERS:
 		return ""
+	if profile.forecasts_tactics:
+		var can_spend := not game.players[pid].paid_prevention.is_empty()
+		for source in game.players[pid].battlefield:
+			for ability in source.cur_activated_abilities:
+				for effect in ability.effects:
+					if effect.is_regeneration:
+						can_spend = true
+		if not can_spend:
+			return ""  # do not forecast a defense this board cannot buy
+	var future := game.forecast_damage(true) if profile.forecasts_tactics else {}
 	for inst in game.players[pid].battlefield:
 		if not inst.is_creature() or inst.regeneration_shields > 0:
 			continue
 		if _shield_pending(game, inst):
 			continue   # one is on the stack already — a second would be mana burnt
-		if not _dies_in_combat(game, inst):
+		var dies: bool = not future["alive"].has(inst.id) if profile.forecasts_tactics \
+			else _dies_in_combat(game, inst)
+		if not dies:
 			continue
 		var shielded := _shield(game, inst)
 		if shielded != "":
@@ -5598,6 +5710,8 @@ func _combat_regeneration(game: MtgGame) -> String:
 		# the points that turn "dies" into "lives".
 		var need: int = inst.damage + _combat_damage_to(game, inst) \
 			- inst.prevention - inst.cur_toughness + 1
+		if profile.forecasts_tactics:
+			need = inst.damage + int(future["incoming"].get(inst.id, 0)) - inst.cur_toughness + 1
 		var bought := _buy_prevention(game, TargetRef.card(inst), need)
 		if bought != "":
 			return bought
@@ -5614,6 +5728,10 @@ func _combat_regeneration(game: MtgGame) -> String:
 func _buy_prevention(game: MtgGame, victim: TargetRef, points: int) -> String:
 	if points <= 0 or game.paid_prevention_for(pid, victim).is_empty():
 		return ""
+	if profile.forecasts_tactics and not victim.is_player:
+		var inst := game.find_instance(victim.instance_id)
+		if inst != null and inst.damage_unpreventable_this_turn:
+			return ""
 	if not _plan_and_pay(game, ManaCost.parse("{%d}" % points)):
 		return ""
 	for _i in points:
@@ -7302,7 +7420,8 @@ func _pumps_are_lethal(game: MtgGame, attacker: CardInstance,
 func _tactical_option(game: MtgGame, source: CardInstance, effect: EffectBase) -> Dictionary:
 	var in_combat := not game.combat.attackers.is_empty() and not game.awaiting_blockers \
 		and game.current_step() in [Mtg.Step.DECLARE_BLOCKERS, Mtg.Step.FIRST_STRIKE_DAMAGE]
-	if effect is MassPumpEffect and not in_combat:
+	if effect is MassPumpEffect and not in_combat \
+			and not (profile.forecasts_tactics and _has_forecast_damage(game)):
 		return {}  # a temporary combat modifier waits for actual combat
 	var targets: Array = [null]
 	if effect.target_spec != null:
@@ -7333,6 +7452,8 @@ func _tactical_option(game: MtgGame, source: CardInstance, effect: EffectBase) -
 ## does. Permanent color changes can also earn a lasting static bonus.
 func _tactical_score(game: MtgGame, in_combat: bool, values: Dictionary,
 		fixed_values: bool) -> float:
+	if profile.forecasts_tactics:
+		return _forecast_tactical_score(game, in_combat, values, fixed_values)
 	var score := 0.0
 	for card in game.all_battlefield():
 		var worth: float = float(values.get(card.id, 0.0)) if fixed_values \
@@ -7358,6 +7479,33 @@ func _tactical_score(game: MtgGame, in_combat: bool, values: Dictionary,
 	return score
 
 
+## A bounded, public threat: the top item only, and only composable damage
+## effects. Do not simulate arbitrary spells that draw/search hidden zones.
+## Inspired by Forge PumpAllAi's shared threatened-object read (b09a3d3f).
+func _has_forecast_damage(game: MtgGame) -> bool:
+	if game.stack.is_empty() or game.stack.back().controller == pid:
+		return false
+	return game.can_forecast_damage_top()
+
+
+func _forecast_tactical_score(game: MtgGame, in_combat: bool,
+		values: Dictionary, fixed_values: bool) -> float:
+	var future := game.forecast_damage(in_combat, _has_forecast_damage(game))
+	var score := 0.0
+	for card in game.all_battlefield():
+		if not future["alive"].has(card.id):
+			continue
+		var worth := float(values.get(card.id, 0.0)) if fixed_values \
+			else Evaluator.permanent_value(card, profile)
+		score += (1.0 if card.controller_id == pid else -1.0) * worth * Evaluator.W_BOARD
+	for seat in game.players.size():
+		var damage := maxi(game.players[seat].life - int(future["life"][seat]), 0)
+		var value := LETHAL_WORTH if int(future["life"][seat]) <= 0 \
+			else _face_damage_value(game, damage, seat)
+		score += -value if seat == pid else value
+	return score
+
+
 func _tactical_response(game: MtgGame) -> String:
 	var best := {}
 	var chosen: CardInstance = null
@@ -7369,6 +7517,17 @@ func _tactical_response(game: MtgGame) -> String:
 		if effect == null:
 			continue
 		var option := _tactical_option(game, inst, effect)
+		if profile.forecasts_tactics and not option.is_empty():
+			# Keep the same 1.5x held-mana contract as ordinary casts.
+			# A lifesaving response outweighs a reserve; a minor improvement
+			# must leave enough mana for the more valuable held answer.
+			var reserve := _held_reserve(game)
+			if not reserve.is_empty() and int(reserve.get("for", -1)) != inst.id \
+					and float(option["value"]) < float(reserve["value"]) * 1.5 \
+					and _plan_taps_from(_mana_sources(game),
+						_combined_cost(inst.data.cost, reserve["cost"]),
+						game.spell_surcharge(pid, inst.data)).is_empty():
+				continue
 		if not option.is_empty() and (best.is_empty() or float(option["value"]) > float(best["value"])):
 			best = option
 			chosen = inst
@@ -7575,6 +7734,9 @@ func _attack_candidates(game: MtgGame, defender: int) -> Array[CardInstance]:
 ## the game's random stream ([method _would_attack_once_animated]).
 func _attack_choice(game: MtgGame, candidates: Array[CardInstance],
 		defender: int) -> Array:
+	if profile.studies_combat:
+		var studied := _studied_attack(game, candidates, defender)
+		if not studied.is_empty(): return studied["attackers"]
 	var blockers: Array[CardInstance] = []
 	for inst in game.players[defender].battlefield:
 		if inst.is_creature() and not inst.tapped:
@@ -8287,11 +8449,116 @@ func _trim_attackers_to_cap(game: MtgGame, ids: Array) -> Array:
 	return keep.slice(0, cap)
 
 
-## Damage that connects if the defender blocks our biggest attackers with
-## everything it has — one blocker per attacker, legality (flying, walls,
-## protection) honoured, trample counted past the blocker.
+## Shared eligibility for all three combat questions. Repeatable pumps
+## and tap-to-kill actions retain the specialised, shared-mana policy:
+## the flat study must not treat a mana promise as permanent toughness.
+func _study_supported(game: MtgGame, mine: Array[CardInstance],
+		theirs: Array[CardInstance], defender: int) -> bool:
+	if mine.size() > 12 or theirs.size() > 12: return false
+	if _pump_plan_turn == game.turn_number and not _pump_plan.is_empty(): return false
+	for card in mine:
+		if _taps_into_execution(game, card, defender): return false
+		if not _self_pump_of(game, card).is_empty() \
+				or not _self_pump_of(game, card, true).is_empty(): return false
+	for card in theirs:
+		if _pump_reach(game, card) != Vector2i.ZERO: return false
+	for card in mine + theirs:
+		for trigger in card.cur_triggered_abilities:
+			if EffectIntent.is_gaze(trigger): return false
+	return true
+
+
+## Build one-card responses through the engine's reversible continuous
+## effects, never by guessing at hidden cards. Every alternative spends
+## the SAME single spell, not one copy per creature. No mana is paid here.
+func _study_responses(game: MtgGame, mine: Array[CardInstance],
+		theirs: Array[CardInstance], candidates: Array[CardInstance],
+		defender: int, base: CombatSearch) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var pump := _find_pump_instant(game)
+	if pump == null or pump.data.cost.has_x: return out
+	var extra := game.spell_surcharge(pid, pump.data)
+	if not (_cost_is_free(pump.data.cost) and extra == 0) and _plan_taps_from(
+		_mana_sources(game), pump.data.cost, extra, game.mana_usage_keys(pump.data)).is_empty():
+		return out
+	var effect: PumpEffect = pump.data.spell_effects[0]
+	for index in mini(mine.size(), 6):
+		if not game.target_legal_at(effect.target_spec, TargetRef.card(mine[index]), pump, 0):
+			continue
+		var owned := game.undo_log == null
+		var mark := game.make_mark()
+		game.continuous.add_until_eot_pump(mine[index].id, effect.power,
+			effect.toughness, effect.granted_keywords)
+		game.recalculate()
+		var variant := _build_combat_model(game, mine, theirs, candidates, defender)
+		# Temporary stats do not make the card itself more costly to lose.
+		variant.a_val = base.a_val.duplicate()
+		variant.d_val = base.d_val.duplicate()
+		game.unmake_to(mark)
+		if owned: game.end_search()
+		out.append({"target": index, "model": variant, "cost": 0.6})
+	return out
+
+
+func _studied_exchange(game: MtgGame, attackers: Array[CardInstance],
+		blockers: Array[CardInstance], defender: int, minimum_damage := false) -> Dictionary:
+	# The caller may be forecasting THEIR attack (sweep relief, land-lock
+	# clocks). Keep model.a as our seat in both directions, particularly
+	# when the only combat trick known is in our own hand.
+	var own_attack := defender != pid
+	var mine := attackers if own_attack else blockers
+	var theirs := blockers if own_attack else attackers
+	var candidates: Array[CardInstance] = []
+	if own_attack: candidates = attackers
+	var opponent := game.opponent_of(pid)
+	if not _study_supported(game, mine, theirs, opponent): return {}
+	var model := _build_combat_model(game, mine, theirs, candidates, opponent)
+	if not own_attack:
+		for i in mine.size(): model.a_free[i] = 1
+	var study := AiCombatStudy.new(model)
+	study.ours_attacks = own_attack
+	study.budget = 128
+	study.counterattack = false
+	study.damage_only = minimum_damage
+	study.chump_threshold = profile.chump_threshold
+	study.responses = _study_responses(game, mine, theirs, candidates, opponent, model)
+	return study.blocks((1 << attackers.size()) - 1)
+
+
+func _studied_attack(game: MtgGame, candidates: Array[CardInstance],
+		defender: int) -> Dictionary:
+	last_combat_nodes = 0
+	var mine: Array[CardInstance] = []
+	var theirs: Array[CardInstance] = []
+	for card in game.players[pid].battlefield:
+		if card.is_creature() and not card.tapped: mine.append(card)
+	for card in game.players[defender].battlefield:
+		if card.is_creature(): theirs.append(card)
+	if not _study_supported(game, mine, theirs, defender): return {}
+	var model := _build_combat_model(game, mine, theirs, candidates, defender)
+	var study := AiCombatStudy.new(model)
+	study.budget = maxi(1, profile.combat_search_nodes)
+	study.chump_threshold = profile.chump_threshold
+	var reach := 0
+	for i in model.size_theirs():
+		if model.d_can_attack[i] != 0: reach += model.d_pow[i]
+	study.counterattack = reach >= model.my_life - profile.crack_back_margin
+	study.responses = _study_responses(game, mine, theirs, candidates, defender, model)
+	var mask := study.best_attack()
+	last_combat_nodes = study.nodes
+	var chosen: Array = []
+	for i in mine.size():
+		if mask & (1 << i): chosen.append(mine[i].id)
+	return {"attackers": chosen}
+
+
 func _damage_through_blocks(game: MtgGame, candidates: Array[CardInstance],
 		blockers: Array[CardInstance], defender: int) -> int:
+	if profile.studies_combat:
+		# A clock asks what the defender CAN stop, not whether it would
+		# prefer preserving a body. Same assignments/resolver, damage-first.
+		var result := _studied_exchange(game, candidates, blockers, defender, true)
+		if not result.is_empty(): return int(result["damage"])
 	var ordered: Array[CardInstance] = candidates.duplicate()
 	ordered.sort_custom(func(a: CardInstance, b: CardInstance) -> bool:
 		return a.cur_power > b.cur_power)
@@ -8544,6 +8811,7 @@ func _could_attack_next_turn(game: MtgGame, inst: CardInstance,
 		return false
 	if inst.has_keyword(Mtg.Keyword.DEFENDER) or inst.cur_cant_attack:
 		return false
+	if inst.face_down: return true
 	var needs := inst.data.attack_needs_defender_land
 	if needs != "" and not CombatState._controls_land_of_type(
 			game, pid if defender < 0 else defender, needs):
@@ -8718,6 +8986,9 @@ func _face_damage_value(game: MtgGame, dmg: int, defender: int) -> float:
 ## their combat tricks are outside it.
 func _cohort_value(game: MtgGame, group: Array[CardInstance],
 		blockers: Array[CardInstance], defender: int) -> float:
+	if profile.studies_combat:
+		var result := _studied_exchange(game, group, blockers, defender)
+		if not result.is_empty(): return float(result["value"])
 	var pairs: Array = []
 	for blocker in blockers:
 		for attacker in group:
@@ -8970,6 +9241,23 @@ func _block_choice_once_pumped(game: MtgGame, attackers: Array[CardInstance],
 func _block_choice(game: MtgGame, attackers: Array[CardInstance],
 		free: Array[CardInstance], used: Array[int],
 		shares: Dictionary = {}) -> Dictionary:
+	if profile.studies_combat and used.is_empty() and not attackers.is_empty() \
+			and _study_supported(game, free, attackers, game.opponent_of(pid)):
+		var model := _build_combat_model(game, free, attackers, [], game.opponent_of(pid))
+		for i in free.size(): model.a_free[i] = 1
+		var study := AiCombatStudy.new(model)
+		study.ours_attacks = false
+		study.counterattack = false
+		study.chump_threshold = profile.chump_threshold
+		study.budget = maxi(1, profile.combat_search_nodes)
+		study.responses = _study_responses(game, free, attackers, [], game.opponent_of(pid), model)
+		var result := study.blocks((1 << attackers.size()) - 1)
+		last_combat_nodes = study.nodes
+		var mapping: Dictionary = {}
+		for index in result["blocks"]:
+			mapping[free[int(index)].id] = attackers[int(result["blocks"][index])].id
+			used.append(free[int(index)].id)
+		return mapping
 	var me := game.players[pid]
 	var through := _damage_after_value_blocks(game, attackers, free, shares)
 	var desperate: bool = me.life - through <= profile.chump_threshold
@@ -10207,12 +10495,9 @@ const FACE_URGENCY := 4.0
 ##    second mode, Samite Healer), which `_land_damage` draws down when the
 ##    window closes.
 ##
-## Everything else the window ALLOWS is deliberately skipped, and the
-## instructive one is a whole-combat Fog: `PreventCombatDamageEffect`
-## raises `MtgGame.combat_damage_prevented`, which the damage STEP reads
-## before each wave — so a Fog cast in a window stops the wave that has not
-## happened yet and does nothing at all to the packets already waiting. An
-## AI that spent one here would be throwing the card away.
+## With `forecasts_tactics`, a whole-combat Fog also reaches pending combat
+## packets: the engine rechecks global prevention when they land. The null
+## arm preserves the earlier packet-family restriction.
 ##
 ## [param worth] is what answering this packet is worth (see
 ## [method _packet_worth]); a card out of HAND has to be worth less than
@@ -10301,6 +10586,13 @@ func _effects_answer(game: MtgGame, effects: Array, packet: DamagePacket,
 	var e: EffectBase = effects[0]
 	if not e.is_damage_prevention:
 		return false
+	if profile.forecasts_tactics:
+		if not packet.target.is_player:
+			var victim := game.find_instance(packet.target.instance_id)
+			if victim != null and victim.damage_unpreventable_this_turn:
+				return false
+		if e is PreventCombatDamageEffect and not e.targeted_mode:
+			return packet.is_combat and not game.combat_damage_prevented
 	if e is PreventDamageShieldEffect:
 		# The 1997 Circle: it names the packet, so the packet has to be one
 		# it may name.
@@ -10353,12 +10645,17 @@ func _packet_source_name(packet: DamagePacket) -> String:
 ## (pools are spent when the damage LANDS), so without this the AI would
 ## answer the same packet twice.
 func _uncovered(game: MtgGame, packet: DamagePacket) -> int:
+	if profile.forecasts_tactics and game._damage_prevented_before_gates(
+			packet.source, packet.target, packet.is_combat):
+		return 0
 	var pool := 0
 	if packet.target.is_player:
 		pool = game.players[packet.target.player_id].damage_prevention
 	else:
 		var inst := game.find_instance(packet.target.instance_id)
 		if inst != null:
+			if profile.forecasts_tactics and inst.damage_unpreventable_this_turn:
+				return packet.remaining()
 			pool = inst.prevention
 	return maxi(packet.remaining() - pool, 0)
 
@@ -10903,6 +11200,7 @@ func _tutor_pick(game: MtgGame, candidates: Array[CardInstance]) -> CardInstance
 	var best_worth := 0.0
 	for inst in shortlist:
 		var worth := _tutor_worth(game, inst)
+		worth += _study_cast_bonus(game, inst, worth)
 		if best == null or worth > best_worth:
 			best = inst
 			best_worth = worth

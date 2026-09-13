@@ -17,7 +17,7 @@ extends RefCounted
 ##   the heuristic — and are LEDGERED as such rather than decided invisibly
 ##   (docs/duel-todo.md §1.3).
 ##
-## ══ THE EXTENSION POINTS ARE `answer_*`, `wants_*`, and `accept_answer`.
+## ══ THE EXTENSION POINTS ARE `answer_*`, `wants_*`, `prepare`, and `accept_answer`.
 ## OVERRIDE NOTHING ELSE. ══
 ##
 ## `answer_yes_no` · `answer_card` · `answer_color` · `answer_discard` ·
@@ -41,11 +41,17 @@ extends RefCounted
 ## paragraph earned its capitals). GDScript does not refuse a mismatched
 ## override; it fails at RUNTIME, inside whichever card happens to ask.
 ##
-## Contract: agents READ game state freely but never mutate — they return
+## Contract: agents read only information their seat may know — they return
 ## choices; the engine acts on them. Determinism: any randomness must use
 ## game.rng, never global RNG. And an `answer_*` may be called during a
 ## PROBE (MtgGame.is_probing) that is about to be rewound: keep no state
 ## outside your own script variables, which [GameSnapshot] restores for you.
+
+
+## Called when a seat is attached, before its first decision. A player may
+## study its own registered deck, but not another seat's hidden zones.
+func prepare(_game: MtgGame, _seat: int) -> void:
+	pass
 
 
 # ------------------------------------------------------- the ask/answer --
