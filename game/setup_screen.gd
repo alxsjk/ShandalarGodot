@@ -53,6 +53,11 @@ var _deck_options: Array[OptionButton] = []
 var _name_edits: Array[LineEdit] = []
 var _life_spins: Array[SpinBox] = []
 var _difficulty_options: Array[OptionButton] = []
+var _unfair_checks: Array[CheckBox] = []
+var _challenge_groups: Array[VBoxContainer] = []
+var _challenge_notes: Array[Label] = []
+## Retained separately while the picker displays the locked Wizard level.
+var _fair_skills: Array[int] = [3, 3]
 ## Their labels, kept so they can be hidden with them.
 var _difficulty_labels: Array[Label] = []
 ## The chosen-portrait row under each duelist face.
@@ -125,9 +130,8 @@ const DIFFICULTIES := ["Apprentice", "Magician", "Sorcerer", "Wizard"]
 ## player and a tester read one description. Kept next to DIFFICULTIES
 ## because the order is the order.
 const DIFFICULTY_TOOLTIP := \
-	"How well the AI plays this seat (the same four levels as the Deck " \
-	+ "Lab's --profile-a/--profile-b). Every level knows the same plays; " \
-	+ "the lower ones fumble more of them.\n" \
+	"Four fair difficulty levels. None sees your hidden hand or future draws. " \
+	+ "Stronger levels study more possibilities; lower ones make more deliberate mistakes.\n" \
 	+ "Apprentice: fumbles a third of its plays, never holds instants " \
 	+ "open (sorcery-speed Magic), never sideboards.\n" \
 	+ "Magician: holds instants and mana for them; counters only the " \
@@ -135,8 +139,9 @@ const DIFFICULTY_TOOLTIP := \
 	+ "Sorcerer: few mistakes; reads your crack-back before it attacks; " \
 	+ "plays engines, pays sacrifices, casts spells with a moment, counts " \
 	+ "cards and paces its draws; may sideboard 3 cards.\n" \
-	+ "Wizard: no mistakes, the same plays with twice the search; may " \
-	+ "sideboard 4 cards."
+	+ "Wizard: no deliberate mistakes, the deepest analysis; may " \
+	+ "sideboard 4 cards.\n" \
+	+ "Unfair is a separate opt-in Wizard challenge that sees your current hand."
 
 ## `<random deck>` — the original's own entry, verbatim, and its own place:
 ## first in the deck list, above the decks themselves
@@ -185,7 +190,7 @@ const REMEMBER_PREFIX := "battle_"
 const REMEMBERED_KEYS: Array[String] = [
 	"mode", "format", "ante", "best_of", "sideboard", "demo_pace",
 	"deck_0", "deck_1", "name_0", "name_1", "life_0", "life_1",
-	"skill_0", "skill_1"]
+	"skill_0", "skill_1", "unfair_0", "unfair_1"]
 ## What the caption says when the player has no portrait art at all.
 const NO_PORTRAITS := "(no portraits)"
 
@@ -447,6 +452,7 @@ func _build_ui() -> void:
 		for name in DIFFICULTIES:
 			difficulty.add_item(name)
 		difficulty.tooltip_text = DIFFICULTY_TOOLTIP
+		difficulty.add_theme_color_override("font_disabled_color", UiChrome.INK)
 		difficulty.select(3)   # Wizard
 		# THE SEAT NAME FOLLOWS THE DIFFICULTY. Nothing was connected here,
 		# so the name froze at whatever skill was current when the mode was
@@ -457,6 +463,26 @@ func _build_ui() -> void:
 		difficulty.item_selected.connect(_on_difficulty_changed)
 		seat_box.add_child(difficulty)
 		_difficulty_options.append(difficulty)
+		var challenge := VBoxContainer.new()
+		challenge.add_theme_constant_override("separation", 3)
+		challenge.add_child(HSeparator.new())
+		challenge.add_child(UiChrome.body_label("Challenge modifier", 13))
+		var unfair := CheckBox.new()
+		unfair.text = "Unfair challenge"
+		unfair.tooltip_text = UnfairPlayer.DESCRIPTION
+		unfair.add_theme_font_size_override("font_size", 13)
+		UiChrome.shadowed_button(unfair)
+		unfair.toggled.connect(_on_unfair_toggled.bind(pid))
+		challenge.add_child(unfair)
+		_unfair_checks.append(unfair)
+		var note := UiChrome.body_label("", 13)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.tooltip_text = UnfairPlayer.DESCRIPTION
+		note.add_theme_color_override("font_color", UiChrome.ACCENT)
+		challenge.add_child(note)
+		_challenge_notes.append(note)
+		seat_box.add_child(challenge)
+		_challenge_groups.append(challenge)
 
 		seats.add_child(UiChrome.panel_around(seat_row, 10.0))
 	content.add_child(seats)
@@ -1178,6 +1204,13 @@ static func _is_auto_name(text: String) -> bool:
 	return false
 
 
+func _on_unfair_toggled(on: bool, pid: int) -> void:
+	if on:
+		_fair_skills[pid] = _difficulty_options[pid].selected
+	_difficulty_options[pid].select(3 if on else _fair_skills[pid])
+	_apply_mode(_mode)
+
+
 func _apply_mode(mode: int) -> void:
 	_mode = mode
 	for i in _mode_buttons.size():
@@ -1187,6 +1220,11 @@ func _apply_mode(mode: int) -> void:
 		var seat_is_ai := _seat_is_ai(pid, mode)
 		_difficulty_options[pid].visible = seat_is_ai
 		_difficulty_labels[pid].visible = seat_is_ai
+		_unfair_checks[pid].visible = seat_is_ai
+		_challenge_groups[pid].visible = seat_is_ai
+		_difficulty_options[pid].disabled = _unfair_checks[pid].button_pressed
+		_challenge_notes[pid].text = ("Opponent sees my hand." if mode == BattleMode.VS_AI
+			else "Sees the other player's hand.") + "\nWizard strategy · Unrated"
 		# AN AI SEAT IS NAMED BY THE PLAYER TOO (the owner's ask,
 		# 2026-09-03). The field used to be locked for an AI and written
 		# over with its skill; both are gone. What replaces the skill
@@ -1240,7 +1278,9 @@ func _remember_choices() -> void:
 		values["deck_%d" % pid] = str(meta) if meta != null else ""
 		values["name_%d" % pid] = _name_edits[pid].text
 		values["life_%d" % pid] = int(_life_spins[pid].value)
-		values["skill_%d" % pid] = _difficulty_options[pid].selected
+		values["skill_%d" % pid] = _fair_skills[pid] if _unfair_checks[pid].button_pressed \
+			else _difficulty_options[pid].selected
+		values["unfair_%d" % pid] = _unfair_checks[pid].button_pressed
 	# In memory per key and ONE write for the gesture — the Options
 	# screen's rule for its sliders and its rules preset.
 	for key in REMEMBERED_KEYS:
@@ -1279,7 +1319,9 @@ func _restore_choices() -> void:
 		var skill := int(_remembered("skill_%d" % pid,
 			_difficulty_options[pid].selected))
 		if skill >= 0 and skill < DIFFICULTIES.size():
-			_difficulty_options[pid].select(skill)
+			_fair_skills[pid] = skill
+		_unfair_checks[pid].set_pressed_no_signal(bool(_remembered("unfair_%d" % pid, false)))
+		_difficulty_options[pid].select(3 if _unfair_checks[pid].button_pressed else _fair_skills[pid])
 	var format := DeckFormat.ORDER.find(str(_remembered("format", "")))
 	if format >= 0:
 		_format_option.select(format)
@@ -1295,6 +1337,7 @@ func _restore_choices() -> void:
 	_sideboard_check.button_pressed = bool(_remembered("sideboard",
 		_sideboard_check.button_pressed))
 	_pace_slider.value = float(_remembered("demo_pace", _pace_slider.value))
+	_apply_mode(mode)
 	_apply_match_mode()
 
 
@@ -1430,6 +1473,8 @@ func _build_config() -> DuelConfig:
 		if seat_is_ai:
 			config.pilots[pid] = [AiProfile.apprentice(), AiProfile.magician(),
 				AiProfile.sorcerer(), AiProfile.wizard()][_difficulty_options[pid].selected]
+			config.unfair[pid] = _unfair_checks[pid].button_pressed
+			if config.unfair[pid]: config.pilots[pid] = AiProfile.wizard()
 	config.pace = _pace_slider.value if _mode == BattleMode.DEMO else Settings.ai_pace()
 	config.ante = 1 if _ante_check.button_pressed else 0
 	config.deck_format = deck_format()

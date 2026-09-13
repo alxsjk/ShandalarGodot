@@ -2,6 +2,9 @@ extends SceneTree
 ## Deterministic planning latency probe; no saves, ratings or random search.
 ## Run with a timeout: Godot --headless --path . -s res://tools/bench_planning.gd
 ## Timings are diagnostic, not machine-dependent assertions in the test gate.
+## Append -- --unfair to measure the separate hand-aware challenge with a
+## known opposing Giant Growth. Budgets in that report are PER study; the
+## challenge can run eight response studies after the baseline study.
 
 const REPEATS := 5
 
@@ -11,12 +14,19 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	var unfair := OS.get_cmdline_user_args().has("--unfair")
 	var report: Array = []
 	for size in [1, 3, 6, 12, 13]:
 		for trick in [false, true]:
 			print("Measuring %d creatures per side; own trick: %s" % [size, trick])
 			var game := _board(size, trick)
-			var pilot := AiPlayer.new(0, AiProfile.wizard())
+			if unfair:
+				game._put_on_battlefield(_card(game, 1, "Forest"), 1)
+				var response := _card(game, 1, "Giant Growth")
+				response.zone = Mtg.Zone.HAND
+				game.players[1].hand.append(response)
+				game.recalculate()
+			var pilot: AiPlayer = UnfairPlayer.new(0) if unfair else AiPlayer.new(0, AiProfile.wizard())
 			game.set_agent(0, pilot)
 			var candidates := pilot._attack_candidates(game, 1)
 			var times: Array[float] = []
@@ -29,6 +39,7 @@ func _run() -> void:
 				max_nodes = maxi(max_nodes, pilot.last_combat_nodes)
 			times.sort()
 			report.append({"creatures_per_side": size, "own_trick": trick,
+				"unfair": unfair,
 				"median_ms": times[times.size() / 2],
 				"max_ms": times.back(), "max_study_leaves": max_nodes,
 				"budget": pilot.profile.combat_search_nodes})

@@ -1,14 +1,14 @@
 # Strong play. Fair information.
 
-ShandalarGodot's computer opponent is designed to win by playing better,
+ShandalarGodot's four standard computer opponents are designed to win by playing better,
 not by knowing your secrets. **No hidden-hand peeking. No knowledge of
 future draws. No extra mana, free spells or special combat rules.**
 
-This is a design requirement at every difficulty, not an optional setting.
+This is a design requirement at every standard difficulty, not an optional setting.
 A Wizard gets more analysis and fewer deliberate mistakes—not more access
 to your cards.
 
-## What the opponent can know
+## What the standard opponent can know
 
 - Its own hand and registered deck: the cards it brought, their mana curve,
   colours, strategic roles and potential synergies.
@@ -59,7 +59,28 @@ These tests are safeguards, not a claim of a formal proof of every future
 card interaction. The player remains a bounded, fallible opponent. Complex
 abilities retain specialised policies, and broad search is deliberately
 limited so the same design works on desktop and web. An information leak
-is a bug to fix—not a difficulty feature to defend.
+in a standard opponent is a bug to fix—not a difficulty feature to defend.
+
+## Separate challenge: Unfair — sees your hand
+
+This opt-in control is separate from Apprentice, Magician, Sorcerer and
+Wizard, and is off on a fresh installation. It uses all Wizard capabilities
+plus the opponent's **current hand**. It can bait a known payable counter,
+hold extra creatures against a known payable sweeper, and study bounded
+single-pump combat responses. Knowing a card does not force its owner to use it.
+
+It still cannot inspect secret library order, future draws, the random
+generator's state or a face-down permanent's hidden identity. It gets no
+extra mana, free cards or rule exceptions. It does not globally reveal
+either hand, and it does not retain identities after cards leave the hand.
+
+The chosen challenge is remembered by setup, clearly displayed during the
+duel, and carried between games. It sits under **Challenge modifier**, not
+among the four difficulties. Enabling it visibly locks Wizard; unchecking it
+restores your previous fair level, even after reopening setup. The choice
+applies when starting a game, never silently during play.
+Deck Lab accepts the explicit `unfair` challenge token; those runs
+are labeled, never update Elo, and cannot participate in fair profile sweeps.
 
 For implementation limits and reproducible measurements, see
 [the planning study](planning-study-2026-09-13.md).

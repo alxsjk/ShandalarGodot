@@ -100,6 +100,7 @@ var ante := true
 ## `Enemy Level`, an index into [constant ENEMY_LEVELS]. Wizard, which is
 ## what the battle-setup screen defaults its AI seat to.
 var enemy_level := 3
+var unfair := false
 ## `&Num opponents:`. 0 = every deck there is, which is the original's own
 ## length (`min(decks on disk, 20)`); anything else shortens the run.
 ## [GauntletState.shuffle] holds the cap.
@@ -186,6 +187,7 @@ static func band(value: int) -> String:
 
 ## The whole readout line, as the shell page writes it.
 func readout(opponents: int) -> String:
+	if unfair: return "Unfair challenge — separate from fair difficulty scores"
 	var value := difficulty(enemy_level, ante, best_of, opponents)
 	return READOUT % [value, band(value)]
 
@@ -211,10 +213,9 @@ func readout(opponents: int) -> String:
 ## along — a button that leads nowhere is worse than no button.
 func window(decks: Array[String], on_run: Callable, on_exit: Callable,
 		on_create := Callable()) -> OriginalDialog:
-	# Measured against the content, not guessed: nine rows and a foot,
-	# which the screenshot pass fitted to 450 with the stone still
-	# reading as a window rather than a wall.
-	var dialog := OriginalDialog.create(TITLE, Vector2(470, 450),
+	# Room for the separate challenge group and the foot row; checked
+	# against the native viewport capture with the original stone skin.
+	var dialog := OriginalDialog.create(TITLE, Vector2(470, 550),
 		"panel_dark_stone")
 	var box := dialog.body()
 	var readout_label := OriginalDialog.label("", 15, true)
@@ -306,7 +307,8 @@ func window(decks: Array[String], on_run: Callable, on_exit: Callable,
 		var pick := CheckBox.new()
 		pick.text = ENEMY_LEVELS[i]
 		pick.button_group = level_group
-		pick.button_pressed = enemy_level == i
+		pick.button_pressed = (3 if unfair else enemy_level) == i
+		pick.disabled = unfair
 		pick.add_theme_color_override("font_color", OriginalDialog.CHOICE)
 		var index := i
 		pick.toggled.connect(func(on: bool) -> void:
@@ -315,6 +317,23 @@ func window(decks: Array[String], on_run: Callable, on_exit: Callable,
 				refresh.call())
 		levels.add_child(pick)
 	box.add_child(levels)
+	box.add_child(HSeparator.new())
+	box.add_child(OriginalDialog.label("Challenge modifier", 14, true))
+	var unfair_check := CheckBox.new()
+	unfair_check.text = "Unfair challenge — opponent sees my hand"
+	unfair_check.tooltip_text = UnfairPlayer.DESCRIPTION
+	unfair_check.add_theme_font_size_override("font_size", 13)
+	unfair_check.button_pressed = unfair
+	unfair_check.toggled.connect(func(on: bool) -> void:
+		unfair = on
+		for i in levels.get_child_count():
+			var pick: CheckBox = levels.get_child(i)
+			pick.disabled = on
+			pick.set_pressed_no_signal(i == (3 if on else enemy_level))
+		refresh.call())
+	box.add_child(unfair_check)
+	box.add_child(OriginalDialog.label("Wizard strategy · Unrated", 13))
+	box.add_child(HSeparator.new())
 
 	# `&Num opponents:` — a spinner on the original's page too. 0 is our
 	# spelling of "all of them", which is the length the original always

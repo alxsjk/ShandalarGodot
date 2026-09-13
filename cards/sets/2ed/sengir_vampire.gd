@@ -20,7 +20,7 @@ func build() -> CardData:
 		.triggered(TriggeredAbility.new(
 			Mtg.EventType.DIES, _feed,
 			"Whenever a creature dealt damage by Sengir Vampire this turn dies, put a +1/+1 counter on Sengir Vampire.",
-			_did_i_wound_it)) \
+			_did_i_wound_it).public_aftermath()) \
 		.oracle("Flying\nWhenever a creature dealt damage by Sengir Vampire this turn dies, put a +1/+1 counter on Sengir Vampire.")
 
 

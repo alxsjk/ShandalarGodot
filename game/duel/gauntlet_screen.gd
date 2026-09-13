@@ -299,6 +299,8 @@ func _apply_options() -> bool:
 	config.sideboard_between_duels = options.sideboard_between_duels
 	config.pilots[0] = null          # seat 0 is you, always (§5.7)
 	config.pilots[1] = GauntletOptions.profile(options.enemy_level)
+	config.unfair = [false, options.unfair]
+	if options.unfair: config.pilots[1] = AiProfile.wizard()
 	config.pace = Settings.ai_pace()
 	var mine := options.your_deck
 	var deck: DeckList = null
@@ -449,6 +451,7 @@ func _config_for_this_round() -> DuelConfig:
 	out.portraits = config.portraits.duplicate()
 	out.lives = config.lives.duplicate()
 	out.pilots = config.pilots.duplicate()
+	out.unfair = config.unfair.duplicate()
 	out.panel_colors = [config.panel_colors[0],
 		DuelConfig.dominant_color(deck.cards)]
 	out.pace = config.pace

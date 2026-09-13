@@ -188,6 +188,8 @@ OPTIONS
                       which is how one capability is measured against its
                       own null: the candidate on seat A, the same preset
                       with the knob off on seat B, same seeds.
+                      Separate challenge: `unfair` = Wizard + current-hand
+                      knowledge. Always unrated; excluded from fair sweeps.
   --out DIR           Output directory (default DeckLab/results/run_<stamp>,
                       printed before the run starts).
   --no-svg            Skip chart generation.
@@ -351,6 +353,8 @@ EXAMPLES
 """
 
 const PROFILES := ["apprentice", "magician", "sorcerer", "wizard"]
+## Challenge token is deliberately outside the four fair profiles.
+const UNFAIR := "unfair"
 
 ## THE FIELD — `--deck-b random` (DeckLab/README.md). The setup screen's
 ## `<random deck>` row is the same idea in the GUI, and this is
@@ -590,7 +594,11 @@ func _main(argv: PackedStringArray) -> int:
 	# rather than after the games.
 	var out_dir: String = opts.out
 	if out_dir == "":
-		out_dir = "DeckLab/results/run_%d" % int(Time.get_unix_time_from_system())
+		out_dir = "DeckLab/results/%s_%d" % ["unfair" if _is_unfair_run(opts) else "run",
+			int(Time.get_unix_time_from_system())]
+	if _is_unfair_run(opts):
+		opts.no_elo = true
+		print("UNFAIR CHALLENGE: sees the current opposing hand. Unrated; not a fair benchmark.")
 	var made := DirAccess.make_dir_recursive_absolute(
 		ProjectSettings.globalize_path(out_dir))
 	if made != OK and not DirAccess.dir_exists_absolute(
@@ -851,6 +859,9 @@ func _main(argv: PackedStringArray) -> int:
 		"format": opts.format,
 		"elapsed_seconds": elapsed, "matchups": json_matchups,
 	}
+	if _is_unfair_run(opts):
+		results_json["challenge"] = "unfair-current-hand"
+		results_json["rated"] = false
 	# SAME RULE AS THE "field" AND "draws" KEYS: present only when the run
 	# actually used them, so a default run's results.json has exactly the
 	# keys it has always had.
@@ -1296,8 +1307,8 @@ func _play_duel(seat_decks: Array, seat_profiles: Array, duel_seed: int,
 	var lives: Array = _duel_opts.get("lives", [20, 20])
 	game.setup(seat_decks[0], seat_decks[1], String(names[0]), String(names[1]),
 		int(lives[0]), int(lives[1]), duel_seed)
-	var ai0 := AiPlayer.new(0, _profile(String(seat_profiles[0])))
-	var ai1 := AiPlayer.new(1, _profile(String(seat_profiles[1])))
+	var ai0 := _pilot(0, String(seat_profiles[0]))
+	var ai1 := _pilot(1, String(seat_profiles[1]))
 	game.set_agent(0, ai0)
 	game.set_agent(1, ai1)
 	for pid in 2:
@@ -1453,6 +1464,14 @@ func _run_one_match(task: Dictionary) -> Dictionary:
 ## scratch patch on the tree: the candidate on one seat, the same preset
 ## with the knob off on the other, same seeds. An unknown knob is a
 ## refusal at parse time, not a silent wizard.
+static func _pilot(seat: int, spec: String) -> AiPlayer:
+	return UnfairPlayer.new(seat) if spec == UNFAIR else AiPlayer.new(seat, _profile(spec))
+
+
+static func _is_unfair_run(opts: Dictionary) -> bool:
+	return opts.get("profile_a", "wizard") == UNFAIR or opts.get("profile_b", "wizard") == UNFAIR
+
+
 static func _profile(spec: String) -> AiProfile:
 	var profile_name := spec
 	var overrides := ""
@@ -1646,8 +1665,8 @@ const FLAG_HINTS := {
 	"--seed": "--seed N: base RNG seed, default 1 — the same seed replays a run",
 	"--jobs": "--jobs N: worker threads INSIDE one process, default min(4, cores) (0 = default — see --procs)",
 	"--procs": "--procs N: separate worker processes, default 8 when the run is big enough (1 = none). Each is ~235 MB and about 8x the speed of threads",
-	"--profile-a": "--profile-a NAME[:knob=value,...]: apprentice|magician|sorcerer|wizard, default wizard",
-	"--profile-b": "--profile-b NAME[:knob=value,...]: apprentice|magician|sorcerer|wizard, default wizard",
+	"--profile-a": "--profile-a NAME[:knob=value,...]: apprentice|magician|sorcerer|wizard; separate unrated challenge: unfair",
+	"--profile-b": "--profile-b NAME[:knob=value,...]: apprentice|magician|sorcerer|wizard; separate unrated challenge: unfair",
 	"--out": "--out DIR: where report.txt/results.json/matchups.csv are written",
 	"--elo-file": "--elo-file PATH: the Elo ledger, default " + EloLedger.DEFAULT_PATH,
 	"--lives": "--lives N or A,B: starting life per seat, default 20,20",
@@ -1814,8 +1833,10 @@ func _parse_args(argv: PackedStringArray) -> Dictionary:
 				var spec := value.to_lower()
 				var colon := spec.find(":")
 				var preset := spec if colon < 0 else spec.substr(0, colon)
-				if not PROFILES.has(preset):
+				if not PROFILES.has(preset) and preset != UNFAIR:
 					return {"error": "unknown profile '%s'" % value}
+				if preset == UNFAIR and colon >= 0:
+					return {"error": "unfair is a separate Wizard challenge; profile overrides are not supported"}
 				if colon >= 0:
 					var bad := _profile(preset).apply_overrides(spec.substr(colon + 1))
 					if bad != "":
@@ -1911,6 +1932,10 @@ func _parse_args(argv: PackedStringArray) -> Dictionary:
 			"--control-deck-a": opts.control_a = value
 			"--control-deck-b": opts.control_b = value
 		i += 1
+	if _is_unfair_run(opts):
+		opts.no_elo = true
+		if not opts.sweep.is_empty():
+			return {"error": "unfair challenges cannot be mixed with fair profile sweeps"}
 	# `--gauntlet`, now that `--deck-a` is known whichever side it was on.
 	for value in opts.gauntlets:
 		var pool := _expand_pool(value, opts.deck_a)
@@ -2066,6 +2091,7 @@ var _group_filter := ""
 ## class doc's note about the determinism check.
 func _settings_line(opts: Dictionary) -> String:
 	var parts := PackedStringArray()
+	if _is_unfair_run(opts): parts.append("UNFAIR current-hand challenge; unrated; not a fair benchmark")
 	if opts.lives != [20, 20]:
 		parts.append("life %d/%d" % [opts.lives[0], opts.lives[1]])
 	if opts.ante > 0:

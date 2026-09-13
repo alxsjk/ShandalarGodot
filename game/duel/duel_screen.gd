@@ -610,6 +610,7 @@ func _new_game() -> void:
 		config.player_names[0], config.player_names[1],
 		config.lives[0], config.lives[1], duel_seed)
 	game.log_line("Duel seed: %d" % duel_seed)
+	if config.challenge_label() != "": game.log_line(config.challenge_label())
 	# THE ANTE (§6.19) — the original's `&Ante` match parameter. Staked
 	# HERE, between the shuffle and the deal, because that is the manual's
 	# own order: p.60 *"Before the duel begins, both players put up one or
@@ -639,7 +640,7 @@ func _new_game() -> void:
 	_humans.clear()
 	for pid in 2:
 		if config.is_ai(pid):
-			var ai := AiPlayer.new(pid, config.pilots[pid])
+			var ai := config.create_ai(pid)
 			_ais[pid] = ai
 			game.set_agent(pid, ai)
 		else:
@@ -8083,6 +8084,34 @@ func _player_panel(pid: int, life_first := true) -> Control:
 	_life_buttons.resize(2)
 	_life_buttons[pid] = life
 	_dress_life_panel(pid, false)
+	# The pile-side space belongs to the deck name. A challenge identifies
+	# its own pilot in the life panel instead, without adding a sidebar row.
+	var unfair := config.is_ai(pid) and config.unfair[pid]
+	if unfair:
+		var badge := PanelContainer.new()
+		badge.name = "UnfairNotice"
+		badge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		badge.offset_left = -60
+		badge.offset_top = -22
+		badge.offset_right = -4
+		badge.offset_bottom = -4
+		badge.mouse_filter = Control.MOUSE_FILTER_PASS
+		badge.tooltip_text = "Unfair — this opponent sees the other player's current hand.\n" \
+			+ UnfairPlayer.DESCRIPTION
+		var backing := StyleBoxFlat.new()
+		backing.bg_color = Color(0.05, 0.04, 0.03, 0.9)
+		backing.set_corner_radius_all(2)
+		backing.content_margin_left = 4
+		backing.content_margin_right = 4
+		badge.add_theme_stylebox_override("panel", backing)
+		var caption := Label.new()
+		caption.text = "Unfair"
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		caption.add_theme_font_size_override("font_size", 12)
+		caption.add_theme_color_override("font_color", Color("efb66b"))
+		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.add_child(caption)
+		life.add_child(badge)
 
 	# POISON: ten counters lose the game (CR 704.5c), and the duel had no
 	# clock for it at all — a game lost to Marsh Viper simply ended
@@ -8100,6 +8129,11 @@ func _player_panel(pid: int, life_first := true) -> Control:
 	poison.set_anchors_preset(Control.PRESET_FULL_RECT)
 	poison.offset_right = -5
 	poison.offset_bottom = -3
+	if unfair:
+		# Keep both statuses readable, including when the face is flipped.
+		poison.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		poison.anchor_right = 0.5
+		poison.offset_left = 5
 	poison.visible = false
 	life.add_child(poison)
 	_poison_labels.resize(2)

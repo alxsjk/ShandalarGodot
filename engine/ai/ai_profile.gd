@@ -31,6 +31,10 @@ var profile_name := "Custom"
 var studies_deck := false
 var studies_combat := false
 var action_search_nodes := 0
+## Public-board planning refinements, independently switchable for null runs.
+var values_context := false
+var plans_modes := false
+var forecasts_aftermath := false
 
 ## Read mass buffs/debuffs and color changes by their visible payoff.
 ## False preserves the old caster exactly for seeded comparison. Enabled
@@ -1870,6 +1874,9 @@ static func sorcerer() -> AiProfile:
 	profile.studies_deck = true
 	profile.studies_combat = true
 	profile.action_search_nodes = 64
+	profile.values_context = true
+	profile.plans_modes = true
+	profile.forecasts_aftermath = true
 	return profile
 
 ## Top difficulty: no mistakes at all — it plays the same decision code as
@@ -1898,6 +1905,9 @@ static func wizard() -> AiProfile:
 	profile.studies_deck = true
 	profile.studies_combat = true
 	profile.action_search_nodes = 96
+	profile.values_context = true
+	profile.plans_modes = true
+	profile.forecasts_aftermath = true
 	return profile
 
 

@@ -19,6 +19,52 @@ extends GutTest
 var screen: SetupScreen
 
 
+func test_unfair_is_separate_visible_opt_in_and_remembers_the_fair_level() -> void:
+	SetupScreen.forget_choices()
+	screen._restore_choices()
+	screen._apply_mode(SetupScreen.BattleMode.VS_AI)
+	assert_eq(SetupScreen.DIFFICULTIES.size(), 4)
+	assert_false(screen._unfair_checks[1].button_pressed)
+	assert_false(screen._unfair_checks[0].visible)
+	assert_false(screen._challenge_groups[0].visible)
+	assert_true(screen._unfair_checks[1].visible)
+	assert_true(screen._challenge_groups[1].visible)
+	screen._difficulty_options[1].select(1)
+	screen._unfair_checks[1].button_pressed = true
+	assert_true(screen._difficulty_options[1].disabled)
+	assert_eq(screen._difficulty_options[1].selected, 3, "locked Wizard is visible")
+	assert_string_contains(screen._challenge_notes[1].text, "Opponent sees my hand")
+	screen._apply_mode(SetupScreen.BattleMode.DEMO)
+	screen._apply_mode(SetupScreen.BattleMode.VS_AI)
+	var config := screen._build_config()
+	assert_not_null(config)
+	if config != null:
+		assert_true(config.create_ai(1) is UnfairPlayer)
+		assert_eq(config.pilots[1].profile_name, "Wizard")
+	screen._remember_choices()
+	assert_eq(Settings.get_value("battle_skill_1", -1), 1, "persist the fair skill, not locked Wizard")
+	screen._unfair_checks[1].set_pressed_no_signal(false)
+	screen._restore_choices()
+	assert_true(screen._unfair_checks[1].button_pressed)
+	assert_eq(screen._difficulty_options[1].selected, 3)
+	var fresh: SetupScreen = load("res://game/setup_screen.tscn").instantiate()
+	add_child_autofree(fresh)
+	assert_true(fresh._difficulty_options[1].disabled)
+	assert_eq(fresh._difficulty_options[1].selected, 3)
+	fresh._unfair_checks[1].button_pressed = false
+	assert_eq(fresh._difficulty_options[1].selected, 1, "restored after reopening")
+	screen._unfair_checks[1].button_pressed = false
+	assert_false(screen._difficulty_options[1].disabled)
+	assert_eq(screen._difficulty_options[1].selected, 1)
+	for skill in 4:
+		screen._difficulty_options[1].select(skill)
+		screen._unfair_checks[1].button_pressed = true
+		assert_eq(screen._difficulty_options[1].selected, 3)
+		screen._unfair_checks[1].button_pressed = false
+		assert_eq(screen._difficulty_options[1].selected, skill)
+	SetupScreen.forget_choices()
+
+
 func before_each() -> void:
 	screen = load("res://game/setup_screen.tscn").instantiate()
 	add_child_autofree(screen)
@@ -745,13 +791,13 @@ func test_the_name_the_player_gave_the_ai_is_the_name_in_the_duel() -> void:
 
 func test_the_difficulty_and_sideboard_switches_explain_themselves() -> void:
 	# A player finds out what the four levels DO, and that the sideboard
-	# box governs the AI seats too, without leaving the screen — and the
-	# tooltips name the Deck Lab flags that are the same switches, so a
-	# tester reads one description (DeckLab/README.md, "The switches").
+	# box governs the AI seats too, without leaving the screen. Difficulty
+	# help is player-facing; command-line details belong in the Lab manual.
 	var tip: String = screen._difficulty_options[1].tooltip_text
 	for level in SetupScreen.DIFFICULTIES:
 		assert_true(tip.contains(level + ":"), "the tooltip explains %s" % level)
-	assert_true(tip.contains("--profile-a"), "names the Lab flag")
+	assert_false(tip.contains("--profile-a"), "no command-line detail in difficulty help")
+	assert_true(tip.contains("Unfair is a separate opt-in"))
 	assert_true(tip.contains("never sideboards"), "the Apprentice's honest gap")
 	var side: String = screen._sideboard_check.tooltip_text
 	assert_true(side.contains("AI seats sideboard too"), "governs the AI seats")

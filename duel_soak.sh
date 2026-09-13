@@ -93,11 +93,15 @@ for arg in "$@"; do
 done
 
 display_runner=("$SHANDALAR_TIMEOUT" -k 5 "${SOAK_TIMEOUT:-1800}")
-if [ "$(uname -s)" != Darwin ]; then
+display_options=(--path .)
+# Explicit renderer-free UI soak for locked/headless desktops and CI.
+if [ "${SOAK_HEADLESS:-0}" = 1 ]; then
+	display_options=(--headless "${display_options[@]}")
+elif [ "$(uname -s)" != Darwin ]; then
 	command -v xvfb-run >/dev/null 2>&1 || { echo "Install xvfb to run the duel soak." >&2; exit 3; }
 	display_runner=(xvfb-run -a "${display_runner[@]}")
 fi
-"${display_runner[@]}" "$GODOT" --path . \
+"${display_runner[@]}" "$GODOT" "${display_options[@]}" \
 	--log-file "$SHANDALAR_TEST_DATA_HOME/soak-engine.log" \
 	-s res://tools/duel_soak.gd -- "$@" > "$log" 2>&1 </dev/null
 status=$?

@@ -9,6 +9,19 @@ needed); card files have NO class_name (they register by name instead);
 
 ## Fair planning additions (2026-09-13)
 
+The follow-on original/Manalink study adds `engine/ai/context_value.gd`
+(`AiContextValue`), a reversible static-support marginal-value estimate;
+`engine/ai/unfair_player.gd` (`UnfairPlayer`), the separate opt-in Wizard
+challenge with current-hand knowledge; and mode/target/payment planning in
+`AiPlayer`. `MtgGame.forecast_damage` can settle reviewed public aftermath
+triggers within a 32-item budget. `TriggeredAbility.public_aftermath` marks
+the reviewed Fungusaur, Sengir Vampire and Dingus Egg payloads.
+
+`tests/ai/test_ai_planning_refinement.gd`, `test_ai_aftermath.gd` and
+`test_ai_unfair.gd` pin the refinements, rollback and information boundaries.
+`tests/tools/test_unfair_lab.gd` guards challenge isolation from fair sweeps
+and Elo. `docs/manalink-planning.md` records scope, references and validation.
+
 | File | Responsibility |
 |---|---|
 | `engine/ai/deck_study.gd` (`AiDeckStudy`) | Own registered-list curve, colours, roles, multi-plan scores and potential synergies; names/numbers only. |
@@ -19,7 +32,7 @@ needed); card files have NO class_name (they register by name instead);
 | `tests/ai/test_ai_fair_planning.gd` | Hidden-information invariance, targets/X/evaluation, bounded sequencing and safe cache reuse/invalidation. |
 | `tests/ai/test_ai_combat_study.gd` | Joint blocks, casualties, first strike, trample, danger defence, single-trick accounting, hidden-state invariance and specialised fallbacks. |
 | `tests/cards/test_card_naming_fairness.gd` | Card-naming hints may not read hidden library contents or face-down identities. |
-| `tools/bench_planning.gd` | Repeatable combat-decision latency and hard-leaf-budget probe on small, wide and fallback boards. |
+| `tools/bench_planning.gd` | Repeatable combat-decision latency and per-study leaf-budget probe on small, wide and fallback boards; `--unfair` measures the separate known-hand response study. |
 | `docs/fair-play.md` | Player-facing fair-information contract. |
 | `docs/planning-study-2026-09-13.md` | Implementation boundaries, acceptance results and reproducible measurement. |
 

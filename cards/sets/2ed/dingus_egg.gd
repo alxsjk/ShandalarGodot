@@ -14,7 +14,7 @@ func build() -> CardData:
 		.triggered(TriggeredAbility.new(
 			Mtg.EventType.DIES, _crack,
 			"Whenever a land is put into a graveyard from the battlefield, this artifact deals 2 damage to that land's controller.",
-			_a_land_died)) \
+			_a_land_died).public_aftermath()) \
 		.oracle("Whenever a land is put into a graveyard from the battlefield, this artifact deals 2 damage to that land's controller.")
 
 

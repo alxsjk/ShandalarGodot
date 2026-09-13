@@ -18,8 +18,19 @@ Lab's `--profile-a` / `--profile-b` (`apprentice`, `magician`, `sorcerer`,
 
 ## 1. The rule of the ladder
 
-**Every opponent plays fair.** Difficulty changes analysis and mistakes,
+**Every standard opponent plays fair.** Difficulty changes analysis and mistakes,
 never access to your hidden cards or future draws. See [fair play](fair-play.md).
+
+**Unfair — sees your hand** is a separate opt-in challenge, not a fifth
+standard profile. It always starts with Wizard and adds current-hand
+knowledge only. It has no future-draw knowledge, extra resources or rules
+exceptions. Find it under **Challenge modifier**, below the standard difficulty
+selector. While enabled, Wizard is visibly locked; switching it off restores
+your previous fair difficulty. Setup remembers both when starting a game, and
+the duel displays a persistent hand-visibility notice. It is a pre-game choice,
+not a switch that can change an active duel.
+Challenge runs never update Elo or enter fair profile sweeps. See
+[the implementation and its limits](manalink-planning.md).
 
 **One decision code, four profiles.** There is no "easy AI" and "hard AI"
 in the engine — every seat runs `AiPlayer` with the same evaluator, the
@@ -68,6 +79,9 @@ independent, null-able capabilities:
 | `studies_deck` | off | off | on | on |
 | `studies_combat` | off | off | on | on |
 | `action_search_nodes` | 0 | 0 | 64 | 96 |
+| `values_context` | off | off | on | on |
+| `plans_modes` | off | off | on | on |
+| `forecasts_aftermath` | off | off | on | on |
 
 Deck study derives overlapping strategic roles from the seat's own list;
 it is not an extra difficulty setting. Combat study shares the existing
@@ -75,6 +89,9 @@ combat node budgets and danger threshold, including their public-ability
 fallbacks. The action budget bounds short, shared-mana development lines.
 For a fixed previous-policy control, explicitly set all three to
 `studies_deck=off,studies_combat=off,action_search_nodes=0` on the desired seat.
+For the follow-on original/Manalink refinements, additionally set
+`values_context=off,plans_modes=off,forecasts_aftermath=off`. Their separate
+scope and null comparison are documented in [the follow-on study](manalink-planning.md).
 
 `engine/ai/ai_profile.gd`, `apprentice()` … `wizard()`. The Deck Lab can
 override any knob on any preset for a measurement

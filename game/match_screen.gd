@@ -156,6 +156,7 @@ func _config_for_this_duel() -> DuelConfig:
 	out.portraits = config.portraits.duplicate()
 	out.lives = config.lives.duplicate()
 	out.pilots = config.pilots.duplicate()
+	out.unfair = config.unfair.duplicate()
 	out.panel_colors = config.panel_colors.duplicate()
 	out.pace = config.pace
 	out.ante = config.ante

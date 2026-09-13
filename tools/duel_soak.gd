@@ -60,6 +60,7 @@ var seeds: Array[int] = []
 var stall_seconds := 240.0
 var pace := 0.02
 var verbose := false
+var unfair := false
 ## "" keeps whatever `user://settings.cfg` says; "fifth" / "modern" sets
 ## every fork to that edition for the run (see the file comment).
 var rules_edition := ""
@@ -144,6 +145,8 @@ func _parse_args() -> bool:
 				i += 1
 			"--verbose":
 				verbose = true
+			"--unfair":
+				unfair = true
 			"--help", "-h":
 				print(_usage())
 				_exit_code = 0
@@ -178,6 +181,7 @@ static func _usage() -> String:
             instead of whatever the Options screen saved (the player's
             settings file is left as it was)
   --verbose print each duel's whole game log after it ends
+  --unfair  seat 1 uses the separate current-hand challenge
 Exit 0: every duel finished. 2: a duel stood still for --stall seconds, or
 never started. 3: a bad argument (a non-number is a bad argument)."""
 
@@ -302,6 +306,7 @@ func _next() -> void:
 	else:
 		config = DuelConfig.demo_default()
 	config.pace = pace
+	config.unfair[1] = unfair
 	config.rng_seed = seed_value
 	var files := _deck_files()
 	var a: int = _index % files.size()

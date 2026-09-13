@@ -535,7 +535,7 @@ func _planned_cast(game: MtgGame, proposals: Array, sources: Array,
 		return game.players[pid].battlefield.any(func(c: CardInstance) -> bool:
 			return c.id == id))
 	if intact and not _action_line.is_empty() \
-			and _action_context == AiObservation.key(game, pid, _action_ignored, true):
+			and _action_context == _planning_key(game, _action_ignored, true):
 		for option in proposals:
 			if int(option["id"]) == int(_action_line[0]):
 				_action_completed.append(_action_line.pop_front())
@@ -571,9 +571,13 @@ func _planned_cast(game: MtgGame, proposals: Array, sources: Array,
 		for option in line:
 			_action_ignored.append(option["id"])
 			_action_line.append(option["id"])
-		_action_context = AiObservation.key(game, pid, _action_ignored, true)
+		_action_context = _planning_key(game, _action_ignored, true)
 		_action_completed.append(_action_line.pop_front())
 	return picked
+
+
+func _planning_key(game: MtgGame, ignored: Array = [], resources := false) -> String:
+	return AiObservation.key(game, pid, ignored, resources)
 
 
 func _try_cast_best(game: MtgGame) -> String:
@@ -593,7 +597,7 @@ func _try_cast_best(game: MtgGame) -> String:
 	for inst in game.players[pid].hand:
 		if inst.is_land():
 			continue
-		if _is_reactive(inst.data):
+		if _is_reactive(inst.data) and not (profile.plans_modes and inst.data.is_modal()):
 			continue   # counterspells/Fog wait for the response framework
 		if _refused.has(str(inst.id)):
 			continue   # refused this step already — do not tap for it twice
@@ -637,10 +641,11 @@ func _try_cast_best(game: MtgGame) -> String:
 		if intent.mana_for_life and profile.reads_lethal_x \
 				and not _life_mana_enables(game, inst, sources):
 			continue
-		var mode := _pick_mode(game, inst.data)
-		var sized := _size_and_aim(game, inst, intent, max_x, mode)   # {} = wait
+		var sized := _plan_spell_choice(game, inst, max_x)   # {} = wait
 		if sized.is_empty():
 			continue
+		var mode: int = sized["mode"]
+		intent = _mode_intent(inst.data, mode)
 		var x: int = sized["x"]
 		var targets: Array = sized["targets"]
 		var value: float = sized["value"]
@@ -688,6 +693,7 @@ func _try_cast_best(game: MtgGame) -> String:
 			proposals.append({"id": inst.id, "card": inst, "value": value,
 				"x": x, "mode": mode, "targets": targets,
 				"independent": inst.data.is_creature() and targets.is_empty()
+					and not inst.data.is_modal()
 					and inst.data.spell_effects.is_empty()
 					and inst.data.triggered_abilities.is_empty()
 					and inst.data.static_abilities.is_empty()
@@ -710,6 +716,12 @@ func _try_cast_best(game: MtgGame) -> String:
 	var plan := _plan_taps(game, best.data.cost_for(best_x),
 		_generic_x(best.data, best_x) + game.spell_surcharge(pid, best.data),
 		game.mana_usage_keys(best.data))
+	# Revalidate the entire selected choice before spending any source.
+	if game.cast_refusal(pid, best, best_targets, best_x, best_mode) != "" \
+			or (plan.is_empty() and not (_cost_is_free(best.data.cost_for(best_x)) \
+				and _generic_x(best.data, best_x) + game.spell_surcharge(pid, best.data) == 0)):
+		_action_line.clear()
+		return ""
 	for step in plan:
 		if step[0] != null:   # floating mana is already in the pool
 			game.tap_for_mana(pid, step[0], step[1])
@@ -2143,7 +2155,7 @@ func _best_victim(game: MtgGame, source: CardInstance, intent: EffectIntent,
 ## with no mill on the table it is 0.0. See [method _mill_relief].
 func _victim_value(game: MtgGame, inst: CardInstance) -> float:
 	if inst.is_creature():
-		return Evaluator.permanent_value(inst, profile)
+		return AiContextValue.of(game, inst, profile)
 	if inst.is_land():
 		return Evaluator.land_value(game, inst)
 	var value := Evaluator.permanent_value(inst, profile)
@@ -2397,7 +2409,7 @@ func _own_value(game: MtgGame, inst: CardInstance, as_source := false) -> float:
 	if not inst.is_land():
 		if priced and _dead_weight(game, inst):
 			return 0.0 - toll   # nothing it does is ours until it untaps
-		return Evaluator.permanent_value(inst, profile) - toll
+		return AiContextValue.of(game, inst, profile) - toll
 	var me := game.players[pid]
 	var in_hand := 0
 	var biggest := 0
@@ -3398,7 +3410,8 @@ func _cast_value(game: MtgGame, inst: CardInstance, targets: Array, x_value: int
 			if victim == null:
 				continue
 			if victim.controller_id != pid:
-				value += Evaluator.permanent_value(victim, profile) * 0.5
+				value += (AiContextValue.of(game, victim, profile) if victim.is_creature() \
+					else Evaluator.permanent_value(victim, profile)) * 0.5
 				# ONE OF THEIRS, and the sting it carries (2026-09-10).
 				if not profile.prices_liabilities:
 					continue
@@ -7490,13 +7503,19 @@ func _has_forecast_damage(game: MtgGame) -> bool:
 
 func _forecast_tactical_score(game: MtgGame, in_combat: bool,
 		values: Dictionary, fixed_values: bool) -> float:
-	var future := game.forecast_damage(in_combat, _has_forecast_damage(game))
+	var future := game.forecast_damage(in_combat, _has_forecast_damage(game),
+		profile.forecasts_aftermath)
+	if not future["aftermath"]["complete"]:
+		future = game.forecast_damage(in_combat, _has_forecast_damage(game))
 	var score := 0.0
 	for card in game.all_battlefield():
 		if not future["alive"].has(card.id):
 			continue
 		var worth := float(values.get(card.id, 0.0)) if fixed_values \
 			else Evaluator.permanent_value(card, profile)
+		if profile.forecasts_aftermath and card.is_creature():
+			var stats: Vector2i = future["stats"][card.id]
+			worth += float(stats.x + stats.y - card.cur_power - card.cur_toughness)
 		score += (1.0 if card.controller_id == pid else -1.0) * worth * Evaluator.W_BOARD
 	for seat in game.players.size():
 		var damage := maxi(game.players[seat].life - int(future["life"][seat]), 0)
@@ -8730,7 +8749,7 @@ func _build_combat_model(game: MtgGame, mine: Array[CardInstance],
 	for i in n:
 		var inst := mine[i]
 		search.a_pow[i] = maxi(inst.cur_power, 0)
-		search.a_val[i] = Evaluator.permanent_value(inst, profile)
+		search.a_val[i] = AiContextValue.of(game, inst, profile)
 		search.a_id[i] = inst.id
 		search.a_can_attack[i] = 1 if candidates.has(inst) else 0
 		search.a_forced[i] = 1 if (candidates.has(inst) and _must_attack(inst)) else 0
@@ -8764,7 +8783,7 @@ func _build_combat_model(game: MtgGame, mine: Array[CardInstance],
 	for j in m:
 		var inst := theirs[j]
 		search.d_pow[j] = maxi(inst.cur_power, 0)
-		search.d_val[j] = Evaluator.permanent_value(inst, profile)
+		search.d_val[j] = AiContextValue.of(game, inst, profile)
 		search.d_free[j] = 0 if inst.tapped else 1
 		search.d_can_attack[j] = 1 if _could_attack_next_turn(game, inst) else 0
 		search.d_trample[j] = 1 if inst.has_keyword(Mtg.Keyword.TRAMPLE) else 0
@@ -9964,6 +9983,55 @@ func _pick_mode(game: MtgGame, data: CardData) -> int:
 	if data.ai_mode_picker.is_valid():
 		return clampi(int(data.ai_mode_picker.call(game, pid)), 0, data.modes.size() - 1)
 	return 0
+
+
+static func _mode_intent(data: CardData, mode: int) -> EffectIntent:
+	return EffectIntent.read(data.modes[mode]["effects"] if data.is_modal() \
+		else data.spell_effects, data.card_name)
+
+
+## A mode, X, targets and payable cost form one choice. Unsupported effect
+## shapes retain their authored hint; supported modes compete by payoff.
+func _plan_spell_choice(game: MtgGame, inst: CardInstance, max_x: int) -> Dictionary:
+	var hinted := _pick_mode(game, inst.data)
+	var modes: Array = [hinted]
+	if profile.plans_modes and inst.data.is_modal():
+		for mode in inst.data.modes.size():
+			if mode != hinted: modes.append(mode)
+	var best := {}
+	for mode in modes:
+		var intent := _mode_intent(inst.data, int(mode))
+		var choice := _size_and_aim(game, inst, intent, max_x, int(mode))
+		if choice.is_empty(): continue
+		var x: int = choice["x"]
+		if game.cast_refusal(pid, inst, choice["targets"], x, int(mode)) != "": continue
+		var extra := _generic_x(inst.data, x) + game.spell_surcharge(pid, inst.data)
+		if not (_cost_is_free(inst.data.cost_for(x)) and extra == 0) \
+				and _plan_taps(game, inst.data.cost_for(x), extra,
+					game.mana_usage_keys(inst.data)).is_empty(): continue
+		if profile.plans_modes and inst.data.is_modal() and not intent.unknown:
+			if intent.life_gain > 0:
+				choice["value"] = float(intent.life_gain) * _life_price(game.players[pid].life)
+			if intent.sweeper != null:
+				choice["value"] = _sweep_value(game, intent.sweeper, x)
+			if intent.damage > 0 or intent.damage_uses_x:
+				for target in choice["targets"]:
+					if target.is_player and target.player_id != pid \
+							and intent.damage_at(x) >= game.players[target.player_id].life:
+						choice["value"] = LETHAL_WORTH
+		choice["mode"] = int(mode)
+		choice["value"] = _information_cast_value(game, inst, choice, intent)
+		if float(choice["value"]) > 0.0 and (best.is_empty() \
+				or float(choice["value"]) > float(best["value"])):
+			best = choice
+	return best
+
+
+## Standard seats have no hidden-information adjustment. The separately
+## constructed Unfair challenge overrides this without changing profiles.
+func _information_cast_value(_game: MtgGame, _inst: CardInstance,
+		choice: Dictionary, _intent: EffectIntent) -> float:
+	return float(choice["value"])
 
 
 ## Pick targets for a cast, or null when a targeted card has no target

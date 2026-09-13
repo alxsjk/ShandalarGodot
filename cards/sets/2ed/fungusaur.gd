@@ -16,7 +16,7 @@ func build() -> CardData:
 		.triggered(TriggeredAbility.new(
 			Mtg.EventType.DAMAGE_DEALT, _grow,
 			"Whenever Fungusaur is dealt damage, put a +1/+1 counter on it.",
-			_hit_me)) \
+			_hit_me).public_aftermath()) \
 		.oracle("Whenever Fungusaur is dealt damage, put a +1/+1 counter on it.")
 
 

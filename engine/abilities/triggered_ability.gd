@@ -63,6 +63,15 @@ var text: String = ""
 ## essential so their mana is usable mid-payment. Set via [method as_mana_trigger].
 var is_mana_trigger: bool = false
 
+## Reviewed deterministic public damage/death aftermath only. Never enable
+## for draws, searches, randomness, optional costs or hidden-zone choices.
+var forecast_safe := false
+
+
+func public_aftermath() -> TriggeredAbility:
+	forecast_safe = true
+	return self
+
 ## The trigger's ONE target, or null for the context-only majority. Set by
 ## [method targeting]; read by MtgGame as the trigger goes on the stack
 ## (CR 603.3d) and again as it resolves (CR 608.2b).

@@ -16,6 +16,48 @@ const DECK_B := "res://decks/blue_skies.deck"
 const DECK_C := "res://decks/mountain_artillery.deck"
 
 
+func test_unfair_controls_lock_visible_wizard_and_restore_the_fair_level() -> void:
+	var options := GauntletOptions.new()
+	options.enemy_level = 1
+	var dialog := options.window([DECK_A] as Array[String],
+		func() -> void: pass, func() -> void: pass)
+	add_child_autofree(dialog)
+	assert_string_contains(_text_of(dialog), "Challenge modifier")
+	var challenge := _checkbox(dialog, "Unfair challenge — opponent sees my hand")
+	assert_not_null(challenge)
+	if challenge == null: return
+	for cycle in 2:
+		challenge.button_pressed = true
+		assert_true(options.unfair)
+		assert_eq(options.enemy_level, 1, "do not overwrite fair skill")
+		for level in GauntletOptions.ENEMY_LEVELS:
+			var pick := _checkbox(dialog, level)
+			assert_true(pick.disabled)
+			assert_eq(pick.button_pressed, level == "Wizard")
+		challenge.button_pressed = false
+		assert_true(_checkbox(dialog, "Magician").button_pressed)
+		assert_false(_checkbox(dialog, "Magician").disabled)
+	options.unfair = true
+	var reopened := options.window([DECK_A] as Array[String],
+		func() -> void: pass, func() -> void: pass)
+	add_child_autofree(reopened)
+	assert_true(_checkbox(reopened, "Wizard").button_pressed)
+	assert_true(_checkbox(reopened, "Wizard").disabled)
+	_checkbox(reopened, "Unfair challenge — opponent sees my hand").button_pressed = false
+	assert_true(_checkbox(reopened, "Magician").button_pressed)
+
+
+func test_unfair_gauntlet_keeps_the_challenge_through_match_configuration() -> void:
+	var screen := _make([DECK_A, DECK_B])
+	screen.options.unfair = true
+	add_child_autofree(screen)
+	assert_true(screen._apply_options())
+	assert_true(screen.config.unfair[1])
+	assert_eq(screen.config.pilots[1].profile_name, "Wizard")
+	assert_string_contains(screen.options.readout(2), "Unfair challenge")
+	assert_eq(GauntletOptions.ENEMY_LEVELS.size(), 4)
+
+
 ## A gauntlet screen, built but NOT yet in the tree — `_ready` starts the
 ## run, so every parameter has to be set before it enters.
 func _make(decks: Array[String], size := 1,

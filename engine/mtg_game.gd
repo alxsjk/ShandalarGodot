@@ -9554,38 +9554,83 @@ func _enter_step(index: int) -> void:
 
 ## Preview the remaining DECLARED combat and, optionally, a top-of-stack
 ## damage spell/ability. Uses the live assignment, prevention and SBA code
-## under the journal. No future plays or damage/death-trigger resolutions
-## are guessed; only already-present shields apply. Default public-board
+## under the journal. No future plays are guessed; optional aftermath
+## resolves only reviewed deterministic public triggers. Default public-board
 ## decisions replace the live agents, so no UI prompts, agent memory or
 ## opposing hidden cards are consulted. The caller validates the damage
 ## effect shape before asking to resolve the top object.
-func forecast_damage(include_combat: bool, resolve_damage_top := false) -> Dictionary:
+func forecast_damage(include_combat: bool, resolve_damage_top := false,
+		settle_aftermath := false) -> Dictionary:
 	var nested := undo_log != null
 	var mark := make_mark()
 	_rec_turn()
 	_rec(self, &"agents")
 	agents = [DecisionAgent.new(), DecisionAgent.new()]
 	var incoming := {}
+	var old_stack: Array = stack.map(func(item: StackItem) -> int: return item.id)
+	var aftermath := {"resolved": 0, "complete": true}
 	if resolve_damage_top and can_forecast_damage_top():
 		_resolve_top()
+		if settle_aftermath: _forecast_aftermath(old_stack, aftermath)
 	if include_combat and not game_over and not awaiting_blockers \
 			and current_step() in [Mtg.Step.DECLARE_BLOCKERS, Mtg.Step.FIRST_STRIKE_DAMAGE]:
 		if current_step() == Mtg.Step.DECLARE_BLOCKERS:
 			_remember_first_strikers()
 			if _has_first_strike_damage():
 				_forecast_damage_wave(true, incoming)
+				if settle_aftermath: _forecast_aftermath(old_stack, aftermath)
 		if not game_over:
 			_forecast_damage_wave(false, incoming)
+			if settle_aftermath: _forecast_aftermath(old_stack, aftermath)
 	var alive := {}
 	var marked := {}
+	var stats := {}
 	for inst in all_battlefield():
 		alive[inst.id] = true
 		marked[inst.id] = inst.damage
+		stats[inst.id] = Vector2i(inst.cur_power, inst.cur_toughness)
 	var result := {"alive": alive, "damage": marked, "incoming": incoming,
-		"life": [players[0].life, players[1].life]}
+		"life": [players[0].life, players[1].life], "stats": stats,
+		"aftermath": aftermath}
 	unmake_to(mark)
 	if not nested:
 		end_search()
+	return result
+
+
+## Resolve only newly generated, reviewed public damage/death triggers.
+## Stop at the first unknown item: never reorder the stack or run a draw,
+## tutor, random payload, optional payment or live agent during a forecast.
+func _forecast_aftermath(old_stack: Array, result: Dictionary) -> void:
+	while not stack.is_empty() and not game_over:
+		var item: StackItem = stack.back()
+		if old_stack.has(item.id): return
+		if int(result["resolved"]) >= 32 or item.kind != Mtg.StackKind.TRIGGER \
+				or item.trigger == null or not item.trigger.forecast_safe:
+			result["complete"] = false
+			return
+		_resolve_top()
+		result["resolved"] += 1
+
+
+## Static-board counterfactual, NOT a simulated exile/death. It deliberately
+## dispatches no leave hooks, triggers or choices. Used to price support
+## dependencies; real removal and its aftermath remain separate questions.
+## The reader must be public-board-only and must not mutate the position.
+func value_without_permanent(inst: CardInstance, reader: Callable) -> float:
+	var nested := undo_log != null
+	var mark := make_mark()
+	_rec(players[inst.controller_id], &"battlefield")
+	_rec(self, &"_battlefield_order")
+	_rec(inst, &"zone")
+	players[inst.controller_id].battlefield.erase(inst)
+	_battlefield_order.erase(inst.id)
+	inst.zone = Mtg.Zone.EXILE
+	_battlefield_changed()
+	recalculate()
+	var result := float(reader.call())
+	unmake_to(mark)
+	if not nested: end_search()
 	return result
 
 

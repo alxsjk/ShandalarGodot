@@ -121,6 +121,51 @@ func test_the_card_slot_holds_a_card_back_until_something_is_examined() -> void:
 
 # ------------------------------------------------------ sidebar geometry --
 
+func test_unfair_badges_belong_to_their_life_panels_and_leave_deck_names_free() -> void:
+	var duel: DuelScreen = load("res://game/duel/duel_screen.tscn").instantiate()
+	duel.config = DuelConfig.hotseat_default()
+	duel.config.deck_names = ["White Knights", "Black-Red Raiders"]
+	duel.config.pilots = [AiProfile.wizard(), AiProfile.wizard()]
+	duel.config.unfair = [true, true]
+	add_child_autofree(duel)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_null(screen.find_child("UnfairNotice", true, false), "fair duels carry no badge")
+	for pid in 2:
+		var life := duel._life_buttons[pid]
+		var badge := life.get_node_or_null("UnfairNotice") as PanelContainer
+		assert_not_null(badge, "each challenge identifies its own pilot")
+		if badge == null: continue
+		assert_true(life.get_global_rect().encloses(badge.get_global_rect()))
+		assert_almost_eq(badge.get_global_rect().end.x, life.get_global_rect().end.x - 4, 0.5)
+		assert_almost_eq(badge.get_global_rect().end.y, life.get_global_rect().end.y - 4, 0.5)
+		assert_eq(badge.mouse_filter, Control.MOUSE_FILTER_PASS, "life remains clickable")
+		assert_string_contains(badge.tooltip_text, "current hand")
+		assert_eq((badge.get_child(0) as Label).text, "Unfair")
+		var name_label := duel._deck_name_labels[pid]
+		assert_true(name_label.visible)
+		assert_eq(name_label.text, duel.config.deck_names[pid])
+		assert_false(badge.get_global_rect().intersects(name_label.get_global_rect()))
+		duel.game.add_poison(pid, 3)
+		duel._refresh()
+		assert_true(duel._poison_labels[pid].visible)
+		assert_false(badge.get_global_rect().intersects(duel._poison_labels[pid].get_global_rect()),
+			"poison has the opposite corner")
+		duel._dress_life_panel(pid, true)
+		assert_true(badge.is_visible_in_tree(), "the challenge stays labeled on a flipped face")
+	assert_eq(duel._preview_dock.get_global_rect(), screen._preview_dock.get_global_rect(),
+		"the badge consumes no additional sidebar space")
+	assert_eq(duel._qol_reserve.get_global_rect(), screen._qol_reserve.get_global_rect())
+
+
+func test_unfair_flag_on_a_human_seat_never_labels_that_player() -> void:
+	var duel: DuelScreen = load("res://game/duel/duel_screen.tscn").instantiate()
+	duel.config = DuelConfig.hotseat_default()
+	duel.config.unfair = [true, true]
+	add_child_autofree(duel)
+	assert_null(duel.find_child("UnfairNotice", true, false))
+
+
 func test_the_players_life_numeral_sits_flush_with_the_bottom_edge() -> void:
 	# The owner's layout: each life numeral hugs its own corner of the
 	# screen, with no dead strip under the player's block.

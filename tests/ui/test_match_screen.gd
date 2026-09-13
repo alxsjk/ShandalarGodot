@@ -12,6 +12,25 @@ extends GutTest
 var runner: MatchScreen
 
 
+func test_unfair_flag_and_visible_notice_survive_between_duels() -> void:
+	runner = load("res://game/match_screen.tscn").instantiate()
+	runner.config = _config(3)
+	runner.config.pilots[1] = AiProfile.wizard()
+	runner.config.unfair[1] = true
+	add_child_autofree(runner)
+	await get_tree().process_frame
+	assert_true(runner._duel.game.agents[1] is UnfairPlayer)
+	assert_not_null(runner._duel.find_child("UnfairNotice", true, false))
+	assert_not_null(runner._duel._life_buttons[1].get_node_or_null("UnfairNotice"))
+	assert_eq(runner._duel.config.challenge_label(), "Unfair · Hand visible to opponent")
+	runner._duel.duel_finished.emit(0)
+	await get_tree().process_frame
+	assert_true(runner._duel.game.agents[1] is UnfairPlayer)
+	assert_true(runner._duel.config.unfair[1])
+	assert_not_null(runner._duel.find_child("UnfairNotice", true, false))
+	assert_not_null(runner._duel._life_buttons[1].get_node_or_null("UnfairNotice"))
+
+
 func _config(best_of: int) -> DuelConfig:
 	var config := DuelConfig.hotseat_default()
 	config.best_of = best_of

@@ -1,5 +1,17 @@
 # Deck Lab — headless deck testing
 
+## Separate Unfair challenge
+
+`--profile-a unfair` or `--profile-b unfair` selects Wizard plus knowledge
+of the opponent's current hand. It is outside the four standard profiles:
+no profile overrides, no fair sweeps and **no Elo updates**, even if
+`--no-elo` was omitted. Reports identify the challenge; default output uses
+`DeckLab/results/unfair_<stamp>`. Other runs retain their usual defaults.
+
+Use it for challenge testing, not evidence that a fair player got stronger.
+Library order, future draws, RNG state, hidden face-down identities and rule
+exceptions remain off-limits. See [fair play](../docs/fair-play.md).
+
 ```
    ___  ___  ___ _  __   _      _   ___
   |   \| __|/ __| |/ /  | |    /_\ | _ )   Shandalar, 1997 - decks measured,

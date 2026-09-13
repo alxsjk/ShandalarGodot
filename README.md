@@ -66,11 +66,15 @@ before-and-after over thousands of simulated games against a null run at the
 same seed, or it does not ship. Several plausible improvements have been
 measured and thrown away.
 
-**Strong play. Fair information.** Our computer opponent studies its own
+**Strong play. Fair information.** Our four standard difficulties study their own
 deck and the visible game—not your hidden hand or future draws. Higher
-difficulty adds analysis, never secret information or special rules.
+standard difficulty adds analysis, never secret information or special rules.
 That is a design principle we are proud of, backed by hidden-information
 regression tests. Read [our fair-play contract](docs/fair-play.md).
+
+The separate, opt-in **Unfair — sees your hand** challenge adds current-hand
+knowledge to Wizard. It is explicitly unrated, not a fair difficulty level.
+It still has no future-draw knowledge, free resources or rule exceptions.
 
 **The 1997 art belongs to whoever owns their copy.** No original asset is
 distributed here. The game reads art off the filesystem at runtime and is

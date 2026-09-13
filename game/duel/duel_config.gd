@@ -21,6 +21,8 @@ var portraits: Array[String] = ["", ""]
 var lives: Array[int] = [20, 20]
 ## Per-seat pilot: null = human, or an AiProfile for an AI seat.
 var pilots: Array = [null, null]
+## Separate opt-in challenge, not an AiProfile knob or a fair ladder rung.
+var unfair: Array[bool] = [false, false]
 ## Seconds between AI actions (demo mode slows this for followability).
 var pace := 0.35
 ## Sidebar wizard-panel color keys per seat.
@@ -69,6 +71,20 @@ var rng_seed := 0
 
 func is_ai(pid: int) -> bool:
 	return pilots[pid] != null
+
+
+func create_ai(pid: int) -> AiPlayer:
+	return UnfairPlayer.new(pid) if unfair[pid] else AiPlayer.new(pid, pilots[pid])
+
+
+func challenge_label() -> String:
+	var seats: Array[String] = []
+	for pid in 2:
+		if is_ai(pid) and unfair[pid]: seats.append(str(pid + 1))
+	if seats.is_empty(): return ""
+	if is_ai(0) != is_ai(1):
+		return "Unfair · Hand visible to opponent"
+	return "Unfair · Hand knowledge (seat %s)" % ", ".join(seats)
 
 
 ## Hands rendered face-down: AI seats in mixed games; nothing in hotseat;
