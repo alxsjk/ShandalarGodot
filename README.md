@@ -29,6 +29,33 @@ GDScript, no scene dependencies, fully headless-testable, with **every card
 in its own documented file** so new cards and whole sets can be added without
 touching engine code.
 
+## 0.20.0 — our first comfortably playable duel release
+
+The duel and Deck Builder are ready to enjoy. After the 0.19.0 debut and
+further fixes and playtesting, **0.20.0 is our first release we consider
+comfortably playable for duels and deck building**. It is a milestone, not
+a promise that every interaction is bug-free. **Shandalar adventure and
+Manalink online multiplayer are not implemented yet.**
+
+We are especially proud of a solid **non-cheating computer opponent**:
+Apprentice, Magician, Sorcerer and Wizard all play with fair information.
+They study their own deck, plan their plays and analyse combat without
+reading your hidden hand or either library's secret order. Higher standard
+difficulty means more analysis, never extra resources or different rules.
+The separately labelled, opt-in **Unfair** challenge sees your current hand;
+it is off by default, unrated, and not a fifth standard difficulty.
+
+[Download 0.20.0](https://github.com/b0realis/ShandalarGodot/releases/tag/v0.20.0)
+for **Windows x86-64, Linux x86-64, macOS (Apple Silicon and Intel), or web**.
+Each platform has a standalone package and a `-with-skin` package containing
+the original skin. **Card pictures are never bundled**; import your own
+`cardart.zip` through Options → Skin. See the
+[release notes and launch instructions](docs/releases/0.20.0.md).
+
+Thank you to the Shandalar community and every project that helped keep
+this game alive. Have fun, build something unexpected, and enjoy the duels.
+All the best, good luck, and good health to every player!
+
 ## Philosophy
 
 The paragraph above is the brief, and **the limitation is the feature**: a
@@ -76,8 +103,9 @@ The separate, opt-in **Unfair — sees your hand** challenge adds current-hand
 knowledge to Wizard. It is explicitly unrated, not a fair difficulty level.
 It still has no future-draw knowledge, free resources or rule exceptions.
 
-**The 1997 art belongs to whoever owns their copy.** No original asset is
-distributed here. The game reads art off the filesystem at runtime and is
+**The source tree contains no original art.** The original skin is an
+optional, separate release download; card pictures are never release assets.
+The game reads art from optional packs or the filesystem at runtime and is
 fully playable with none of it, because every skinned path has a drawn
 fallback of the same geometry.
 
@@ -96,8 +124,8 @@ cards of the eight 1997 sets, one documented file each, no stubs left.
 **319 decks** ship — 312 of them ported with their provenance
 recorded, five the 1997 starters, two our own.
 
-Verified by **6085 tests / ~156 339 assertions** across 353 scripts, running
-headless, plus a duel soak that plays whole games through the live UI.
+Verified by **6,239 tests / 231,650 assertions** across 365 scripts, running
+headless, plus duel soaks that play whole games through the live UI.
 Adventure mode (M5) is next — see [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start
@@ -180,8 +208,8 @@ in `settings.cfg` (`skin_zip`, `skin_folder`, `cardpacks_folder`,
 `portraits_folder`, `music_folder` under `[options]`), so any of them can
 live wherever you like; the screen names the file.
 
-The packaged build ships that zip, and the card art's (below), beside
-`skin/SKIN.txt`, a generated catalogue (`docs/skin-catalogue.txt`,
+The `-with-skin` packages include the original skin zip, but never the card
+art pack. Every package includes `skin/SKIN.txt`, a generated catalogue (`docs/skin-catalogue.txt`,
 `tools/skin_catalogue.py`) of every picture, font, sound, tune, movie and
 portrait the game wears — format, dimensions, sheet grids and names — so
 a skin can be drawn from scratch and checked with
@@ -295,7 +323,7 @@ given away for free.
 most literal sense: a genuinely free engine, with no runtime fee, no seat, no
 licence server and no company able to change the terms afterwards — which is
 exactly what a project that intends to still be here in ten years needs. Its
-headless mode is why an entire rules engine and 6085 tests run in seconds in
+headless mode is why the rules engine and thousands of tests can run in
 a terminal; its Compatibility renderer is why a 1997 game's look runs on the
 kind of machine people actually have; and GDScript is why a card is a
 readable twenty-line file instead of a build system. Thank you for building
@@ -351,12 +379,13 @@ non-commercial.
 
 ### What travels with this source, and what does not
 
-**Not this: no card image, no 1997 file, and no third party's restyle of
-a 1997 file.** No artwork, font, sound, tune or movie owned by Wizards of
-the Coast or by MicroProse is distributed here, and none ever will be —
-nor is anybody else's redrawing of one, which is a separate promise and a
-deliberate one. The game reads all of that off the player's own copy of
-the 1997 game at runtime, where the player put it
+**Not in the source tree: no card image, no 1997 file, and no third party's
+restyle of a 1997 file.** Original artwork, fonts, sounds, music and movies
+are not covered by this source code's GPL licence. The optional original
+skin download and `-with-skin` release packages are separate from the source;
+they do not change ownership of those assets. Card pictures are never
+published as release downloads. Players can also import their own copy of
+the 1997 game at runtime
 (`tools/import_original.py`, `docs/player-files.md`); with none of it
 present the game is complete and plays in a look of its own.
 

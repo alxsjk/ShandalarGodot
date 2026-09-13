@@ -7,6 +7,21 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
+## Release packaging (0.20.0)
+
+- `tools/package_release.py`: packages verified Linux, Windows, macOS and
+  web exports into standalone and original-skin ZIPs; explicit payloads,
+  per-file checksums, private-path checks, no card packs or overwrite.
+- `tools/test_package_release.py`: offline tests of all four package pairs,
+  executable permissions, checksum coverage and refused unsafe inputs.
+- `docs/releases/0.20.0.md`: player announcement, platform downloads,
+  fair-play pledge, scope, limitations and community thanks.
+- `docs/release-builds.md`: repeatable four-platform export and packaging.
+
+The release soak's `HumanClicker._float_mana_for` skips the mana planner's
+null-source entries (mana already floating), as `_tick_paying` already did.
+`tests/tools/test_deck_lab.gd` pins that those entries generate no clicks.
+
 ## Fair planning additions (2026-09-13)
 
 The follow-on original/Manalink study adds `engine/ai/context_value.gd`

@@ -167,3 +167,33 @@ application/version=""
 codesign/codesign=1
 codesign/identity=""
 notarization/notarization=0
+
+; Windows desktop: use --export-debug to match the verified desktop runtime.
+[preset.3]
+name="Windows 64"
+platform="Windows Desktop"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter="*.deck, *.txt"
+exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
+export_path="../shandalar-build/windows64/Shandalar.exe"
+script_export_mode=2
+
+[preset.3.options]
+custom_template/debug="../tools/export_templates/4.7.2.stable/windows_debug_x86_64.exe"
+custom_template/release="../tools/export_templates/4.7.2.stable/windows_release_x86_64.exe"
+debug/export_console_wrapper=1
+binary_format/embed_pck=false
+binary_format/architecture="x86_64"
+texture_format/s3tc_bptc=true
+texture_format/etc2_astc=false
+application/icon="res://game/icon.png"
+application/company_name="b0realis"
+application/product_name="ShandalarGodot"
+application/file_description="ShandalarGodot"
+application/copyright="ShandalarGodot contributors"
+codesign/enable=false
+ssh_remote_deploy/enabled=false

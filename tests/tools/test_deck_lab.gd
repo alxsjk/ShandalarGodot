@@ -721,6 +721,22 @@ func _soak() -> GDScript:
 	return load("res://tools/duel_soak.gd") as GDScript
 
 
+func test_soak_floating_mana_is_not_a_permanent_to_click() -> void:
+	var screen := autofree(DuelScreen.new()) as DuelScreen
+	screen.game = MtgGame.new()
+	screen.game.setup([], [])
+	screen.game.players[0].mana_pool.add(Mtg.ManaColor.R, 1)
+	var cost := ManaCost.parse("{R}")
+	var plan: Array = screen.game._payment_plan(0, cost)
+	assert_eq(plan.size(), 1)
+	assert_null(plan[0][0], "a null source represents mana already in the pool")
+	var clicker = _soak().HumanClicker.new(screen, 92000)
+	clicker._float_mana_for(cost, false)
+	assert_eq(clicker.clicks, 0, "floating mana has no permanent to click")
+	assert_true(screen.game.players[0].mana_pool.can_pay(cost),
+		"preparing mana neither spends nor duplicates what was already floating")
+
+
 
 ## A REPORTING TOOL MUST NOT CHANGE THE GAME IT REPORTS ON.
 ##

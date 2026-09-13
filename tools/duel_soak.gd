@@ -789,6 +789,10 @@ class HumanClicker:
 					taps.append([inst, 0])
 		for step in taps:
 			var source: CardInstance = step[0]
+			# A null source is mana already floating, not a card to click.
+			# Match _tick_paying's handling of ManaPlanner's pool entries.
+			if source == null:
+				continue
 			var index: int = step[1]
 			clicks += 1
 			if source.cur_mana_abilities.size() == 1 and source.cur_activated_abilities.is_empty():
