@@ -44,7 +44,7 @@ func test_big_cards_is_the_default_without_writing_a_setting() -> void:
 	assert_eq(screen._showcase.scale, Vector2.ONE)
 	assert_eq(screen._deck_area.position.x, 330.0)
 	assert_false(Settings.has_value(SETTING), "opening does not materialize defaults")
-	assert_eq(screen._menu_text("Big cards"), "[x] Big cards  [QoL]")
+	assert_eq(screen._menu_text("Big cards"), "[x] Big cards")
 	assert_true(screen._command_labels().has("Big cards"))
 
 
@@ -55,7 +55,7 @@ func test_a_saved_classic_choice_still_wins_after_a_settings_reload() -> void:
 	await _open()
 	assert_eq(screen._showcase.scale, Vector2.ONE * DeckBuilderScreen.SHOWCASE_SCALE)
 	assert_eq(screen._deck_area.position.x, 270.0)
-	assert_eq(screen._menu_text("Big cards"), "[  ] Big cards  [QoL]")
+	assert_eq(screen._menu_text("Big cards"), "[  ] Big cards")
 	assert_false(bool(Settings.get_value(SETTING, true)))
 
 
@@ -69,7 +69,7 @@ func test_big_cards_match_the_duel_and_widen_both_card_surfaces() -> void:
 	assert_eq(screen._deck_area.position.x, 330.0)
 	assert_eq(screen._sideboard_area.position.x, screen._deck_area.position.x)
 	assert_eq(screen._inventory.get_rect(), inventory_rect, "bottom cards stay unchanged")
-	assert_eq(screen._menu_text("Big cards"), "[x] Big cards  [QoL]")
+	assert_eq(screen._menu_text("Big cards"), "[x] Big cards")
 
 
 func test_the_choice_survives_a_settings_reload_and_screen_reopen() -> void:
@@ -158,7 +158,7 @@ func test_menu_button_changes_layout_and_reopens_checked() -> void:
 	var dialog := screen.open_dialogs()[0]
 	var found := false
 	for node in dialog.body().get_children():
-		if node is Button and node.text == "[  ] Big cards  [QoL]":
+		if node is Button and node.text == "[  ] Big cards":
 			node.pressed.emit()
 			found = true
 	assert_true(found, "a real clickable menu entry, not just a command handler")
@@ -172,7 +172,7 @@ func test_menu_button_changes_layout_and_reopens_checked() -> void:
 	assert_lte(dialog.get_global_rect().end.y, screen.size.y)
 	found = false
 	for node in dialog.body().get_children():
-		if node is Button and node.text == "[x] Big cards  [QoL]":
+		if node is Button and node.text == "[x] Big cards":
 			found = true
 	assert_true(found)
 

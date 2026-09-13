@@ -33,6 +33,122 @@ func _lands(seat: int, land_name: String, count: int) -> void:
 
 # ------------------------------------------------ activated abilities --
 
+func test_empty_board_mass_debuff_is_held() -> void:
+	var ai := _wizard()
+	give_hand(0, "Marsh Gas")
+	put_battlefield(0, "Swamp")
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_eq(ai.act(g), "pass", "no creatures: nothing to weaken")
+	assert_not_null(g.find_in_hand(0, "Marsh Gas"))
+
+
+func test_lifelace_does_not_color_a_land_without_a_payoff() -> void:
+	var ai := _wizard()
+	give_hand(0, "Lifelace")
+	put_battlefield(0, "Forest")
+	var land := put_battlefield(1, "Island")
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_eq(ai.act(g), "pass", "legal target does not imply a useful play")
+	assert_eq(land.cur_colors, 0)
+
+
+func test_lace_can_gain_a_real_color_sensitive_bonus() -> void:
+	var ai := _wizard()
+	give_hand(0, "Deathlace")
+	put_battlefield(0, "Swamp")
+	put_battlefield(0, "Bad Moon")
+	var bears := put_battlefield(0, "Grizzly Bears")
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_string_contains(ai.act(g), "cast Deathlace")
+	resolve_stack()
+	assert_eq(bears.cur_power, 3)
+	assert_eq(bears.cur_toughness, 3)
+
+
+func test_lifelace_can_remove_an_opponents_color_sensitive_bonus() -> void:
+	var ai := _wizard()
+	give_hand(0, "Lifelace")
+	put_battlefield(0, "Forest")
+	put_battlefield(1, "Bad Moon")
+	var knight := put_battlefield(1, "Black Knight")
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_eq(knight.cur_power, 3)
+	assert_string_contains(ai.act(g), "cast Lifelace")
+	resolve_stack()
+	assert_eq(knight.cur_power, 2)
+	assert_eq(knight.cur_toughness, 2)
+
+
+func test_mass_debuff_saves_a_blocker_after_blocks() -> void:
+	var ai := _wizard(1)
+	var ogre := put_battlefield(0, "Gray Ogre")
+	var wisp := put_battlefield(1, "Will-o'-the-Wisp")
+	put_battlefield(1, "Swamp")
+	give_hand(1, "Marsh Gas")
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_ok(g.declare_attackers(0, [ogre.id]))
+	advance_to_step(Mtg.Step.DECLARE_BLOCKERS)
+	assert_ok(g.declare_blockers(1, {wisp.id: ogre.id}))
+	assert_ok(g.pass_priority(0))
+	assert_string_contains(ai.act(g), "Marsh Gas")
+	resolve_stack()
+	assert_eq(ogre.cur_power, 0)
+	advance_to_step(Mtg.Step.COMBAT_DAMAGE)
+	assert_eq(wisp.zone, Mtg.Zone.BATTLEFIELD)
+
+
+func test_tactical_null_keeps_the_previous_cast_choice() -> void:
+	var ai := _wizard()
+	ai.profile.uses_tactical_effects = false
+	give_hand(0, "Marsh Gas")
+	put_battlefield(0, "Swamp")
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_string_contains(ai.act(g), "cast Marsh Gas", "the off arm is the old pilot")
+
+
+func test_a_useless_lace_probe_preserves_visible_state_and_randomness() -> void:
+	var ai := _wizard()
+	give_hand(0, "Lifelace")
+	var forest := put_battlefield(0, "Forest")
+	var land := put_battlefield(1, "Island")
+	advance_to_step(Mtg.Step.MAIN1)
+	var state_before := g.rng.state
+	var lines_before := g.log_lines.size()
+	assert_eq(ai.act(g), "pass")
+	assert_eq(g.rng.state, state_before)
+	assert_eq(g.log_lines.size(), lines_before)
+	assert_eq(land.cur_colors, 0)
+	assert_eq(forest.cur_colors, 0)
+	assert_false(forest.tapped, "a rejected play pays no mana")
+	assert_null(g.undo_log)
+	assert_null(g.continuous.journal)
+	g.recalculate()
+	assert_eq(land.cur_colors, 0, "no lasting color layer escaped the probe")
+	assert_eq(forest.cur_colors, 0)
+
+
+func test_tactical_probe_preserves_an_outer_search() -> void:
+	var ai := _wizard()
+	give_hand(0, "Lifelace")
+	put_battlefield(0, "Forest")
+	var land := put_battlefield(1, "Island")
+	advance_to_step(Mtg.Step.MAIN1)
+	var mark := g.make_mark()
+	assert_eq(ai.act(g), "pass")
+	assert_not_null(g.undo_log)
+	assert_eq(land.cur_colors, 0)
+	g.unmake_to(mark)
+	g.end_search()
+	assert_null(g.undo_log)
+
+
+func test_all_difficulties_avoid_no_benefit_tactical_spells() -> void:
+	for profile in [AiProfile.apprentice(), AiProfile.magician(),
+			AiProfile.sorcerer(), AiProfile.wizard()]:
+		assert_true(profile.uses_tactical_effects)
+	assert_false(AiProfile.new().uses_tactical_effects, "the bare profile remains a null")
+
+
 func test_rod_of_ruin_pings_the_creature_it_kills() -> void:
 	var ai := _wizard()
 	put_battlefield(0, "Rod of Ruin")

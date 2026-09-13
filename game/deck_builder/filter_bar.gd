@@ -234,7 +234,7 @@ const RANK_MENU: Array[String] = ["Greater than or equal to",
 ## it back, and the switch is a property of the box, so it sits with the
 ## box's other commands and on a right-click of the box itself.
 const ALL_MENU: Array[String] = ["Select All", "Clear All"]
-const RULES_LINE := "Search card text too  [QoL]"
+const RULES_LINE := "Search card text too"
 ## [QoL] The Inventory's own order, offered through the same mini-menu
 ## idiom rather than a dropdown, so the row stays 1997 furniture.
 const SORT_MENU: Array[String] = ["Name", "Casting cost", "Card Type",
@@ -553,18 +553,16 @@ func window_pages() -> Array[Dictionary]:
 	for subtype in creature_types():
 		creature_labels.append(String(subtype).capitalize())
 	return [
-		# `@CREATURE` — Summon and Artifact tick, "Summon from list" is
-		# the list's own enable, and the list is an OR term on top of
-		# the two (DeckFilter.creature_summon).
+		# Clear scope names; the enabled type list narrows both scopes.
 		_page("creatures", "Creatures", TYPE_CELL[Mtg.CardType.CREATURE], [
-			_head("Summon",
+			_head("Non-artifact creatures",
 				func() -> bool: return filter.creature_summon,
 				func(on: bool) -> void: filter.creature_summon = on),
-			_head("Artifact",
+			_head("Artifact creatures",
 				func() -> bool: return filter.creature_artifact,
 				func(on: bool) -> void: filter.creature_artifact = on),
 			{},
-			_head("Summon from list",
+			_head("Enable Filter",
 				func() -> bool: return filter.creature_list_on,
 				func(on: bool) -> void: filter.creature_list_on = on),
 		], creature_types(), creature_labels,
@@ -749,7 +747,7 @@ func _search_group() -> Control:
 
 	sort_button = OriginalDialog.button(_sort_label(), Vector2(96, ICON_SIZE.y))
 	sort_button.pressed.connect(_open_sort_menu)
-	sort_button.tooltip_text = "[QoL] the order the Inventory is listed in"
+	sort_button.tooltip_text = "the order the Inventory is listed in"
 	strip.add_child(sort_button)
 
 	# THE EXPAND TOGGLE, GIVEN A DOOR YOU CAN SEE. The 1997 game put it
@@ -764,7 +762,7 @@ func _search_group() -> Control:
 	expand_button.toggle_mode = true
 	expand_button.button_pressed = CardPreview.expand_wanted()
 	expand_button.pressed.connect(_flip_expand)
-	expand_button.tooltip_text = "[QoL] grow a card's text box when the " \
+	expand_button.tooltip_text = "grow a card's text box when the " \
 		+ "text does not fit — the original's own Expand toggle"
 	strip.add_child(expand_button)
 	return strip

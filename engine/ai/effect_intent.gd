@@ -535,6 +535,15 @@ static func card_local_pump(card_name: String) -> Dictionary:
 	return CARD_LOCAL_PUMPS.get(card_name, {})
 
 
+## Effects whose value depends on a change to the visible board, not on
+## merely having a legal target. Kept separate from the legacy reader so
+## the uses_tactical_effects null arm retains its exact old classifications.
+static func tactical_effect(effects: Array) -> EffectBase:
+	if effects.size() == 1 and (effects[0] is MassPumpEffect or effects[0] is ChangeColorEffect):
+		return effects[0]
+	return null
+
+
 ## Read [param effects] (a spell's spell_effects, one mode's effects, or an
 ## ability's effects) into an intent. [param card_name] keys the
 ## card-local table.

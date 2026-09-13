@@ -12492,6 +12492,96 @@ The final native modern-rules smoke finished both seed-1000 duels: demo
 exit 0, no ERROR/WARNING/STALL lines. All work remains on
 `local/decklab-audit-2026-09-13`; no branch creation or online push.
 
+## 2026-09-13 — Combat, opponent decisions, filters and player help
+
+Playtest items 1–6 and 9–12; items 7/8 were already completed above.
+
+- **Will-o'-the-Wisp:** no regeneration-rule failure reproduced. The real
+  ability-menu path now has regressions for both modern pre-damage shields
+  and the Fifth Edition dying window. The player must finish declaring
+  blockers, activate the ability, and pay black mana before lethal damage
+  under modern timing. With Damage prevention step enabled, regeneration
+  instead belongs in the later regeneration window. Added rules-sensitive
+  ability tooltips and illustrated help; no change to regeneration rules.
+- **Marsh Gas / Lifelace:** the reported empty-board and payoff-free casts
+  reproduced before the fix. `uses_tactical_effects` extends the opponent's
+  effect reader/scorer for single MassPumpEffect and ChangeColorEffect
+  payloads, including matching activated abilities. It trials the existing
+  engine effects under the undo journal and scores visible-board benefits:
+  changed combat casualties/life damage or color-sensitive static bonuses.
+  Temporary mass modifiers wait until blockers are declared. No card-name
+  exceptions, opposing hidden cards, RNG draws or surviving probe mutations.
+  Positive fixtures keep Marsh Gas saving a blocker, Deathlace gaining Bad
+  Moon's bonus, and Lifelace removing an opponent's bonus. The bare profile's
+  flag is false; all four named difficulties enable the correction.
+- **Mana burn:** defaults on in player Settings without writing a default.
+  An explicit saved off remains off. The engine's Modern preset and DeckLab
+  baseline remain unchanged; selecting Modern still deliberately turns it off.
+- **Animated lands:** MiniCard reads live creature status instead of printed
+  type. Kormus Bell's Swamps show cyan power/toughness, update with later
+  bonuses, and lose the label when animation ends. Bell is a continuous
+  effect, not an activation; the same display works for other animated lands.
+- **Damage division:** each click already updated the current group's dagger
+  and count. The reproduced defect was losing previously submitted groups
+  while the next group waited. Preview totals now combine the engine's
+  completed groups with current clicks until the entire damage wave is dealt.
+  Regression checks every visible copy in battlefield and combat views.
+- **Creature filters:** the old Summon/Artifact/list OR let category switches
+  bypass selected creature types. Non-artifact creatures / Artifact creatures
+  are now clearly named scopes; the subtype list narrows them. A narrowing
+  tick enables the list immediately, like Abilities. Artifact and mana
+  category branches cannot bypass it. Cancel restores the full snapshot and
+  Select/Clear All refresh the inventory once, not once per subtype.
+- **Help and menus:** removed source filenames, citations, development notes
+  and visible QoL tags from help, rule explanations, format explanations and
+  deck-builder commands/tooltips. Maintenance provenance remains in code/docs.
+  The first fourteen help pages use actual MiniCard examples and interface
+  icons, short sections and scrolling panels. Wrapped headings survive narrow
+  windows; restricted/banned lists read registered cards without erroring on
+  unavailable entries. Reviewed native Mac renders at 1280×800 and 960×600.
+
+**Measurement, not a strength claim.** Wizard, seeds 11–1010, 1,000 games
+per arm, four workers, `--no-elo`; `uses_tactical_effects=on,off` with an off
+null and Big Green vs White Knights control. Undead Knight vs Big Green:
+34.1% null, 36.7% on (+2.6 points, approximately ±4.2). Summoner vs White
+Knights: 9.3% null, 9.7% on (+0.4 points, approximately ±2.6). Neither delta
+clears zero. Each control arm exactly replays all 1,000 games of its own
+550–450 null; off arms exactly replay their test nulls. Both sweeps have zero
+stalls or draws across 12,000 games. An archived pre-change HEAD was also run
+with identical seeds/decks and `times_sweeps=on --null on` (the existing Wizard
+value): all 4,000 test/control null fingerprints exactly match the new off
+baseline. This ships as a verified wasted-cast correction, not a proven
+win-rate improvement. The probe is deliberately bounded: it does not plan
+future turns, model trample overflow, or replace the mixed-effect scorer.
+
+Local evidence is under `../shandalar-build/playtest-*`: the before-fix
+regressions, final tests, native renders, and both candidate/baseline sweep
+reports including per-game fingerprints. Screenshot probes used the isolated
+test profile and were removed afterward. Dummy-audio capture cleanup initially
+reported playlist objects; the final capture disables music only in that
+temporary process and exits cleanly. No player settings or artwork were
+published. All work stays on the existing branch; no online push.
+
+The integration gate also caught four older Big cards menu expectations
+still including the removed QoL suffix, and a music test that inherited the
+silent capture's isolated-profile setting. Updated the menu assertions and
+made the music fixture explicitly own both enable switches. Restored the
+isolated profile's music default; the player's real profile was never used.
+
+Final verification: full GUT gate **6,147 tests / 161,959 assertions**, 354
+scripts, 198.728 seconds, wrapper exit 0. Python tools **219 tests**, one
+platform skip, exit 0. Native seed-1000 modern duels: demo 19 turns / 22.5s,
+human 14 turns / 18.9s / 119 clicks. Fifth Edition: demo 19 turns / 23.0s,
+human 14 turns / 19.1s / 119 clicks. Both soak wrappers exit 0 with no
+ERROR/WARNING/STALL lines. The local universal debug app at
+`../shandalar-build/playtest-2026-09-13/macos/Shandalar.app` exports and
+smoke-boots cleanly; strict signature verification passes. Existing local
+art packs are linked alongside it and older builds are untouched. Apple
+Silicon runtime checked; Intel, native Windows/Linux and browser runtime
+were not exercised in this pass. Production changes remain platform-neutral
+Godot code. The disposable pre-change checkout was removed; its reports
+and per-game comparisons are retained. Changes remain local and uncommitted.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

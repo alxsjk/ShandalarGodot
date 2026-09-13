@@ -42,6 +42,24 @@ func _labels_of(node: Node) -> Array:
 
 # ========================================================== the content ==
 
+func test_primer_pages_have_in_game_graphics() -> void:
+	for page in HelpPages.pages().slice(0, 14):
+		var illustrated := false
+		for block in page["blocks"]:
+			if block["kind"] in ["cards", HelpPages.ICONS]:
+				illustrated = true
+		assert_true(illustrated, String(page["title"]))
+
+
+func test_visible_help_is_facts_without_source_or_development_notes() -> void:
+	for i in screen.page_count():
+		screen.go_to(i)
+		var shown := "\n".join(_labels_of(screen)).to_lower()
+		for forbidden in ["duel.hlp", "manual p.", "deckdll", ".cpp", "docs/",
+				"source:", "survives in any file", "this remake", "[qol]", "help file",
+				"our vault", "our card pool", "summon, artifact", "not a 1997"]:
+			assert_false(shown.contains(forbidden), "%s: %s" % [screen._title_label.text, forbidden])
+
 func test_there_are_many_pages_and_each_has_a_title_and_blocks() -> void:
 	var pages := HelpPages.pages()
 	assert_gt(pages.size(), 10, "the owner asked for many pages")
@@ -400,7 +418,7 @@ func test_the_ice_blue_dagger_is_taught_as_not_being_a_counter() -> void:
 		if String(page["title"]) == "Combat":
 			combat = _page_text(page)
 	assert_ne(combat, "", "there is a Combat page")
-	assert_true(combat.contains("ICE BLUE"), "the Combat page teaches it")
+	assert_true(combat.to_lower().contains("ice-blue"), "the Combat page teaches it")
 	assert_true(combat.contains("not a counter"), "as what it is not")
 	assert_true(_counter_text().contains("ICE-BLUE"),
 		"and the counter pages point at it")
@@ -606,15 +624,13 @@ func test_the_page_names_the_cards_the_rule_can_actually_fire_on() -> void:
 			"%s is in the pool, so the page is not promising air" % card_name)
 
 
-func test_the_page_admits_the_lists_are_not_1997s() -> void:
-	# Rule 5 of help_pages.gd: anything unconfirmed says so ON THE PAGE.
-	# No 1997 restricted list survives, and the page must not pretend one
-	# does.
+func test_the_format_pages_explain_rules_without_source_notes() -> void:
 	var text := ""
 	for page in _format_pages():
 		text += _all_text(page)
-	assert_true(text.contains("No 1997 restricted list survives"),
-		"the page states the provenance gap plainly")
+	assert_false(text.contains("survives"), "no implementation archaeology")
+	assert_false(text.contains(".cpp"), "no source filenames in player help")
+	assert_true(text.contains("Limits count both piles"))
 
 
 func test_the_setup_screens_tooltip_says_the_same_thing_as_the_page() -> void:
@@ -701,7 +717,7 @@ func test_the_main_menu_wears_our_name_in_the_bottom_left() -> void:
 		+ "whose bottom third is dark — UiChrome's ink is for the sand")
 
 
-func test_the_page_no_longer_claims_the_pool_filters_the_list_for_us() -> void:
+func test_the_format_lists_include_the_era_restricted_cards_in_the_pool() -> void:
 	# THE CORRECTED CLAIM (2026-09-01). The page used to tell the player
 	# that "what the pool leaves standing is the era's own list". That is
 	# true only for cards ADDED to the restricted list since 1997; it is
@@ -713,8 +729,8 @@ func test_the_page_no_longer_claims_the_pool_filters_the_list_for_us() -> void:
 		text += _all_text(page)
 	assert_false(text.contains("What the pool leaves standing is the era's"),
 		"the wrong claim is gone")
-	assert_true(text.contains("The Duelist #22"),
-		"and the page names the source the era list comes from")
+	assert_false(text.contains("The Duelist #22"),
+		"sources belong in developer documentation, not player help")
 	# Every era-restricted card the page lists must be on the list AND in
 	# the pool — the same promise the page makes about the modern ones.
 	for card_name in ["Braingeyser", "Mind Twist", "Regrowth", "Recall",

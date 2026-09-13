@@ -41,8 +41,6 @@ extends Control
 ## the shared [constant UiChrome.ACCENT] — the owner's own pick, dark
 ## purple — so every emphasised word in the game is one colour.
 const ACCENT := UiChrome.ACCENT
-## A citation, which is quieter than the sentence it credits.
-const FAINT := Color8(92, 82, 68)
 
 ## THE TYPE SCALE. Every size on the page in one place, a step up from
 ## what it was: MPlantin is a thin 1997 serif and the page is a mottled
@@ -53,7 +51,6 @@ const FAINT := Color8(92, 82, 68)
 const BODY_SIZE := 18
 const HEADING_SIZE := 22
 const NAME_SIZE := 18
-const CITE_SIZE := 15
 
 
 ## Displayed size of an icon that carries no size hint of its own.
@@ -116,6 +113,7 @@ func _ready() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 12)
 	_title_label = UiChrome.body_label("", 26)
+	_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var title_font := GameSkin.font("font_title")
 	if title_font != null:
 		_title_label.add_theme_font_override("font", title_font)
@@ -266,6 +264,7 @@ func _add_block(block: Dictionary) -> void:
 			# wears, so a section title and a named thing read as the same
 			# rank of heading rather than two competing ones.
 			var heading := UiChrome.body_label(String(block.get("text", "")), HEADING_SIZE)
+			heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			var font := GameSkin.font("font_title")
 			if font != null:
 				heading.add_theme_font_override("font", font)
@@ -278,6 +277,9 @@ func _add_block(block: Dictionary) -> void:
 		HelpPages.ICONS:
 			for entry in block.get("entries", []):
 				_body.add_child(_icon_row(entry))
+		HelpPages.CARDS:
+			for example in block.get("examples", []):
+				_body.add_child(_card_example(example))
 
 
 ## A wrapping body paragraph. `custom_minimum_size.x = 0` plus EXPAND_FILL
@@ -289,25 +291,53 @@ func _paragraph(text: String, size: int) -> Label:
 	return label
 
 
-## A SOURCED QUOTATION — the 1997 manual's or `Duel.hlp`'s own sentence,
-## set in italick-less quotation marks with its citation under it. Every
-## page that states a rule shows the sentence it came from, so a reader can
-## tell our prose from the original's.
+## A readable rule callout. Source metadata stays in HelpPages, never in
+## the player-facing view (2026-09-13 playtest).
 func _quote(block: Dictionary) -> Control:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1)
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var body := _paragraph("“%s”" % String(block.get("text", "")), BODY_SIZE)
-	body.add_theme_color_override("font_color", UiChrome.INK)
-	box.add_child(body)
-	var cite := UiChrome.body_label("— %s" % String(block.get("cite", "")), CITE_SIZE)
-	cite.add_theme_color_override("font_color", FAINT)
-	box.add_child(cite)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_child(box)
-	return margin
+	var panel := _example_panel()
+	panel.add_child(_paragraph(String(block.get("text", "")), BODY_SIZE))
+	return panel
+
+
+func _example_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.30, 0.20, 0.12, 0.08)
+	style.border_color = Color(0.30, 0.18, 0.35, 0.35)
+	style.border_width_left = 3
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", style)
+	return panel
+
+
+## Use the same small-card renderer as the duel. The example is an
+## isolated display instance, never a permanent in the player's game.
+func _card_example(example: Array) -> Control:
+	var panel := _example_panel()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	panel.add_child(row)
+	var data := CardRegistry.get_card(String(example[0]))
+	if data != null:
+		var sample := CardInstance.new(data, -1, 0)
+		var card := MiniCard.new(sample)
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(card)
+	var words := VBoxContainer.new()
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	words.add_theme_constant_override("separation", 8)
+	var title := _paragraph(String(example[1]), HEADING_SIZE)
+	title.add_theme_color_override("font_color", ACCENT)
+	words.add_child(title)
+	words.add_child(_paragraph(String(example[2]), BODY_SIZE))
+	row.add_child(words)
+	return panel
 
 
 ## Between two pictures of a FAMILY entry — see [method _icon_row].

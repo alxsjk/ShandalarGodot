@@ -146,6 +146,26 @@ func _open_page(key: String) -> void:
 
 # ----------------------------- [1997] the owner's case, end to end --
 
+func test_creature_type_selection_narrows_the_whole_inventory_live() -> void:
+	var whole := _shown()
+	await _open_page("Creatures")
+	_press("Clear All")
+	_line("] Elf").pressed.emit()
+	await get_tree().process_frame
+	assert_true(screen.filter.creature_list_on)
+	assert_gt(_shown(), 0)
+	assert_lt(_shown(), whole)
+	for card_name in _names():
+		var data := CardRegistry.get_card(card_name)
+		assert_true(data.is_creature() and data.subtypes.has("elf"), card_name)
+	assert_has(_names(), "Llanowar Elves")
+	assert_does_not_have(_names(), "Grizzly Bears")
+	assert_does_not_have(_names(), "Sol Ring", "artifact category cannot bypass creature list")
+	_press("Cancel")
+	await get_tree().process_frame
+	assert_eq(_shown(), whole, "Cancel restores all filter state")
+
+
 func test_only_first_strike_leaves_only_the_first_strikers() -> void:
 	var whole := _shown()
 	assert_eq(whole, CardRegistry.all_names().size(), "the whole pool to begin with")
@@ -263,7 +283,7 @@ func test_every_kind_of_line_in_the_window_moves_the_inventory() -> void:
 
 	await _open_page("Creatures")
 	before = _shown()
-	_line("] Summon").pressed.emit()
+	_line("] Non-artifact creatures").pressed.emit()
 	await get_tree().process_frame
 	assert_lt(_shown(), before, "a head check")
 	_press("Cancel")

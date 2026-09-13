@@ -858,7 +858,7 @@ func _build_command_bar() -> void:
 func _deck_slot_button(index: int) -> Button:
 	var button := OriginalDialog.button(_slot_label(index),
 		Vector2(76, COMMAND_BAR_H))
-	button.tooltip_text = "[QoL] deck slot %d — three decks in hand at once" \
+	button.tooltip_text = "deck slot %d — three decks in hand at once" \
 		% (index + 1)
 	button.pressed.connect(_switch_slot.bind(index))
 	return button
@@ -2553,8 +2553,7 @@ func _show_import_dialog() -> void:
 		return
 	var dialog := OriginalDialog.create("Import deck", Vector2(520, 300))
 	var how := OriginalDialog.label(
-		"Read a deck in any format this game knows — .deck, .dec, or the"
-		+ " original's .dck. A card this game does not implement becomes a"
+		"Import a .deck, .dec or .dck file. An unavailable card becomes a"
 		+ " proxy: you can see the deck and build with it, but not duel"
 		+ " with it.", 13)
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2712,8 +2711,8 @@ func _open_proxy_dialog() -> void:
 		return
 	var dialog := OriginalDialog.create("Add proxy card", Vector2(480, 340))
 	var how := OriginalDialog.label(
-		"A proxy is a paper stand-in for a card this game does not"
-		+ " implement — the name on plain card stock, with `proxy` where"
+		"A proxy is a stand-in for an unavailable card — its name on"
+		+ " plain card stock, with 'proxy' where"
 		+ " the rules text goes. A deck holding one can be built, saved and"
 		+ " looked at, but not duelled with.", 13)
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2946,11 +2945,8 @@ static func _check_text(on: bool, text: String) -> String:
 ##   filter on ([method DeckFilter.tick_ability], where the 1997 medallion
 ##   it replaces is written down), the head line above the list re-letters
 ##   to say so, and the well says it once ([constant ENABLED_HINT]).
-## - THE HINT. The creature list is an OR term on top of Summon
-##   (`check_creatures`, deckdll.cpp:6995), so ticking Elf with Summon
-##   still down changes nothing; the Situation Bar says so
-##   ([constant LIST_HINT]) the moment the list goes on.
-const LIST_HINT := "The list adds to Summon — untick Summon to see only the listed types"
+## - The creature list narrows its two scopes live (2026-09-13 playtest).
+const LIST_HINT := "Only selected creature types are shown; choose either or both creature groups"
 ## Said when a tick in a list switches that page's own `Enable Filter` on
 ## — see [method DeckFilter.tick_ability], which is where the 1997
 ## medallion this replaces is written down.
@@ -3059,7 +3055,7 @@ func _fill_filter_page(sheet: VBoxContainer, page: Dictionary, view: Dictionary)
 			var on: bool = not head["get"].call()
 			head["set"].call(on)
 			line.text = _check_text(on, String(head["text"]))
-			if on and String(head["text"]) == "Summon from list" and filter.creature_summon:
+			if on and String(page["key"]) == "creatures" and String(head["text"]) == "Enable Filter":
 				_say(LIST_HINT))
 		sheet.add_child(line)
 	if not page["heads"].is_empty():
@@ -3181,7 +3177,7 @@ func _menu_text(label: String) -> String:
 	var text := _undo_menu_label() if label == "Undo" else label
 	if label == "Big cards":
 		text = "%s %s" % ["[x]" if _big_cards else "[  ]", label]
-	return "%s  [QoL]" % text if EXTRA_COMMANDS.has(label) else text
+	return text
 
 
 ## `&Music` / `Sound &Effects`. The 1997 home for these two switches, and

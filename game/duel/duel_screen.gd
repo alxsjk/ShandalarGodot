@@ -1642,12 +1642,15 @@ func _points_left() -> int:
 ## shares live on the slot's [TargetRef]s). Zero outside either. Every
 ## small card is handed this on the rebuild that follows each click
 ## ([method _make_card] → [member MiniCard.pending_damage]), and the
-## rebuild after the submit — `_damage_picks` emptied, the slot advanced
-## — hands out zeros again, which is what clears the marks. [QoL],
-## 2026-09-08; both divisions are kept UI-side, so no engine query.
+## combat preview includes submitted groups in the engine's read-only
+## request until the whole wave is dealt. A spell preview clears when
+## its divided slot advances. [QoL], 2026-09-08, revised 2026-09-13.
 func _pending_damage_for(id: int) -> int:
 	if game != null and game.awaiting_damage_assignment:
-		return int(_damage_picks.get(id, 0))
+		# Keep earlier groups visible until the whole wave is dealt.
+		# Playtest 2026-09-13: submitting one group used to erase its marks.
+		var assigned: Dictionary = game.damage_assignment_request().get("assigned", {})
+		return int(assigned.get(id, 0)) + int(_damage_picks.get(id, 0))
 	if _pending_card != null and _pending_slot < _pending_slots.size() \
 			and _pending_slot < _pending_groups.size():
 		if int(_pending_slots[_pending_slot]["divided"]) > 0:
@@ -4679,6 +4682,13 @@ func _open_ability_menu(inst: CardInstance, mana_only := false) -> void:
 	if not mana_only:
 		for ability in inst.cur_activated_abilities:
 			_ability_menu.add_item(ability.text, id)
+			for effect in ability.effects:
+				if effect.is_regeneration:
+					_ability_menu.set_item_tooltip(id,
+						"Use during the regeneration window, when this creature is dying."
+						if game.rules.damage_prevention_window else
+						"Activate before lethal damage or destruction. In combat, use the fast-effects window after blockers are declared.")
+					break
 			id += 1
 	_ability_menu.set_meta("mana_only", mana_only)
 	_ability_menu.set_meta("instance_id", inst.id)

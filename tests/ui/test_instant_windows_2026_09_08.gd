@@ -141,6 +141,82 @@ func _pump(steps: int) -> void:
 
 # ============================================ the windows, on their turn --
 
+func test_wisp_can_buy_regeneration_after_blocking_before_damage() -> void:
+	var g := _window(1, Mtg.Step.DECLARE_BLOCKERS)
+	var ogre := _attack_with_an_ogre(1)
+	var wisp := _summon("Will-o'-the-Wisp", 0)
+	_summon("Swamp", 0)
+	g._probing = true
+	g.awaiting_blockers = true
+	assert_eq(g.declare_blockers(0, {wisp.id: ogre.id}), "")
+	g._probing = false
+	g.priority_player = 0
+	assert_false(screen._auto_pass_applies(), "hold a payable regeneration window")
+	screen._refresh()
+	screen._on_card_clicked(wisp)
+	assert_true(screen._ability_menu.visible)
+	assert_string_contains(screen._ability_menu.get_item_tooltip(0), "before lethal damage")
+	screen._ability_menu.hide()
+	screen._on_ability_chosen(0)
+	if screen.mode == DuelScreen.Mode.PAYING:
+		screen._on_card_clicked(g.players[0].battlefield.filter(
+			func(c: CardInstance) -> bool: return c.data.card_name == "Swamp")[0])
+	assert_eq(g.stack.size(), 1, "clicking the blocking Wisp activates its ability")
+	assert_eq(wisp.regeneration_shields, 0, "shield waits for resolution")
+	g._probing = true  # inspect resolution before the screen advances combat
+	for i in 2:
+		g.pass_priority(g.priority_player)
+	g._probing = false
+	assert_eq(wisp.regeneration_shields, 1)
+	g._probing = true
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
+	g._probing = false
+	assert_eq(wisp.zone, Mtg.Zone.BATTLEFIELD)
+	assert_true(wisp.tapped)
+	assert_eq(wisp.damage, 0)
+	assert_eq(wisp.regeneration_shields, 0, "lethal damage consumed the shield")
+
+
+func test_wisp_regenerates_in_the_fifth_edition_dying_window() -> void:
+	var g := _window(1, Mtg.Step.DECLARE_BLOCKERS)
+	g.rules.damage_prevention_window = true
+	var ogre := _attack_with_an_ogre(1)
+	var wisp := _summon("Will-o'-the-Wisp", 0)
+	var swamp := _summon("Swamp", 0)
+	g._probing = true
+	g.awaiting_blockers = true
+	assert_eq(g.declare_blockers(0, {wisp.id: ogre.id}), "")
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
+	for i in 8:
+		if g.awaiting_regeneration:
+			break
+		g.pass_priority(g.priority_player)
+	g._probing = false
+	assert_true(g.awaiting_regeneration)
+	if not g.awaiting_regeneration:
+		return
+	if g.priority_player != 0:
+		g.pass_priority(g.priority_player)
+	screen._refresh()
+	screen._on_card_clicked(wisp)
+	assert_true(screen._ability_menu.visible)
+	assert_string_contains(screen._ability_menu.get_item_tooltip(0), "regeneration window")
+	screen._ability_menu.hide()
+	screen._on_ability_chosen(0)
+	if screen.mode == DuelScreen.Mode.PAYING:
+		screen._on_card_clicked(swamp)
+	g._probing = true
+	for i in 8:
+		if not g.awaiting_regeneration:
+			break
+		g.end_damage_prevention(g.priority_player)
+	g._probing = false
+	assert_false(g.awaiting_regeneration)
+	assert_eq(wisp.zone, Mtg.Zone.BATTLEFIELD)
+	assert_true(wisp.tapped)
+	assert_eq(wisp.damage, 0)
+
+
 func test_their_declared_attack_holds_for_a_bolt_you_can_pay_for() -> void:
 	# The exact moment of the report: their creature is attacking, the
 	# blocks are not yet asked for, and the player holds a Bolt with the

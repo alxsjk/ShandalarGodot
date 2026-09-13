@@ -14,6 +14,7 @@ func before_each() -> void:
 	for fork in RulesOptions.FORKS:
 		var key: String = "rule_" + fork["key"]
 		_saved[key] = Settings.get_value(key, null) if Settings.has_value(key) else null
+		Settings.clear_value(key)
 	screen = load("res://game/options_screen.tscn").instantiate()
 	add_child_autofree(screen)
 	await get_tree().process_frame
@@ -68,20 +69,28 @@ func test_the_live_forks_are_switchable() -> void:
 		"and the 1997 damage division (docs/duel-todo.md §1.4)")
 
 
-func test_each_row_explains_both_editions_and_cites_a_source() -> void:
+func test_each_row_explains_both_editions_without_developer_sources() -> void:
 	var rows := _rows()
 	for fork in RulesOptions.FORKS:
 		var tip: String = rows[fork["label"]].tooltip_text
 		assert_string_contains(tip, "1997:")
 		assert_string_contains(tip, "Modern:")
-		assert_string_contains(tip, fork["source"])
+		assert_false(tip.contains("Source:"))
+		assert_false(tip.contains("docs/"))
 
 
-func test_defaults_are_modern_except_the_owners_call_on_attackers() -> void:
+func test_player_defaults_enable_mana_burn_and_revocable_attackers() -> void:
 	var rows := _rows()
-	assert_false(rows["Mana burn"].button_pressed, "modern by default")
+	assert_true(rows["Mana burn"].button_pressed, "mana burn on for a fresh player")
+	assert_false(Settings.has_value("rule_mana_burn"), "reading a default does not save it")
 	assert_true(rows["Attacker selection revocable"].button_pressed,
 		"attackers stay revocable by default — the owner's call")
+
+
+func test_saved_mana_burn_off_overrides_the_player_default() -> void:
+	Settings.set_rule("mana_burn", false)
+	assert_false(Settings.rule("mana_burn"))
+	assert_false(RulesOptions.new().mana_burn, "engine's modern preset is unchanged")
 
 
 # ================================ the preset writes the file ONCE ==

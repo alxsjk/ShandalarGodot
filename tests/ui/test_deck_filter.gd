@@ -727,33 +727,28 @@ func test_summon_admits_the_plain_creatures_and_artifact_the_others() -> void:
 	assert_true(filter.matches(_card("Lightning Bolt")), "a spell never asks the creature checks")
 
 
-func test_a_mana_creature_is_still_lands_with_summon_up() -> void:
-	# `Land and Mana` reaches every card that taps for mana, Summon or not.
+func test_mana_creatures_respect_the_creature_scope() -> void:
 	filter.land_mode = DeckFilter.Land.LAND_AND_MANA
 	filter.creature_summon = false
-	assert_true(filter.matches(_card("Llanowar Elves")))
+	assert_false(filter.matches(_card("Llanowar Elves")))
 	filter.land_mode = DeckFilter.Land.LAND_ONLY
 	assert_false(filter.matches(_card("Llanowar Elves")))
 
 
-func test_the_list_is_an_or_term_on_top_of_summon() -> void:
-	# The list ADDS to Summon — with Summon still down it changes nothing,
-	# which is why the window says so (DeckBuilderScreen.LIST_HINT). The
-	# Artifact medallion's "All Creatures" tick goes off so the Clay is the
-	# creature checks' to answer for.
+func test_the_list_narrows_creature_scopes() -> void:
+	# Playtest 2026-09-13: selected types narrow immediately.
 	filter.artifact_creatures = false
 	filter.creature_list_on = true
 	for subtype in FilterBar.creature_types():
 		filter.tick_creature_type(subtype, false)
 	filter.tick_creature_type("bear", true)
-	assert_true(filter.matches(_card("Savannah Lions")), "Summon is still down")
-	filter.creature_summon = false
-	filter.creature_artifact = false
+	assert_false(filter.matches(_card("Savannah Lions")), "only Bears selected")
 	assert_true(filter.matches(_card("Grizzly Bears")), "the Bear comes through the list")
 	assert_false(filter.matches(_card("Savannah Lions")), "the Cat does not")
 	assert_false(filter.matches(_card("Primal Clay")), "nor the artifact creature")
 	filter.creature_list_on = false
-	assert_false(filter.matches(_card("Grizzly Bears")), "the list off is the list ignored")
+	assert_true(filter.matches(_card("Grizzly Bears")), "the list off is the list ignored")
+	assert_true(filter.matches(_card("Savannah Lions")))
 
 
 func test_the_creature_type_list_is_the_pools_own() -> void:
@@ -939,6 +934,7 @@ func test_a_snapshot_restores_the_pages_as_they_were() -> void:
 	# back, the strip's own buttons are not the window's to restore.
 	filter.tick_creature_type("elf", false)
 	filter.tick_rarity(DeckFilter.Rarity.COMMON, false)
+	filter.creature_list_on = false  # an explicitly disabled narrowed list
 	var kept := filter.window_snapshot()
 	var before := filter.revision
 	filter.creature_list_on = true
@@ -1028,8 +1024,8 @@ func test_a_ticked_list_moves_the_revision_only_when_it_changes() -> void:
 	filter.tick_creature_type("elf", true)
 	assert_eq(filter.revision, before, "already ticked")
 	filter.tick_creature_type("elf", false)
-	assert_eq(filter.revision, before + 1)
+	assert_eq(filter.revision, before + 2, "one tick and the automatic enable")
 	filter.tick_creature_type("elf", false)
-	assert_eq(filter.revision, before + 1, "already unticked")
+	assert_eq(filter.revision, before + 2, "already unticked")
 	filter.tick_creature_type("elf", true)
-	assert_eq(filter.revision, before + 2)
+	assert_eq(filter.revision, before + 3)

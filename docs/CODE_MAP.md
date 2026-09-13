@@ -1131,6 +1131,10 @@ shandalar/
 │   │                          step boundary")
 │   ├── ai/                  THE AI OPPONENT (pure engine, headless)
 │   │   ├── ai_profile.gd    class AiProfile — the difficulty surface:
+│   │   │                      uses_tactical_effects (2026-09-13): visible
+│   │   │                      combat/static payoff for single MassPumpEffect
+│   │   │                      and ChangeColorEffect payloads, via reversible
+│   │   │                      engine probes; all presets on, exact old null off.
 │   │   │                      mistake_chance / aggression / the PANIC LINE
 │   │   │                      (chump_threshold — the chump-block trigger
 │   │   │                      AND the bar at which waiting damage is worth
@@ -1681,6 +1685,8 @@ shandalar/
 │   │   │                      this file's constant.
 │   │   │                      tests/ai/test_ai_w_hand_2026_09_10.gd
 │   │   ├── effect_intent.gd class EffectIntent — WHAT AN EFFECT LIST DOES,
+│   │   │                      tactical_effect classifies the single-effect
+│   │   │                      shapes above without changing the legacy reader.
 │                      hand_toll_of_line / hand_toll_damage (2026-09-10,
 │                      AiProfile.minds_the_vise) read a trigger's printed
 │                      line for damage counted off a HAND, as the two
@@ -4903,6 +4909,8 @@ shandalar/
 │   │                          display, the rules forks, AI pace — an
 │   │                          AGGREGATOR over Settings, never a copy
 │   ├── settings.gd          class Settings — user://settings.cfg wrapper;
+│   │                          player mana burn defaults on; an explicit saved
+│   │                          off wins, while RulesOptions' Modern stays off.
 │   │                          saved on every set, except set_value(...,
 │   │                          false) + flush() for a slider's drag;
 │   │                          failed saves remain dirty for a later retry
@@ -5316,7 +5324,10 @@ shandalar/
 │   │   │                      MAX_TEXT_WIDTH; the ground is `Menubak.pic`
 │   │   └── help_pages.gd    class HelpPages — the CONTENT, as pure data
 │   │                          (title + blocks; TEXT / QUOTE / HEADING /
-│   │                          ICONS), so it is testable without a scene.
+│   │                          ICONS / CARDS), so it is testable without a scene.
+│   │                          The first fourteen pages use native MiniCard
+│   │                          examples and interface icons in structured panels.
+│   │                          Source metadata is never rendered to the player.
 │   │                          The Deck Builder page also explains the
 │   │                          remembered Big cards layout and how it differs
 │   │                          from expanding the card's rules text box.
@@ -5621,13 +5632,15 @@ shandalar/
 │   │   │                      filters. `revision` counts real changes so
 │   │   │                      the screen re-walks 800 cards only when the
 │   │   │                      filter moved. The five @LONGLIST sub-filters
-│   │   │                      (`SHIPPED`: @CREATURE's Summon/Artifact/list
-│   │   │                      as `check_creatures`' OR term, @ENCHANTMENT's
+│   │   │                      (`SHIPPED`: @CREATURE's non-artifact/artifact
+│   │   │                      scopes and narrowing subtype list, @ENCHANTMENT's
 │   │   │                      six kinds by `aura_kind`, @ABILITY's two
 │   │   │                      scopes over DeckAbilities, @RARITY's five
 │   │   │                      with the era lists, @ARTIST) are the Filters
 │   │   │                      window's pages; `window_snapshot` /
 │   │   │                      `window_restore` are its Cancel.
+│   │   │                      Narrowing a creature tick auto-enables its list;
+│   │   │                      artifact/mana categories cannot bypass that list.
 │   │   │                      `select_all` / `clear_all` are @LONGLIST's own
 │   │   │                      two, and the way back from twenty-three
 │   │   │                      toggles. `_facts_for` caches each card's
@@ -6211,6 +6224,10 @@ shandalar/
 │       │                      of reconstructing a line count for it.
 │       ├── mini_card.gd     class MiniCard — THE SMALL CARD, the one
 │       │                      generator for every card on the table.
+│       │                      P/T follows live creature status; animated lands
+│       │                      use cyan stats, including subsequent bonuses.
+│       │                      Pending damage counts include earlier submitted
+│       │                      combat groups until the whole wave is dealt.
 │       │                      SIZE (132x106) IS THE ONLY CARD SIZE IN THE
 │       │                      GAME — never rescaled, only ROTATED 90° when
 │       │                      tapped; _init shrinks on both axes so no

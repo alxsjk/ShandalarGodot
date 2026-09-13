@@ -1116,7 +1116,8 @@ func refresh() -> void:
 	# on the card in play. (The Showcase always shows the original power
 	# and toughness.)"* (`Duel.hlp`, **Dueling Options**), which is why the
 	# switch lives here and not on [CardPreview].
-	if d.is_creature() and DuelOptions.toggle("ShowPowerToughnessOnCards"):
+	# Live type includes animated lands/artifacts (Kormus Bell, Living Lands).
+	if instance.is_creature() and DuelOptions.toggle("ShowPowerToughnessOnCards"):
 		_pt_label.text = "%d/%d" % [instance.cur_power, instance.cur_toughness]
 		_pt_label.add_theme_color_override("font_color", pt_color())
 	else:
@@ -1541,6 +1542,8 @@ func pt_color() -> Color:
 	if instance.zone != Mtg.Zone.BATTLEFIELD:
 		return Color.WHITE      # a card in hand has no live values to differ
 	var d := instance.data
+	if instance.is_creature() and not d.is_creature():
+		return Color8(110, 220, 255)  # animation, distinct from an ordinary pump
 	if instance.cur_power > d.power or instance.cur_toughness > d.toughness:
 		return Color8(100, 255, 100)
 	if instance.cur_power < d.power or instance.cur_toughness < d.toughness:

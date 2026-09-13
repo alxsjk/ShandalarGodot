@@ -150,7 +150,7 @@ func test_every_deck_surface_command_is_on_the_mini_menu() -> void:
 			"@DECKSURFACE_STANDALONE: %s" % label)
 	for label in DeckBuilderScreen.EXTRA_COMMANDS:
 		assert_true(texts.has(screen._menu_text(label)),
-			"[QoL] %s, marked as ours" % label)
+			"%s, marked as ours" % label)
 
 
 func test_the_command_bar_is_the_1997_five_along_the_bottom() -> void:
@@ -974,12 +974,12 @@ func test_the_stats_window_graphs_more_than_the_matrix() -> void:
 			titles.append(node.text)
 	assert_true(titles.has("Card Type"), "@STATSSCREEN's matrix is still there")
 	for heading in ["Casting costs", "Colors", "Card types", "Land"]:
-		assert_true(titles.has(heading), "[QoL] the %s graph" % heading)
+		assert_true(titles.has(heading), "the %s graph" % heading)
 	var averages := 0
 	for text in titles:
 		if String(text).begins_with("Average casting cost"):
 			averages += 1
-	assert_eq(averages, 1, "[QoL] and the average")
+	assert_eq(averages, 1, "and the average")
 
 
 # ------------------------------------------- [QoL] the Inventory badge --
@@ -1028,7 +1028,7 @@ func test_the_type_ahead_can_reach_into_card_text() -> void:
 func test_the_count_line_says_where_in_the_list_you_are() -> void:
 	assert_string_contains(screen._count_label.text, "cards")
 	assert_string_contains(screen._count_label.text, "showing 1-",
-		"[QoL] one row of nine is eighty-eight pages; say which one")
+		"one row of nine is eighty-eight pages; say which one")
 
 
 # ==================================================== SECOND AUDIT PASS ==
@@ -1187,7 +1187,7 @@ func test_the_menu_says_what_undo_would_put_back() -> void:
 		screen._add_one("Lightning Bolt")
 	screen._remove_all("Lightning Bolt")
 	screen._open_mini_menu()
-	assert_true(_button_texts().has("Undo Remove all Lightning Bolt  [QoL]"),
+	assert_true(_button_texts().has("Undo Remove all Lightning Bolt"),
 		"the menu names the change, not just the word")
 
 
@@ -1271,7 +1271,7 @@ func test_the_filter_strip_offers_select_all_and_clear_all() -> void:
 	screen._filter_bar.open_all_menu()
 	assert_eq(seen.size(), 1)
 	assert_eq(seen[0]["lines"].slice(0, 2), FilterBar.ALL_MENU, "the table's own two words")
-	assert_eq(seen[0]["lines"].size(), 3, "and the [QoL] card-text switch under them")
+	assert_eq(seen[0]["lines"].size(), 3, "and the card-text switch under them")
 	assert_true(String(seen[0]["lines"][2]).ends_with(FilterBar.RULES_LINE))
 	seen[0]["pick"].call(1)                  # Clear All
 	screen._refresh_inventory()
@@ -1312,7 +1312,7 @@ func test_the_recovered_1997_commands_are_on_the_mini_menu_unmarked() -> void:
 	for label in DeckBuilderScreen.MENU_COMMANDS:
 		assert_true(texts.has(label),
 			"%s is reachable, and unmarked because 1997 had it" % label)
-	assert_true(texts.has("Filters  [QoL]"),
+	assert_true(texts.has("Filters"),
 		"@LONGLIST's words on a strip the original gave no such button")
 
 
@@ -1824,7 +1824,7 @@ func test_the_legality_line_states_the_sideboard_size_rule() -> void:
 
 func test_the_sideboard_menu_says_how_and_moves_in_bulk() -> void:
 	assert_true(DeckBuilderScreen.EXTRA_COMMANDS.has("Sideboard"),
-		"it is on the mini-menu, marked [QoL] like every addition")
+		"it is on the mini-menu, marked like every addition")
 	for _i in 3:
 		screen._add_one_side("Shatter")
 	screen._run_command("Sideboard")
@@ -2922,9 +2922,9 @@ func test_a_right_click_on_creatures_opens_its_own_page() -> void:
 	assert_not_null(_window(), "the window, at the creatures page")
 	assert_eq(_pressed_tab(), "Creatures")
 	var lines := _page_lines()
-	assert_eq(lines[0], "[x] Summon")
-	assert_eq(lines[1], "[x] Artifact")
-	assert_eq(lines[2], "[  ] Summon from list")
+	assert_eq(lines[0], "[x] Non-artifact creatures")
+	assert_eq(lines[1], "[x] Artifact creatures")
+	assert_eq(lines[2], "[  ] Enable Filter")
 	assert_true(lines.has("[x] Elf"), "the pool's own types, capitalised")
 	assert_true(lines.has("[x] Wall"))
 	assert_gt(lines.size(), 100)
@@ -2962,15 +2962,12 @@ func test_ticking_a_type_re_lists_the_inventory_under_the_window() -> void:
 	var creatures: Button = screen._filter_bar.group_buttons("Type Filters")[2]
 	_right_click(creatures)
 	await get_tree().process_frame
-	# Summon up, list on, Elf alone: the 1997 way to "only the Elves".
-	_page_line("Summon").pressed.emit()
-	_page_line("Artifact").pressed.emit()
-	_page_line("Summon from list").pressed.emit()
+	# Choosing Elf alone narrows the list without changing either scope.
 	_answer("Clear All")
 	_page_line(" Elf").pressed.emit()
 	await get_tree().process_frame
 	assert_true(screen.filter.creature_list_on)
-	assert_false(screen.filter.creature_summon)
+	assert_true(screen.filter.creature_summon)
 	assert_true(screen.filter.creature_type_on("elf"))
 	assert_false(screen.filter.creature_type_on("goblin"))
 	assert_eq(_page_line(" Elf").text, "[x] Elf", "the line relabelled")
@@ -2983,12 +2980,12 @@ func test_ticking_a_type_re_lists_the_inventory_under_the_window() -> void:
 	assert_true(_funnel().button_pressed, "the funnel is down: a page is in force")
 
 
-func test_the_list_hint_is_said_when_the_list_goes_on_under_summon() -> void:
+func test_the_list_hint_explains_the_creature_scopes() -> void:
 	_funnel().pressed.emit()
 	await get_tree().process_frame
-	_page_line("Summon from list").pressed.emit()
+	_page_line("Enable Filter").pressed.emit()
 	assert_eq(screen._status_label.text, DeckBuilderScreen.LIST_HINT,
-		"the list adds to Summon — a player who ticks Elf and sees no change is told why")
+		"the hint explains what the list narrows")
 	_answer("Cancel")
 
 
@@ -3031,7 +3028,7 @@ func test_the_finder_narrows_the_long_pages() -> void:
 	assert_true(left.has("[x] Elf"))
 	assert_true(left.has("[x] Elemental"))
 	assert_false(left.has("[x] Goblin"))
-	assert_true(left.has("[x] Summon"), "the heads are not the finder's to hide")
+	assert_true(left.has("[x] Non-artifact creatures"), "the heads are not the finder's to hide")
 	finder.text = ""
 	finder.text_changed.emit("")
 	assert_eq(_page_lines().size(), all_lines, "cleared is everything again")

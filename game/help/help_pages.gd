@@ -28,9 +28,8 @@ extends RefCounted
 ##     may not promise a rule we have not built, and the page on damage
 ##     says outright which 1997 structure we lack.
 ##
-## A [constant QUOTE] block is the original's own sentence and always
-## names its source; unquoted prose is ours. A test enforces the second
-## half of that.
+## Legacy QUOTE blocks retain source metadata for maintenance, but the
+## player sees facts only. Source references belong in developer material.
 ##
 ## **2. The icon inventory comes from the CODE, not from guesswork.** Every
 ## entry's texture is fetched through the very accessor the duel screen or
@@ -63,8 +62,8 @@ extends RefCounted
 ## the Options switch does rather than picking a side —
 ## [constant RulesOptions.FORKS] is the list.
 ##
-## **5. Anything unconfirmed says so on the page.** Filling a gap with a
-## plausible invention is the one failure this screen cannot afford.
+## **5. Teach only verified, playable behavior.** Do not display development
+## archaeology, source citations or speculation in the player's reference.
 
 # ------------------------------------------------------------ the shape --
 
@@ -73,7 +72,8 @@ const HEADING := "heading"     ## A section title inside a page.
 const TEXT := "text"           ## Our own prose.
 const QUOTE := "quote"         ## A sourced quotation: `text` + `cite`.
 const ICONS := "icons"         ## A list of `entries` (see below).
-const KINDS: Array[String] = [HEADING, TEXT, QUOTE, ICONS]
+const CARDS := "cards"         ## Live in-game card examples with captions.
+const KINDS: Array[String] = [HEADING, TEXT, QUOTE, ICONS, CARDS]
 
 ## Icon sources. Each names the accessor that the SCREEN ITSELF draws the
 ## icon with — see [method icon_texture].
@@ -129,686 +129,210 @@ static func pages() -> Array:
 
 # ---------------------------------------------------------- the primer --
 
+## Player primer, revised after the 2026-09-13 playtest. Rules provenance
+## remains in the engine and repository documentation; pages teach play.
 static func _page_duel() -> Dictionary:
 	return {"title": "The Duel", "blocks": [
-		_quote("Players begin with a set amount of life — a life total. In "
-			+ "the course of the duel, you will try to whittle your opponent "
-			+ "down to 0 life while protecting yourself. The one who reaches "
-			+ "0 first loses the duel.", "manual p.50"),
-		_text("You damage your opponent by casting spells, by attacking "
-			+ "with your creatures, and by using the magical effects of "
-			+ "cards you have in play. They will be trying to do the same "
-			+ "to you, and to stop you doing it to them."),
-		_heading("The three ways a duel ends"),
-		_quote("If, at the end of any phase of either player's turn or at "
-			+ "the beginning or end of an attack, one player's life total "
-			+ "is 0 or less, the other wins… If you can't draw a card when "
-			+ "required to do so (your library is empty, for example), you "
-			+ "lose the duel immediately.", "manual p.186, Glossary"),
-		_text("Running out of cards is the second way, and it is not the "
-			+ "same as an empty library: you lose at the moment you are "
-			+ "asked to draw and cannot, so an empty deck kills you on your "
-			+ "NEXT draw, not the instant it empties."),
-		_quote("If a player gets ten poison counters, that player loses "
-			+ "immediately, even if his or her opponent has negative life.",
-			"Duel.hlp, topic \"Poison\""),
-		_text("A standalone duel starts both wizards at the traditional 20 "
-			+ "life. In the land of Shandalar the number varies: how much "
-			+ "life you carry into a duel depends on how many cities you "
-			+ "have mana links with (manual p.109)."),
-		_heading("The one rule above all the others"),
-		_quote("Remember the very first rule of Magic — if a card "
-			+ "contradicts the rules, then the card takes precedence — the "
-			+ "card is always right.", "manual p.52"),
+		_heading("Build your mana. Play your cards. Defeat the other wizard."),
+		_text("Both players normally start at 20 life. Use creatures, spells and abilities to bring your opponent to 0 while protecting yourself."),
+		_cards([
+			["Forest", "1 · Make mana", "Play a land during your main phase. Tap it to produce mana for your spells."],
+			["Grizzly Bears", "2 · Build your battlefield", "Spend mana to cast creatures. They can block immediately, but usually must wait until your next turn to attack."],
+			["Lightning Bolt", "3 · Choose your moment", "Attack with creatures or cast spells. An instant can answer a threat on either player's turn when you have priority."],
+		]),
+		_heading("Three ways to lose"),
+		_text("Life reaches 0 or less · You must draw from an empty library · You have ten poison counters. The negative-life option changes when life is checked."),
+		_heading("Read the card"),
+		_text("A card's instructions can override the usual rules. Hover over it to read the enlarged card and its current state."),
 	]}
 
 
 static func _page_table() -> Dictionary:
 	return {"title": "The Dueling Table", "blocks": [
-		_text("The screen a duel is fought on is the DUELING TABLE, and "
-			+ "every part of it has a name the game itself uses."),
-		_quote("The largest areas of the dueling table are your territory "
-			+ "and your opponent's territory. The lower territory is yours, "
-			+ "the upper belongs to your adversary. These areas contain all "
-			+ "of the cards in play.", "Duel.hlp, topic \"Territory\""),
-		_heading("Down the left rail"),
-		_text("The LIBRARY is your deck, face down. The GRAVEYARD beside it "
-			+ "is your discard pile, and it is always face up — click it to "
-			+ "look through, at any time, yours or your opponent's."),
-		_text("The LIFE REGISTER shows each duelist's life, and their "
-			+ "poison counters if they have any. To target your OPPONENT "
-			+ "with a spell, you click their life register rather than a "
-			+ "card. The MANA POOL beneath it holds mana you have tapped "
-			+ "for but not yet spent."),
-		_text("The SHOWCASE is the big card in the middle of the rail. "
-			+ "Whatever you rest the pointer on is enlarged there."),
-		_quote("The Showcase is a display only; it has no other function.",
-			"Duel.hlp, topic \"Showcase\""),
-		_text("The PHASE BAR is the vertical strip of icons between the "
-			+ "rail and the territories. It has a page of its own further "
-			+ "on; it is the control you will use most."),
-		_heading("Your hand"),
-		_quote("A small window floating over your territory contains "
-			+ "representations of the cards in your hand. Only the title "
-			+ "bar of your opponent's hand is visible; this is to keep you "
-			+ "aware of how many cards are in that hand.",
-			"Duel.hlp, topic \"Hands\""),
-		_heading("The Situation Bar, and the keyboard"),
-		_quote("Between the two territories (usually) is the Situation Bar. "
-			+ "This is a reminder to you of what's going on and what you "
-			+ "need to do.", "Duel.hlp, topic \"Situation Bar\""),
-		_text("At its right-hand end is a Done button, a Cancel button, or "
-			+ "both. The original documented exactly three keys, and they "
-			+ "still work here: Esc is Cancel, Return is Done, and when "
-			+ "there is only one button the Spacebar presses it."),
-		_text("CUE CARDS are the game's own name for the little hints that "
-			+ "pop up when you rest the pointer on something. Most of the "
-			+ "icon explanations later in this reference are those very cue "
-			+ "cards, quoted word for word."),
+		_heading("Your opponent above · Your cards below"),
+		_text("The upper territory belongs to your opponent; the lower territory is yours. Attacking and blocking creatures move into the combat window."),
+		_cards([["Serra Angel", "Showcase", "Hover over a face-up card to enlarge it. The Showcase displays the printed card; the small battlefield card shows current stats."]]),
+		{"kind": ICONS, "entries": [
+			_icon("Mana pool", "Mana produced but not spent appears beside your life register. Click a player's life register when a spell asks you to target that player.", {"src": SRC_MANA, "sym": "G"}, "{G}"),
+			_icon("Phase Bar", "The highlighted icon shows the current phase. Add a red Stop where you want the duel to wait for you.", {"src": SRC_PHASE, "slot": 3}, "Phase"),
+		]},
+		_heading("The prompt tells you what to do next"),
+		_text("The Situation Bar asks for attackers, blockers, targets or mana. Done completes the current choice. Cancel abandons a choice when that is still allowed."),
+		_heading("Keep these keys handy"),
+		_text("Enter: Done · Esc: Cancel · Space: press the sole available action button. Right-click cards and table areas for their menus."),
+		_heading("Hand, library and graveyard"),
+		_text("Your hand holds cards you can play. The face-down library supplies draws. Click either graveyard to inspect discarded cards; the menu also gives access to exile."),
 	]}
 
 
 static func _page_mana() -> Dictionary:
 	return {"title": "Mana — the fuel of every spell", "blocks": [
-		_quote("Lands are the most common kind of card in Magic, since they "
-			+ "usually provide the mana, the magical energy, for all your "
-			+ "spells. You can put one land into play per turn, and you may "
-			+ "use the land for mana as soon as it is in play.",
-			"Duel.hlp, topic \"Lands\""),
-		_text("That single land drop per turn is the throttle the whole "
-			+ "game is built around. Playing a land costs nothing, but it "
-			+ "may only be done in your own main phase, and only once."),
-		_heading("Tapping"),
-		_quote("Tapping a card means turning it sideways. This indicates to "
-			+ "you and your opponent that the card's effects have been "
-			+ "temporarily used up. Don't worry, your cards will untap at "
-			+ "the beginning of your next turn, during your untap phase.",
-			"Duel.hlp, topic \"Tap\""),
-		_text("A cost written {T} means 'turn this card sideways to pay'. "
-			+ "Lands are tapped for mana; many other cards are tapped to "
-			+ "use an ability."),
-		_heading("Mana is not land"),
-		_quote("Note that mana and land are not the same thing. Mana can "
-			+ "come from other sources besides land; Llanowar Elves, for "
-			+ "example, is a creature that you can tap for one green mana. "
-			+ "This is why the rules refer to \"green mana,\" \"blue "
-			+ "mana,\" and so on, instead of \"forest mana,\" \"island "
-			+ "mana,\" and such.", "Duel.hlp, topic \"Mana\""),
-		_heading("Your mana pool"),
-		_text("Mana you have produced but not yet spent sits in your MANA "
-			+ "POOL, the column of colored rows beside your life register. "
-			+ "It does not keep: the pool empties on its own at the end of "
-			+ "every step. (The 1997 game emptied it at the end of each "
-			+ "PHASE instead, and charged you a life for every point you "
-			+ "wasted — 'mana burn'. Both are switches under Options; see "
-			+ "the page on which rules this game plays by.)"),
-		_heading("Reading a casting cost"),
-		_quote("The casting cost is always written in mana symbols. For "
-			+ "each of the five colors of mana, there is a separate, "
-			+ "distinct symbol; each time that symbol appears, it "
-			+ "represents one mana of the appropriate color. Numbers in "
-			+ "gray circles represent generic mana, which can be any color, "
-			+ "any combination of colors, or colorless.", "manual p.65"),
-		_text("So {2}{W}{W} means two white mana plus two more of anything "
-			+ "at all. {X} means you choose the number as you cast the "
-			+ "spell and pay that much extra; the game asks you for it, and "
-			+ "once you have chosen you cannot change your mind."),
+		_heading("Lands make mana; mana pays costs"),
+		_cards([["Forest", "Tap a land", "Click an untapped Forest to add one green mana. The land turns sideways and normally untaps at the start of your next turn."],
+			["Llanowar Elves", "Other cards make mana too", "These Elves can tap for green mana. Unlike an ordinary land, a creature with a tap ability must wait until it is no longer summoning-sick, unless it has haste."]]),
+		_heading("Reading the symbols"),
+		{"kind": ICONS, "entries": [
+			_icon("A colored symbol", "Each {G} requires one green mana. The other four colors work the same way.", {"src": SRC_MANA, "sym": "G"}, "{G}"),
+			_icon("A number", "A generic cost can be paid with any type of mana. {2}{W}{W} needs two white mana and two more mana of any type.", {"src": SRC_MANA, "sym": "2"}, "{2}"),
+		]},
+		_text("{X} is an amount you choose while casting. {T} is a tap cost: turn that permanent sideways to pay it."),
+		_heading("Spend it before it empties"),
+		_text("Mana does not carry into the next step under modern pool timing. The 1997 timing option empties pools at phase boundaries instead. Mana burn is on by default: lose 1 life for each unspent mana when the pool empties. You can change either option in Settings."),
 	]}
 
 
 static func _page_colors() -> Dictionary:
-	# `Duel.hlp`, topic "Mana", carries the colour pie in the game's own
-	# words; the printed manual gives the same five paragraphs twice
-	# (pp.19-20 and pp.52-53). Quoted verbatim, one per colour, in WUBRG
-	# order — the order our mana pool and Color Filters already use.
-	var entries: Array = [
-		_icon("White — the plains",
-			"White magic draws its vitality from the untouched, open "
-			+ "plains. Though white magicians focus on spells of healing "
-			+ "and protection, they also devote plenty of time to the "
-			+ "chivalrous acts of war. White's traditional foils are black "
-			+ "and red.", {"src": SRC_MANA, "sym": "W"}, "{W}"),
-		_icon("Blue — the islands",
-			"Blue magic flows from the islands and thrives on mental "
-			+ "energy. Other wizards fear the blue magicians' ability with "
-			+ "artifice and illusion, as well as their mastery of the "
-			+ "elemental forces of air and water. Blue's traditional foils "
-			+ "are red and green.", {"src": SRC_MANA, "sym": "U"}, "{U}"),
-		_icon("Black — the swamps",
-			"Black magic's power comes from the swamps and bogs; it thrives "
-			+ "on death and decay. Many wizards shun black magic's "
-			+ "self-destructive nature even as they long for its "
-			+ "ruthlessness. Black's traditional foils are green and white.",
-			{"src": SRC_MANA, "sym": "B"}, "{B}"),
-		_icon("Red — the mountains",
-			"Red magic feeds on the vast energy boiling deep in the heart "
-			+ "of the mountains. Masters of earth and fire, red magicians "
-			+ "specialize in the violence of chaos and combat. Red's "
-			+ "traditional foils are blue and white.",
-			{"src": SRC_MANA, "sym": "R"}, "{R}"),
-		_icon("Green — the forests",
-			"Green magic gets its life from the lush fecundity of the "
-			+ "forest. Like nature itself, green magic can bring both "
-			+ "soothing serenity and thunderous destruction. Green's "
-			+ "traditional foils are blue and black.",
-			{"src": SRC_MANA, "sym": "G"}, "{G}"),
-	]
 	return {"title": "The five colors of magic", "blocks": [
-		_quote("There are five different types of basic land, each of which "
-			+ "produces mana of a different color. Plains produce white "
-			+ "mana; islands, blue; swamps, black; mountains, red; and "
-			+ "forests, green.", "manual p.52"),
-		_text("Each color has its own character. The five paragraphs below "
-			+ "are the game's own, from Duel.hlp's topic \"Mana\"."),
-		{"kind": ICONS, "entries": entries},
-		_heading("And the two that are not colors"),
-		_quote("There are also \"colorless\" mana and \"generic\" mana, "
-			+ "which are types of mana and do not count as colors.",
-			"Duel.hlp, topic \"Mana\""),
-		_text("GENERIC is what a number in a casting cost asks for: mana of "
-			+ "any color, or colorless. COLORLESS mana comes from a few "
-			+ "sources of its own, has no color at all, and can only pay "
-			+ "generic costs — never a {W} or a {G}."),
-		_heading("What color a card is"),
-		_quote("A spell's color is technically defined as the color of the "
-			+ "mana required to cast it, not counting the generic mana.",
-			"Duel.hlp, topic \"Background\""),
-		_text("A card needing two colors is both at once. Lands and "
-			+ "artifacts need no colored mana, so they are colorless — and "
-			+ "\"artifact\" is not a color."),
+		_heading("Five lands · Five colors"),
+		{"kind": ICONS, "entries": [
+			_icon("White · Plains", "Healing, protection and organized armies.", {"src": SRC_MANA, "sym": "W"}, "{W}"),
+			_icon("Blue · Island", "Card drawing, countermagic and flying creatures.", {"src": SRC_MANA, "sym": "U"}, "{U}"),
+			_icon("Black · Swamp", "Destruction, discard and power bought at a price.", {"src": SRC_MANA, "sym": "B"}, "{B}"),
+			_icon("Red · Mountain", "Direct damage, aggressive creatures and destruction.", {"src": SRC_MANA, "sym": "R"}, "{R}"),
+			_icon("Green · Forest", "Large creatures, mana growth and combat boosts.", {"src": SRC_MANA, "sym": "G"}, "{G}"),
+		]},
+		_heading("Color is not the same as mana production"),
+		_text("Most lands are colorless even when they make colored mana. A color-changing spell changes an object's color, not its land types or the mana it produces. Colorless is not a sixth color."),
+		_text("A card can have more than one color. Colored symbols in its mana cost normally determine those colors; effects can change them during a duel."),
 	]}
 
 
 static func _page_card() -> Dictionary:
 	return {"title": "The parts of a card", "blocks": [
-		_text("Rest the pointer on any card and the Showcase enlarges it. "
-			+ "Duel.hlp's own topic \"Parts of the Card\" numbers twelve "
-			+ "parts; here they are, in its order."),
-		_heading("The top"),
-		_text("The NAME. Then the CASTING COST in mana symbols at the top "
-			+ "right. On the small cards in play and in your hand the name "
-			+ "is drawn YELLOW when you could cast or use that card right "
-			+ "now and WHITE when you could not — the fastest read on the "
-			+ "whole table."),
-		_heading("The middle"),
-		_text("The ART, and around it the BACKGROUND, which is the card's "
-			+ "color. Under the picture is the CARD TYPE, and for a "
-			+ "creature the CREATURE TYPE follows it. At that line's "
-			+ "right-hand end sits the CARD SET ICON, the little symbol "
-			+ "saying which set the card came from."),
-		_quote("While the artwork on the Magic: The Gathering cards is "
-			+ "beautiful, it is important to remember that the card's name, "
-			+ "art, flavor text, and artist's name don't influence what a "
-			+ "card actually does. For example, if you look at the picture "
-			+ "on a Frozen Shade card, it looks as if the creature is "
-			+ "floating. This may fool you into thinking that a Frozen "
-			+ "Shade can fly, but since the text box doesn't include the "
-			+ "word Flying, the Shade isn't considered a flying creature.",
-			"Duel.hlp, topic \"Art\""),
-		_heading("The text box"),
-		_text("ABILITIES come first — flying, trample and the rest — "
-			+ "followed by the card's EFFECTS. An effect you can pay to use "
-			+ "is written cost : effect, and everything before the colon is "
-			+ "its ACTIVATION COST. Anything in italics is FLAVOR TEXT and "
-			+ "changes nothing."),
-		_heading("The bottom"),
-		_quote("All creatures have two numbers separated by a slash in the "
-			+ "lower right corner of the card. The first of these numbers "
-			+ "indicates the creature's power, the amount of combat damage "
-			+ "this creature deals in combat. The second number represents "
-			+ "the creature's toughness, the amount of damage the creature "
-			+ "can absorb before it dies.", "Duel.hlp, topic \"Summons\""),
-		_text("So a 2/3 deals 2 damage and is destroyed once 3 damage is "
-			+ "marked on it. Any card with numbers in that corner is a "
-			+ "creature. The ARTIST's name is beside them, and means "
-			+ "nothing to the duel."),
+		_cards([["Serra Angel", "Name → cost → type → rules → power/toughness", "The name is at the top, the mana cost at top right, and the type line below the art. Read the rules box for abilities. The bottom-right 4/4 means 4 power and 4 toughness."]]),
+		_heading("Printed card and current creature"),
+		_text("The Showcase shows the printed card. The small battlefield card shows its current power/toughness: green when boosted, red when weakened, and cyan when a non-creature card has become a creature. Damage is a separate dagger and number; it does not subtract from the displayed toughness."),
+		_heading("Cost : effect"),
+		_text("An activated ability has a colon. Pay everything before it to get the effect after it. A yellow card name indicates an available action; click a permanent to choose an ability."),
+		_heading("Art is not a rule"),
+		_text("A creature flies only if its rules give it flying. Its illustration, flavor text and artist credit do not change what it can do."),
 	]}
 
 
 static func _page_card_kinds() -> Dictionary:
 	return {"title": "The kinds of card", "blocks": [
-		_quote("There are two basic types of cards: spells and lands.",
-			"Duel.hlp, topic \"Card Types\""),
-		_text("Lands say \"Land\" between the picture and the text box. "
-			+ "Everything else is a spell, and the type line says which "
-			+ "kind. These are the six the Deck Builder's Type Filters "
-			+ "use."),
-		_heading("Spells that stay: the permanents"),
-		_text("CREATURE — your attackers and blockers, brought in by a "
-			+ "summon spell. A creature cannot attack, or pay a {T} cost, "
-			+ "on the turn it arrives."),
-		_text("ARTIFACT — a magical device. Artifacts generally need only "
-			+ "generic mana, so any color can cast one. Some are creatures "
-			+ "as well, and those two behave differently when tapped: a "
-			+ "tapped non-creature artifact stops working, while a tapped "
-			+ "artifact creature does not."),
-		_text("ENCHANTMENT — lasting magic. One played on a target is "
-			+ "LOCAL (an Aura, in today's word); one that simply sits on "
-			+ "the table affecting the duel as a whole is GLOBAL. An "
-			+ "Enchant World is a global enchantment with one extra rule: "
-			+ "only one can be in play, and a new one buries the old."),
-		_quote("Once a permanent is in play, you don't have to pay the "
-			+ "casting cost again. The permanent will remain in play until "
-			+ "it is destroyed.", "Duel.hlp, topic \"Spells\""),
-		_heading("Spells that do their work and leave"),
-		_text("SORCERY — castable only in your own main phase, when nothing "
-			+ "else is waiting. It resolves and goes to the graveyard."),
-		_text("INSTANT — the same, except you may cast it almost any time, "
-			+ "including on your opponent's turn and in the middle of "
-			+ "combat. An instant is one kind of FAST EFFECT, the 1997 "
-			+ "game's umbrella word for everything you can do while "
-			+ "something else is already happening."),
-		_heading("Where cards go"),
-		_text("Cards that have finished, and creatures that have died, go "
-			+ "to their owner's GRAVEYARD, face up, where you may look "
-			+ "through them whenever you like. A few cards instead REMOVE "
-			+ "something FROM THE GAME: that card is set aside until the "
-			+ "duel is over, never reaches a graveyard, and so triggers no "
-			+ "graveyard effects at all."),
+		_cards([["Swamp", "Land", "Usually one land play per turn, in your main phase with an empty Spell Chain. Playing a land does not use the chain."],
+			["Grizzly Bears", "Creature", "A permanent that can attack and block. Summoning sickness prevents attacking and paying tap costs until your next turn, unless it has haste."],
+			["Sol Ring", "Artifact", "A permanent with its own abilities. Some artifacts are also creatures; they follow both sets of rules."],
+			["Unholy Strength", "Enchantment / Aura", "An enchantment stays on the battlefield. An Aura is attached to the object it enchants."],
+			["Fireball", "Sorcery", "Cast during your main phase, with an empty chain. It resolves, then goes to the graveyard."],
+			["Lightning Bolt", "Instant", "Cast on either player's turn whenever you have priority, including the fast-effects windows in combat."]]),
+		_heading("Where a finished card goes"),
+		_text("Used spells, discarded cards and destroyed permanents normally go to their owner's graveyard. Exile is a separate zone; moving a creature there is not destroying it."),
 	]}
 
 
 static func _page_turn() -> Dictionary:
+	var entries: Array = []
+	var names := ["Untap", "Upkeep", "Draw", "Main Pre-Combat", "Combat", "Main Post-Combat", "Discard", "Cleanup"]
+	var hints := ["Untap your permanents and begin your turn.", "Resolve upkeep effects and payments; the first chance to use fast effects.", "Draw a card, then use fast effects if you wish.", "Play a land and cast spells while the chain is empty.", "Declare attackers, declare blockers, use combat tricks, then deal damage.", "Another chance to play your land or cast spells before ending the turn.", "Discard down to your maximum hand size, normally seven.", "Remove marked damage and end until-end-of-turn effects."]
+	for i in names.size():
+		entries.append(_icon("%d · %s" % [i + 1, names[i]], hints[i], {"src": SRC_PHASE, "slot": i}, str(i + 1)))
 	return {"title": "The turn and its phases", "blocks": [
-		_quote("Dueling players take turns, and each player's turn is "
-			+ "divided into six smaller parts called phases. You might not "
-			+ "always have something to do during a given phase, but that "
-			+ "phase still happens. The phases always take place in the "
-			+ "same order: Untap, Upkeep, Draw, Main, Discard, Cleanup.",
-			"Duel.hlp, topic \"Phases\""),
-		_heading("What happens in each"),
-		_text("UNTAP — every tapped card of yours turns upright again, all "
-			+ "at once, and creatures that arrived last turn lose their "
-			+ "summoning sickness. Neither player can act."),
-		_text("UPKEEP — the first chance to act in the turn, and where "
-			+ "anything saying 'during upkeep' happens. Some cards demand a "
-			+ "payment here, and you cannot leave the phase until they have "
-			+ "been dealt with."),
-		_text("DRAW — you draw one card. Both players may act before and "
-			+ "after the draw. Drawing is itself a fast effect."),
-		_text("MAIN — the body of your turn, and the only time you may play "
-			+ "a land, cast a sorcery or a permanent, or attack."),
-		_text("DISCARD — if you are holding more than seven cards you must "
-			+ "discard down to seven. You may not discard if you have seven "
-			+ "or fewer, even if you would like to."),
-		_text("CLEANUP — damage is wiped from every surviving creature and "
-			+ "every 'until end of turn' effect expires, both at the same "
-			+ "instant. Nobody can act. Then the turn is over."),
-		_quote("There is no time \"between phases\" for things to happen; "
-			+ "all actions and effects take place during one or another of "
-			+ "the phases.", "Duel.hlp, topic \"Phases\""),
-		_heading("Main is really three parts"),
-		_quote("Main Pre-Combat is everything that happens before the "
-			+ "attack… Combat is the part of the phase that can get the "
-			+ "most complicated… Main Post-Combat is everything that "
-			+ "happens after the attack.", "Duel.hlp, topic \"Main Phase\""),
-		_text("That is why the Phase Bar shows EIGHT icons per player "
-			+ "rather than six: Main is drawn as its three parts. You may "
-			+ "cast spells, play your one land, and make your one attack in "
-			+ "whatever order you like — but not during the attack itself."),
+		{"kind": ICONS, "entries": entries},
+		_heading("Stops keep a window open"),
+		_text("Mark a phase with a red Stop to wait there. Required choices always stop play. A payable fast effect holds the combat windows after attackers and blockers are declared."),
 	]}
 
 
 static func _page_casting() -> Dictionary:
 	return {"title": "Casting spells and the Spell Chain", "blocks": [
-		_text("Any card you can cast is highlighted. Click it, pay the "
-			+ "cost, and — if the spell needs one — pick a target: the "
-			+ "pointer becomes the targeting cursor and you click a card, "
-			+ "or a life register to aim at a player."),
-		_quote("A target is the specific permanent, spell, or player at "
-			+ "which a spell or effect is aimed… the caster must announce "
-			+ "the target at the time she pays the cost of and plays the "
-			+ "spell or effect; it cannot be changed later.",
-			"Duel.hlp, topic \"Target\""),
-		_heading("Nothing happens at once"),
-		_text("A spell you have just cast does not simply take effect. "
-			+ "Both players get the chance to answer it with something "
-			+ "faster, and those answers pile up on top of it. The pile is "
-			+ "the SPELL CHAIN, and the game shows it to you in a window of "
-			+ "that name."),
-		_quote("When both players signal that they are done using fast "
-			+ "effects, all of the spells are resolved in reverse order of "
-			+ "casting. That is, the last cast takes effect first, and they "
-			+ "proceed in LIFO order — last in, first out — until you "
-			+ "finally reach the original spell or effect.",
-			"manual p.174, Glossary \"LIFO Rule\""),
-		_heading("Fast effects"),
-		_quote("…instants, mana sources, and non-continuous effects of "
-			+ "permanents are called fast effects. Unless otherwise "
-			+ "specified on the card, you can use fast effects only during "
-			+ "the upkeep, draw, main and discard phases of any player's "
-			+ "turn.", "Duel.hlp, topic \"Fast Effect\" (elided — see note)"),
-		_text("A fast effect is anything you can do while something else is "
-			+ "already under way: an instant from your hand, an ability of "
-			+ "a card already in play, or simply tapping a land for mana. "
-			+ "When the game asks 'Fast Effects?' it is offering you that "
-			+ "window. Tapping for mana is special: it is a MANA SOURCE, "
-			+ "and nothing can respond to it."),
-		_text("The elision above hides a third category the 1997 rules "
-			+ "had — a tier of effect faster than an instant, abolished "
-			+ "from Magic in 1999. This engine follows modern timing and "
-			+ "has no such tier, so naming it here would promise you "
-			+ "something the game cannot do."),
-		_heading("When it goes wrong"),
-		_quote("If, at the time it resolves, a spell or effect finds that "
-			+ "one or more of its targets are no longer valid, it is said "
-			+ "to fizzle with respect to any now-invalid target… If none of "
-			+ "the targets remains valid, the effect as a whole fizzles, "
-			+ "and even its non-targeted effects do not occur.",
-			"Duel.hlp, topic \"Fizzle\""),
-		_text("A fizzle is not a take-back. CANCEL is: change your mind "
-			+ "before you have finished paying, and the spell goes back to "
-			+ "your hand as though nothing had happened. Any mana you had "
-			+ "already produced stays in your pool, though — the original's "
-			+ "help puts it in capitals, and so will we: DO NOT CONFUSE A "
-			+ "FIZZLE WITH A CANCEL."),
+		_cards([["Lightning Bolt", "1 · Choose a spell", "Click the spell in your hand. Double-click to use automatic mana payment; you still choose its targets."],
+			["Grizzly Bears", "2 · Choose a legal target", "For a card target, click the card. To target a player, click their life register. A spell without a legal required target cannot be cast."],
+			["Counterspell", "3 · Give both players a chance to respond", "Spells and abilities wait on the Spell Chain. When both players pass, the newest item resolves first. Then both players get another chance to act."]]),
+		_heading("Paying manually"),
+		_text("When the prompt asks for mana, click your mana sources to pay. A tap ability cannot use an already-tapped permanent. Cancel before submitting if you want to abandon the spell."),
+		_heading("Targets are checked again"),
+		_text("A spell or ability with no legal targets left does not resolve. A creature with protection can make a matching colored target illegal. Not all effects target: an effect that affects all creatures can still affect protected ones."),
 	]}
 
 
 static func _page_combat() -> Dictionary:
 	return {"title": "Combat", "blocks": [
-		_quote("You only get one attack during your turn, and none during "
-			+ "your opponent's turn. You attack your opponent with your "
-			+ "creatures.", "Duel.hlp, topic \"Attack\""),
-		_text("You cannot attack a creature — only a player. Clicking the "
-			+ "combat icon on the Phase Bar announces that you INTEND to "
-			+ "attack; the attack itself begins a moment later, after both "
-			+ "sides have had their last chance to act before it."),
-		_heading("Declaring the attack"),
-		_text("Your creatures that can attack are highlighted; click each "
-			+ "one to add it to the lineup. Attacking taps them. A tapped "
-			+ "creature and a summoning-sick creature cannot attack, and "
-			+ "nor can a Wall."),
-		_quote("As soon as you add the first creature to the attack, the "
-			+ "Combat window opens. Your attackers line up on your side, "
-			+ "and the space on the other side is reserved for (potential) "
-			+ "blockers.", "Duel.hlp, topic \"Combat\""),
-		_heading("Blocking"),
-		_quote("Multiple creatures can block a single attacker, but no "
-			+ "creature can block more than one attacker (unless, of "
-			+ "course, a card specifically gives it that ability).",
-			"Duel.hlp, topic \"Declare Blockers\""),
-		_text("Blocking does not tap a creature, but a tapped creature "
-			+ "cannot block. Red arrows on the board show which blocker is "
-			+ "facing which attacker."),
-		_quote("Once a block has been declared, the blocked attacking "
-			+ "creatures have been blocked and will remain blocked no "
-			+ "matter what happens to the blocker later.",
-			"Duel.hlp, topic \"Declare Blockers\""),
-		_text("That rule catches everyone once. Killing the blocker does "
-			+ "not let the attacker through, and neither does giving the "
-			+ "attacker flying after the fact — do those things BEFORE "
-			+ "blockers are declared."),
-		_heading("Damage"),
-		_text("Each creature deals damage equal to its power. Blocked "
-			+ "attackers hit their blockers and are hit back at the same "
-			+ "instant, so both can die; unblocked attackers hit the "
-			+ "defending player. If several creatures block one attacker, "
-			+ "its controller divides its damage among them."),
-		_text("FIRST STRIKE splits that into two waves: first-strikers deal "
-			+ "theirs, anything killed by it dies without striking back, "
-			+ "and only then does everything else deal its damage."),
-		_text("TRAMPLE lets a blocked attacker push the surplus through — "
-			+ "give each blocker lethal damage and the excess spills onto "
-			+ "the defending player. It does nothing while blocking."),
-		_text("While you are dividing an attacker's damage among several "
-			+ "blockers, each one shows what you have put on it so far: "
-			+ "the damage dagger in ICE BLUE with a running number beside "
-			+ "it. It is not a counter and it is not damage yet — it is "
-			+ "your own arithmetic, and it clears the moment you press "
-			+ "Done. The damage that lands a moment later is drawn in the "
-			+ "same place in salmon, which is the marked damage the small "
-			+ "card carries until cleanup."),
+		_cards([["Hill Giant", "1 · Choose attackers", "Click the creatures you want to attack with, then Done. Attacking usually taps them. You attack the other player, not their creatures."],
+			["Grizzly Bears", "2 · Choose blockers", "Click your blocker, then the attacker it should block. Repeat, then Done. Several creatures can block the same attacker."],
+			["Will-o'-the-Wisp", "3 · Use fast effects before damage", "After blocks are declared, use instants and activated abilities. With modern damage timing, buy regeneration now: click the creature, select its regeneration ability, and pay the cost."],
+		]),
+		_heading("4 · Assign and deal damage"),
+		_text("When asked to divide damage, each click assigns one point. Cyan (ice-blue) dagger counts show the points assigned so far, including earlier groups. This is a damage preview, not a counter. Once all assignments are complete, damage is dealt; red damage counts show the damage actually marked on surviving creatures."),
+		_text("Under ordered assignment, give the first blocker lethal damage before the next. Free combat damage division lets you split it freely. Trample can put excess damage on the defending player after blockers have lethal assigned."),
+		_heading("First strike and blocked attackers"),
+		_text("First strike deals damage in an earlier step. A blocked attacker stays blocked even if its blockers leave combat; without trample it does not hit the player."),
 	]}
 
 
 static func _page_damage() -> Dictionary:
 	return {"title": "Damage, death and regeneration", "blocks": [
-		_quote("Each 1 damage done to a player results in a loss of 1 life, "
-			+ "unless the damage is prevented or redirected. Any time that "
-			+ "a creature has been dealt damage equal to or exceeding its "
-			+ "toughness, it is considered to have taken lethal damage and "
-			+ "is destroyed.", "Duel.hlp, topic \"Damage\""),
-		_text("Damage on a creature is MARKED on it — you will see the "
-			+ "damage marker and a number on the small card — and it stays "
-			+ "there until the cleanup step, so two small hits in one turn "
-			+ "add up. Damage on a player comes straight off their life."),
-		_heading("Prevention, healing, destruction"),
-		_text("PREVENTION stops damage before it lands; a Circle of "
-			+ "Protection is the classic. HEALING repairs damage already "
-			+ "done. DESTROY is a third thing entirely and is not damage at "
-			+ "all — it ignores toughness, and damage prevention cannot "
-			+ "touch it."),
-		_text("Reducing a creature's TOUGHNESS is a fourth. If an effect "
-			+ "drops a creature's toughness to the point where the damage "
-			+ "on it is lethal — or to 0 with no damage at all — it dies, "
-			+ "and no prevention applies."),
-		_heading("Regeneration"),
-		_quote("Regeneration is useful when a creature is destroyed, "
-			+ "whether that destruction is the result of lethal damage or "
-			+ "an effect. Regeneration prevents the creature from going to "
-			+ "the graveyard. In the process, regenerating a creature also "
-			+ "removes all damage that has been dealt to that creature.",
-			"Duel.hlp, topic \"Regeneration\""),
-		_text("A regenerated creature becomes tapped, keeps its "
-			+ "enchantments, and — if this happened in combat — is removed "
-			+ "from the combat and neither deals nor takes any more damage "
-			+ "this turn."),
-		_quote("If a permanent is buried, it is put into its owner's "
-			+ "graveyard. Nothing can prevent this.",
-			"Duel.hlp, topic \"Bury\""),
-		_text("So a card that BURIES a creature beats regeneration, and so "
-			+ "does one that removes it from the game."),
-		_heading("What this remake does not have"),
-		_text("The 1997 game paused for a DAMAGE PREVENTION STEP every "
-			+ "single time damage was dealt, giving both players a window "
-			+ "in which prevention, redirection and regeneration — and "
-			+ "nothing else — could be used. This engine has no such step: "
-			+ "prevention here comes from effects that are already in place "
-			+ "when the damage happens, and regeneration from a shield put "
-			+ "up beforehand. It is the largest structure on this page that "
-			+ "the original had and we do not."),
+		_cards([["Will-o'-the-Wisp", "Regeneration costs {B}", "Pay one black mana for a shield. The next time this creature would be destroyed this turn, it taps, clears its damage and leaves combat instead. Paying alone does not tap it or remove it from combat."],
+			["Kormus Bell", "Animated lands are creatures too", "While the Bell's effect applies, Swamps are 1/1 black creatures as well as lands. Their cyan power/toughness shows the live size, including other bonuses. This is a continuous effect, not an activation."]]),
+		_heading("Modern damage timing: act before the hit"),
+		_text("After choosing blockers, press Done to enter the fast-effects window. Activate regeneration and let it resolve before you pass into combat damage. You cannot regenerate a creature that is already in the graveyard."),
+		_heading("1997 damage prevention step: wait for the prompt"),
+		_text("With Damage prevention step enabled, damage waits for prevention, healing and redirection. A regeneration window follows for creatures that would still be destroyed. Use regeneration there when the prompt asks for it."),
+		_heading("What regeneration cannot save"),
+		_text("Sacrifice, exile, toughness of 0 or less, and destruction that says it cannot be regenerated. Ordinary damage remains marked until cleanup and adds up across hits; reducing toughness is not damage."),
 	]}
 
 
 static func _page_start_finish() -> Dictionary:
 	return {"title": "Starting and finishing a duel", "blocks": [
-		_heading("Who goes first"),
-		_quote("In every duel, one player plays first and the other draws "
-			+ "first. Who does which is decided by the player who wins a "
-			+ "coin toss (unless one player has a preexisting advantage). "
-			+ "The player who gets First Play does not draw a card during "
-			+ "her first turn.", "Duel.hlp, topic \"Play or Draw Rule\""),
-		_heading("The mulligan"),
-		_text("After the toss winner has chosen the order, each player looks "
-			+ "at their hand — the winner first — and keeps it or throws it "
-			+ "back. Every redraw is one card fewer: seven, then six, then "
-			+ "five, down to an empty hand if you insist, and you are asked "
-			+ "again after each one. The hand stays in view beside the "
-			+ "window while you decide. (The 1997 game's own rule was "
-			+ "narrower — one redraw of seven for seven, and only of a hand "
-			+ "with no land or nothing but land; this is a house rule.)"),
-		_quote("If either player draws no land in this seven cards or draws "
-			+ "all land, then that player has the option to declare a "
-			+ "mulligan… If either player declares a mulligan, that player "
-			+ "must shuffle her hand back into her library and draw seven "
-			+ "new cards to make an initial hand. The other player has the "
-			+ "option to do so as well… Each player has only one chance to "
-			+ "redraw.", "Duel.hlp, topic \"Mulligan\""),
-		_heading("Ante"),
-		_quote("In Shandalar, all duels are played \"for keeps.\" That is, "
-			+ "both players chance losing one or more cards to their "
-			+ "opponent. The cards that are at risk in a duel are called "
-			+ "the ante. The winning player keeps those cards after the "
-			+ "duel is over.", "Duel.hlp, topic \"Ante\""),
-		_heading("A draw"),
-		_text("If both players would lose at the same moment, nobody wins: "
-			+ "the duel is a draw, and each takes back their own ante."),
-		_heading("Conceding"),
-		_text("The original let a player concede at any time, ending the "
-			+ "duel immediately, with a confirmation first. This remake has "
-			+ "no concede button yet."),
+		_cards([["Forest", "Keep or redraw?", "Look for enough mana to cast your early spells. You may keep your opening hand or mulligan: redraw one fewer card each time."]]),
+		_heading("Play or draw"),
+		_text("The toss winner chooses who plays first. The first player skips their first draw step; the other player draws on their first turn."),
+		_heading("Winning, losing and drawing"),
+		_text("A player loses through life, poison, or an impossible required draw. If both players lose at the same time, the duel is a draw. Concede ends your duel after confirmation."),
+		_heading("Ante and matches"),
+		_text("Ante puts the chosen cards at stake for the duel. Review the ante setting before starting. In a match, the sideboard lets you change your deck between games while keeping the selected format legal."),
 	]}
 
 
 static func _page_ruleset() -> Dictionary:
 	var blocks: Array = [
-		_text("The 1997 game played by the Fifth Edition rules of its day. "
-			+ "This remake's engine follows the modern Comprehensive Rules, "
-			+ "which is what a card's printed text assumes today. In a "
-			+ "handful of places the two genuinely disagree, and rather "
-			+ "than choose silently, each one is a switch under Options."),
-		_quote("This version of Magic: The Gathering enforces the official "
-			+ "Fifth Edition rules.", "manual p.108"),
-		_heading("The switches, and what each one changes"),
+		_heading("Choose the rules before the duel"),
+		_text("Options offers Modern rules, 1997 — Fifth Edition, or your own Custom combination. Mana burn is on by default; a saved choice is remembered."),
+		{"kind": ICONS, "entries": [_icon("Mana burn", "Lose 1 life per unspent mana when your pool empties. Turn this off for the modern no-burn rule.", {"src": SRC_MANA, "sym": "B"}, "{B}")]},
 	]
 	for fork in RulesOptions.FORKS:
-		var built: bool = RulesOptions.IMPLEMENTED.has(fork["key"])
-		var body: String = String(fork["label"]) + " — 1997: " \
-			+ String(fork["fifth"]) + "  Modern: " + String(fork["modern"])
-		if not built:
-			body += "  (Not built yet — the switch is greyed out.)"
-		blocks.append(_text(body))
-	# The count comes from the table, not from a number typed here: it read
-	# "all six" for one pass after a seventh fork arrived (§6.8).
-	blocks.append(_text("Options offers all %d at once as 'Modern rules' or "
-		% RulesOptions.FORKS.size()
-		+ "'1997 — Fifth Edition', and shows 'Custom' when you have mixed "
-		+ "them. Clicking a rule's own name there explains it again, with "
-		+ "the source it was taken from."))
-	blocks.append(_heading("Other places we differ, deliberately"))
-	blocks.append(_text("Defensive banding does nothing here; only attacking "
-		+ "bands exist. One creature cannot block two attackers. And the "
-		+ "original's Discard phase is our cleanup step, which stops and "
-		+ "asks you what to throw away exactly as the 1997 phase did."))
+		blocks.append(_heading(String(fork["label"])))
+		blocks.append(_text("1997: " + String(fork["fifth"])))
+		blocks.append(_text("Modern: " + String(fork["modern"])))
 	return {"title": "Which rules this game plays by", "blocks": blocks}
 
 
-# --------------------------------------------------------- deck formats --
-#
-# THE ONE PLACE IN THIS FILE WITH NO 1997 EXPLANATION TO QUOTE. The five
-# format names are the original's own (`@SHELLPAGE_MULTIDUEL`,
-# `Program/Text.res:2854-2859`), but the game never told a player what any
-# of them meant: the 220-page manual does not contain the words
-# "Unrestricted", "Highlander" or "Type 1.5" anywhere, and `Duel.hlp` has
-# no format topic. So these two pages describe what OUR code does
-# ([DeckFormat]), which was written from the game's own classifier, and
-# they say so on the page — rule 5 of this file.
-
 static func _page_formats() -> Dictionary:
-	return {"title": "Deck formats — the five", "blocks": [
-		_text("Before a duel you may require a deck format. The five are "
-			+ "the 1997 game's own, in its own words and its own order, "
-			+ "from the top of its pre-duel parameter screen. The game "
-			+ "never explained them to players — its manual does not "
-			+ "contain the words \"Unrestricted\", \"Highlander\" or "
-			+ "\"Type 1.5\" at all — so the descriptions below are ours, "
-			+ "written from the classifier in the game's own deck code."),
-		_quote("The Deck Builder displays your deck name and deck type "
-			+ "(Unrestricted, Wild, Restricted, Tournament or Highlander) "
-			+ "in the title bar when you click the Stats button.",
-			"MicroProse, ManaLink 1.3 Readme, 1 May 1998"),
-		_heading("Unrestricted"),
-		_text("Anything goes. No banned cards, no copy limit, no list. "
-			+ "This is the setting a duel starts on, and the only one that "
-			+ "can never refuse a deck."),
-		_heading("Wild"),
-		_text("At most four copies of any one card, and no banned cards — "
-			+ "but the restricted list is ignored, so two Black Lotuses "
-			+ "are fine."),
-		_heading("Restricted (Type 1)"),
-		_text("At most four copies of any one card, no banned cards, and "
-			+ "at most ONE copy of a card on the restricted list."),
-		_heading("Tournament (Type 1.5)"),
-		_text("At most four copies of any one card, no banned cards, and "
-			+ "no card from the restricted list at all."),
-		_heading("Highlander"),
-		_text("One of each card. No list is involved, and no card is "
-			+ "banned — the rule is simply that no card may appear twice."),
-		_heading("Basic lands are always exempt"),
-		_text("Every copy limit above ignores basic lands, including "
-			+ "Highlander's. That is the game's own rule for its own "
-			+ "decks, and the manual states it while giving Shandalar a "
-			+ "duplicate limit that changes with deck size rather than a "
-			+ "flat four."),
-		_quote("In addition to that, how many cards you have in your deck "
-			+ "can limit the number of copies of each card you're allowed "
-			+ "to have… This limitation does not apply to basic lands, of "
-			+ "course, but to all other cards.", "the 1997 manual, p.139"),
-	]}
+	var blocks: Array = [
+		_text("Choose a format on the battle setup screen. All five formats are enforced: both the main deck and sideboard are checked before the duel starts."),
+		_cards([["Plains", "Basic lands are exempt", "Basic lands do not count toward copy limits, including Highlander's one-copy limit."]]),
+	]
+	for format in DeckFormat.ORDER:
+		blocks.append(_heading(format))
+		blocks.append(_text(DeckFormat.SUMMARY[format]))
+	return {"title": "Deck formats — the five", "blocks": blocks}
 
 
 static func _page_format_lists() -> Dictionary:
+	CardRegistry.ensure_loaded()
+	var restricted := PackedStringArray()
+	var banned := PackedStringArray()
+	for name in DeckFormat.RESTRICTED:
+		if CardRegistry.has_card(name) and not restricted.has(name):
+			restricted.append(name)
+	for name in DeckFormat.BANNED:
+		if CardRegistry.has_card(name) and not banned.has(name):
+			banned.append(name)
+	restricted.sort()
+	banned.sort()
 	return {"title": "Deck formats — the lists", "blocks": [
-		_heading("What is enforced today"),
-		_text("All five formats are enforced. Choosing one on the battle "
-			+ "setup screen refuses a deck that does not meet it, naming "
-			+ "the card that broke the rule, before the duel starts. "
-			+ "Highlander and Unrestricted need no list at all; the other "
-			+ "three read the two lists below."),
-		_heading("Your sideboard is part of your deck"),
-		_text("Every limit on this page counts your sideboard with your "
-			+ "maindeck: four Lightning Bolt in the deck and one in the "
-			+ "sideboard is five copies, and a banned card cannot hide in "
-			+ "the sideboard either. That is not a 1997 rule — the 1997 "
-			+ "Deck Builder had no sideboard at all — it is modern "
-			+ "Magic's, adopted here because a match really does move "
-			+ "cards between the two piles between duels."),
-		_heading("Where the lists come from — and how old they are"),
-		_text("This is worth being exact about, because the answer is not "
-			+ "the tidy one. No 1997 restricted list survives in any file "
-			+ "this project can read. The list started as the one in the "
-			+ "game's own modern deck code, and as written that contains "
-			+ "cards printed a decade after 1997."),
-		_text("This page used to say the card pool sorted that out by "
-			+ "itself — that a card can only matter if a deck can hold it, "
-			+ "so what survived the 1997 pool was the era's own list. That "
-			+ "was WRONG, and it was corrected in September 2026. It holds "
-			+ "for cards ADDED to the list since 1997: they are not in "
-			+ "this pool, so no deck can hold one. It fails completely for "
-			+ "cards REMOVED from it since — those are in the pool, and "
-			+ "eleven of them were going unflagged."),
-		_text("So the list is now the union of two: the modern one, kept "
-			+ "whole so a card added to the pool later becomes restricted "
-			+ "at that moment instead of being quietly legal, plus the "
-			+ "DCI's own Classic (Type 1) restricted list as printed in "
-			+ "The Duelist #22 of 1 January 1998 — which is the closest "
-			+ "contemporary source that survives. Three cards are on the "
-			+ "modern list, in this pool, and NOT on the 1998 one (Mana "
-			+ "Crypt, Mana Vault and Time Vault); they are left restricted "
-			+ "rather than quietly loosened."),
-		_heading("Restricted — one copy allowed"),
-		_text("Of that list, these are the cards this remake can actually "
-			+ "deal you: Ancestral Recall, Balance, Berserk, Black Lotus, "
-			+ "Black Vise, Braingeyser, Demonic Tutor, Fastbond, Fork, "
-			+ "Ivory Tower, Library of Alexandria, Mana Crypt, Mana Vault, "
-			+ "Maze of Ith, Mind Twist, Mirror Universe, Mox Pearl, Mox "
-			+ "Sapphire, Mox Jet, Mox Ruby, Mox Emerald, Recall, Regrowth, "
-			+ "Sol Ring, Strip Mine, Time Vault, Time Walk, Timetwister, "
-			+ "Underworld Dreams and Wheel of Fortune."),
-		_heading("Banned — no copies allowed"),
-		_text("The ante cards: Bronze Tablet, Contract from Below, "
-			+ "Darkpact, Demonic Attorney, Jeweled Bird, Rebirth and "
-			+ "Tempest Efreet. The game's list also bans Amulet of Quoz, "
-			+ "Chaos Orb, Falling Star and Shahrazad, none of which this "
-			+ "remake has built yet."),
-		_heading("A word that means two things"),
-		_text("\"Restricted\" is also the name of a card FILTER in the "
-			+ "Deck Builder, and there it means something else entirely — "
-			+ "the rare cards Shandalar hands out as treasure. The "
-			+ "Glossary lists both meanings, in that order."),
-		_quote("Restricted (1) In Shandalar, one can sometimes gain cards "
-			+ "as treasure that are especially valuable and not part of "
-			+ "the 4th Edition or Astral card sets. For the purposes of "
-			+ "the Deck Builder, these cards are collected under the "
-			+ "general heading of Restricted. (2) Generally speaking, a "
-			+ "card the use of which is limited in certain types of "
-			+ "dueling tournaments.", "the 1997 manual, Glossary, p.180"),
+		_cards([["Black Lotus", "Restricted in Type 1", "At most one copy across your main deck and sideboard. Type 1.5 excludes restricted cards entirely."]]),
+		_heading("Restricted cards in the card pool"),
+		_text(", ".join(restricted)),
+		_heading("Banned cards in the card pool"),
+		_text(", ".join(banned)),
+		_heading("Limits count both piles"),
+		_text("Four Lightning Bolts in the main deck plus one in the sideboard is five copies. Unrestricted has no copy or list limits. Highlander permits one of each non-basic card without applying these lists."),
+		_heading("The Restricted set filter is different"),
+		_text("In the Deck Builder's set filters, Restricted names a group of treasure cards. It is not the tournament restricted list."),
 	]}
-
-
-
-# ------------------------------------------------- the icon reference --
 
 static func _page_icons_mana() -> Dictionary:
 	var entries: Array = [
@@ -888,8 +412,8 @@ static func _page_icons_abilities() -> Dictionary:
 			"An old and unusual ability. Creatures with banding may attack "
 			+ "together as one group, which must be blocked as one, and "
 			+ "their controller divides the blockers' damage among them. "
-			+ "NOTE: only attacking bands are implemented in this remake — "
-			+ "banding on a blocker does nothing here."),
+			+ "A blocker with banding lets its controller divide the "
+			+ "attacker's damage among that attacker's blockers."),
 	]
 	return {"title": "Icons — abilities on a card in play", "blocks": [
 		_quote("Many creatures have one of the following abilities. "
@@ -1142,10 +666,8 @@ static func _page_icons_counters() -> Dictionary:
 				+ "enters with seven and Clockwork Avian with four; each "
 				+ "one is a point of power, and one comes off at the end "
 				+ "of any combat the machine took part in. You can wind "
-				+ "them back up during your upkeep. The same gear stood "
-				+ "for Time Vault's \"Turn counters\" in 1997; our Vault "
-				+ "follows the modern wording and keeps no counters, so "
-				+ "the two Clockworks are where you will meet it.",
+				+ "them back up during your upkeep. Time Vault does not "
+				+ "use \"Turn counters\"; it untaps by skipping a turn.",
 				{"src": SRC_COUNTER,
 					"row": CounterMarks.TILE_BY_CARD["Clockwork Beast"]},
 				"+1/+0", 44.0),
@@ -1153,8 +675,8 @@ static func _page_icons_counters() -> Dictionary:
 				"Cue card: \"Shackle (-0/-2) counters\", and it is Spirit "
 				+ "Shackle's. The creature it enchants takes one every "
 				+ "time it becomes tapped, and each one is two toughness "
-				+ "gone for good: attack twice with a 2/2 and it has "
-				+ "killed itself.",
+				+ "gone: a 2/2 with one of these counters has 0 toughness "
+				+ "and dies.",
 				{"src": SRC_COUNTER,
 					"row": CounterMarks.TILE_BY_KIND["-0/-2"]},
 				"-0/-2", 44.0),
@@ -1227,10 +749,9 @@ static func _page_icons_counters_more() -> Dictionary:
 			_icon("The same tombstone — husk",
 				"Cue card: \"Husk counters: 1\". Necropolis of Azar takes "
 				+ "one whenever a non-black creature reaches a graveyard, "
-				+ "and {5} plus one of them makes a Spawn of Azar. The "
-				+ "1997 strip carries the tombstone twice, once for each "
-				+ "card, and the two are the same picture — so the cue "
-				+ "card is what tells you which counter you are reading.",
+				+ "and {5} plus one of them makes a Spawn of Azar. Corpse "
+				+ "and husk counters share a picture; the cue card tells "
+				+ "you which counter you are reading.",
 				{"src": SRC_COUNTER,
 					"row": CounterMarks.TILE_BY_CARD["Necropolis of Azar"]},
 				"husk", 44.0),
@@ -1265,27 +786,16 @@ static func _page_icons_counters_more() -> Dictionary:
 				"Cue card: \"Life counters: 1\". The five lucky charms — "
 				+ "Throne of Bone, Crystal Rod, Wooden Sphere, Iron Star "
 				+ "and Ivory Cup — one ankh each, in the color of the "
-				+ "spells that charm watches for. THESE FIVE YOU WILL NOT "
-				+ "MEET: the 1997 game banked the life they earned as "
-				+ "counters on the charm itself, and ours follow the "
-				+ "modern wording and hand you the life as it happens. "
-				+ "They are here because the strip carries them and "
-				+ "because a card that revives the older wording would "
-				+ "wear them.",
+				+ "spells that charm watches for. These cards grant life "
+				+ "immediately when their paid ability resolves; they do "
+				+ "not store life counters, so these five icons do not "
+				+ "appear on them during a duel.",
 				charms, "life", 44.0),
 		]},
 		_heading("When a counter has no stone"),
-		_text("Twenty-four stones is all the original drew. Our card pool "
-			+ "is larger than the one it shipped with, and cards out of "
-			+ "Legends and The Dark bring counters it never had a picture "
-			+ "for — pupa, glyph, sleep, mire, hatchling. A counter with "
-			+ "no stone of its own wears a plain dark chip of the same "
-			+ "size with the number inside it, and its cue card names it "
-			+ "in the ordinary way: \"Pupa counters: 1\". We would rather "
-			+ "show you a blank chip than invent a picture and pass it "
-			+ "off as the original's. A few counters that DO change a "
-			+ "creature are in that group too — 1997 had no stone for a "
-			+ "+0/+1 — so read the cue card whenever the chip is blank."),
+		_text("Pupa, glyph, sleep, mire, hatchling and +0/+1 counters use "
+			+ "a plain dark chip with their count inside it. Read the cue "
+			+ "card for the counter's name and effect."),
 		_text("The same dark chip stands in for every stone if you are "
 			+ "playing without the 1997 graphics. The count is always "
 			+ "there either way; it is only the picture that needs the "
@@ -1294,8 +804,9 @@ static func _page_icons_counters_more() -> Dictionary:
 		_text("While you are dividing combat damage, every creature you "
 			+ "have put points on shows an ICE-BLUE dagger with a running "
 			+ "number beside it. That is not a counter and it is not "
-			+ "damage yet — it is your own arithmetic, and it clears the "
-			+ "moment you press Done. The Combat page says more about it."),
+			+ "damage yet. It stays visible across assignment groups and "
+			+ "clears when the entire damage wave is dealt. The Combat "
+			+ "page says more about it."),
 	]}
 
 
@@ -1410,9 +921,8 @@ static func _page_icons_phase_marks() -> Dictionary:
 			+ "sub-phase begins, it is too late to use these effects. A "
 			+ "Stop on your opponent's Main Pre-Combat sub-phase is always "
 			+ "a good idea.", "Duel.hlp, topic \"Stop\""),
-		_text("That last line is the single most useful piece of advice the "
-			+ "1997 help file gives, and it is worth doing before your "
-			+ "first serious duel."),
+		_text("Use a pre-combat Stop if you want to tap or remove a creature "
+			+ "before it can attack."),
 	]}
 
 
@@ -1451,9 +961,8 @@ static func _page_icons_combat_bar() -> Dictionary:
 			"Duel.hlp, topic \"Combat Bar\""),
 		_text("It takes the Phase Bar's place for as long as the attack "
 			+ "lasts, and it wears the attacking side's color — BLUE when "
-			+ "you are attacking, GOLD when your opponent is. The names "
-			+ "below are its cue cards; each explanation opens with "
-			+ "Duel.hlp's own name for that sub-phase."),
+			+ "you are attacking, GOLD when your opponent is. Each icon "
+			+ "below explains what happens at that point in combat."),
 		{"kind": ICONS, "entries": entries},
 		_text("The lit icon and the red Stop dots mean here exactly what "
 			+ "they mean on the Phase Bar. While you are choosing attackers "
@@ -1535,21 +1044,19 @@ static func _page_builder() -> Dictionary:
 		_heading("The bar under the deck"),
 		_text("STATS opens the statistics window — five pages: Deck, "
 			+ "Draws, Mana, Speed and Matchups — and carries the deck's "
-			+ "card count on its face. RARITY [QoL] letters every card on "
+			+ "card count on its face. RARITY letters every card on "
 			+ "the deck surface C, U, R or L for common, uncommon, rare or "
-			+ "legendary; COST [QoL] lays every card's mana cost on its "
+			+ "legendary; COST lays every card's mana cost on its "
 			+ "face. Both are switches: they stay down while their marks "
 			+ "are up, and they remember."),
-		_text("DECK opens the deck surface's own mini-menu — the one the "
-			+ "original put on a right-click anywhere over the deck, which "
-			+ "still works. Its 1997 commands: New deck, Load deck, Save "
+		_text("DECK opens the menu, also available by right-clicking "
+			+ "over the deck: New deck, Load deck, Save "
 			+ "deck, Consolidate duplicate cards, Clear deck, Sort deck, "
 			+ "Stats, Music, Sound Effects, Exit deck builder, Extra "
-			+ "Cards and Move by color out of deck. Marked [QoL] on the "
-			+ "menu itself: Undo, Big cards, Filters, Add basic land, Add proxy card, "
+			+ "Cards, Move by color out of deck, Undo, Big cards, Filters, Add basic land, Add proxy card, "
 			+ "Copy deck to, Deck notes, Sideboard, Import deck and Export "
 			+ "deck."),
-		_text("Big cards [QoL] switches the Showcase to the dueling "
+		_text("Big cards switches the Showcase to the dueling "
 			+ "table's full card size and widens the left column. Its "
 			+ "checkmark is remembered for the next startup; untick it to "
 			+ "restore the classic layout. Big cards is on by default, "
@@ -1557,18 +1064,17 @@ static func _page_builder() -> Dictionary:
 			+ "Inventory keeps its size. If the window is short, scroll "
 			+ "the information below the card to read it all. This is "
 			+ "separate from the Text switch that expands a card's rules box."),
-		_text("LOAD [QoL] is a door to the Load Deck dialog from the bar: "
+		_text("LOAD is a door to the Load Deck dialog from the bar: "
 			+ "your own decks head the list, a finder above it keeps the "
 			+ "rows whose title or file name contains what you type, "
 			+ "Enter loads the first one left, and every row wears the "
 			+ "deck's colors as mana symbols. DECK1, DECK2 and DECK3 "
-			+ "[QoL] are three decks in hand at once; the starred one is "
+			+ "are three decks in hand at once; the starred one is "
 			+ "the deck on the surface. DONE leaves."),
 		_heading("The dice at the left of the bar"),
 		_quote("Sealed Deck: Compete in the most popular form of Magic "
 			+ "Tournament.", "Uistrings.txt, @SHELLSCREEN_DUEL"),
-		_text("The dice medallion [QoL] is the pack-opening half of that "
-			+ "1997 screen. It opens the Sealed Deck Tournament Simulation "
+		_text("The dice medallion opens the Sealed Deck Tournament Simulation "
 			+ "window: choose how many booster packs (15 cards — one rare "
 			+ "or legend, three uncommons, a land, ten commons), starter "
 			+ "packs (the tournament pack of 60 — three rares, nine "
@@ -1600,14 +1106,14 @@ static func _page_builder() -> Dictionary:
 			+ "menu of its own, opens the strip's mini-menu: SELECT ALL "
 			+ "puts every filter back to where the builder opened, CLEAR "
 			+ "ALL puts every color and type medallion up so you can pick "
-			+ "a few, and 'Search card text too' [QoL] makes the box search "
+			+ "a few, and 'Search card text too' makes the box search "
 			+ "a card's rules text as well as its name — 'gain life' finds "
 			+ "the cards that do."),
 		_text("SORT lists the Inventory by Name, Casting cost, Card Type, "
 			+ "Color or Set. TEXT is the Showcase's Expand toggle — 1997 "
 			+ "keeps a card's text box at its printed size, full grows it "
 			+ "to fit."),
-		_heading("The keys [QoL]"),
+		_heading("The keys"),
 		_text("Left and Right always walk the yellow selection ring along "
 			+ "the bottom Inventory, even after clicking elsewhere in the "
 			+ "builder; the row scrolls to keep the selected card in view. "
@@ -1702,9 +1208,7 @@ static func _page_icons_builder_sets() -> Dictionary:
 			+ "a plainer drawing of the same symbol at the end of their "
 			+ "type line — those are on the 'around the table' page."),
 		{"kind": ICONS, "entries": set_entries},
-		_text("Unlimited and the promotional cards are lettered — 2nd and "
-			+ "PR — rather than drawn, for the same reason their cards are: "
-			+ "the original drew no symbol for either."),
+		_text("Unlimited and the promotional cards use the labels 2nd and PR."),
 		_quote("Astral, a card set created specifically for the MicroProse "
 			+ "version of Magic: The Gathering, reflects the unusual nature "
 			+ "of the plane of Shandalar.",
@@ -1732,7 +1236,8 @@ static func _page_icons_builder_types() -> Dictionary:
 			+ "of each other.",
 		Mtg.CardType.CREATURE: "A bat. Anything with a power and a "
 			+ "toughness. Right-click for its page of the Filters window: "
-			+ "Summon, Artifact, and the creature types from a list.",
+			+ "Non-artifact creatures, Artifact creatures, and a list "
+			+ "that narrows them to the selected creature types.",
 		Mtg.CardType.ENCHANTMENT: "A crescent moon with NO gold ring — the "
 			+ "ringed crescent two places along is The Dark. Lasting magic, "
 			+ "local or global. Right-click for its page of the Filters "
@@ -1773,12 +1278,9 @@ static func _page_icons_builder_types() -> Dictionary:
 			{"src": SRC_FILTER, "row": FilterBar.TOUGHNESS_CELL[0],
 				"col": FilterBar.TOUGHNESS_CELL[1]}, "T"),
 		_icon("The Filters window — a funnel",
-			"Not a 1997 medallion: the original's Other Filters group had "
-			+ "three more buttons, Ability, Rarity and Artist, each opening "
-			+ "a list. Here the three lists, and the Creature and "
-			+ "Enchantment ones, are the five pages of ONE window, and the "
-			+ "funnel is its door. It is drawn lit while any page is "
-			+ "narrowing the Inventory.",
+			"Opens five filter pages: Creatures, Enchantments, Abilities, "
+			+ "Rarity and Artists. The funnel is lit while any page narrows "
+			+ "the Inventory.",
 			{"src": SRC_FILTER, "row": FilterBar.FUNNEL_CELL[0],
 				"col": FilterBar.FUNNEL_CELL[1]}, "F"),
 		_icon("Sealed Deck — a pair of dice",
@@ -1794,10 +1296,8 @@ static func _page_icons_builder_types() -> Dictionary:
 	var pages: Array = [
 		_icon("Abilities — an eye",
 			"Cue card: \"" + DeckFilter.filtered_by_cue_card("ability", true)
-			+ "\". The tab wears the 1997 Ability medallion. Enable Filter "
-			+ "turns the page on, and so does unticking any of the "
-			+ "thirteen — a tick that could not change anything would not "
-			+ "be a filter; Native keeps cards that simply have an "
+			+ "\". Enable Filter turns the page on, and so does unticking "
+			+ "an ability. Native keeps cards that simply have an "
 			+ "ability, Gives keeps cards that can bestow one; then the "
 			+ "thirteen, by their 1997 names with today's in brackets — "
 			+ "Ward is protection, Walk is landwalk, Web is reach, Stoning "
@@ -1841,8 +1341,7 @@ static func _page_icons_builder_types() -> Dictionary:
 			+ "so 'all the Elves and Elementals' is a finder reading 'el' "
 			+ "and one click."),
 		_text("Abilities, Rarity and Artists each have an Enable Filter "
-			+ "switch at the head of the page, where the original had a "
-			+ "medallion on the strip. Unticking anything in the list "
+			+ "switch at the head of the page. Unticking anything in the list "
 			+ "presses that switch for you, so 'only the first strikers' "
 			+ "is Clear All and one tick; Select All never presses it, "
 			+ "because a list that excludes nothing is not a filter. The "
@@ -1854,11 +1353,12 @@ static func _page_icons_builder_types() -> Dictionary:
 			+ "switch an artist's name from selected to de-selected or "
 			+ "vice versa, click on it.",
 			"Duel.hlp, topic \"Other Filters\""),
-		_text("On the Creatures page the list is a third term: Summon "
-			+ "and Artifact admit their creatures, and a ticked type ADDS "
-			+ "its creatures to those — so to see only the listed types, "
-			+ "untick Summon. The screen says so the moment the list goes "
-			+ "on."),
+		_text("On the Creatures page, Non-artifact creatures and Artifact "
+			+ "creatures choose the two groups. Enable Filter narrows the "
+			+ "Inventory to selected creature types. Clear All, then tick "
+			+ "Elf to see only Elves immediately. The type list switches "
+			+ "on when you narrow it; no OK click is needed. The Artifact "
+			+ "medallion must also be on to include artifact creatures."),
 		{"kind": ICONS, "entries": pages},
 		_quote("Note that the first two filters modify the effects of the "
 			+ "others. Native means that the ability is an integral part "
@@ -1951,7 +1451,8 @@ static func all_text() -> String:
 		parts.append(String(page.get("title", "")))
 		for block in page["blocks"]:
 			parts.append(String(block.get("text", "")))
-			parts.append(String(block.get("cite", "")))
+			for example in block.get("examples", []):
+				parts.append(" ".join(example))
 			for entry in block.get("entries", []):
 				parts.append(String(entry.get("name", "")))
 				parts.append(String(entry.get("text", "")))
@@ -1966,6 +1467,10 @@ static func _heading(text: String) -> Dictionary:
 
 static func _text(text: String) -> Dictionary:
 	return {"kind": TEXT, "text": text}
+
+
+static func _cards(examples: Array) -> Dictionary:
+	return {"kind": CARDS, "examples": examples}
 
 
 static func _quote(text: String, cite: String) -> Dictionary:

@@ -26,6 +26,12 @@ extends RefCounted
 ## Display name, and the key the UI shows for the difficulty.
 var profile_name := "Custom"
 
+## Read mass buffs/debuffs and color changes by their visible payoff.
+## False preserves the old caster exactly for seeded comparison. Enabled
+## on every shipped rung: wasting a card on an empty board is not a layer
+## of strategic weakness. No card names or hidden opposing cards are read.
+var uses_tactical_effects := false
+
 ## Probability in [0, 1] that an intended action degrades — a cast skipped,
 ## an attacker left home, a block dropped. Rolled on MtgGame.rng, so a
 ## seeded duel replays the same mistakes.
@@ -1811,13 +1817,16 @@ func apply_overrides(spec: String) -> String:
 ## never holds up instants — sorcery-speed Magic, which is the honest way to
 ## be weak without cheating the rules.
 static func apprentice() -> AiProfile:
-	return AiProfile.new("Apprentice", 0.35, 0.75, 3, false, 5.0, 0, 0, false)
+	var profile := AiProfile.new("Apprentice", 0.35, 0.75, 3, false, 5.0, 0, 0, false)
+	profile.uses_tactical_effects = true
+	return profile
 
 ## Second difficulty: reactive play switches on, but the high counter
 ## threshold means it only answers the biggest threats and lets the rest
 ## resolve.
 static func magician() -> AiProfile:
 	var profile := AiProfile.new("Magician", 0.20, 0.60, 4, true, 7.0, 2, 0, false)
+	profile.uses_tactical_effects = true
 	profile.ranks_counters = true
 	return profile
 
@@ -1831,6 +1840,7 @@ static func sorcerer() -> AiProfile:
 	var profile := AiProfile.new("Sorcerer", 0.08, 0.50, 5, true, 5.5, 3, 1500, true, true, true, true, true, true,
 		true, true, true, true, true, true)
 	profile.ranks_counters = true
+	profile.uses_tactical_effects = true
 	profile.holds_x_burn = 3
 	profile.reads_gaze = true
 	profile.reads_manlands = true
@@ -1851,6 +1861,7 @@ static func wizard() -> AiProfile:
 	var profile := AiProfile.new("Wizard", 0.0, 0.50, 6, true, 5.0, 4, 3000, true, true, true, true, true, true,
 		true, true, true, true, true, true)
 	profile.ranks_counters = true
+	profile.uses_tactical_effects = true
 	profile.holds_x_burn = 5
 	profile.reads_gaze = true
 	profile.reads_manlands = true

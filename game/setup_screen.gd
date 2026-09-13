@@ -625,7 +625,7 @@ func _build_territory_row() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	row.add_child(UiChrome.body_label(
-		"[QoL] " + DuelOptions.TERRITORY_LABEL + ":"))
+		"" + DuelOptions.TERRITORY_LABEL + ":"))
 	_territory_color = OptionButton.new()
 	for name in DuelOptions.TERRITORY_COLORS:
 		_territory_color.add_item(name)
@@ -1113,10 +1113,8 @@ func _explain_formats() -> void:
 	var lines := PackedStringArray()
 	for format in DeckFormat.ORDER:
 		lines.append("%s\n%s" % [format, DeckFormat.SUMMARY[format]])
-	lines.append("These five are the original's own (Program/Text.res:2854"
-		+ "-2859). The restricted and banned lists are the game's own data"
-		+ " (deckdll.cpp), not MicroProse's 1997 list, which does not"
-		+ " survive in any file we have. Help has the full page.")
+	lines.append("Copy limits count the main deck and sideboard together. "
+		+ "Basic lands are exempt. See Help for the restricted and banned card lists.")
 	UiChrome.explain_popup(self, "Deck format", "\n\n".join(lines), 560.0)
 
 

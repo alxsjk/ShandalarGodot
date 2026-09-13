@@ -225,6 +225,8 @@ func test_one_bed_means_one_stream_looped_and_not_a_playlist() -> void:
 
 func test_the_screen_plays_that_one_bed_and_nothing_after_it() -> void:
 	_unset(MusicLibrary.SETTING)
+	_unset("music_enabled")
+	_unset(DeckAudio.MUSIC_SETTING)
 	for i in [1, 5, 12]:
 		_write(SKIN_DIR, "music_location_%d.wav" % i)
 	await _build()

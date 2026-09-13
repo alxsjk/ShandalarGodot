@@ -6,7 +6,7 @@ extends GutTest
 ## shown on minicards."* The 1997 game showed nothing but its `%d points
 ## left` counter; the screen now writes each blocker's running share on
 ## its own small card, in the damage marker's place, and takes it off
-## again the moment the division submits. The prompt's own count (§1.4,
+## again when the whole damage wave is dealt, not between groups. The prompt's own count (§1.4,
 ## `@PROMPT_RESOLVECOMBAT`) is pinned in `test_duel_prompts.gd`.
 
 
@@ -146,3 +146,29 @@ func test_a_card_outside_any_division_carries_nothing() -> void:
 	assert_eq(_pending(bears), 0)
 	assert_eq(screen._pending_damage_for(bears.id), 0)
 	assert_eq(screen._pending_damage_for(-1), 0, "an unknown id is zero, not an error")
+
+
+func test_completed_group_keeps_its_marks_while_the_next_group_is_assigned() -> void:
+	var game: MtgGame = screen.game
+	var first := _gang_block()
+	var giant := _make(0, "Hill Giant", Mtg.Zone.BATTLEFIELD)
+	var third := _make(1, "Grizzly Bears", Mtg.Zone.BATTLEFIELD)
+	var fourth := _make(1, "Grizzly Bears", Mtg.Zone.BATTLEFIELD)
+	game.untap_permanent(first[0])
+	game._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS))
+	assert_eq(game.declare_attackers(0, [first[0].id, giant.id]), "")
+	game._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_BLOCKERS))
+	game.awaiting_blockers = true
+	assert_eq(game.declare_blockers(1, {first[1].id: first[0].id,
+		first[2].id: first[0].id, third.id: giant.id, fourth.id: giant.id}), "")
+	game._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
+	screen._refresh()
+	screen._on_card_clicked(first[1])
+	screen._on_card_clicked(first[1])
+	screen._on_card_clicked(first[2])
+	assert_true(game.awaiting_damage_assignment, "second group still waits")
+	assert_eq(_pending(first[1]), 2, "submitted damage remains visible until dealt")
+	assert_eq(_pending(first[2]), 1)
+	screen._on_card_clicked(third)
+	assert_eq(_pending(first[1]), 2)
+	assert_eq(_pending(third), 1, "new points appear immediately too")

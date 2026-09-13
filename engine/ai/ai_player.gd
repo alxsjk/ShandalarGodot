@@ -1425,7 +1425,8 @@ func _counter_cost_spendable(inst: CardInstance, ability: ActivatedAbility) -> b
 func _ability_option(game: MtgGame, inst: CardInstance, index: int, moment: int) -> Dictionary:
 	var ability: ActivatedAbility = inst.cur_activated_abilities[index]
 	var intent := EffectIntent.read(ability.effects, inst.data.card_name)
-	if moment == Moment.COMBAT and intent.sweeper == null:
+	var tactical := EffectIntent.tactical_effect(ability.effects) if profile.uses_tactical_effects else null
+	if moment == Moment.COMBAT and intent.sweeper == null and tactical == null:
 		return {}   # their combat is a sweeper's moment and nobody else's
 	var me := game.players[pid]
 	var opponent := game.opponent_of(pid)
@@ -1444,7 +1445,13 @@ func _ability_option(game: MtgGame, inst: CardInstance, index: int, moment: int)
 		if intent.self_damage >= me.life:
 			return {}
 		price += intent.self_damage * _life_price(me.life)
-	if intent.damage > 0 and intent.target_spec != null:
+	if tactical != null:
+		var option := _tactical_option(game, inst, tactical)
+		if option.is_empty():
+			return {}
+		targets = option["targets"]
+		value = float(option["value"])
+	elif intent.damage > 0 and intent.target_spec != null:
 		# Kill the best creature it can; failing that, the face.
 		var victim := _best_victim(game, inst, intent, 0)
 		if victim != null:
@@ -3568,6 +3575,10 @@ const SWEEP_BAR := 3.0
 func _size_and_aim(game: MtgGame, inst: CardInstance, intent: EffectIntent,
 		max_x: int, mode: int) -> Dictionary:
 	var data := inst.data
+	if profile.uses_tactical_effects and not data.is_modal():
+		var tactical := EffectIntent.tactical_effect(data.spell_effects)
+		if tactical != null:
+			return _tactical_option(game, inst, tactical)
 	if intent.sweeper != null and not data.is_modal():
 		var best_x := 0
 		var best_value := 0.0
@@ -4595,6 +4606,10 @@ func _respond_action(game: MtgGame) -> String:
 	var counter := _try_counter(game)
 	if counter != "":
 		return counter
+	if profile.uses_tactical_effects:
+		var tactical := _tactical_response(game)
+		if tactical != "":
+			return tactical
 	# Something of theirs on the stack aimed at one of ours: a regeneration
 	# shield or a pump in response (mage-go's "opponent stack threat" arm).
 	var saved := _save_from_the_stack(game)
@@ -7277,6 +7292,89 @@ func _pumps_are_lethal(game: MtgGame, attacker: CardInstance,
 	var pumps := _pumps_in_reach(game, attacker, ability, sources, null,
 		_activations_left(game, attacker, index, true) if index >= 0 else -1)
 	return unblocked_total + pumps * power >= them.life
+
+
+## Visible-board tactical effects (playtest 2026-09-13). Resolve just the
+## supported effect under the engine journal, measure the difference, then
+## undo it before returning. No payment, random choice, opposing hand or
+## library is explored. Scope, duration, color-sensitive statics and state
+## actions are the engine's own, not a second card implementation.
+func _tactical_option(game: MtgGame, source: CardInstance, effect: EffectBase) -> Dictionary:
+	var in_combat := not game.combat.attackers.is_empty() and not game.awaiting_blockers \
+		and game.current_step() in [Mtg.Step.DECLARE_BLOCKERS, Mtg.Step.FIRST_STRIKE_DAMAGE]
+	if effect is MassPumpEffect and not in_combat:
+		return {}  # a temporary combat modifier waits for actual combat
+	var targets: Array = [null]
+	if effect.target_spec != null:
+		targets = effect.target_spec.legal_targets(game, source)
+	var values := {}
+	for card in game.all_battlefield():
+		values[card.id] = Evaluator.permanent_value(card, profile)
+	var fixed_values := effect is MassPumpEffect
+	var before := _tactical_score(game, in_combat, values, fixed_values)
+	var best := {}
+	var best_gain := profile.w_hand  # spend a card only for more than a card's weight
+	for target in targets:
+		var nested := game.undo_log != null
+		var mark := game.make_mark()
+		effect.resolve(game, source, pid, target)
+		var gain := _tactical_score(game, in_combat, values, fixed_values) - before
+		game.unmake_to(mark)
+		if not nested:
+			game.end_search()
+		if gain > best_gain:
+			best_gain = gain
+			best = {"x": 0, "targets": [] if target == null else [target], "value": gain}
+	return best
+
+
+## Reuse the pilot's declared-combat damage/prevention model. Temporary
+## stats themselves earn nothing: only a changed casualty or life result
+## does. Permanent color changes can also earn a lasting static bonus.
+func _tactical_score(game: MtgGame, in_combat: bool, values: Dictionary,
+		fixed_values: bool) -> float:
+	var score := 0.0
+	for card in game.all_battlefield():
+		var worth: float = float(values.get(card.id, 0.0)) if fixed_values \
+			else Evaluator.permanent_value(card, profile)
+		var sign_value := 1.0 if card.controller_id == pid else -1.0
+		score += sign_value * worth * Evaluator.W_BOARD
+		if in_combat and _dies_in_combat(game, card) and card.regeneration_shields == 0:
+			score -= sign_value * float(values.get(card.id, worth)) * Evaluator.W_BOARD
+	if in_combat:
+		var damage := 0
+		for band in game.combat.all_bands():
+			if game.combat.was_blocked(band):
+				continue
+			for id in band:
+				var attacker := game.find_instance(id)
+				if attacker != null and attacker.zone == Mtg.Zone.BATTLEFIELD \
+						and not attacker.cur_prevent_combat_damage_dealt:
+					damage += maxi(attacker.cur_power, 0)
+		var defender := game.opponent_of(game.active_player)
+		var value := LETHAL_WORTH if damage >= game.players[defender].life \
+			else _face_damage_value(game, damage, defender)
+		score += value if defender != pid else -value
+	return score
+
+
+func _tactical_response(game: MtgGame) -> String:
+	var best := {}
+	var chosen: CardInstance = null
+	for inst in game.players[pid].hand:
+		if not inst.data.is_type(Mtg.CardType.INSTANT) or inst.data.is_modal() \
+				or not game.could_afford(pid, inst.data):
+			continue
+		var effect := EffectIntent.tactical_effect(inst.data.spell_effects)
+		if effect == null:
+			continue
+		var option := _tactical_option(game, inst, effect)
+		if not option.is_empty() and (best.is_empty() or float(option["value"]) > float(best["value"])):
+			best = option
+			chosen = inst
+	if chosen != null:
+		return _cast_response(game, chosen, best["targets"])
+	return ""
 
 
 ## Cast an instant-speed response from hand (plans mana, taps, casts).

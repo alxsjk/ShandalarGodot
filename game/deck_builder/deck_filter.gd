@@ -322,14 +322,9 @@ var artifact_noncreatures := true:
 		if artifact_noncreatures != value:
 			artifact_noncreatures = value
 			revision += 1
-## `@CREATURE` — "&Summon" admits a creature that is not an artifact,
-## "&Artifact" an artifact creature, and the list, once enabled, admits
-## any creature of a ticked type ON TOP of those two (`check_creatures`,
-## `deckdll.cpp:6995`: the list is an OR term, not a narrowing). So "only
-## the Elves" is Summon and Artifact off, the list on, Elf ticked — which
-## is how the original did it, and the window says so
-## ([constant DeckBuilderScreen.LIST_HINT]) when the list goes on with
-## Summon still down.
+## Creature scopes. "Summon" was the old name for a non-artifact creature.
+## [QoL] 2026-09-13: the enabled type list NARROWS these scopes instead of
+## adding an OR term to "all creatures", which made Elf selection a no-op.
 var creature_summon := true:
 	set(value):
 		if creature_summon != value:
@@ -340,7 +335,7 @@ var creature_artifact := true:
 		if creature_artifact != value:
 			creature_artifact = value
 			revision += 1
-## "Summon from &list..." — is the list in force at all.
+## Enable Filter: show only creatures of the selected types and scopes.
 var creature_list_on := false:
 	set(value):
 		if creature_list_on != value:
@@ -612,6 +607,8 @@ func artist_ticked(name: String) -> bool:
 
 func tick_creature_type(subtype: String, on: bool) -> void:
 	_tick(creature_types, subtype, on)
+	if not on:
+		creature_list_on = true
 
 
 func tick_enchantment(kind: int, on: bool) -> void:
@@ -847,6 +844,10 @@ func _matches_gold(mask: int) -> bool:
 ## still answers to its own two ticks.
 func matches_type(d: CardData) -> bool:
 	_sync_masks()
+	if creature_list_on and not d.is_creature():
+		return false
+	if d.is_creature() and not _admits_creature(d):
+		return false  # the Artifact button cannot bypass the creature scopes
 	if (d.types & Mtg.CardType.ARTIFACT) and not (_type_on_mask & Mtg.CardType.ARTIFACT):
 		return false
 	var lit := d.types & _type_on_mask
@@ -869,15 +870,13 @@ func matches_type(d: CardData) -> bool:
 	return false
 
 
-## `check_creatures` (`deckdll.cpp:6995`): Summon is a creature that is
-## not an artifact (in 1997 the type line read "Summon Elf"; an artifact
-## creature's read "Artifact Creature"), Artifact the other kind, and the
-## list an OR term over the card's creature types.
+## [QoL] Type choices are OR within the list, AND with creature scopes.
+## This deliberately replaces the 1997 additive list (playtest 2026-09-13).
 func _admits_creature(d: CardData) -> bool:
 	var artifact := (d.types & Mtg.CardType.ARTIFACT) != 0
-	if creature_summon and not artifact:
-		return true
-	if creature_artifact and artifact:
+	if not (creature_artifact if artifact else creature_summon):
+		return false
+	if not creature_list_on:
 		return true
 	if creature_list_on:
 		for subtype in d.subtypes:

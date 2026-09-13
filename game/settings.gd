@@ -164,10 +164,12 @@ static func hand_style() -> String:
 
 ## One RULES FORK, by its RulesOptions key ("mana_burn",
 ## "attackers_revocable", ...). Where the 1997 ruleset and modern Magic
-## disagree, the player chooses; the default is whatever RulesOptions
-## itself defaults to, so this never invents an answer of its own.
+## disagree, the player chooses. Player defaults include mana burn
+## (2026-09-13 playtest); the engine's explicit Modern preset stays modern.
+## An explicit saved false always wins, and reading never writes a default.
 static func rule(key: String) -> bool:
-	return get_value("rule_" + key, RulesOptions.new().get_fork(key))
+	var fallback := true if key == "mana_burn" else RulesOptions.new().get_fork(key)
+	return get_value("rule_" + key, fallback)
 
 
 ## Set one rules fork (see [method rule]). `persist` is [method set_value]'s:

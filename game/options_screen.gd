@@ -622,9 +622,9 @@ func _add_rules_section(content: VBoxContainer) -> void:
 		row.text = fork["label"]
 		var ready_yet: bool = RulesOptions.IMPLEMENTED.has(key)
 		row.disabled = not ready_yet
-		row.tooltip_text = "1997: %s\nModern: %s\nSource: %s%s" % [
-			fork["fifth"], fork["modern"], fork["source"],
-			"" if ready_yet else "\n\nNOT IMPLEMENTED YET — see docs/duel-todo.md §6.20."]
+		row.tooltip_text = "1997: %s\nModern: %s%s" % [
+			fork["fifth"], fork["modern"],
+			"" if ready_yet else "\n\nThis option is not available yet."]
 		# Clicking the NAME explains the rule; clicking the switch flips
 		# it. A disabled row still explains itself — that is the whole
 		# point of showing an unbuilt fork rather than hiding it.
@@ -663,15 +663,14 @@ func _add_rules_section(content: VBoxContainer) -> void:
 
 
 ## The rule's own explanation, on the era's stone panel with an OK button
-## — both editions' behaviour and the source it was taken from, so a
-## player can see WHY a switch exists and where the answer came from.
+## — both editions' behaviour. Source references stay in RulesOptions,
+## not in player-facing menus (2026-09-13 playtest).
 func _explain_rule(fork: Dictionary) -> void:
 	var built: bool = RulesOptions.IMPLEMENTED.has(fork["key"])
-	var body := "1997 (Fifth Edition):\n%s\n\nModern rules:\n%s\n\nSource: %s" % [
-		fork["fifth"], fork["modern"], fork["source"]]
+	var body := "1997 (Fifth Edition):\n%s\n\nModern rules:\n%s" % [
+		fork["fifth"], fork["modern"]]
 	if not built:
-		body += "\n\nThis rule is not implemented yet, so the switch is "
-		body += "disabled. See docs/duel-todo.md §6.20."
+		body += "\n\nThis option is not available yet."
 	UiChrome.explain_popup(self, fork["label"], body)
 
 

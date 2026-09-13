@@ -45,6 +45,28 @@ func test_the_small_card_shows_the_live_power_and_toughness() -> void:
 	assert_eq(_mini(lion)._pt_label.text, "3/2", "Crusade's +1/+1 shows here")
 
 
+func test_animated_lands_show_live_stats_until_the_animation_ends() -> void:
+	# Playtest 2026-09-13: the printed-type gate hid Kormus Bell's P/T.
+	var swamp := put_battlefield(0, "Swamp")
+	var enemy_swamp := put_battlefield(1, "Swamp")
+	var card := _mini(swamp)
+	assert_eq(card._pt_label.text, "")
+	var bell := put_battlefield(0, "Kormus Bell")
+	g.recalculate()
+	card.refresh()
+	assert_eq(card._pt_label.text, "1/1")
+	assert_eq(_mini(enemy_swamp)._pt_label.text, "1/1", "both players' Swamps")
+	var ink := card.pt_color()
+	assert_gt(ink.b, ink.r, "animation uses distinct blue/cyan ink")
+	put_battlefield(0, "Bad Moon")
+	g.recalculate()
+	card.refresh()
+	assert_eq(card._pt_label.text, "2/2", "show current stats, not a fixed 1/1 badge")
+	g.destroy(bell)
+	card.refresh()
+	assert_eq(card._pt_label.text, "", "no badge after it stops being a creature")
+
+
 func test_the_showcase_shows_the_printed_power_and_toughness() -> void:
 	# THE 1997 PIN, manual p.114: "(The SHOWCASE always shows the ORIGINAL
 	# power and toughness.)" and p.118: changes are noted "on the
