@@ -370,6 +370,95 @@ func test_every_match_gets_its_own_seed_and_never_zero() -> void:
 
 # ====================================================== Gauntlet Options ==
 
+func _options_layout(options: GauntletOptions, decks: Array[String]) -> OriginalDialog:
+	var host := Control.new()
+	host.size = Vector2(1280, 800)
+	add_child_autofree(host)
+	var dialog := options.window(decks, func() -> void: pass,
+		func() -> void: pass, func() -> void: pass)
+	host.add_child(dialog)
+	return dialog
+
+
+func _deck_picker(dialog: OriginalDialog) -> OptionButton:
+	for child in dialog.body().get_children():
+		if child is OptionButton:
+			return child
+	return null
+
+
+func _assert_options_fit(dialog: OriginalDialog) -> void:
+	var column := dialog.body().get_parent() as Control
+	var heading := column.get_child(0) as Label
+	var inner := dialog.get_global_rect().grow(-15.0)
+	assert_eq(heading.horizontal_alignment, HORIZONTAL_ALIGNMENT_CENTER)
+	assert_almost_eq(heading.get_global_rect().get_center().x,
+		dialog.get_global_rect().get_center().x, 1.0,
+		"the title is centered over the actual window, not an overflowing column")
+	for control in [column, heading, _deck_picker(dialog), dialog._buttons]:
+		assert_true(inner.encloses(control.get_global_rect()),
+			"%s must stay inside the dialog: %s within %s" %
+			[control.get_class(), control.get_global_rect(), inner])
+
+
+func test_gauntlet_roster_keeps_title_and_deck_picker_inside_the_window() -> void:
+	var options := GauntletOptions.new()
+	var dialog := _options_layout(options, GauntletScreen.default_roster())
+	for i in 4:
+		await get_tree().process_frame
+	_assert_options_fit(dialog)
+	_checkbox(dialog, "Unfair challenge — opponent sees my hand").button_pressed = true
+	for i in 4:
+		await get_tree().process_frame
+	_assert_options_fit(dialog)
+
+
+func test_long_deck_titles_never_resize_the_gauntlet_setup() -> void:
+	var options := GauntletOptions.new()
+	var dialog := _options_layout(options, [DECK_A, DECK_B])
+	var picker := _deck_picker(dialog)
+	assert_not_null(picker)
+	if picker == null: return
+	var name := "A very long custom deck title — ".repeat(6)
+	# Keep a real deck's path and selection callback; only its display
+	# name is long. The open popup must retain that full name.
+	var index := 0
+	for i in picker.item_count:
+		if picker.get_item_metadata(i) == DECK_A:
+			index = i
+	picker.set_item_text(index, name)
+	for i in 4:
+		await get_tree().process_frame
+	_assert_options_fit(dialog)
+	assert_false(picker.fit_to_longest_item)
+	assert_true(picker.clip_text)
+	picker.select(index)
+	picker.item_selected.emit(index)
+	for i in 4:
+		await get_tree().process_frame
+	_assert_options_fit(dialog)
+	assert_eq(options.your_deck, DECK_A, "selection still uses the deck path")
+	assert_eq(picker.get_popup().get_item_text(index), name,
+		"constraining the closed selector does not shorten the menu entry")
+	picker.select(0)
+	picker.item_selected.emit(0)
+	assert_eq(options.your_deck, "", "random selection is unchanged")
+
+
+func test_gauntlet_options_fit_with_fallback_chrome() -> void:
+	var textures := GameSkin._texture_cache.duplicate()
+	var fonts := GameSkin._font_cache.duplicate()
+	for key in ["panel_dark_stone", "button_normal", "button_pressed", "button_disabled"]:
+		GameSkin._texture_cache[key] = null
+	GameSkin._font_cache["font_body"] = null
+	var dialog := _options_layout(GauntletOptions.new(), [DECK_A, DECK_B])
+	GameSkin._texture_cache = textures
+	GameSkin._font_cache = fonts
+	for i in 4:
+		await get_tree().process_frame
+	_assert_options_fit(dialog)
+
+
 func test_the_options_window_carries_the_dialogs_own_entries() -> void:
 	var options := GauntletOptions.new()
 	var dialog := options.window([DECK_A, DECK_B] as Array[String],

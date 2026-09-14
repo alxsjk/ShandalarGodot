@@ -213,9 +213,9 @@ func readout(opponents: int) -> String:
 ## along — a button that leads nowhere is worse than no button.
 func window(decks: Array[String], on_run: Callable, on_exit: Callable,
 		on_create := Callable()) -> OriginalDialog:
-	# Room for the separate challenge group and the foot row; checked
-	# against the native viewport capture with the original stone skin.
-	var dialog := OriginalDialog.create(TITLE, Vector2(470, 550),
+	# Keep the foot row inside the padding with either the original
+	# lettering or the taller fallback font.
+	var dialog := OriginalDialog.create(TITLE, Vector2(470, 570),
 		"panel_dark_stone")
 	var box := dialog.body()
 	var readout_label := OriginalDialog.label("", 15, true)
@@ -237,10 +237,10 @@ func window(decks: Array[String], on_run: Callable, on_exit: Callable,
 	# gauntlet you do not choose who you meet.
 	box.add_child(OriginalDialog.label(YOUR_DECK, 14, true))
 	var deck_list := OptionButton.new()
-	# CLIPPED, not free to grow. An OptionButton sizes itself to its
-	# widest entry, and a deck title long enough to outgrow the panel
-	# would push the whole column past the window's edge — a layout bug a
-	# passing test cannot see.
+	# Constrain the CLOSED selector, not the full names in its popup.
+	# clip_text alone leaves the widest entry as the minimum width:
+	# that overflow also shifts the title and foot row off center.
+	deck_list.fit_to_longest_item = false
 	deck_list.clip_text = true
 	deck_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	deck_list.add_item(RANDOM_DECK)

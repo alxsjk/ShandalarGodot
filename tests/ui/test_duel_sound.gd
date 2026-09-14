@@ -319,6 +319,46 @@ func test_the_same_cue_may_sound_again_on_a_later_frame() -> void:
 	assert_eq(_audio.recent.size(), 2, "tap, tap — two lands, two frames")
 
 
+func test_stopping_one_cue_preserves_other_cues_and_reused_voices() -> void:
+	var cached := GameSkin._sound_cache.duplicate()
+	var sample := AudioStreamWAV.new()
+	sample.format = AudioStreamWAV.FORMAT_16_BITS
+	sample.mix_rate = 22050
+	var samples := PackedByteArray()
+	samples.resize(44100)
+	sample.data = samples
+	# Deliberately share a stream: cue identity must not depend on which
+	# resource a skin assigns to it.
+	for key in ["sfx_toss", "sfx_other", "sfx_replacement"]:
+		GameSkin._sound_cache[key] = sample
+	_audio.silent = false
+	_audio.play("sfx_toss")
+	_audio.play("sfx_other")
+	assert_eq(_audio._voices.size(), 2)
+	var toss_voice := _audio._voices[0]
+	var other_voice := _audio._voices[1]
+	assert_true(toss_voice.playing)
+	assert_true(other_voice.playing)
+	_audio.stop("sfx_toss")
+	assert_false(toss_voice.playing)
+	assert_true(other_voice.playing, "another cue keeps sounding")
+	_audio.play("sfx_replacement")
+	assert_eq(_audio._voices.size(), 2, "reuse the stopped slot")
+	assert_true(toss_voice.playing)
+	_audio.stop("sfx_toss")
+	assert_true(toss_voice.playing, "the old cue no longer owns this voice")
+	assert_true(other_voice.playing)
+	GameSkin._sound_cache = cached
+
+
+func test_stopping_a_missing_cue_loads_and_allocates_nothing() -> void:
+	var cached := GameSkin._sound_cache.duplicate()
+	_audio.stop("sfx_toss")
+	_audio.stop("")
+	assert_true(_audio._voices.is_empty())
+	assert_eq(GameSkin._sound_cache, cached)
+
+
 func test_an_empty_key_is_not_a_cue() -> void:
 	# `cue_for` returns "" for most events and for a five-colour land;
 	# that must cost nothing at all.

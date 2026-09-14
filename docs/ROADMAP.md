@@ -12921,6 +12921,162 @@ both archives and the mana-burn sound passed checks. `SHA256SUMS` accompanies
 the play copy. This local build preceded the commit; no public release
 asset is included in this change.
 
+## 2026-09-14 — Keep hotseat phase instructions visible
+
+The playtest found that the repeated hand-privacy reminder displaced the
+actual action prompt, including choosing blockers. Both `_sync_hotseat`
+and `_status_message` wrote it while a hand was concealed. The regression
+reproduced the problem before the fix: four new hotseat tests failed,
+including repeated blocker refreshes and a refusal losing its warning ink.
+
+The opening splash now carries one shared reminder above the portraits:
+"Dear players, only show your hand when your opponent looks away. Good
+luck!" It belongs only to the private-hotseat intro, not the pause panel or
+the running phase bar. The existing opening sequence and timer are unchanged.
+
+During play, the Situation Bar keeps the actual phase/action instruction
+and names its responsible seat, for example "Player 2 (above) — Combat
+phase: Choose blockers." The rules decision seat supplies the label for
+blockers, damage assignment, discard and explicit responses. Repeated
+refreshes and Show/Hide no longer erase these instructions. A concealed
+private picker says "Make your choice" without disclosing its card source.
+Hand concealment, automatic handovers and the Opponent button are unchanged;
+solo and spectator prompt wording remain unchanged.
+
+Focused checks: hotseat **26 tests / 385 assertions**, 6.305 seconds; intro
+**7 tests / 21 assertions**, 1.075 seconds. Both wrappers exited 0. Coverage
+includes both physical seats, repeated hidden blocker prompts, the second
+blocking click, damage counts, discard, interjections, private-choice source
+concealment, refusal ink, and absence of the reminder from other game modes
+and the pause panel. Help and the code map describe the new presentation.
+
+The full GUT gate passed **6,284 tests / 232,472 assertions / 367 scripts**
+in 221.951 seconds (wrapper exit 0). Python tools passed **227 tests** with
+one platform skip in 3.205 seconds. A native 1280×800 render verified the
+reminder fits above the portraits, then checked the named blocker and
+second-click prompts while the hand stayed concealed; the probe exited 0
+without engine errors or warnings. An initial screenshot-harness run used
+an untyped array assignment that Godot rejected; correcting that scratch
+harness required no production change, and only the clean rerun is counted.
+
+Native whole-duel soaks for seed **92000** passed both modern and Fifth
+Edition rules (demo plus fuzzed human in each, **four completed duels**,
+wrapper exit 0, no errors, warnings or stalls). The modern runs ended in
+16/19 turns at life −7/14 and 1/−3 (155 human clicks); Fifth Edition in
+16/14 turns at −7/14 and −1/14 (146 human clicks), matching the prior
+baseline. Temporary visual probes were removed. This is a local source
+fix; existing play binaries and public release assets are unchanged.
+
+## 2026-09-14 — Keep Gauntlet Options inside its frame
+
+The title's alignment was already centered; the deck selector widened its
+whole column past the fixed frame, taking the title, separators and foot
+row with it. The native reproduction with the actual gauntlet roster read
+`dialog=[P: (405.0, 125.0), S: (470.0, 550.0)]` and
+`column=[P: (421.0, 141.0), S: (511.0, 518.0)]` — a 511-pixel column in
+438 pixels of available width. Both new layout regressions failed before
+the fix (47/49 tests passed, 202/223 assertions, wrapper exit 1).
+
+The closed deck selector now opts out of `fit_to_longest_item`, alongside
+the existing text clipping. Full titles remain in the popup and selection
+still stores the same deck path; no decks are renamed or removed. The
+column stays at 438 pixels and the title is centered on the actual frame.
+The native fallback-font check also exposed a 532-pixel content minimum
+inside 518 pixels of available height, leaving the buttons against the
+bottom frame. Its added regression failed before the height adjustment.
+The dialog is now 470×570, preserving its margins with either font.
+
+Focused gate: **50 tests / 229 assertions**, 8.135 seconds, wrapper exit 0.
+The regressions cover the real roster, an extra-long display name before
+and after selection, the full popup text and unchanged path selection,
+random selection, the Unfair readout, centered title and bounded footer,
+and fallback chrome. Only the gauntlet setup layout is changed.
+
+Native captures passed at 1280×800 with original and fallback graphics and
+at 960×600 with the original skin, including a long selected deck and the
+Unfair readout. The title, selector and footer remain inside the frame;
+all three probes exited 0 without engine errors or warnings. Python tools
+passed **227 tests**, one platform skip, in 2.893 seconds.
+
+The combined full GUT gate, including the earlier hotseat prompt fix,
+passed **6,287 tests / 232,508 assertions / 367 scripts** in 215.388 seconds
+(wrapper exit 0). Temporary screenshot scripts and images were removed.
+
+Native seed **92000** soaks finished all **four duels** under modern and
+Fifth Edition rules, each with a demo and fuzzed human seat (wrapper exit
+0, no errors, warnings or stalls). Winners, turns, final life totals and
+human click counts match the preceding hotseat verification. Both fixes
+remain local source changes; no commit, build or release was made here.
+
+## 2026-09-14 — Click past the original coin movie
+
+The original-video presentation previously ignored input until its frame
+clock ran out. The before-fix regressions reproduced it for both coin
+faces and for touch: `one click ends playback without waiting for the
+movie` failed with `[0] expected to equal [1]`, and the image still showed
+frame zero rather than the selected movie's final face (24/26 tests passed,
+107/112 assertions, wrapper exit 1).
+
+A left click or touch press anywhere during the movie now ends playback
+at the next frame and shows the existing result immediately. The panel
+says "Click to skip video" while it is playing. The final frame and winner
+announcement still come from the already selected result, with their
+normal reading time before the opening play/draw window. The skip press
+is consumed before GUI controls see it; releasing, scrolling or moving the
+mouse does not skip. Each movie resets the request, and completing or
+closing the movie disarms it. No game-state, outcome, stored preference or
+other presentation-mode behavior changes.
+
+Focused gate: **29 tests / 125 assertions**, 1.753 seconds, wrapper exit 0.
+Coverage includes both faces, click and touch input, ignored releases and
+wheel events, a fresh request for each playback, input consumption,
+natural completion, panel cleanup and the unchanged headless fast path.
+
+The full gate with all three local playtest fixes passed **6,292 tests /
+232,528 assertions / 367 scripts** in 213.498 seconds (wrapper exit 0).
+Python tools passed **227 tests**, one platform skip, in 2.895 seconds.
+
+Native 1280×800 verification used the actual imported 4.0667-second
+movies: seed **92000** named Player 1 (below), and **92001** named Player 2
+(above). Clicks outside and inside the movie produced their result in
+3/2 ms respectively, without changing the engine's random state. The
+next window named the same winner and still offered Draw first / Play
+first; releasing the skip over a choice button did not answer it. Final
+captures verified the movie hint, full result and opening window on screen
+(probe exit 0, no engine errors or warnings). Earlier scratch-probe setup
+and timing/layout mistakes were corrected before this final visual gate;
+only the final correctly sized run is counted.
+
+The separate `sfx_toss` cue lasts 3.931338 seconds and initially kept
+sounding after the picture stopped. A native follow-up reproduced
+`SKIP FAIL: toss sound stops with the movie` for both winning seats.
+`video_skipped` now fires once per interrupted movie, and the duel stops
+only that cue. Audio voices retain their current cue key when reused, so
+stopping the toss cannot stop another effect sharing its sample or an
+effect that later occupies its voice. Music and cue history are untouched;
+stopping an absent cue does not load assets or allocate a player.
+
+Final focused gates with sound cancellation: coin **29 tests / 127
+assertions**, 1.768 seconds; sound **34 tests / 169 assertions**, 1.770
+seconds, both wrappers exit 0. The earlier full run above preceded this
+sound follow-up; its final combined gate is recorded below.
+
+The audio-inclusive native rerun passed both seeds with the same 3/2 ms
+result transition, stopped toss voices, unchanged music playback, an
+unchanged random state, and an unanswered play/draw choice after release.
+It exited 0 without engine errors or warnings. Temporary screenshot
+scripts and images were removed after the final visual inspection.
+
+The final combined GUT gate passed **6,294 tests / 232,541 assertions /
+367 scripts** in 215.648 seconds (wrapper exit 0).
+
+Final seed **92000** native soaks completed all **four duels** under modern
+and Fifth Edition rules (demo plus fuzzed human per ruleset), with wrapper
+exit 0 and no errors, warnings or stalls. Outcomes, turns, life totals and
+human click counts matched the preceding gauntlet/hotseat verification.
+All three playtest fixes remain local; no commit, build or release was
+made in this turn.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

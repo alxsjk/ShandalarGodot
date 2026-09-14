@@ -1029,6 +1029,8 @@ func _run_coin_toss(first: int) -> void:
 	_play_sfx("sfx_toss")
 	var toss := CoinToss.new()
 	toss.z_index = 250
+	if _audio != null:
+		toss.video_skipped.connect(_audio.stop.bind("sfx_toss"))
 	add_child(toss)
 	_toss_overlay = toss
 	await toss.run(config, first, _is_human(first), _human_seat())
@@ -1128,7 +1130,7 @@ func _report(err: String) -> void:
 		_flash_until_ms = 0
 		_clear_warning_ink()
 		return
-	_prompt_label.text = err
+	_prompt_label.text = _hotseat_prompt(err)
 	_prompt_label.add_theme_color_override("font_color", WARNING)
 	_flash_until_ms = Time.get_ticks_msec() + FLASH_MS
 	if _flash_timer != null:
@@ -1136,8 +1138,21 @@ func _report(err: String) -> void:
 
 
 func _set_prompt(text: String) -> void:
-	_prompt_label.text = text
+	_prompt_label.text = _hotseat_prompt(text)
 	_clear_warning_ink()
+
+
+## [QoL] Name the player answering, not necessarily the player whose turn
+## it is. Never replace an action/phase instruction with a privacy tutorial.
+func _hotseat_prompt(text: String) -> String:
+	if text == "" or config == null or not config.private_hotseat() \
+			or game == null or game.game_over or _toss_active or game.turn_number == 0:
+		return text
+	return "%s — %s" % [DuelConfig.seat_label(_private_decision_seat()), text]
+
+
+func _status_message() -> String:
+	return _hotseat_prompt(_phase_status_message())
 
 
 ## Put the bar back in its own voice after a red refusal. Cheap enough to
@@ -1239,11 +1254,7 @@ static func _fe_phase_name(step: int) -> String:
 ##                              combat ones, full stops included
 ##   @PROMPT_STILLTHINKING:954  Still thinking...
 ##   @DIALOG_SHANDALARENDDUEL:514  %s won / You won! / a draw
-func _status_message() -> String:
-	if config.private_hotseat() and not game.game_over:
-		var who := DuelConfig.seat_label(_private_decision_seat())
-		if not _hotseat_revealed:
-			return "%s — Show hand when the other player looks away." % who
+func _phase_status_message() -> String:
 	if game.game_over:
 		if game.winner < 0:
 			return "The duel is a draw"
@@ -1261,6 +1272,10 @@ func _status_message() -> String:
 	# trigger (`@PROMPT_CHECKFEPHASE` entry 4).
 	if game.awaiting_choice != null:
 		var asking: PlayerChoice = game.awaiting_choice
+		# A pre-cast picker may name a still-private source. Keep a useful
+		# instruction while its hand is hidden, without disclosing that card.
+		if config.private_hotseat() and not _hotseat_revealed:
+			return "Make your choice."
 		if asking.source != "":
 			return "Process %s" % asking.source
 		return "Paused"
@@ -5238,8 +5253,6 @@ func _sync_hotseat() -> void:
 		_cancel_advance()
 		_conceal_private_views()
 	hidden_hands.assign([1 - _hotseat_seat] if _hotseat_revealed else [0, 1])
-	if not _hotseat_revealed and game.turn_number > 0 and not game.game_over:
-		_set_prompt("%s — Show hand when the other player looks away." % DuelConfig.seat_label(_hotseat_seat))
 
 
 func _toggle_hotseat_hand(pid: int) -> void:

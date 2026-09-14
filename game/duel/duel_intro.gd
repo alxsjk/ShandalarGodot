@@ -24,6 +24,9 @@ extends VersusPanel
 ## must never dismiss itself.
 const TIMEOUT := 5.0
 
+## [QoL] One shared reminder before a private duel, never a phase prompt.
+const HOTSEAT_NOTICE := "Dear players, only show your hand when your opponent looks away. Good luck!"
+
 signal go_pressed
 signal reconfigure_pressed
 
@@ -32,6 +35,20 @@ var _left := TIMEOUT
 
 func build(config: DuelConfig) -> void:
 	var board := build_panel(config)
+	if config.private_hotseat():
+		# Use the spare title band above the portraits. A fixed-width holder
+		# lets the sentence wrap without moving the faces, names or buttons.
+		var band := Control.new()
+		band.position = Vector2(18, 8)
+		band.size = Vector2(SPLASH.x - 36, 44)
+		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		board.add_child(band)
+		var notice := make_label(HOTSEAT_NOTICE, 15)
+		notice.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		notice.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		band.add_child(notice)
 
 	# The two ways out that are not a timer. `Reconfigure duel` is the
 	# door back to the screen that set this up — the owner's ask, and the

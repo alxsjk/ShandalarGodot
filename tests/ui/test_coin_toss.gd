@@ -325,6 +325,126 @@ func test_every_deck_colour_has_a_coin_face() -> void:
 
 # --------------------------------------------------------------- headless --
 
+func _watch_video(toss: CoinToss, panel: Control, face: int, done: Array) -> void:
+	await toss._play_video(panel, face)
+	done.append(true)
+
+
+func _video_fixture() -> CoinToss:
+	_install_fake_video(4, 3, 10, 32, 24, 1.0)
+	var toss := CoinToss.new()
+	add_child_autofree(toss)
+	var panel := toss._build_panel(CoinToss.panel_size_for(DuelOptions.COIN_VIDEO,
+		CoinToss.video_meta(CoinToss.HEADS)))
+	toss.add_child(panel)
+	return toss
+
+
+func _press_at(button: MouseButton, pressed := true) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	event.button_index = button
+	event.pressed = pressed
+	event.position = Vector2(8, 8)
+	event.global_position = event.position
+	return event
+
+
+func test_a_click_skips_either_movie_to_its_existing_result(face = use_parameters([0, 1])) -> void:
+	var toss := _video_fixture()
+	watch_signals(toss)
+	var panel := toss.get_child(0) as Control
+	var done: Array = []
+	_watch_video(toss, panel, face, done)
+	await get_tree().process_frame
+	assert_true(done.is_empty(), "the ten-second movie is still playing")
+	get_viewport().push_input(_press_at(MOUSE_BUTTON_LEFT), true)
+	get_viewport().push_input(_press_at(MOUSE_BUTTON_LEFT), true)
+	assert_signal_emit_count(toss, "video_skipped", 1,
+		"repeat input cannot send the sound-stop notification twice")
+	for i in 3:
+		await get_tree().process_frame
+	assert_eq(done.size(), 1, "one click ends playback without waiting for the movie")
+	var film := panel.get_child(panel.get_child_count() - 1) as TextureRect
+	var atlas := film.texture as AtlasTexture
+	assert_eq(atlas.region, Rect2(CoinToss.video_frame_rect(CoinToss.video_meta(face), 9)),
+		"show the chosen movie's final face, never the frame interrupted mid-toss")
+	get_viewport().push_input(_press_at(MOUSE_BUTTON_LEFT, false), true)
+	# Also cleanly ends the before-fix reproduction instead of leaving a
+	# ten-second coroutine behind after the failing assertions.
+	panel.queue_free()
+	for i in 2:
+		await get_tree().process_frame
+
+
+func test_a_touch_press_skips_the_movie() -> void:
+	var toss := _video_fixture()
+	var panel := toss.get_child(0) as Control
+	var done: Array = []
+	_watch_video(toss, panel, CoinToss.HEADS, done)
+	var tap := InputEventScreenTouch.new()
+	tap.pressed = true
+	tap.position = Vector2(8, 8)
+	get_viewport().push_input(tap, true)
+	for i in 3:
+		await get_tree().process_frame
+	assert_eq(done.size(), 1, "touchscreens can skip the original movie too")
+	tap.pressed = false
+	get_viewport().push_input(tap, true)
+	panel.queue_free()
+	for i in 2:
+		await get_tree().process_frame
+
+
+func test_skipping_requires_a_fresh_press_during_each_movie() -> void:
+	var toss := _video_fixture()
+	var panel := toss.get_child(0) as Control
+	# The click that starts a duel, or a click on the result, is not a
+	# request to skip a later movie on this same presenter.
+	get_viewport().push_input(_press_at(MOUSE_BUTTON_LEFT), true)
+	for replay in 2:
+		var done: Array = []
+		_watch_video(toss, panel, CoinToss.HEADS, done)
+		get_viewport().push_input(_press_at(MOUSE_BUTTON_LEFT, false), true)
+		get_viewport().push_input(_press_at(MOUSE_BUTTON_WHEEL_DOWN), true)
+		get_viewport().push_input(InputEventMouseMotion.new(), true)
+		for i in 3:
+			await get_tree().process_frame
+		assert_true(done.is_empty(), "releases, scrolling and motion cannot skip")
+		get_viewport().push_input(_press_at(MOUSE_BUTTON_LEFT), true)
+		assert_true(get_viewport().is_input_handled(), "consume the skip press before GUI input")
+		for i in 3:
+			await get_tree().process_frame
+		assert_eq(done.size(), 1, "one completion per movie")
+		assert_false(toss._video_playing, "the result is no longer a skippable movie")
+		get_viewport().push_input(_press_at(MOUSE_BUTTON_LEFT, false), true)
+	panel.queue_free()
+	for i in 2:
+		await get_tree().process_frame
+
+
+func test_the_movie_still_finishes_naturally_and_disarms_skip() -> void:
+	var toss := _video_fixture()
+	_install_fake_video(2, 1, 2, 32, 24, 100.0)
+	var done: Array = []
+	_watch_video(toss, toss.get_child(0), CoinToss.TAILS, done)
+	await get_tree().create_timer(0.1).timeout
+	assert_eq(done.size(), 1, "no click is required")
+	assert_false(toss._video_playing)
+	assert_false(toss._video_skip_requested)
+
+
+func test_closing_the_movie_panel_disarms_skip() -> void:
+	var toss := _video_fixture()
+	var panel := toss.get_child(0) as Control
+	var done: Array = []
+	_watch_video(toss, panel, CoinToss.HEADS, done)
+	panel.queue_free()
+	for i in 3:
+		await get_tree().process_frame
+	assert_eq(done.size(), 1, "closing cannot leave playback waiting")
+	assert_false(toss._video_playing)
+
+
 func test_headless_presents_nothing_and_waits_for_nothing() -> void:
 	# The suite and the Deck Lab both run headless and must gain no wait
 	# they did not have. Every mode, because the gate is in run() and not

@@ -155,8 +155,19 @@ func play(key: String) -> void:
 	if stream == null:
 		return          # the player has no 1997 sounds; that is fine
 	var voice := _free_voice()
+	voice.set_meta("cue_key", key)
 	voice.stream = stream
 	voice.play()
+
+
+## Stop only this cue, not other effects or music. The key follows voice
+## reuse so skipping a movie can never silence the next sound in its slot.
+func stop(key: String) -> void:
+	if key == "":
+		return
+	for voice in _voices:
+		if voice.get_meta("cue_key", "") == key:
+			voice.stop()
 
 
 ## Where the round-robin steal will take its next victim from.

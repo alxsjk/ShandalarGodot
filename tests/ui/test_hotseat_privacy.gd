@@ -51,6 +51,125 @@ func test_match_keeps_private_hotseat_for_every_duel() -> void:
 	match_screen.free()
 
 
+func test_hidden_hands_keep_named_phase_and_response_prompts(pid = use_parameters([0, 1])) -> void:
+	_stand(pid)
+	var phase := "%s — Main phase (before combat): cast spells, play land" % DuelConfig.seat_label(pid)
+	assert_eq(screen._status_message(), phase)
+	for i in 3:
+		screen._refresh()
+		assert_eq(screen._prompt_label.text, phase)
+	_hand(pid).toggle_button.pressed.emit()
+	_hand(pid).toggle_button.pressed.emit()
+	assert_eq(screen._prompt_label.text, phase, "hiding does not replace the phase")
+	_hand(pid).opponent_button.pressed.emit()
+	var response := "%s — Fast Effects?...Main Phase" % DuelConfig.seat_label(1 - int(pid))
+	assert_eq(screen._status_message(), response)
+	assert_eq(screen._prompt_label.text, response)
+	assert_false(screen._hotseat_revealed)
+
+
+func test_concealed_blockers_keep_their_instruction_across_refreshes(pid = use_parameters([0, 1])) -> void:
+	var defender := 1 - int(pid)
+	var attacker := put_battlefield(pid, "Grizzly Bears")
+	var blocker := put_battlefield(defender, "Grizzly Bears")
+	_stand(pid)
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS))
+	screen._refresh()
+	assert_eq(screen._prompt_label.text,
+		"%s — Combat phase: Choose attackers." % DuelConfig.seat_label(pid))
+	assert_ok(g.declare_attackers(pid, [attacker.id]))
+	screen.mode = DuelScreen.Mode.NORMAL
+	screen._refresh()
+	screen._on_done()
+	assert_true(g.awaiting_blockers)
+	assert_false(screen._hotseat_revealed)
+	var prompt := "%s — Combat phase: Choose blockers." % DuelConfig.seat_label(defender)
+	for i in 3:
+		screen._refresh()
+		assert_eq(screen._prompt_label.text, prompt, "refresh cannot bury the blocker instruction")
+		assert_eq(screen._status_message(), prompt)
+	_hand(defender).toggle_button.pressed.emit()
+	_hand(defender).toggle_button.pressed.emit()
+	assert_eq(screen._prompt_label.text, prompt, "Show/Hide never replaces the instruction")
+	# Battlefield choices are public: declaring blockers does not require
+	# exposing a hand. Preserve the more specific second-click instruction.
+	screen._on_card_clicked(blocker)
+	screen._refresh()
+	assert_eq(screen._prompt_label.text,
+		"%s — Block which attacker?" % DuelConfig.seat_label(defender))
+	screen._on_card_clicked(attacker)
+	assert_eq(screen._prompt_label.text, prompt)
+	screen._on_done()
+	assert_false(g.awaiting_blockers)
+
+
+func test_hidden_choice_asks_the_right_player_without_naming_private_cards() -> void:
+	_stand(0)
+	var choice := PlayerChoice.new(PlayerChoice.Kind.DISCARD, 1, "Choose a card.")
+	choice.count = 1
+	choice.source = "Private source"
+	choice.candidates.assign(g.players[1].hand)
+	g.awaiting_choice = choice
+	screen._refresh()
+	assert_eq(screen._prompt_label.text, "Player 2 (above) — Make your choice.")
+	assert_null(screen._choice_overlay)
+	assert_false(screen._hotseat_revealed)
+	_hand(1).toggle_button.pressed.emit()
+	assert_eq(screen._prompt_label.text, "Player 2 (above) — Process Private source")
+	_hand(1).toggle_button.pressed.emit()
+	assert_eq(screen._prompt_label.text, "Player 2 (above) — Make your choice.")
+
+
+func test_hidden_damage_assignment_names_the_assigner(pid = use_parameters([0, 1])) -> void:
+	var defender := 1 - int(pid)
+	var giant := put_battlefield(pid, "Hill Giant")
+	var first := put_battlefield(defender, "Grizzly Bears")
+	var second := put_battlefield(defender, "Grizzly Bears")
+	_stand(pid)
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS))
+	assert_ok(g.declare_attackers(pid, [giant.id]))
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_BLOCKERS))
+	assert_ok(g.declare_blockers(defender, {first.id: giant.id, second.id: giant.id}))
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
+	screen._refresh()
+	assert_true(g.awaiting_damage_assignment)
+	assert_false(screen._hotseat_revealed)
+	var prefix := DuelConfig.seat_label(pid) + " — Hill Giant: Assign damage to blockers, "
+	assert_eq(screen._prompt_label.text, prefix + "3 points left")
+	screen._refresh()
+	assert_eq(screen._prompt_label.text, prefix + "3 points left")
+	screen._on_card_clicked(first)
+	assert_eq(screen._prompt_label.text, prefix + "2 points left")
+
+
+func test_hidden_discard_keeps_the_instruction_and_count(pid = use_parameters([0, 1])) -> void:
+	_stand(pid)
+	while g.players[pid].hand.size() <= 7:
+		give_hand(pid, "Forest")
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.CLEANUP))
+	screen._refresh()
+	assert_true(g.awaiting_discard)
+	assert_false(screen._hotseat_revealed)
+	var prompt := "%s — Select card to discard. (0 of %d)" % [DuelConfig.seat_label(pid), g.discard_count]
+	screen._refresh()
+	assert_eq(screen._prompt_label.text, prompt)
+	_hand(pid).toggle_button.pressed.emit()
+	assert_eq(screen._prompt_label.text, prompt)
+	_hand(pid).toggle_button.pressed.emit()
+	assert_eq(screen._prompt_label.text, prompt)
+
+
+func test_hidden_refresh_preserves_a_refusal_until_it_expires() -> void:
+	_stand(0)
+	screen._report("Illegal target.")
+	screen._refresh()
+	assert_string_contains(screen._prompt_label.text, "Illegal target.")
+	assert_eq(screen._prompt_label.get_theme_color("font_color"), DuelScreen.WARNING)
+	screen._on_flash_expired()
+	assert_eq(screen._prompt_label.text, screen._status_message())
+	assert_false(screen._prompt_label.text.contains("looks away"))
+
+
 func after_each() -> void:
 	# Refresh removes old card widgets immediately and frees them at frame end.
 	await get_tree().process_frame

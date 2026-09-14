@@ -97,3 +97,18 @@ func test_reconfigure_says_so_rather_than_starting_the_duel() -> void:
 		if (button as Button).text == "Reconfigure duel":
 			(button as Button).pressed.emit()
 	assert_eq(heard, ["back"])
+
+
+func test_only_private_hotseat_gets_the_opening_hand_reminder() -> void:
+	var config := _config()
+	config.hotseat_privacy = true
+	var intro := _intro(config)
+	await get_tree().process_frame
+	var notice := "Dear players, only show your hand when your opponent looks away. Good luck!"
+	assert_eq(_texts(intro).count(notice), 1, "one reminder on the opening screen")
+	for other in [_config(), DuelConfig.demo_default(), DuelConfig.vs_ai_default(AiProfile.wizard())]:
+		assert_false(_texts(_intro(other)).has(notice))
+	var pause := DuelPause.new()
+	add_child_autofree(pause)
+	pause.build(config)
+	assert_false(_texts(pause).has(notice), "the pause screen must not repeat the opening reminder")

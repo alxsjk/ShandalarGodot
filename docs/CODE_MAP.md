@@ -3079,7 +3079,9 @@ shandalar/
 │    tests/ui/test_duel_sound.gd — the 1997 sound table: a spell sounds
 │    like its card TYPE, a land like the COLOURS IT MAKES, a five-colour
 │    land is silent, mana burn has its own cue, and no spell may ever
-│    borrow a land sound again. test_duel_screen.gd checks actual burns
+│    borrow a land sound again; stopping one cue preserves other cues,
+│    even when a voice is reused or two cues share a sample.
+│    test_duel_screen.gd checks actual burns
 │    reaching audio for both seats, including silent off/empty cases;
 │    tests/ui/test_demo_seat_wiring.gd — demo view stays on bottom seat 0:
 │    phase highlights/controls, combat colours and lanes agree with the
@@ -3094,6 +3096,8 @@ shandalar/
 │    explicit Opponent interjections/counterspells, required decisions,
 │    turn handoff concealment, independent dragging with both buttons,
 │    resolution-safe passes and modal-safe Hide without answering a choice;
+│    named phase/decision prompts survive concealment and repeated refreshes,
+│    including blockers, damage assignment, discard and private choices;
 │    tests/ui/test_land_art.gd — a land retuned to a basic type wears that
 │    land's art (Blood Moon, Evil Presence) and gets its own back when the
 │    effect goes;
@@ -3570,7 +3574,9 @@ shandalar/
 │    1997 registry 0/1 still reads into it), each mode selects its own
 │    path, the video DEGRADES to our animation when the footage is not
 │    imported and says why, the movie's frame clock is pure and plays
-│    once, the instant badge points at the winning seat's half and names
+│    once, click/tap skips to the same final face without accepting
+│    releases or wheel input, skip resets per movie and disarms on exit,
+│    the instant badge points at the winning seat's half and names
 │    it, the coin lands where the engine decided, and the whole file
 │    carries no randomness of its own;
 │    tests/ui/test_territory_ground.gd — `Your territory background`, the
@@ -3843,7 +3849,9 @@ shandalar/
 │    not greyed, once the run is over — the Gauntlet Options window
 │    against @DIALOG_GAUNTLETOPTIONS entry for entry with no opponent
 │    picker anywhere on it plus `Create Deck...` between `Run the
-│    gauntlet` and `Exit`, the next-opponent window and that its OK is
+│    gauntlet` and `Exit`, bounded deck selection and a centered title
+│    with the shipped roster, long custom names or fallback fonts,
+│    the next-opponent window and that its OK is
 │    what puts the match up, an unreadable opponent deck ending the run,
 │    YOUR deck refused in @GAUNTLETERRORS' `Player's deck %s is invalid.`
 │    words rather than silently swapped for the default (unreadable, a
@@ -5147,7 +5155,9 @@ shandalar/
 │   ├── duel/duel_intro.gd   class DuelIntro — THE PRE-DUEL SPLASH, between
 │   │                          "Go" and the coin toss as the original has
 │   │                          it: a VersusPanel with both duelists'
-│   │                          "playing with <deck>" lines. Leaves on Go!,
+│   │                          "playing with <deck>" lines. Private hotseat
+│   │                          gets one reminder in the opening title band,
+│   │                          never in the pause or phase bar. Leaves on Go!,
 │   │                          on Reconfigure duel (back to the setup
 │   │                          screen) or after 5 s, which is what keeps an
 │   │                          AI demo moving
@@ -6574,8 +6584,13 @@ shandalar/
 │       │                      that seat's half of the table, and the
 │       │                      seat's name. `ShowCoinFlips` is the 1997
 │       │                      boolean VIEW of that three-way and still
-│       │                      reads a 1997 registry 0/1. Reports the
-│       │                      toss, never decides it: the winner comes
+│       │                      reads a 1997 registry 0/1. A click/tap
+│       │                      skips the video to its existing result;
+│       │                      consumes that press, keeps the winner's
+│       │                      normal announcement and play/draw choice.
+│       │                      video_skipped stops only the toss sound.
+│       │                      Reports the toss, never decides it: the
+│       │                      winner comes
 │       │                      off game.rng in DuelScreen._new_game and
 │       │                      every function here takes it as an
 │       │                      argument. Headless builds nothing
@@ -6664,7 +6679,9 @@ shandalar/
 │       │                      tune. One voice per CUE per frame, so a
 │       │                      five-way combat is one Damage.wav and the
 │       │                      opening deal one Draw.wav, while different
-│       │                      cues layer. Moved out of duel_screen.gd on
+│       │                      cues layer. stop(key) stops only matching
+│       │                      voices, with cue ownership updated on reuse;
+│       │                      music is separate. Moved out of duel_screen.gd on
 │       │                      2026-09-02 with three timing corrections —
 │       │                      see docs/duel-todo.md §3.8. Discard.wav
 │       │                      (functions.c:14861, INSIDE the discard,

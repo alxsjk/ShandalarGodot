@@ -203,6 +203,28 @@ const VIDEO_TIMEOUT := 15.0
 ## blocking. Fitted, never stretched.
 const VIDEO_MAX := Vector2(360, 270)
 
+## Let the caller stop the movie's separate sound cue, once per skip.
+signal video_skipped
+
+var _video_playing := false
+var _video_skip_requested := false
+
+
+## [QoL] Skip only the movie, never the already chosen result or the
+## following play/draw question. Handle the press before it reaches GUI
+## controls; releases, wheel events and other presentation modes ignore it.
+func _input(event: InputEvent) -> void:
+	if not _video_playing:
+		return
+	var click: bool = event is InputEventMouseButton and event.pressed \
+		and event.button_index == MOUSE_BUTTON_LEFT
+	var tap: bool = event is InputEventScreenTouch and event.pressed
+	if click or tap:
+		get_viewport().set_input_as_handled()
+		if not _video_skip_requested:
+			_video_skip_requested = true
+			video_skipped.emit()
+
 
 # ------------------------------------------------------- style selection --
 
@@ -359,8 +381,8 @@ func run(config: DuelConfig, winner: int, winner_is_you: bool,
 	# `size =` on top of that is what Godot's "non-equal opposite anchors"
 	# warning is about, and it printed once per duel until it was dropped.
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# The overlay covers the table but must not swallow its clicks — the
-	# panel below is decoration, not a dialog with answers in it.
+	# The panel is decoration, not a dialog with answers in it. Only the
+	# movie's skip press is consumed by _input; the caller blocks the table.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var style := current_style()
@@ -391,6 +413,7 @@ func run(config: DuelConfig, winner: int, winner_is_you: bool,
 
 	var hold := VERDICT_HOLD
 	if style == DuelOptions.COIN_VIDEO:
+		verdict.text = "Click to skip video."
 		await _play_video(panel, face)
 	elif style == DuelOptions.COIN_INSTANT:
 		panel.add_child(result_badge(config, winner, viewer_seat))
@@ -485,6 +508,8 @@ func _spin_coin(panel: Control, config: DuelConfig, winner: int) -> void:
 ## Playback is therefore a region walk over one texture, driven by the
 ## sheet's own recorded frame rate.
 func _play_video(panel: Control, face: int) -> void:
+	_video_playing = false
+	_video_skip_requested = false
 	var meta := video_meta(face)
 	if meta.is_empty():
 		return          # cannot happen through current_style(); cheap guard
@@ -507,17 +532,24 @@ func _play_video(panel: Control, face: int) -> void:
 	var length := minf(video_length(meta), VIDEO_TIMEOUT)
 	var started := Time.get_ticks_msec()
 	var last := -1
+	_video_playing = true
 	while true:
 		var elapsed := (Time.get_ticks_msec() - started) / 1000.0
-		if elapsed >= length:
+		if _video_skip_requested or elapsed >= length:
 			break
 		var index := video_frame_at(meta, elapsed)
 		if index != last:
 			atlas.region = Rect2(video_frame_rect(meta, index))
 			last = index
 		await get_tree().process_frame
-		if not is_instance_valid(self) or not is_instance_valid(panel):
+		if not is_instance_valid(self):
 			return
+		if not is_inside_tree() or not is_instance_valid(panel):
+			_video_playing = false
+			return
+	_video_playing = false
+	# A skip lands on the existing outcome and immediately shows the same
+	# caption/verdict as normal completion. Keep its normal reading time.
 	atlas.region = Rect2(video_frame_rect(meta, int(meta.get("frames", 1)) - 1))
 
 
