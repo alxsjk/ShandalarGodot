@@ -105,9 +105,15 @@ The [DeckLab manual](DeckLab/README.md) has examples and all options.
 Planned features, not part of 0.20.0:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
-- [ ] **Manalink** — online multiplayer duels.
+- [ ] **Manalink** — first, browse, host and join individual online duels;
+  later, host complete tournaments, including booster opening and drafting.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
 - [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
+- [ ] **Community MElo (Magic Elo)** — a big long-term wish: a simple,
+  elegant global player rating and ranking system for the community. :)
+
+Experienced multiplayer, networking and backend developers are especially
+welcome to help bring Manalink, tournaments and community rankings to life.
 
 See the [development roadmap](docs/ROADMAP.md#major-features-for-the-future)
 for the longer record.
