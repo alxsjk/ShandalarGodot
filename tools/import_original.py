@@ -1064,6 +1064,10 @@ MANIFEST: dict[str, list[str]] = {
     "sfx_discard.wav":       duel_sound("Discard.wav"),
     "sfx_end_turn.wav":      duel_sound("EndTurn.wav"),
     "sfx_life_loss.wav":     duel_sound("LifeLoss.wav"),
+    # The dedicated burn cue, not LifeLoss.wav. WAV_MANABURN = 42
+    # (defs.h:2230; produce_mana.c:1463-1474). Keep the same installed
+    # folder-first policy as the other cues; no original bytes in source.
+    "sfx_mana_burn.wav":     duel_sound("ManaBurn.wav"),
     # `EndPhase.wav` IS DELIBERATELY NOT IMPORTED, and this note is here so
     # that nobody adds it back on the strength of the enum.
     #

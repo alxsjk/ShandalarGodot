@@ -21,6 +21,11 @@ var portraits: Array[String] = ["", ""]
 var lives: Array[int] = [20, 20]
 ## Per-seat pilot: null = human, or an AiProfile for an AI seat.
 var pilots: Array = [null, null]
+## Pass-and-play privacy, enabled by battle setup for Hotseat. Bare configs
+## and hotseat_default remain open two-human fixtures for tools and tests.
+var hotseat_privacy := false
+
+
 ## Separate opt-in challenge, not an AiProfile knob or a fair ladder rung.
 var unfair: Array[bool] = [false, false]
 ## Seconds between AI actions (demo mode slows this for followability).
@@ -69,6 +74,14 @@ var deck_format := DeckFormat.UNRESTRICTED
 var rng_seed := 0
 
 
+func private_hotseat() -> bool:
+	return hotseat_privacy and not is_ai(0) and not is_ai(1)
+
+
+static func seat_label(pid: int) -> String:
+	return "Player %d (%s playfield)" % [pid + 1, "bottom" if pid == 0 else "top"]
+
+
 func is_ai(pid: int) -> bool:
 	return pilots[pid] != null
 
@@ -87,8 +100,9 @@ func challenge_label() -> String:
 	return "Unfair · Hand knowledge (seat %s)" % ", ".join(seats)
 
 
-## Hands rendered face-down: AI seats in mixed games; nothing in hotseat;
-## nothing in a demo (watching both hands is the point of a demo).
+## Static visibility for mixed games and open fixtures. Private hotseat
+## concealment is managed per decision by DuelScreen, not by pilot type.
+## Nothing is hidden in a demo (watching both hands is the point).
 func hidden_seats() -> Array[int]:
 	var hidden: Array[int] = []
 	if is_ai(0) and is_ai(1):

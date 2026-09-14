@@ -152,6 +152,8 @@ var _buttons: Array[Button] = []
 ## [method show_hand]; null until a seat has a hand to show.
 var _hand: StackHand = null
 var _hand_shown: Array = []
+var _hand_pid := -1
+var _hand_revealed := false
 ## THE EXAMINE POPUP for a card in that hand: the original's centred one
 ## (an undocked [CardPreview] parks itself in the middle of the screen and
 ## clears the moment the pointer leaves), NOT the sidebar's docked
@@ -239,7 +241,7 @@ func _init() -> void:
 ##
 ## An empty ante (a duel not played for ante) shows the card BACK and no
 ## caption, so the window still reads as the original's window.
-func show_antes(game: MtgGame, viewer: int) -> void:
+func show_antes(game: MtgGame, viewer: int, private := false) -> void:
 	for seat in 2:
 		var pid := viewer if seat == 0 else game.opponent_of(viewer)
 		var pile: Array[CardInstance] = game.players[pid].ante
@@ -252,6 +254,8 @@ func show_antes(game: MtgGame, viewer: int) -> void:
 			continue
 		caption.text = OpeningHand.MULLIGAN["your_ante"] if pid == viewer \
 			else OpeningHand.MULLIGAN["their_ante"] % game.players[pid].player_name
+		if private:
+			caption.text = "%s ante:" % DuelConfig.seat_label(pid)
 		# The stake is one card in every duel we deal; a bigger stake shows
 		# its top card here and the rest through `View both antes`.
 		_shown[seat] = pile[0]
@@ -267,20 +271,54 @@ func show_antes(game: MtgGame, viewer: int) -> void:
 ## the deck's colour, as the duel's own window wears it ("" keeps the
 ## last, or the plain frame). Nothing in it answers a click — the opening
 ## asks with its buttons — but a hovered card shows in the examine popup.
-func show_hand(game: MtgGame, pid: int, color_name := "") -> void:
+func show_hand(game: MtgGame, pid: int, color_name := "", private := false) -> void:
 	if _hand == null:
-		_hand = StackHand.new()
+		_hand = HotseatHand.new() if private else StackHand.new()
 		_hand.pinned = true
 		_hand.preview = _examine
+		if _hand is HotseatHand:
+			_hand.visibility_toggled.connect(_toggle_private_hand)
 		_dialog.add_child(_hand)
+	if pid != _hand_pid:
+		_hand_revealed = false
+		_examine.show_back()
+		_examine.visible = false
+	_hand_pid = pid
 	if color_name != "":
 		_hand.set_deck_color(color_name)
 	_hand_shown = game.players[pid].hand.duplicate()
+	_render_hand()
+
+
+func _render_hand() -> void:
+	if _hand is HotseatHand:
+		_hand.seat = _hand_pid
+		_hand.present(_hand_shown, true, _hand_revealed, _examine,
+			func(_inst: CardInstance): pass,
+			func(_inst: CardInstance): return MiniCard.Highlight.NONE)
+		_hand.position = (HAND_CENTRE - _hand.size / 2.0).round()
+		return
 	_hand.populate(_hand_shown, false,
 		func(_inst: CardInstance) -> void: pass,
 		func(_inst: CardInstance) -> int: return MiniCard.Highlight.NONE)
 	# Re-centred on every call: the stack is as tall as its cards.
 	_hand.position = (HAND_CENTRE - _hand.size / 2.0).round()
+
+
+func _toggle_private_hand() -> void:
+	_hand_revealed = not _hand_revealed
+	if not _hand_revealed:
+		_examine.show_back()
+		_examine.visible = false
+	_render_hand()
+
+
+func conceal_hand() -> void:
+	_hand_revealed = false
+	_examine.show_back()
+	_examine.visible = false
+	if _hand != null:
+		_render_hand()
 
 
 ## `@DIALOG_MULLIGAN` entries 1-2 — the window's first line.

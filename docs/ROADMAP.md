@@ -12675,6 +12675,138 @@ commit, push, export a release, modify ratings or use the player's profile.
 Production changes are platform-neutral GDScript; no platform/export settings
 were changed.
 
+## 2026-09-14 — Mana-burn sound
+
+Playtesting found two omissions: the engine applied mana burn without a
+presentation event, and the skin importer omitted `ManaBurn.wav`. Actual
+positive burns now announce `MANA_BURN {player, amount}` after both seats'
+life losses and pool clears. The duel plays `sfx_mana_burn` through the
+existing SFX bus, volume/mute settings and per-frame coalescing. Empty
+pools, disabled mana burn and speculative search stay silent. Mana burn
+remains life loss, not damage; its rules and player-facing default are
+unchanged.
+
+The cue mapping is corroborated by the local Manalink source:
+`src/defs.h:2230` (`WAV_MANABURN = 42`) and
+`src/functions/produce_mana.c:1463–1474`. The importer uses the player's
+installed sound, with the same folder-first lookup as the other effects;
+no original audio is added to the source repository.
+
+Existing v0.20.0 binaries and skin packs are unchanged. The next packaged
+build needs both the code fix and the updated skin: old packs lack
+`sfx_mana_burn.wav`. Reimporting an original installation with the updated
+tools includes it; a loose copy of that named file in the desktop `skin/`
+folder can also supplement an existing pack in a patched build.
+
+Regression coverage includes either seat, zero/off cases, restricted mana,
+simultaneous lethal burns, undo/search silence, live-screen event routing,
+SFX playback and case-insensitive installed-file import.
+
+Verification: full GUT gate **6,250 tests / 231,834 assertions**, 365
+scripts, 208.389 seconds, wrapper exit 0. Python tools: **227 tests**, one
+platform skip, exit 0. Native Mac seed-92000 live-screen soaks completed
+all four duels: modern demo 16 turns / 20.3s and human 19 turns / 21.5s /
+155 clicks; Fifth Edition demo 16 turns / 20.5s and human 14 turns /
+20.6s / 146 clicks. Both wrappers exited 0 with no ERROR/WARNING/STALL
+lines. Tests used the isolated profile; Windows, Linux and browser
+runtimes were not exercised. Production changes are platform-neutral.
+The source changes remain local on the existing
+branch; no commit, push, export or published release asset was changed.
+
+## 2026-09-14 — Demo battlefield and control alignment
+
+Reproduced the playtest report before changing production code. The new
+`tests/ui/test_demo_seat_wiring.gd` reported
+`[1] expected to equal [0]: demo view must stay on the bottom seat`;
+the lower seat's phase highlight was `[0, 3]` instead of `[1, 3]`.
+Both attackers' combat lanes were reversed too. Three of four regression
+tests failed (13 assertions), while the sidebar/zone ownership test passed.
+
+`DuelScreen._human_seat()` selected seat 1 whenever seat 0 was not human,
+including demos where neither seat is human. The board and sidebar always
+put seat 0 below seat 1. The no-human viewing fallback is now seat 0, so
+phase highlights, phase-control keys, combat colours and combat lanes agree
+with those fixed positions. The existing real-human selection is unchanged;
+the viewing fallback does not grant control over either AI's cards.
+
+The regression suite checks both seats' turns and attacks, priority changes,
+portrait/name/deck identity, life/mana/zone counts, deck and face menu
+bindings, and the actual upper/lower panel geometry. The same four tests
+then passed all 62 assertions with the fix.
+
+Full regression gate, including the preceding mana-burn fix: **6,254 tests /
+231,896 assertions**, 366 scripts, 206.727 seconds, wrapper exit 0.
+Python tools: **227 tests**, one platform skip, exit 0. Changes remain
+local on the existing branch; no commit, push or release rebuild in this
+pass. The UI fix is platform-neutral and changes no AI decision policy.
+
+Native Mac seed-92000 soaks: modern demo 16 turns / 20.3s, human 19 turns /
+21.5s / 155 clicks; Fifth Edition demo 16 turns / 20.5s, human 14 turns /
+20.5s / 146 clicks. All four duels finished, both wrappers exited 0 with
+no ERROR/WARNING/STALL lines, and winners, final life and turn counts
+matched the preceding mana-burn verification. Tests used the isolated
+profile. Windows, Linux and browser runtimes were not exercised here.
+
+## 2026-09-14 — Private hotseat hands
+
+Reproduced the reported hotseat presentation before the functional change:
+both engine battlefields were empty, but the upper hand was a row of
+exposed card widgets rather than a hand stack. Neither hand was concealed,
+and the toss badge said "Your seat" instead of naming the player. The two
+new regression tests failed five assertions on the old presentation.
+
+Battle setup now always enables private pass-and-play for Hotseat, including
+each duel copied by MatchScreen. Player 1 remains below and Player 2 above;
+the toss, opening order and victory message explicitly identify the seat.
+The deciding player gets a hand stack with anonymous card backs and
+a Show hand / Hide hand toggle to its right. Both stacks drag independently
+by their title bars and carry their buttons with them. Positions stay local
+to the duel; neither overwrites the solo hand's saved position. The other
+seat has only its hand count. Opening hands and mulligans use a pinned copy
+of the same private stack. H also toggles hand visibility during play;
+private reveals are never persisted. The button cannot take keyboard focus
+away from the duel's Enter/Space commands, and edge dragging keeps the
+entire button on screen.
+
+Control follows the player who owes a decision, including responses,
+blockers, discard and engine choices, without changing physical board or
+phase-strip ownership. Each player handoff and new turn conceals both hands
+and clears the enlarged preview. Hidden draws and stale hover callbacks
+cannot refill it. Concealing a private engine-choice overlay leaves its
+question unanswered; concealing an unannounced cast cancels its local
+picker without casting or paying for it. Open two-human configs remain
+available to existing tools/tests; normal battle setup has no privacy-off
+option. Demos and human-versus-computer visibility are unchanged.
+
+This is a local pass-and-play courtesy, not an access-control boundary:
+the other player must look away when a hand is deliberately revealed.
+It changes no rules, AI policy or hidden-information permissions.
+
+Validation: the full GUT gate passed **6,265 tests / 232,078 assertions**
+(367 scripts, 211.488 seconds, wrapper exit 0). Python tools passed
+**227 tests**, with one platform skip. A disposable native-renderer probe
+checked both opening hands, concealment at each handoff, actual mouse
+Show/Hide, independent title-bar dragging with the button attached, land
+play by both players, and modal-safe Hide without answering the private
+choice. The 1280×720 and 1280×800 probes exited 0 without engine warnings
+or errors; the latter also checked Space after clicking Show hand.
+Screenshots were inspected with both empty and populated battlefields.
+After the final keyboard-focus and edge-clamping polish, the focused
+hotseat suite passed **10 tests / 176 assertions** (3.857s, wrapper exit 0).
+
+Native seed-92000 full-duel smoke tests also passed: modern demo 16 turns /
+20.2s and human 19 turns / 21.5s / 155 clicks; Fifth Edition demo 16 turns /
+20.5s and human 14 turns / 20.4s / 146 clicks. All four games finished with
+the same winners/life/turn counts as the preceding baseline; both wrappers
+exited 0 without ERROR/WARNING/STALL. Tests used the isolated profile.
+Windows, Linux and browser runtimes were not exercised. All production
+changes are platform-neutral. No commit, push, export or release asset
+was changed in this pass.
+
+Final pre-publication gate: **6,265 tests / 232,082 assertions**,
+367 scripts, 212.751 seconds, wrapper exit 0. This includes the final
+keyboard-focus and edge-dragging checks on the exact source to be committed.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

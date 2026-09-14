@@ -84,7 +84,7 @@ extends Node
 ## ------------------------------------------------------------------------
 ## `Destroy.wav` (which `deck.c:1158` records is *"the rfg sound effect,
 ## despite its name"*), `Kill.wav`, `Regen.wav`, `Sacrfice.wav`,
-## `ManaBurn.wav`, `Control.wav`, `ChangeC/ChangeT.wav`, `EndPhase.wav`,
+## `Control.wav`, `ChangeC/ChangeT.wav`, `EndPhase.wav`,
 ## `FastFX.wav`, `Counter.wav`. Every one of them needs an engine event we
 ## do not dispatch. `LifeGain.wav` is **not** a 1997 sound at all —
 ## `Duelsounds/sounds.txt` credits it as a Manalink addition, and
@@ -270,6 +270,11 @@ static func cue_for(event: GameEvent) -> String:
 			if event.data.has("to_player"):
 				return "sfx_life_loss"
 			return "sfx_damage"
+		Mtg.EventType.MANA_BURN:
+			# WAV_MANABURN = 42 (defs.h:2230); Manalink's drain path
+			# (produce_mana.c:1463-1474) plays it for an actual burn,
+			# excluding speculation. Not damage or a phase-change cue.
+			return "sfx_mana_burn" if int(event.data.get("amount", 0)) > 0 else ""
 		Mtg.EventType.DIES:
 			return "sfx_buried"            # WAV_BURIED
 		Mtg.EventType.CARD_DISCARDED:

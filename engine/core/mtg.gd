@@ -215,6 +215,9 @@ enum EventType {
 	                      ## No rules code reads it: a card's own
 	                      ## on-discard hook is [member CardData.on_discarded],
 	                      ## which runs after the whole instruction.
+	MANA_BURN,            ## data: {player, amount} — positive life loss from
+	                      ## unspent mana. Both seats' losses and pool clears
+	                      ## are complete before announcement; not DAMAGE_DEALT.
 }
 
 ## What kind of object a StackItem is.

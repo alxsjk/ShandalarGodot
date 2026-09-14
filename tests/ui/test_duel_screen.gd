@@ -29,6 +29,26 @@ func test_starter_decks_are_fully_implemented() -> void:
 			assert_not_null(CardRegistry.get_card(card_name), card_name)
 
 
+func test_mana_burn_reaches_the_duel_sound_layer(params = use_parameters([
+		[0, true, 3], [1, true, 2], [0, false, 3], [0, true, 0]])) -> void:
+	var pid: int = params[0]
+	var enabled: bool = params[1]
+	var amount: int = params[2]
+	screen.game.rules.mana_burn = enabled
+	screen.game.rules.pool_empties_on_attack = false
+	var life := screen.game.players[pid].life
+	screen.game.players[pid].mana_pool.add(Mtg.ManaColor.G, amount)
+	screen._audio.recent.clear()
+	assert_eq(screen.game.pass_priority(screen.game.priority_player), "")
+	assert_eq(screen.game.pass_priority(screen.game.priority_player), "")
+	assert_eq(screen._audio.recent.count("sfx_mana_burn"),
+		1 if enabled and amount > 0 else 0,
+		"the live screen routes actual burns, including the opponent's")
+	assert_eq(screen.game.players[pid].life, life - amount if enabled else life)
+	assert_false(screen._audio.recent.has("sfx_damage"))
+	assert_false(screen._audio.recent.has("sfx_life_loss"))
+
+
 func test_pass_and_fast_forward_advance_the_game() -> void:
 	var turn := screen.game.turn_number
 	var step := Mtg.STEP_ORDER.find(screen.game.current_step())

@@ -197,6 +197,18 @@ func test_the_untap_step_makes_no_sound_at_all() -> void:
 		{"instance": _inst("Forest")}), "")
 
 
+func test_mana_burn_uses_its_own_sound_for_either_seat() -> void:
+	for pid in [0, 1]:
+		assert_eq(_cue(Mtg.EventType.MANA_BURN,
+			{"player": pid, "amount": 3}), "sfx_mana_burn",
+			"ManaBurn.wav, not damage or a phase-change cue")
+
+
+func test_mana_burn_without_life_loss_is_silent() -> void:
+	for payload in [{}, {"player": 0, "amount": 0}, {"player": 1, "amount": -1}]:
+		assert_eq(_cue(Mtg.EventType.MANA_BURN, payload), "")
+
+
 func test_tapping_for_an_ABILITY_taps_audibly_too() -> void:
 	# The original plays WAV_TAP from all three of its tap-to-pay paths:
 	# charging mana (`engine.c:1204`, `:1403`) and playing an ability
@@ -270,6 +282,35 @@ func test_different_cues_in_one_frame_LAYER() -> void:
 	assert_eq(_audio.recent.size(), 3, "three cues, three voices")
 
 
+func test_mana_burn_loads_one_sfx_voice_for_a_shared_boundary() -> void:
+	# A generated silent fixture exercises loading/playback without requiring
+	# original assets in a clean checkout or an audio device in CI.
+	var key := "sfx_mana_burn"
+	var had_cached: bool = GameSkin._sound_cache.has(key)
+	var cached: Variant = GameSkin._sound_cache.get(key)
+	var sample := AudioStreamWAV.new()
+	sample.format = AudioStreamWAV.FORMAT_16_BITS
+	sample.mix_rate = 22050
+	var samples := PackedByteArray()
+	samples.resize(4410)
+	sample.data = samples
+	GameSkin._sound_cache[key] = sample
+	_audio.silent = false
+	for pid in [0, 1]:
+		_audio.on_event(GameEvent.new(Mtg.EventType.MANA_BURN,
+			{"player": pid, "amount": 2}))
+	assert_eq(_audio.recent, [key] as Array[String])
+	assert_eq(_audio._voices.size(), 1, "simultaneous burns do not double the volume")
+	if not _audio._voices.is_empty():
+		assert_same(_audio._voices[0].stream, sample)
+		assert_eq(_audio._voices[0].bus, GameAudio.SFX_BUS)
+		assert_true(_audio._voices[0].playing)
+	if had_cached:
+		GameSkin._sound_cache[key] = cached
+	else:
+		GameSkin._sound_cache.erase(key)
+
+
 func test_the_same_cue_may_sound_again_on_a_later_frame() -> void:
 	_audio.recent.clear()
 	_audio.play("sfx_tap")
@@ -336,6 +377,7 @@ func test_every_sound_key_the_duel_names_actually_resolves() -> void:
 		"sfx_attack", "sfx_damage", "sfx_life_loss", "sfx_buried",
 		"sfx_tap", "sfx_untap", "sfx_shuffle", "sfx_discard",
 		"sfx_end_turn", "sfx_toss", "sfx_button", "sfx_win", "sfx_lose"]
+	keys.append("sfx_mana_burn")
 	keys.append_array(DuelAudio.LAND_SOLO_SOUNDS.values())
 	keys.append_array(DuelAudio.LAND_PAIR_SOUNDS.values())
 	if GameSkin.sound("sfx_summon") == null:

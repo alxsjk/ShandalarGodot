@@ -9084,19 +9084,25 @@ func _advance_step() -> void:
 	# the owner's ruling, 2026-08-31). MANA BURN, when switched on, is
 	# charged on whichever boundary applies.
 	if _pool_empties_now():
+		var burns: Array[Dictionary] = []
 		for p in players:
 			if rules.mana_burn:
 				var burned := p.mana_pool.total()
 				if burned > 0:
-					# LIFE LOSS, not damage: prevention shields and Ali
-					# from Cairo's floor do not apply to it. Written here
-					# rather than through adjust_life for exactly that
-					# reason, so it journals itself.
+					# LIFE LOSS, not damage: prevention and damage floors
+					# do not apply. Do not use adjust_life here: its SBA
+					# check would decide lethal before the other seat burns.
+					# Apply/journal both losses before any announcement.
 					_rec(p, &"life")
 					p.life -= burned
 					log_line("Mana Burn! %s loses %d life (life %d)" % [
 						p.player_name, burned, p.life])
+					burns.append({"player": p.id, "amount": burned})
 			p.mana_pool.clear()
+		for burn in burns:
+			# Public fact, never a damage event. dispatch_event suppresses
+			# presentation signals during speculative search as usual.
+			dispatch_event(Mtg.EventType.MANA_BURN, burn)
 	# The 1997 ruleset checks for a dead player at PHASE boundaries; the
 	# modern one has already done it continuously as a state-based action.
 	#

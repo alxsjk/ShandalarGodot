@@ -1408,6 +1408,7 @@ func _start_battle() -> void:
 ## and the name the duel will repeat for it are all decided in here.
 func _build_config() -> DuelConfig:
 	var config := DuelConfig.new()
+	config.hotseat_privacy = _mode == BattleMode.HOTSEAT
 	# The seed is settled BEFORE anything random happens, and travels with
 	# the duel — see the class doc. `<random deck>` reads from `picker`,
 	# a stream of its own seeded from the same number, so it never

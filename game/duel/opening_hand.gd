@@ -127,6 +127,7 @@ var _window: OpeningWindow = null
 var _viewer := -1
 ## Each seat's deck colour, for the hand window's chrome (see `run`).
 var _colors: Array = []
+var _private_hotseat := false
 
 
 func _init() -> void:
@@ -168,9 +169,9 @@ static func announcement(game: MtgGame, pid: int, took: bool,
 
 
 ## Which line reports the toss winner's decision to the other seat.
-static func play_or_draw_line(game: MtgGame, winner: int, plays: bool) -> String:
+static func play_or_draw_line(game: MtgGame, winner: int, plays: bool, private := false) -> String:
 	var key: String = "they_play" if plays else "they_draw"
-	return PLAY_OR_DRAW[key] % game.players[winner].player_name
+	return PLAY_OR_DRAW[key] % (DuelConfig.seat_label(winner) if private else game.players[winner].player_name)
 
 
 ## Run the whole sequence. [param is_human] answers "does this seat need a
@@ -185,10 +186,11 @@ static func play_or_draw_line(game: MtgGame, winner: int, plays: bool) -> String
 ## in the opening window as the duel's own wears it; empty for the plain
 ## frame.
 func run(game: MtgGame, winner: int, is_human: Callable,
-		colors: Array = []) -> void:
+		colors: Array = [], private := false) -> void:
 	_game = game
 	_is_human = is_human
 	_colors = colors
+	_private_hotseat = private
 	# The seat sitting at this screen: the one the window says `Your` to.
 	# In a hotseat both seats are human and the window re-orients onto
 	# whichever one it is asking.
@@ -197,10 +199,12 @@ func run(game: MtgGame, winner: int, is_human: Callable,
 		if _human(pid):
 			_viewer = pid
 			break
+	if _private_hotseat and _human(winner):
+		_viewer = winner
 	if _viewer >= 0 and is_inside_tree():
 		_window = OpeningWindow.new()
 		add_child(_window)
-		_window.show_antes(game, _viewer)
+		_window.show_antes(game, _viewer, _private_hotseat)
 		_show_hand()
 
 	# THE PLAYER PRESSED LAST: -1 until they have, so a duel in which the
@@ -217,9 +221,9 @@ func run(game: MtgGame, winner: int, is_human: Callable,
 		if _window != null:
 			pressed_serial = _window.status_serial
 	var first_player := winner if plays_first else game.opponent_of(winner)
-	announced.emit(play_or_draw_line(game, winner, plays_first))
+	announced.emit(play_or_draw_line(game, winner, plays_first, _private_hotseat))
 	if _window != null:
-		_window.set_lead(lead_line(game, first_player, _viewer))
+		_window.set_lead(lead_line(game, first_player, _viewer, _private_hotseat))
 
 	# 2-3. THE HANDS, the toss winner's first. Each seat looks at its own
 	# hand and keeps or redraws until it keeps; a redraw deals one fewer
@@ -233,8 +237,8 @@ func run(game: MtgGame, winner: int, is_human: Callable,
 			if _human(pid):
 				if _window != null and pid != _viewer:
 					_viewer = pid          # hotseat: turn the window round
-					_window.show_antes(game, _viewer)
-					_window.set_lead(lead_line(game, first_player, _viewer))
+					_window.show_antes(game, _viewer, _private_hotseat)
+					_window.set_lead(lead_line(game, first_player, _viewer, _private_hotseat))
 					_show_hand()
 				took = await _ask_mulligan(pid)
 			else:
@@ -265,6 +269,8 @@ func run(game: MtgGame, winner: int, is_human: Callable,
 	if _window != null and _window.status_serial != pressed_serial:
 		await _window.ask([{"answer": OpeningWindow.Answer.START,
 			"label": MULLIGAN["start"]}])
+	if _window != null and _private_hotseat:
+		_window.conceal_hand()
 	game.start_duel(first_player)
 	if _window != null:
 		# AWAITED: the duel screen frees this node the moment run() returns,
@@ -276,7 +282,9 @@ func run(game: MtgGame, winner: int, is_human: Callable,
 
 ## `@DIALOG_MULLIGAN` entries 1-2 — who takes the first turn, in the second
 ## person for the seat at this screen and by name for the other.
-static func lead_line(game: MtgGame, first_player: int, viewer: int) -> String:
+static func lead_line(game: MtgGame, first_player: int, viewer: int, private := false) -> String:
+	if private:
+		return MULLIGAN["starts"] % DuelConfig.seat_label(first_player)
 	if first_player == viewer:
 		return MULLIGAN["you_start"]
 	return MULLIGAN["starts"] % game.players[first_player].player_name
@@ -293,7 +301,7 @@ func _show_hand() -> void:
 	var color := ""
 	if _viewer < _colors.size():
 		color = str(_colors[_viewer])
-	_window.show_hand(_game, _viewer, color)
+	_window.show_hand(_game, _viewer, color, _private_hotseat)
 
 
 ## `@DIALOG_PLAYORDRAW` entries 4-7, asked in the opening window's own
@@ -303,10 +311,12 @@ func _show_hand() -> void:
 ## order FIRST and look at their hand second — so the row of 2026-09-03
 ## (`Take mulligan` beside the order) is gone with the rule it served.
 ## Returns true for the play.
-func _ask_order(_pid: int) -> bool:
+func _ask_order(pid: int) -> bool:
 	if _window == null:
 		return true
-	_window.set_lead("%s\n%s" % [PLAY_OR_DRAW["you_won"], PLAY_OR_DRAW["ask"]])
+	var verdict := "%s won the coin toss." % DuelConfig.seat_label(pid) \
+		if _private_hotseat else str(PLAY_OR_DRAW["you_won"])
+	_window.set_lead("%s\n%s" % [verdict, PLAY_OR_DRAW["ask"]])
 	var answer := await _window.ask([
 		{"answer": OpeningWindow.Answer.DRAW_FIRST,
 			"label": PLAY_OR_DRAW["draw_first"]},

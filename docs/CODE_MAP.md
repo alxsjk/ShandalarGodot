@@ -94,7 +94,7 @@ shandalar/
 │   │   │                      STEP_ORDER + PRIORITY_STEPS, Keyword,
 │   │   │                      EventType (+ per-event data keys; incl.
 │   │   │                      BECAME_TAPPED, BLOCKED, BLOCKERS_DECLARED,
-│   │   │                      END_OF_COMBAT, ABILITY_ACTIVATED),
+│   │   │                      END_OF_COMBAT, ABILITY_ACTIVATED, MANA_BURN),
 │   │   │                      StackKind,
 │   │   │                      step_name()/is_main_step()/is_combat_step()
 │   │   ├── mana_cost.gd     class ManaCost — parse "{2}{W}{W}"; mana_value(),
@@ -3078,7 +3078,18 @@ shandalar/
 │    card without playing it;
 │    tests/ui/test_duel_sound.gd — the 1997 sound table: a spell sounds
 │    like its card TYPE, a land like the COLOURS IT MAKES, a five-colour
-│    land is silent, and no spell may ever borrow a land sound again;
+│    land is silent, mana burn has its own cue, and no spell may ever
+│    borrow a land sound again. test_duel_screen.gd checks actual burns
+│    reaching audio for both seats, including silent off/empty cases;
+│    tests/ui/test_demo_seat_wiring.gd — demo view stays on bottom seat 0:
+│    phase highlights/controls, combat colours and lanes agree with the
+│    battlefield; portraits, deck names, life/mana/zone counts and pile
+│    menus keep their own seat. Spectators gain no control of AI cards;
+│    tests/ui/test_hotseat_privacy.gd — private opening and mulligan
+│    sequences for either toss winner, fixed named seats, empty initial
+│    battlefields, anonymous concealed stacks, deliberate Show/Hide,
+│    private draws/hover previews, priority/turn handoff concealment,
+│    independent dragging and modal-safe Hide without answering a choice;
 │    tests/ui/test_land_art.gd — a land retuned to a basic type wears that
 │    land's art (Blood Moon, Evil Presence) and gets its own back when the
 │    effect goes;
@@ -6233,6 +6244,12 @@ shandalar/
 │       │                      SHRINKS in its row (see MiniCard._init) so a
 │       │                      short pile is neither stretched nor stranded
 │       │                      at the top of a tall row
+│       ├── hotseat_hand.gd  class HotseatHand — private StackHand variant:
+│       │                      count-only inactive seat, anonymous card
+│       │                      backs until reveal, Show/Hide button on the
+│       │                      right. Independently draggable in the duel;
+│       │                      pinned in the opening window. The toggle
+│       │                      travels with its parent stack.
 │       ├── stack_hand.gd    class StackHand — the ORIGINAL's draggable
 │       │                      hand window (s30 drawHandPanel): the whole
 │       │                      Hand_* window NINE-PATCHED round a CardPile
@@ -6649,6 +6666,11 @@ shandalar/
 │       │                      CARD_DISCARDED event since 2026-09-06, so
 │       │                      a Hymn, a Specter's hit and the AI's own
 │       │                      cleanup sound where only the human's did
+│       │                      before. MANA_BURN now carries positive
+│       │                      {player, amount} life loss after both pools
+│       │                      clear; sfx_mana_burn plays ManaBurn.wav.
+│       │                      Search probes never emit the cue. Engine
+│       │                      regressions: tests/unit/test_mana_burn.gd
 │       ├── duel_log.gd      class DuelLog — THE DUEL LOG (L), [QoL]
 │       │                      2026-09-06: MtgGame.log_lines in a window
 │       │                      on the CombatWindow's pattern — knot

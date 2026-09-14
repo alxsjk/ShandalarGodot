@@ -10,9 +10,9 @@ extends Control
 ## into engine internals — which is exactly what lets the future AI (M4)
 ## replace one seat without any UI rework.
 ##
-## v1 is HOTSEAT: both seats are human; the sidebar says whose input is
-## expected, and both hands render face-up (a deliberate hotseat/dev choice
-## — the vs-AI build hides the opponent's).
+## Hotseat launched from battle setup is private pass-and-play: fixed
+## bottom/top seats, masked hands and explicit Show/Hide at each handoff.
+## Bare scene configs remain open two-human development fixtures.
 
 ## DISCARD is the original's own named phase (`@PROMPT_DISCARD`, "Paused:
 ## Discard phase") and DAMAGE its `%s: Assign damage to blockers, %d points
@@ -53,6 +53,10 @@ var config: DuelConfig = null
 var game: MtgGame
 var mode: int = Mode.NORMAL
 var hidden_hands: Array[int] = []
+## Private hotseat state is local to this duel, never a saved reveal.
+var _hotseat_key: Array = []
+var _hotseat_seat := -1
+var _hotseat_revealed := false
 
 ## THE STOPS the player has marked on the two bars — *"a lasting
 ## instruction"* (manual p.117), loaded from and saved to `Settings`, so it
@@ -139,7 +143,7 @@ var _cancel_button: Button = null
 ## beginning of your own combat with nothing on the chain ([method
 ## _skip_offer_applies]), while Done wears the word `Begin`.
 var _skip_button: Button = null
-var _hand_rows: Array[Control] = []   # [p1 hand (top), p0 hand (bottom fan)]
+var _hand_rows: Array[Control] = []   # [seat 1 hand (top), seat 0 hand (bottom)]
 var _field_rows: Dictionary = {}             # [pid][row] -> SqueezeRow
 # Every centre popup is an OriginalDialog (game/duel/original_dialog.gd)
 # built when it is needed and freed when it is answered — the 1997
@@ -653,7 +657,10 @@ func _new_game() -> void:
 	# resolution to ASK rather than answering on their behalf. Off without
 	# one — an AI-only duel has nobody to ask and nothing to wait for.
 	game.interactive_choices = not _humans.is_empty()
-	hidden_hands = config.hidden_seats()
+	_hotseat_key = []
+	_hotseat_seat = -1
+	_hotseat_revealed = false
+	hidden_hands.assign([0, 1] if config.private_hotseat() else config.hidden_seats())
 	_reset_pacing()
 	# The coin toss (the original's Toss.wav moment): who plays first.
 	# Rolled on game.rng, not the global RNG, so a seeded game replays
@@ -714,6 +721,8 @@ func _on_game_over(winner_id: int) -> void:
 	if winner_id >= 0:
 		verdict = "You won!" if _is_human(winner_id) \
 			else "%s won" % game.players[winner_id].player_name
+		if config.private_hotseat():
+			verdict = "%s won!" % DuelConfig.seat_label(winner_id)
 	# THE OWNER HEARS OF IT NOW, but the duel keeps its last word: the
 	# window below is built only after the countdown, and [MatchScreen]
 	# reads [method result_dialog_open] the moment this signal lands.
@@ -978,15 +987,12 @@ func _on_game_event(event: GameEvent) -> void:
 	# turn 1) leave the Showcase on its card back. Seven cards cannot be
 	# shown one at a time anyway, and the opening window is over them while
 	# they are dealt.
-	# `hidden_hands`, not `_is_human`: the rule is whether this VIEWER may
-	# see that hand. In a duel against the AI its seat is hidden and its
-	# draw stays hidden; at a hotseat both hands are open, and the player
-	# sitting down for their own turn is meant to see the card they just
-	# drew.
+	# Visibility, not pilot type: only an explicitly revealed hotseat
+	# hand may preview its draw. New-turn draws stay masked until reveal.
 	var drawn = event.data.get("instance")
 	var drawer := int(event.data["player"])
 	if drawn != null and game.turn_number >= 1 \
-			and not hidden_hands.has(drawer) \
+			and _may_see_hand(drawer) \
 			and _card_preview != null:
 		_card_preview.show_card(drawn)
 
@@ -1079,13 +1085,13 @@ func _run_opening_hand(winner: int) -> void:
 	add_child(opening)
 	var hidden: Array[Control] = []
 	for pid in 2:
-		if hidden_hands.has(pid) or not _is_human(pid):
+		if not _is_human(pid):
 			continue
 		var row: Control = _hand_rows[1 - pid]
 		if row != null and row.visible:
 			hidden.append(row)
 			row.visible = false
-	await opening.run(game, winner, _is_human, config.panel_colors)
+	await opening.run(game, winner, _is_human, config.panel_colors, config.private_hotseat())
 	for row in hidden:
 		if is_instance_valid(row):
 			row.visible = true
@@ -1225,13 +1231,19 @@ static func _fe_phase_name(step: int) -> String:
 ##   @PROMPT_STILLTHINKING:954  Still thinking...
 ##   @DIALOG_SHANDALARENDDUEL:514  %s won / You won! / a draw
 func _status_message() -> String:
+	if config.private_hotseat() and not game.game_over:
+		var who := DuelConfig.seat_label(_private_decision_seat())
+		if not _hotseat_revealed:
+			return "%s — Show hand when the other player looks away." % who
 	if game.game_over:
 		if game.winner < 0:
 			return "The duel is a draw"
+		if config.private_hotseat():
+			return "%s won!" % DuelConfig.seat_label(game.winner)
 		if _is_human(game.winner):
 			return "You won!"
 		return "%s won" % game.players[game.winner].player_name
-	var human := 0 if _is_human(0) else 1
+	var human := _private_decision_seat() if config.private_hotseat() else (0 if _is_human(0) else 1)
 	var my_turn := game.active_player == human
 	var step := game.current_step()
 	# A resolution held open for a question (§1.3): the overlay carries the
@@ -1327,6 +1339,8 @@ func _status_message() -> String:
 func _on_card_clicked(inst: CardInstance) -> void:
 	if game.game_over or _toss_active:
 		return
+	if inst.zone == Mtg.Zone.HAND and not _may_see_hand(inst.controller_id):
+		return
 	match mode:
 		Mode.TARGETING:
 			_try_take_target(TargetRef.card(inst))
@@ -1411,7 +1425,7 @@ func _ability_highlight(item: StackItem) -> int:
 func _on_life_clicked(pid: int) -> void:
 	if mode == Mode.TARGETING:
 		_try_take_target(TargetRef.player(pid))
-	elif mode == Mode.DAMAGE and pid != _human_seat():
+	elif mode == Mode.DAMAGE and pid != (_private_decision_seat() if config.private_hotseat() else _human_seat()):
 		# Trample's spill: the life register IS the player-target click
 		# (`@MENU_LIFE` = "Target %s" / "Target yourself").
 		_assign_one_point(MtgGame.DAMAGE_TO_PLAYER)
@@ -1508,7 +1522,7 @@ func _open_life_menu(pid: int, at: Vector2) -> void:
 	if _life_menu == null:
 		return
 	_life_menu_pid = pid
-	var mine := _human_seat()
+	var mine := _private_decision_seat() if config.private_hotseat() else _human_seat()
 	var theirs := 1 - mine
 	_life_menu.clear()
 	var labels := DuelistFace.menu_labels(_face_shown(pid),
@@ -1527,9 +1541,10 @@ func _open_life_menu(pid: int, at: Vector2) -> void:
 func _on_life_menu_chosen(id: int) -> void:
 	if _life_menu_pid < 0:
 		return
+	var mine := _private_decision_seat() if config.private_hotseat() else _human_seat()
 	match id:
-		0: _on_life_clicked(1 - _human_seat())
-		1: _on_life_clicked(_human_seat())
+		0: _on_life_clicked(1 - mine)
+		1: _on_life_clicked(mine)
 		DuelistFace.FLIP:
 			_face_flipped[_life_menu_pid] = not _face_flipped[_life_menu_pid]
 			_refresh()
@@ -1769,7 +1784,8 @@ func _repopulate_graveyard() -> void:
 	# BOARD only: the sidebar holds the big card they fill, and a pile
 	# sitting on top of it would hide the very thing hovering is for.
 	_grave_view.board_area = _board_area()
-	_grave_view.populate(game, _human_seat(), legal)
+	_grave_view.populate(game,
+		_private_decision_seat() if config.private_hotseat() else _human_seat(), legal)
 
 
 ## A card in the open view was clicked. While targeting it is a target
@@ -2123,6 +2139,8 @@ func _auto_cast(inst: CardInstance) -> void:
 	if game == null or game.game_over or _toss_active:
 		return
 	if inst.zone != Mtg.Zone.HAND or not _is_human(inst.owner_id):
+		return
+	if not _may_see_hand(inst.owner_id):
 		return
 	if inst.is_land():
 		# *"If you have a land in your hand, click on it to put it into
@@ -2632,6 +2650,7 @@ func _on_mode_canceled() -> void:
 
 func _close_mode_overlay() -> void:
 	if _mode_overlay != null:
+		_mode_overlay.hide()
 		_mode_overlay.queue_free()
 		_mode_overlay = null
 
@@ -3500,6 +3519,8 @@ static func choice_is_multi(choice: PlayerChoice) -> bool:
 func _open_choice_overlay() -> void:
 	if _choice_overlay != null or game.awaiting_choice == null:
 		return
+	if config.private_hotseat() and not _hotseat_revealed:
+		return
 	var choice: PlayerChoice = game.awaiting_choice
 	if not _humans.has(choice.pid) or DisplayServer.get_name() == "headless":
 		return
@@ -3572,6 +3593,21 @@ func _build_choice_overlay(choice: PlayerChoice) -> void:
 		back.pressed.connect(_withdraw_choice)
 		lines.add_child(back)
 	dialog.add_child(lines)
+	_add_private_hide_action(scrim)
+
+
+## Keep Hide reachable without letting mouse input through a modal scrim.
+func _add_private_hide_action(scrim: Control) -> void:
+	if not config.private_hotseat():
+		return
+	# GUI hit testing follows tree order, not a hand button's z-index.
+	var hand := _hand_rows[1 - _hotseat_seat] as HotseatHand
+	var hide_hand := UiChrome.menu_button("Hide hand", hand.toggle_button.size, 14)
+	hide_hand.focus_mode = Control.FOCUS_NONE
+	hide_hand.name = "HidePrivateHand"
+	scrim.add_child(hide_hand)
+	hide_hand.global_position = hand.toggle_button.global_position
+	hide_hand.pressed.connect(_toggle_hotseat_hand.bind(_hotseat_seat))
 
 
 ## The card the question came from, so the overlay can show its face.
@@ -3598,6 +3634,7 @@ func _choice_source_card(choice: PlayerChoice) -> CardInstance:
 
 func _close_choice_overlay() -> void:
 	if _choice_overlay != null:
+		_choice_overlay.hide()
 		_choice_overlay.queue_free()
 		_choice_overlay = null
 
@@ -4011,6 +4048,8 @@ func _required_action_reason() -> String:
 func _advance_stop_reason() -> String:
 	if game == null or game.game_over:
 		return "the duel is over"
+	if config.private_hotseat() and not _hotseat_revealed:
+		return "the other player must reveal their hand"
 	# (1) "any required actions to perform during a specific phase… until
 	# you do what is necessary" — every moment the engine HOLDS open.
 	var held := _required_action_reason()
@@ -4425,6 +4464,8 @@ func _auto_pass_priority() -> bool:
 func _drive_advance() -> void:
 	if _advancing or game == null:
 		return
+	if config.private_hotseat() and not _hotseat_revealed:
+		return
 	# The rest mark belongs to ONE phase; the moment the duel is anywhere
 	# else it has been left manually and is spent.
 	if not _rested_at.is_empty() and _phase_key() != _rested_at:
@@ -4774,6 +4815,7 @@ func _watch_for_extra_turn() -> void:
 func _refresh() -> void:
 	if game == null:
 		return
+	_sync_hotseat()
 	_watch_for_extra_turn()
 	# THE CHOICE OVERLAY (§1.3): the engine holds a resolution open the
 	# moment it finds a question this seat has not answered, and it can do
@@ -5042,9 +5084,97 @@ func _grave_tooltip(pid: int) -> String:
 
 # =================================================== the combat furniture --
 
-## Which seat the human is sitting in (seat 0 unless both are AI).
+## The player who must make the next private decision. Priority matters:
+## instants, blockers and forced choices can belong to the non-active seat.
+func _private_decision_seat() -> int:
+	if game.awaiting_choice != null:
+		return game.awaiting_choice.pid
+	if game.awaiting_damage_assignment:
+		return int(game.damage_assignment_request().get("assigner", game.active_player))
+	if game.awaiting_discard or game.awaiting_attackers:
+		return game.active_player
+	if game.awaiting_blockers:
+		return game.opponent_of(game.active_player)
+	if _pending_card != null:
+		return _pending_pid
+	return game.priority_player
+
+
+func _private_view_key() -> Array:
+	return [_private_decision_seat(), game.turn_number, game.active_player]
+
+
+func _may_see_hand(pid: int) -> bool:
+	if not config.private_hotseat():
+		return not hidden_hands.has(pid)
+	return _hotseat_revealed and pid == _hotseat_seat and _hotseat_key == _private_view_key()
+
+
+func _conceal_private_views() -> void:
+	if _card_preview != null:
+		_card_preview.show_back()
+	_close_choice_overlay()
+	for popup in [_card_menu, _ability_menu, _library_menu]:
+		if popup != null:
+			popup.hide()
+	_drop_lifted_card()
+
+
+func _sync_hotseat() -> void:
+	if not config.private_hotseat():
+		return
+	var key := _private_view_key()
+	if key != _hotseat_key:
+		_hotseat_key = key
+		_hotseat_seat = int(key[0])
+		_hotseat_revealed = false
+		_cancel_advance()
+		_conceal_private_views()
+	hidden_hands.assign([1 - _hotseat_seat] if _hotseat_revealed else [0, 1])
+	if not _hotseat_revealed and game.turn_number > 0 and not game.game_over:
+		_set_prompt("%s — Show hand when the other player looks away." % DuelConfig.seat_label(_hotseat_seat))
+
+
+func _toggle_hotseat_hand(pid: int) -> void:
+	if not config.private_hotseat() or _toss_active or game.game_over:
+		return
+	_sync_hotseat()
+	if pid != _hotseat_seat:
+		return
+	_hotseat_revealed = not _hotseat_revealed
+	if not _hotseat_revealed:
+		# Unannounced cast pickers can expose hand cards too. Close those
+		# without spending anything; an engine-owned choice remains pending.
+		if _pending_card != null and game.awaiting_choice == null:
+			if _search_dialog != null:
+				_search_dialog.hide()
+			_close_search_dialog()
+			if _x_dialog != null:
+				_x_dialog.hide()
+				_x_dialog.dismiss()
+				_x_dialog = null
+			_clear_pending()
+		_conceal_private_views()
+	_refresh()
+
+
+func _make_hotseat_hand(pid: int) -> HotseatHand:
+	var hand := HotseatHand.new()
+	hand.seat = pid
+	hand.pinned = false
+	hand.set_deck_color(config.panel_colors[pid])
+	hand.size_flags_horizontal = Control.SIZE_SHRINK_END
+	hand.visibility_toggled.connect(_toggle_hotseat_hand.bind(pid))
+	return hand
+
+
+## Reference seat for player-relative UI. With no human (a demo), keep
+## seat 0: the battlefield and sidebar put that seat at the bottom.
+## Falling through to seat 1 reversed the phase strip and combat lanes.
+## This is a viewing perspective, not control permission; use _is_human
+## when deciding whether the spectator may take an action.
 func _human_seat() -> int:
-	return 0 if _is_human(0) else 1
+	return 1 if not _is_human(0) and _is_human(1) else 0
 
 
 ## The board's rectangle — both halves together. The Combat window is laid
@@ -6241,6 +6371,11 @@ const OPPONENT_HAND_TITLE := "Opponent (%d)"
 
 func _rebuild_hand(pid: int, container: Control) -> void:
 	var hidden := hidden_hands.has(pid)
+	if container is HotseatHand:
+		container.present(_hand_order(pid), pid == _hotseat_seat,
+			_may_see_hand(pid), _card_preview, _on_card_clicked, _highlight_for)
+		_arm_hand_auto_cast(container)
+		return
 	if container is StackHand:
 		container.populate(_hand_order(pid), hidden,
 			_on_card_clicked, _highlight_for)
@@ -7617,14 +7752,19 @@ func _build_ui() -> void:
 	# (the owner's screenshots), not at the top of the board.
 	var opp_hand_row := MarginContainer.new()
 	# Keep it clear of the right edge — the player's hand window lives there.
-	opp_hand_row.add_theme_constant_override("margin_right", 200)
-	var opp_hand := HFlowContainer.new()
+	opp_hand_row.add_theme_constant_override("margin_right", 0 if config.private_hotseat() else 200)
+	var opp_hand: Control = _make_hotseat_hand(1) if config.private_hotseat() else HFlowContainer.new()
 	# Room for the whole plate: the window's top cap plus its foot. It read
 	# 24 while the old chip was a squashed 22px strip.
 	opp_hand.custom_minimum_size.y = StackHand.TITLE_HEIGHT + StackHand.FOOT
-	opp_hand.alignment = FlowContainer.ALIGNMENT_END
-	opp_hand_row.add_child(opp_hand)
-	top_rows.add_child(opp_hand_row)
+	if opp_hand is HFlowContainer:
+		opp_hand.alignment = FlowContainer.ALIGNMENT_END
+	if config.private_hotseat():
+		add_child(opp_hand)
+		opp_hand_row.free()
+	else:
+		opp_hand_row.add_child(opp_hand)
+		top_rows.add_child(opp_hand_row)
 	_hand_rows.append(opp_hand)
 
 	# NO message row in the board — the halves meet directly; the
@@ -7663,7 +7803,11 @@ func _build_ui() -> void:
 	# The player's own hand: the fan (our default) or the ORIGINAL's
 	# draggable stacked list window ("Hand display" in Options). The stack
 	# floats over the board — the board keeps the reclaimed vertical space.
-	if Settings.hand_style() == "stack":
+	if config.private_hotseat():
+		var hand := _make_hotseat_hand(0)
+		add_child(hand)
+		_hand_rows.append(hand)
+	elif Settings.hand_style() == "stack":
 		var stack := StackHand.new()
 		stack.position = Settings.hand_stack_pos()
 		stack.set_deck_color(config.panel_colors[0])
@@ -8590,6 +8734,9 @@ func _make_done_button() -> Button:
 ## the FAN hand, which is laid out inside the board and covers nothing —
 ## the "Hand display" option picks between the two (`game/settings.gd`).
 func _toggle_hand() -> void:
+	if config.private_hotseat():
+		_toggle_hotseat_hand(_hotseat_seat)
+		return
 	if _hand_rows.size() > 1 and _hand_rows[1] is StackHand:
 		_hand_rows[1].toggle_collapsed()
 

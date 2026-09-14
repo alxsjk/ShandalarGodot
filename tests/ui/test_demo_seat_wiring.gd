@@ -1,0 +1,129 @@
+extends GutTest
+## Demo-mode seat wiring: the lower battlefield, blue phase/combat strip
+## and lower sidebar all belong to seat 0; the upper counterparts to seat 1.
+## No human is present, so choosing a viewing seat must not grant control.
+
+
+var screen: DuelScreen
+
+
+func before_each() -> void:
+	screen = load("res://game/duel/duel_screen.tscn").instantiate()
+	screen.config = DuelConfig.demo_default()
+	screen.config.rng_seed = 92000
+	screen.config.player_names = ["Bottom pilot", "Top pilot"]
+	screen.config.deck_names = ["Bottom deck", "Top deck"]
+	screen.config.lives = [17, 26]
+	screen.config.decks = [[], []]
+	for i in 40:
+		screen.config.decks[0].append("Forest")
+	for i in 45:
+		screen.config.decks[1].append("Swamp")
+	screen.config.apply_deck_colors()
+	# Freeze scheduling without removing either AI: their presence is what
+	# exposed the reversed perspective. Tests drive the real engine directly.
+	screen._ai_pending = true
+	add_child_autofree(screen)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+func _stand_in(pid: int, step: int) -> void:
+	screen.game.active_player = pid
+	screen.game._enter_step(Mtg.STEP_ORDER.find(step))
+	screen._refresh()
+
+
+func test_demo_uses_the_bottom_view_without_creating_a_human() -> void:
+	assert_eq(screen._human_seat(), 0, "demo view must stay on the bottom seat")
+	assert_false(screen._is_human(0))
+	assert_false(screen._is_human(1))
+	assert_true(screen._humans.is_empty())
+	assert_true(screen.hidden_hands.is_empty(), "spectators still see both hands")
+	var land: CardInstance = screen.game.players[0].hand[0]
+	screen._on_card_clicked(land)
+	assert_eq(land.zone, Mtg.Zone.HAND, "viewing seat 0 does not let us play its cards")
+
+
+func test_demo_phase_strip_follows_the_same_side_as_the_battlefield(
+		pid = use_parameters([0, 1])) -> void:
+	_stand_in(pid, Mtg.Step.MAIN1)
+	var half := PhaseStops.Half.YOURS if pid == 0 else PhaseStops.Half.OPPONENTS
+	assert_eq(screen._phase_key(), [half, PhaseStops.Bar.PHASE, 3],
+		"phase controls use the battlefield's seat, not the opposite one")
+	if screen._phase_bar != null:
+		assert_eq(screen._phase_bar.state(), [half, 3],
+			"seat 0 lights the lower blue strip; seat 1 the upper gold strip")
+		assert_eq(screen._phase_bar.opponent_name, "Top pilot")
+	# Passing priority must not move the turn highlight to the other seat.
+	assert_eq(screen.game.pass_priority(pid), "")
+	assert_eq(screen.game.active_player, pid)
+	assert_eq(screen._phase_key()[0], half)
+
+
+func test_demo_combat_stays_on_the_attackers_physical_side(
+		pid = use_parameters([0, 1])) -> void:
+	var tokens: Array[CardInstance] = []
+	for seat in 2:
+		tokens.append(screen.game.create_token(seat,
+			CardRegistry.get_card("Grizzly Bears"))[0])
+	_stand_in(pid, Mtg.Step.UNTAP) # a real untap clears the attacker's sickness
+	_stand_in(pid, Mtg.Step.DECLARE_ATTACKERS)
+	assert_eq(screen.game.declare_attackers(pid, [tokens[pid].id]), "")
+	for i in 8:
+		if screen.game.awaiting_blockers:
+			break
+		assert_eq(screen.game.pass_priority(screen.game.priority_player), "")
+	assert_true(screen.game.awaiting_blockers)
+	var defender := 1 - int(pid)
+	assert_eq(screen.game.declare_blockers(defender,
+		{tokens[defender].id: tokens[pid].id}), "")
+	screen._refresh()
+	assert_not_null(screen._combat_window)
+	assert_eq(screen._combat_window.lane_ids(), [[tokens[1].id], [tokens[0].id]],
+		"combat lanes must match the top and bottom battlefields")
+	if screen._combat_bar != null:
+		assert_true(screen._combat_bar.visible)
+		assert_eq(screen._combat_bar._is_player_seat, pid == 0,
+			"bottom attacks in blue; top attacks in gold")
+		assert_eq(screen._combat_bar._half,
+			PhaseStops.Half.YOURS if pid == 0 else PhaseStops.Half.OPPONENTS)
+
+
+func test_demo_sidebar_and_zone_controls_stay_with_their_own_seat() -> void:
+	for pid in 2:
+		var player := screen.game.players[pid]
+		screen.game.put_from_hand_into_play(player.hand[0], pid)
+		screen.game.adjust_life(pid, -pid - 1)
+		screen.game.draw_cards(pid, pid + 1)
+		for i in pid + 1:
+			screen.game.put_into_graveyard(player.hand[0])
+			screen.game.exile_top_of_library(pid)
+		player.mana_pool.add(Mtg.ManaColor.C, pid + 2)
+		screen._refresh()
+		assert_eq(screen._seat_name_labels[pid].text, screen.config.player_names[pid])
+		assert_eq(screen._deck_name_labels[pid].text, screen.config.deck_names[pid])
+		assert_eq(screen._seat_portraits[pid].texture, DuelIntro.portrait_for(screen.config, pid))
+		assert_eq(screen._life_buttons[pid].text, str(player.life))
+		assert_eq(screen._lib_labels[pid].text, str(player.library.size()))
+		assert_eq(screen._grave_labels[pid].text, str(player.graveyard.size()))
+		assert_eq(screen._mana_labels[pid][Mtg.ManaColor.C].text, str(pid + 2))
+		if screen._exile_labels.size() == 2:
+			assert_eq(screen._exile_labels[pid].text, str(player.exile.size()))
+		var click := InputEventMouseButton.new()
+		click.pressed = true
+		click.button_index = MOUSE_BUTTON_RIGHT
+		screen._deck_stacks[pid].gui_input.emit(click)
+		assert_eq(screen._library_menu.get_meta("pid"), pid,
+			"right-clicking a deck addresses its own library")
+		screen._library_menu.hide()
+		screen._life_buttons[pid].gui_input.emit(click)
+		assert_eq(screen._life_menu_pid, pid, "the face menu belongs to the clicked seat")
+		screen._life_menu.hide()
+	await get_tree().process_frame
+	for pair in [[screen._half_rows[0], screen._half_rows[1]],
+			[screen._life_buttons[0], screen._life_buttons[1]],
+			[screen._seat_portraits[0], screen._seat_portraits[1]],
+			[screen._deck_stacks[0], screen._deck_stacks[1]]]:
+		assert_gt(pair[0].global_position.y, pair[1].global_position.y,
+			"seat 0's field and controls stay below seat 1's")

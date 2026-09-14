@@ -330,6 +330,12 @@ static func verdict_line(winner_is_you: bool, winner_name: String) -> String:
 	return OpeningHand.PLAY_OR_DRAW["won"] % winner_name
 
 
+static func verdict_for(config: DuelConfig, winner: int, winner_is_you: bool) -> String:
+	if config.private_hotseat():
+		return "%s won the coin toss." % DuelConfig.seat_label(winner)
+	return verdict_line(winner_is_you, config.player_names[winner])
+
+
 # ---------------------------------------------------------------- the run --
 
 ## Present the toss and return when the panel is gone. [param winner] is
@@ -394,7 +400,7 @@ func run(config: DuelConfig, winner: int, winner_is_you: bool,
 	if not is_instance_valid(panel):
 		return
 	caption.visible = true
-	verdict.text = verdict_line(winner_is_you, config.player_names[winner])
+	verdict.text = verdict_for(config, winner, winner_is_you)
 
 	await get_tree().create_timer(hold).timeout
 	if not is_instance_valid(panel):
@@ -555,7 +561,9 @@ static func result_badge(config: DuelConfig, winner: int,
 	if near:
 		badge.add_child(Chevron.pointing(true))
 
-	var whose := _label("Your seat" if near else config.player_names[winner], 18)
+	var label := DuelConfig.seat_label(winner) if config.private_hotseat() \
+		else ("Your seat" if near else config.player_names[winner])
+	var whose := _label(label, 18)
 	whose.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge.add_child(whose)
 	return badge

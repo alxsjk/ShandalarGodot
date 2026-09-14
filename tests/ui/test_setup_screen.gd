@@ -19,6 +19,16 @@ extends GutTest
 var screen: SetupScreen
 
 
+func test_hotseat_always_enables_private_hands_but_other_modes_do_not() -> void:
+	for mode in [SetupScreen.BattleMode.HOTSEAT, SetupScreen.BattleMode.VS_AI,
+			SetupScreen.BattleMode.DEMO]:
+		screen._apply_mode(mode)
+		var config := screen._build_config()
+		assert_not_null(config)
+		if config != null:
+			assert_eq(config.private_hotseat(), mode == SetupScreen.BattleMode.HOTSEAT)
+
+
 func test_unfair_is_separate_visible_opt_in_and_remembers_the_fair_level() -> void:
 	SetupScreen.forget_choices()
 	screen._restore_choices()

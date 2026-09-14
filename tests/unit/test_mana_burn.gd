@@ -65,6 +65,86 @@ func test_only_the_owner_of_the_mana_burns() -> void:
 	assert_eq(g.players[1].life, theirs, "the opponent is untouched")
 
 
+func _watch_burns() -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	g.event_occurred.connect(func(event: GameEvent):
+		if event.type == Mtg.EventType.MANA_BURN:
+			events.append(event.data.duplicate()))
+	return events
+
+
+func test_burn_announces_only_actual_life_loss(params = use_parameters([
+		[0, true, 3], [1, true, 2], [0, false, 3], [1, true, 0]])) -> void:
+	var pid: int = params[0]
+	var enabled: bool = params[1]
+	var amount: int = params[2]
+	g.rules.mana_burn = enabled
+	var events := _watch_burns()
+	add_mana(pid, Mtg.ManaColor.G, amount)
+	advance_to_step(Mtg.Step.MAIN1)
+	if enabled and amount > 0:
+		assert_eq(events, [{"player": pid, "amount": amount}] as Array[Dictionary],
+			"one public event for the burned seat and the actual amount")
+	else:
+		assert_true(events.is_empty(), "a boundary without a burn is silent")
+	assert_eq(g.players[pid].life, 20 - amount if enabled else 20)
+	assert_eq(g.players[pid].mana_pool.total(), 0)
+
+
+func test_restricted_burn_is_announced_but_is_not_damage() -> void:
+	g.rules.mana_burn = true
+	g.players[0].damage_prevention = 10
+	var events := _watch_burns()
+	var damage: Array[GameEvent] = []
+	g.event_occurred.connect(func(event: GameEvent):
+		if event.type == Mtg.EventType.DAMAGE_DEALT:
+			damage.append(event))
+	g.players[0].mana_pool.add_restricted(Mtg.ManaColor.C, 2, "artifact")
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_eq(events, [{"player": 0, "amount": 2}] as Array[Dictionary])
+	assert_true(damage.is_empty(), "burn must not trigger damage listeners")
+	assert_eq(g.players[0].damage_prevention, 10)
+
+
+func test_both_burns_are_applied_before_announcing_a_lethal_boundary() -> void:
+	g.rules.set_edition("fifth")
+	advance_to_step(Mtg.Step.MAIN1)
+	g.players[0].life = 1
+	g.players[1].life = 2
+	add_mana(0, Mtg.ManaColor.R, 1)
+	add_mana(1, Mtg.ManaColor.B, 2)
+	var events := _watch_burns()
+	var observed: Array = []
+	g.event_occurred.connect(func(event: GameEvent):
+		if event.type == Mtg.EventType.MANA_BURN:
+			observed.append([g.players[0].life, g.players[1].life,
+				g.players[0].mana_pool.total(), g.players[1].mana_pool.total()]))
+	assert_ok(g.pass_priority(g.priority_player))
+	assert_ok(g.pass_priority(g.priority_player))
+	assert_eq(events, [{"player": 0, "amount": 1},
+		{"player": 1, "amount": 2}] as Array[Dictionary])
+	assert_eq(observed, [[0, 0, 0, 0], [0, 0, 0, 0]],
+		"observers see the completed boundary, not half of the life loss")
+	assert_true(g.game_over, "the boundary still checks lethal life")
+	assert_eq(g.winner, -1, "simultaneous lethal burns remain a draw")
+
+
+func test_search_burns_do_not_reach_the_sound_layer() -> void:
+	g.rules.mana_burn = true
+	add_mana(0, Mtg.ManaColor.G, 2)
+	var events := _watch_burns()
+	var mark := g.make_mark()
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_true(events.is_empty(), "speculative play cannot sound")
+	g.unmake_to(mark)
+	g.end_search()
+	assert_eq(g.players[0].life, 20)
+	assert_eq(g.players[0].mana_pool.total(), 2)
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_eq(events, [{"player": 0, "amount": 2}] as Array[Dictionary],
+		"the same boundary sounds when played for real")
+
+
 # --------------------------------------------------- the fork table itself --
 
 func test_every_fork_declares_its_1997_answer() -> void:

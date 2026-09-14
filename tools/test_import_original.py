@@ -1388,6 +1388,20 @@ class TestSoundManifest(unittest.TestCase):
 
     # -------------------------------------------------- what is in there --
 
+    def test_mana_burn_imports_the_duel_sound_not_ordinary_life_loss(self):
+        root = self._tree({"Duelsounds/Manaburn.wav": b"installed burn",
+                           "Program/DuelSounds/ManaBurn.wav": b"source burn",
+                           "Duelsounds/LifeLoss.wav": b"ordinary life loss"})
+        candidates = imp.MANIFEST.get("sfx_mana_burn.wav", [])
+        self.assertTrue(candidates, "mana burn must be included in skin imports")
+        if not candidates:
+            return
+        index = imp.build_index([root])
+        found = imp._first_of(index, candidates)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.read_bytes(), b"installed burn")
+        self.assertIn("Program/DuelSounds/ManaBurn.wav", candidates)
+
     def test_endphase_is_not_imported_because_a_phase_is_silent(self):
         # The owner's ruling, 2026-09-03: "The changing phases or combat
         # phases have no sound by themselves." `EndPhase.wav` is a real

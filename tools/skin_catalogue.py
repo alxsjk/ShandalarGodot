@@ -306,7 +306,8 @@ FAMILIES: list[tuple[str, str, str]] = [
      "Sound effects. The names say when they play: sfx_tap, sfx_untap, "
      "sfx_draw, sfx_shuffle, sfx_summon, sfx_attack, sfx_block, "
      "sfx_damage, sfx_buried (a card to the graveyard), sfx_counter, "
-     "sfx_discard, sfx_end_turn, sfx_life_loss, sfx_button, sfx_toss "
+     "sfx_discard, sfx_end_turn, sfx_life_loss, sfx_mana_burn "
+     "(life lost to unspent mana), sfx_button, sfx_toss "
      "(the coin), sfx_win and sfx_lose (the fanfares), one sfx_cast_* "
      "per spell type, and one sfx_land_* per land colour or colour pair "
      "(a dual land plays its pair; sfx_land_grey is a colourless land)."),

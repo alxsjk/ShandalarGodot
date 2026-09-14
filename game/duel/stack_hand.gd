@@ -345,7 +345,7 @@ func _on_title_input(event: InputEvent) -> void:
 				# its own to protect. Telling them apart by MOVEMENT keeps
 				# the 1997 gesture intact and costs the s30 one nothing.
 				if _drag_moved:
-					Settings.set_value("hand_stack_pos", position)
+					_remember_position()
 				else:
 					toggle_collapsed()
 			_dragging = false
@@ -371,6 +371,12 @@ func _on_title_input(event: InputEvent) -> void:
 ## How far the pointer must travel between press and release before the
 ## gesture counts as a DRAG rather than a click on the header.
 const DRAG_SLOP := 3.0
+
+
+## Floating variants can keep their own position without changing the
+## single-player hand's saved preference.
+func _remember_position() -> void:
+	Settings.set_value("hand_stack_pos", position)
 
 
 ## Is the card list hidden? (The header bar always stays.)

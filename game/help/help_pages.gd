@@ -162,6 +162,8 @@ static func _page_table() -> Dictionary:
 		_text("Enter: Done · Esc: Cancel · Space: press the sole available action button. Right-click cards and table areas for their menus."),
 		_heading("Hand, library and graveyard"),
 		_text("Your hand holds cards you can play. The face-down library supplies draws. Click either graveyard to inspect discarded cards; the menu also gives access to exile."),
+		_heading("Hotseat · Take turns privately"),
+		_text("Player 1 always uses the bottom playfield; Player 2 uses the top. The player making a decision has a face-down hand stack; the other hand shows only its card count. Drag either stack by its title bar; its Show/Hide button moves with it. When the other player looks away, press Show hand beside your stack. The same button becomes Hide hand; H also toggles it during play. Hands hide automatically when control passes to the other player, including responses, and at each new turn. Opening hands and mulligans use the same Show/Hide button."),
 	]}
 
 
