@@ -124,7 +124,7 @@ cards of the eight 1997 sets, one documented file each, no stubs left.
 **319 decks** ship — 312 of them ported with their provenance
 recorded, five the 1997 starters, two our own.
 
-Verified by **6,239 tests / 231,650 assertions** across 365 scripts, running
+Verified by **6,242 tests / 231,734 assertions** across 365 scripts, running
 headless, plus duel soaks that play whole games through the live UI.
 Adventure mode (M5) is next — see [docs/ROADMAP.md](docs/ROADMAP.md).
 

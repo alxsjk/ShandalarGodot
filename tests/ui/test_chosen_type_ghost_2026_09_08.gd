@@ -15,10 +15,10 @@ extends GutTest
 ## (`DuelScreen._chosen_ghost`, `_make_widget`): an aura in the chooser's
 ## colour, built for the purpose — no id, no click, hover previews it —
 ## standing nearest the host, with the auras beyond it and the shield
-## ghost outermost; the free layer's footprint counts it as a step; no
-## choice yet, or a choice of nothing, shows nothing; Phantasmal Terrain,
-## which keeps a land type under the same key, grows no ghost; and the
-## engine's own roll is what the ghost shows.
+## ghost outermost; the free layer's footprint counts it as a step;
+## no choice yet shows nothing; a resolved empty choice says "No creatures";
+## Phantasmal Terrain, which keeps a land type under the same key, grows
+## no ghost; and the engine's own roll is what the ghost shows.
 
 var screen: DuelScreen
 
@@ -166,13 +166,57 @@ func test_no_choice_no_ghost() -> void:
 	assert_eq(screen._fan_steps(jaguar), 0)
 
 
-func test_a_choice_of_nothing_shows_nothing() -> void:
-	# A library with no creature in it leaves the Jaguar hunting nothing
-	# (RandomEffects.creature_type_of returns ""): no ghost for that.
-	var jaguar := _jaguar(0, "")
+func test_a_choice_of_nothing_shows_no_creatures(
+		pid = use_parameters([0, 1])) -> void:
+	var jaguar := _jaguar(pid, "")
 	await _redraw()
-	assert_eq(_ghosts().size(), 0)
-	assert_null(screen._chosen_ghost_data(jaguar))
+	var ghosts := _ghosts()
+	assert_eq(ghosts.size(), 1, "an empty result is different from a pending trigger")
+	if ghosts.size() != 1:
+		return
+	var ghost: MiniCard = ghosts[0]
+	assert_eq(ghost.instance.data.card_name, "No creatures")
+	assert_eq(ghost._name_label.text, "No creatures", "the whole title fits")
+	assert_eq(ghost.instance.controller_id, pid)
+	assert_eq(ghost.instance.id, -1, "a reminder, not another permanent")
+	assert_true(ghost.disabled)
+	assert_eq(ghost.get_parent(), _drawn()[jaguar.id].get_parent())
+	assert_eq(ghost.position, _drawn()[jaguar.id].position + _step(1.0))
+	assert_string_contains(ghost.tooltip_text, "opponent's library")
+	assert_string_contains(ghost.tooltip_text, "No creature type was chosen")
+	ghost.mouse_entered.emit()
+	assert_eq(screen._card_preview._shown, ghost.instance)
+	assert_eq(screen._fan_steps(jaguar), 1)
+	assert_eq(String(jaguar.memory["type"]), "", "the rules result stays empty")
+	assert_true(jaguar.attachments.is_empty(), "the reminder is not a real Aura")
+
+
+func test_an_empty_library_choice_appears_when_the_trigger_resolves(
+		pid = use_parameters([0, 1])) -> void:
+	var g: MtgGame = screen.game
+	var opponent := g.opponent_of(pid)
+	g.players[opponent].library.clear()
+	var forest := _mk("Forest", opponent)
+	forest.zone = Mtg.Zone.LIBRARY
+	g.players[opponent].library.append(forest)
+	_summon("Grizzly Bears", opponent)  # in play is not in the library
+	var jaguar := _summon("Aswan Jaguar", pid)
+	assert_false(jaguar.memory.has("type"), "the trigger has not resolved yet")
+	assert_null(screen._chosen_ghost_data(jaguar), "do not announce an empty result early")
+	var guard := 0
+	while not g.stack.is_empty() and guard < 10:
+		assert_eq(g.pass_priority(g.priority_player), "")
+		guard += 1
+	await get_tree().process_frame  # engine signal only; no forced redraw
+	assert_true(g.stack.is_empty())
+	assert_true(jaguar.memory.has("type"))
+	assert_eq(String(jaguar.memory["type"]), "")
+	var ghosts := _ghosts()
+	assert_eq(ghosts.size(), 1)
+	if ghosts.size() != 1:
+		return
+	assert_eq(ghosts[0]._name_label.text, "No creatures")
+	assert_true(ghosts[0]._name_label.is_visible_in_tree())
 
 
 func test_the_opponents_jaguar_shows_its_choice_too() -> void:
@@ -296,7 +340,72 @@ func test_the_ghost_shows_the_engines_own_roll() -> void:
 		guard += 1
 	assert_true(g.stack.is_empty(), "the trigger resolved")
 	assert_eq(String(jaguar.memory.get("type", "")), "bear")
-	await _redraw()
+	# Let the engine's normal state_changed signal repaint the choice.
+	# A forced redraw here could conceal a missing live update.
+	await get_tree().process_frame
 	var ghosts := _ghosts()
 	assert_eq(ghosts.size(), 1)
 	assert_eq(ghosts[0].instance.data.card_name, "Bear")
+
+
+func test_casting_a_jaguar_shows_its_choice_without_a_manual_redraw(
+		pid = use_parameters([0, 1])) -> void:
+	var g: MtgGame = screen.game
+	var opponent := g.opponent_of(pid)
+	g.players[opponent].library.clear()
+	var bears := _mk("Grizzly Bears", opponent)
+	bears.zone = Mtg.Zone.LIBRARY
+	g.players[opponent].library.append(bears)
+	var jaguar := _mk("Aswan Jaguar", pid)
+	jaguar.zone = Mtg.Zone.HAND
+	g.players[pid].hand.append(jaguar)
+	g.active_player = pid
+	g.priority_player = pid
+	g._step_index = Mtg.STEP_ORDER.find(Mtg.Step.MAIN1)
+	g.players[pid].mana_pool.add(Mtg.ManaColor.G, 3)
+	assert_eq(g.cast_spell(pid, jaguar, []), "")
+	var guard := 0
+	while not g.stack.is_empty() and guard < 10:
+		assert_eq(g.pass_priority(g.priority_player), "")
+		guard += 1
+	await get_tree().process_frame
+	assert_eq(jaguar.zone, Mtg.Zone.BATTLEFIELD)
+	assert_eq(String(jaguar.memory.get("type", "")), "bear")
+	var ghosts := _ghosts()
+	assert_eq(ghosts.size(), 1)
+	if ghosts.size() != 1:
+		return
+	assert_eq(ghosts[0]._name_label.text, "Bear")
+	assert_true(ghosts[0]._name_label.is_visible_in_tree())
+	assert_eq(ghosts[0].get_parent(), _drawn()[jaguar.id].get_parent())
+
+
+func test_the_chosen_title_stays_visible_when_the_jaguar_attacks(
+		pid = use_parameters([0, 1])) -> void:
+	var jaguar := _jaguar(pid, "elf")
+	var g: MtgGame = screen.game
+	g.active_player = pid
+	g.priority_player = pid
+	g._step_index = Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS)
+	g.awaiting_attackers = true
+	assert_eq(g.declare_attackers(pid, [jaguar.id]), "")
+	# Let the nested flow containers settle before reading screen bounds.
+	for frame in 5:
+		await get_tree().process_frame
+	assert_true(jaguar.tapped)
+	var ghosts := _ghosts()
+	assert_eq(ghosts.size(), 1)
+	if ghosts.size() != 1:
+		return
+	var ghost: MiniCard = ghosts[0]
+	assert_true(screen._combat_window.is_ancestor_of(ghost))
+	assert_eq(ghost._name_label.text, "Elf")
+	assert_true(ghost._name_label.is_visible_in_tree())
+	assert_eq(ghost.rotation, 0.0, "the reminder's title stays upright")
+	var host: MiniCard = _drawn()[jaguar.id]
+	var title_rect := ghost._name_label.get_global_rect()
+	var holder: Control = host.get_parent()
+	var turned_size := Vector2(MiniCard.SIZE.y, MiniCard.SIZE.x)
+	var host_top := holder.global_position.y + (holder.size.y - turned_size.y) / 2.0
+	assert_lte(title_rect.end.y, host_top,
+		"the chosen type's entire title band is above the tapped Jaguar")

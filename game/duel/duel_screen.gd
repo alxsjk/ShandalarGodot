@@ -7078,8 +7078,10 @@ var _chosen_ghosts: Dictionary = {}
 
 ## The card to draw behind [param inst] for the creature type it chose,
 ## or null: [member CardData.chosen_type_key] names where the choice is
-## kept, and a creature that has made none yet (the trigger still on the
-## chain, or a library with no creature in it) shows nothing.
+## kept. An absent memory key means the trigger has not resolved yet;
+## an empty value means it resolved with no creature type available and
+## gets a "No creatures" reminder. Read only the recorded result, never
+## inspect the opponent's library from the presentation layer.
 ##
 ## The ghost is an AURA IN THE CHOOSER'S COLOUR titled with the type —
 ## "Elf", "Enchantment — Aura" — which is what the owner asked to see
@@ -7087,17 +7089,23 @@ var _chosen_ghosts: Dictionary = {}
 func _chosen_ghost_data(inst: CardInstance) -> CardData:
 	if inst == null or inst.data.chosen_type_key == "":
 		return null
-	var chosen := String(inst.memory.get(inst.data.chosen_type_key, ""))
-	if chosen == "":
+	if not inst.memory.has(inst.data.chosen_type_key):
 		return null
+	var chosen := String(inst.memory[inst.data.chosen_type_key])
 	var key := "%s|%s" % [inst.data.card_name, chosen]
 	if not _chosen_ghosts.has(key):
-		_chosen_ghosts[key] = CardData.new(chosen.capitalize(), "",
+		var title := chosen.capitalize()
+		var explanation := "%s chose this creature type as it came into play." \
+			% inst.data.card_name
+		if chosen == "":
+			title = "No creatures"
+			explanation = "%s found no creature types in the opponent's library. " \
+				% inst.data.card_name + "No creature type was chosen."
+		_chosen_ghosts[key] = CardData.new(title, "",
 				Mtg.CardType.ENCHANTMENT) \
 			.with_subtypes(["aura"]) \
 			.with_colors(inst.data.color_mask()) \
-			.oracle("%s chose this creature type as it came into play." \
-				% inst.data.card_name)
+			.oracle(explanation)
 	return _chosen_ghosts[key]
 
 

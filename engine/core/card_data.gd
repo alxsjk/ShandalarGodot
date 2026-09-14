@@ -818,6 +818,8 @@ func color_mask() -> int:
 ## every card that chooses nothing. DECLARED here rather than read off
 ## `memory["type"]` in general, because Phantasmal Terrain keeps a LAND
 ## type under that very key and must not grow a ghost for it.
+## A missing memory key means not resolved yet; a present but empty value
+## records that no creature type was available, shown as "No creatures".
 var chosen_type_key: String = ""
 
 ## Fluent: this card keeps the creature type it chose under

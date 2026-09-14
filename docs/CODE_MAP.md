@@ -3424,11 +3424,14 @@ shandalar/
 │    (2026-09-08): an Aswan Jaguar that rolled "elf" wears an "Elf" ghost
 │    one step behind it (built for the purpose, id -1, a green aura typed
 │    "Enchantment — Aura", disabled, hover previews), none before the
-│    choice or for a choice of nothing, the opponent's drawn too, nearest
-│    the host with an aura outside and the shield ghost outermost,
+│    choice resolves; "No creatures" for an empty result, with hover text
+│    explaining that the library had no creature types; the opponent's
+│    drawn too, nearest the host with an aura outside and the shield ghost
+│    outermost,
 │    counted by _fan_steps and _placement_span, Phantasmal Terrain's land
 │    type growing nothing, one definition per choice, the engine's own
-│    roll through the trigger;
+│    roll through the trigger without a forced redraw; casting from hand
+│    and the upright title above a tapped attacker, for either seat;
 │    tests/ui/test_enchanted_attacker_2026_09_06.gd — THE ATTACK THAT WAS
 │    NEVER DECLARED: an attachment is drawn as a whole card standing
 │    proud of its host (AURA_PEEK), so the band a player clicks on an
@@ -6097,6 +6100,9 @@ shandalar/
 │       │                      (the oldest thing there; auras outside,
 │       │                      the shield ghost outermost); _fan_steps
 │       │                      counts all three; drawn for either seat.
+│       │                      An absent choice key stays pending; a
+│       │                      resolved empty value shows "No creatures"
+│       │                      with an explanation, not a blank fan.
 │       │                      tests/ui/test_chosen_type_ghost_2026_09_08.gd
 │       ├── human_agent.gd   class HumanAgent — DecisionAgent for human
 │       │                      seats: pre-selection mailbox the UI fills
