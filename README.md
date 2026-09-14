@@ -24,6 +24,20 @@ An open-source, from-scratch remake of MicroProse's 1997 *Magic: The
 Gathering*, built in GDScript with Godot. Early Magic, a modern rules
 engine, and the freedom to keep the game alive.
 
+## Screenshots
+
+<p align="center">
+  <img src="branding/screenshots/main-menu.png" alt="ShandalarGodot main menu" width="960">
+  <br>
+  <em>The main menu with the optional original-game skin.</em>
+</p>
+
+<p align="center">
+  <img src="branding/screenshots/duel-spell-chain.png" alt="A spell chain during a ShandalarGodot duel" width="960">
+  <br>
+  <em>A spell chain in progress during a duel.</em>
+</p>
+
 ## Play — 0.20.0
 
 **Our first comfortably playable release for duels and deck building is out.**
