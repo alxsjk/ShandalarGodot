@@ -34,15 +34,41 @@ func _stand_in(pid: int, step: int) -> void:
 	screen._refresh()
 
 
+func after_each() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 func test_demo_uses_the_bottom_view_without_creating_a_human() -> void:
 	assert_eq(screen._human_seat(), 0, "demo view must stay on the bottom seat")
 	assert_false(screen._is_human(0))
 	assert_false(screen._is_human(1))
 	assert_true(screen._humans.is_empty())
-	assert_true(screen.hidden_hands.is_empty(), "spectators still see both hands")
+	assert_eq(screen.hidden_hands, [1 - screen._private_decision_seat()] as Array[int],
+		"spectators see the deciding player's stack openly")
 	var land: CardInstance = screen.game.players[0].hand[0]
 	screen._on_card_clicked(land)
 	assert_eq(land.zone, Mtg.Zone.HAND, "viewing seat 0 does not let us play its cards")
+
+
+func test_demo_gives_both_players_matching_hand_stacks() -> void:
+	for pid in 2:
+		assert_true(screen._hand_rows[1 - pid] is StackHand,
+			"demo hands are stacks, never open cards spread across the battlefield")
+	for pid in 2:
+		_stand_in(pid, Mtg.Step.MAIN1)
+		var hand := screen._hand_rows[1 - pid] as HotseatHand
+		var other := screen._hand_rows[pid] as HotseatHand
+		assert_true(hand.revealed)
+		assert_eq(hand._pile.get_child_count(), screen.game.players[pid].hand.size())
+		assert_eq(other._pile.get_child_count(), 0)
+		assert_eq(other._backs.get_child_count(), 0)
+		assert_false(hand.toggle_button.visible, "a spectator never needs Show hand")
+		assert_false(hand.opponent_button.visible, "a spectator cannot interject")
+		assert_eq(screen.game.pass_priority(pid), "")
+		assert_true(other.revealed, "a response shows the responding computer's hand")
+		assert_false(hand.revealed)
+		assert_eq(screen.game.active_player, pid)
 
 
 func test_demo_phase_strip_follows_the_same_side_as_the_battlefield(

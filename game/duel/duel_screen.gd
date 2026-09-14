@@ -57,6 +57,12 @@ var hidden_hands: Array[int] = []
 var _hotseat_key: Array = []
 var _hotseat_seat := -1
 var _hotseat_revealed := false
+## [QoL] The turn player drives hotseat until Opponent requests a response.
+## This is a pass-priority shortcut, never a change to the engine's timing.
+var _hotseat_response_seat := -1
+var _hotseat_response_turn: Array = []
+var _hotseat_passing := false
+var _hotseat_refresh_pending := false
 
 ## THE STOPS the player has marked on the two bars — *"a lasting
 ## instruction"* (manual p.117), loaded from and saved to `Settings`, so it
@@ -596,7 +602,7 @@ func _new_game() -> void:
 	_play_sfx("sfx_shuffle")
 	game = MtgGame.new()
 	game.log_appended.connect(_on_log_line)
-	game.state_changed.connect(_refresh)
+	game.state_changed.connect(_on_engine_state_changed)
 	game.game_ended.connect(_on_game_over)
 	game.event_occurred.connect(_on_game_event)
 	# Every duel runs on a KNOWN seed, logged on the first line, so a
@@ -608,10 +614,10 @@ func _new_game() -> void:
 	# THE RUNNING FILE opens its banner BEFORE setup, so the engine's
 	# own first line ("Game set up: ...") is the first line under it.
 	_log_file = DuelLogFile.new()
-	_log_file.begin(PackedStringArray([config.player_names[0],
-		config.player_names[1]]), duel_seed)
+	_log_file.begin(PackedStringArray([config.seat_name(0),
+		config.seat_name(1)]), duel_seed)
 	game.setup(config.decks[0], config.decks[1],
-		config.player_names[0], config.player_names[1],
+		config.seat_name(0), config.seat_name(1),
 		config.lives[0], config.lives[1], duel_seed)
 	game.log_line("Duel seed: %d" % duel_seed)
 	if config.challenge_label() != "": game.log_line(config.challenge_label())
@@ -660,6 +666,9 @@ func _new_game() -> void:
 	_hotseat_key = []
 	_hotseat_seat = -1
 	_hotseat_revealed = false
+	_hotseat_response_seat = -1
+	_hotseat_response_turn = []
+	_hotseat_passing = false
 	hidden_hands.assign([0, 1] if config.private_hotseat() else config.hidden_seats())
 	_reset_pacing()
 	# The coin toss (the original's Toss.wav moment): who plays first.
@@ -1526,7 +1535,7 @@ func _open_life_menu(pid: int, at: Vector2) -> void:
 	var theirs := 1 - mine
 	_life_menu.clear()
 	var labels := DuelistFace.menu_labels(_face_shown(pid),
-		config.player_names[theirs])
+		config.seat_name(theirs))
 	for i in labels.size():
 		_life_menu.add_item(labels[i], i)
 	var live := [_player_is_targetable(theirs), _player_is_targetable(mine),
@@ -3342,6 +3351,12 @@ func _ai_step() -> void:
 
 func _on_pass() -> void:
 	if mode == Mode.NORMAL and _is_human(game.priority_player):
+		if config.private_hotseat():
+			if not _hotseat_can_interject():
+				return
+			# Done ends a voluntary response; the turn player may answer it.
+			_hotseat_response_seat = -1
+			_hotseat_response_turn = []
 		# A mid-resolution question no longer needs catching here: the ENGINE
 		# holds the resolution open (MtgGame.awaiting_choice) whatever drove
 		# the pass, so the overlay comes up from _refresh instead (§1.3).
@@ -4050,6 +4065,7 @@ func _advance_stop_reason() -> String:
 		return "the duel is over"
 	if config.private_hotseat() and not _hotseat_revealed:
 		return "the other player must reveal their hand"
+	var viewer := _private_decision_seat() if config.private_hotseat() else _human_seat()
 	# (1) "any required actions to perform during a specific phase… until
 	# you do what is necessary" — every moment the engine HOLDS open.
 	var held := _required_action_reason()
@@ -4069,7 +4085,7 @@ func _advance_stop_reason() -> String:
 	if (_advance_mode == Advance.RUN_TO or _advance_mode == Advance.SKIP_COMBAT) \
 			and not game.stack.is_empty():
 		var top: StackItem = game.stack.back()
-		if top.controller != _human_seat() and not _advance_seen.has(top):
+		if top.controller != viewer and not _advance_seen.has(top):
 			return "%s is on the chain" % top.description
 	# (2) again, read as the manual lists it — *"declares an attack, or
 	# whatever"* — for an order that TRAVELLED into one of the instant
@@ -4079,11 +4095,11 @@ func _advance_stop_reason() -> String:
 	# and no order come to rest in the same places.
 	if _advance_moved:
 		var window := _instant_window_reason()
-		if window != "" and _could_respond(_human_seat()):
+		if window != "" and _could_respond(viewer):
 			return window
 	# Done's third condition, which run-to does not share.
 	if _advance_mode == Advance.DONE \
-			and _has_affordable_fast_effect(_human_seat()):
+			and _has_affordable_fast_effect(viewer):
 		return "a fast effect is available"
 	return ""
 
@@ -4514,6 +4530,8 @@ func _drive_advance() -> void:
 				break
 			_selected_attackers = []
 			mode = Mode.NORMAL
+			if config.private_hotseat():
+				_refresh()
 			continue
 		var reason := _advance_stop_reason()
 		if reason != "":
@@ -4552,6 +4570,8 @@ func _drive_advance() -> void:
 		if game.pass_priority(game.priority_player) != "":
 			_cancel_advance()
 			break
+		if config.private_hotseat():
+			_refresh()
 	_advancing = false
 
 
@@ -4561,6 +4581,9 @@ func _drive_advance() -> void:
 ## fast effect you can afford (docs/duel-todo.md §6.20a).
 func _on_pass_turn() -> void:
 	if mode != Mode.NORMAL or _toss_active:
+		return
+	if config.private_hotseat() and _hotseat_response_seat >= 0:
+		_on_pass()
 		return
 	_order_done_advance()
 
@@ -4812,10 +4835,32 @@ func _watch_for_extra_turn() -> void:
 		_drawn_active = game.active_player
 
 
-func _refresh() -> void:
-	if game == null:
+func _on_engine_state_changed() -> void:
+	if not config.private_hotseat():
+		_refresh()
 		return
+	# Some effects emit state halfway through resolving (draws, payments,
+	# recalculation). A shortcut must not pass priority from that signal.
+	# UI action handlers refresh synchronously AFTER the API call returns;
+	# other engine drivers get one coalesced, deferred refresh here.
+	if _hotseat_passing or _hotseat_refresh_pending:
+		return
+	_hotseat_refresh_pending = true
+	_refresh_hotseat_after_action.call_deferred()
+
+
+func _refresh_hotseat_after_action() -> void:
+	_hotseat_refresh_pending = false
+	_refresh()
+
+
+func _refresh() -> void:
+	if game == null or _hotseat_passing:
+		return
+	_settle_hotseat_priority()
 	_sync_hotseat()
+	if _spectator_hands():
+		hidden_hands.assign([1 - _private_decision_seat()])
 	_watch_for_extra_turn()
 	# THE CHOICE OVERLAY (§1.3): the engine holds a resolution open the
 	# moment it finds a question this seat has not answered, and it can do
@@ -5058,7 +5103,8 @@ func _pile_holds_a_target(pid: int) -> bool:
 ## A face-down card (Knowledge Vault) is listed but never named — nobody
 ## may look at it.
 func _exile_tooltip(pid: int) -> String:
-	var whose := "Your" if pid == _human_seat() else config.player_names[pid] + "'s"
+	var whose := config.seat_name(pid) + "'s" if config.private_hotseat() \
+		else ("Your" if pid == _human_seat() else config.seat_name(pid) + "'s")
 	var gone := game.players[pid].exile
 	if gone.is_empty():
 		return "%s exiled cards (out of play) — empty" % whose
@@ -5072,7 +5118,8 @@ func _exile_tooltip(pid: int) -> String:
 ## The card names used to hang on the count Label instead, and a Label is
 ## MOUSE_FILTER_IGNORE by default, so nothing could ever reach them.
 func _grave_tooltip(pid: int) -> String:
-	var whose := "Your" if pid == _human_seat() else config.player_names[pid] + "'s"
+	var whose := config.seat_name(pid) + "'s" if config.private_hotseat() \
+		else ("Your" if pid == _human_seat() else config.seat_name(pid) + "'s")
 	var pile := game.players[pid].graveyard
 	if pile.is_empty():
 		return "%s graveyard — empty" % whose
@@ -5084,8 +5131,9 @@ func _grave_tooltip(pid: int) -> String:
 
 # =================================================== the combat furniture --
 
-## The player who must make the next private decision. Priority matters:
-## instants, blockers and forced choices can belong to the non-active seat.
+## Forced decisions belong to their rule-defined seat. Otherwise private
+## hotseat follows the turn player (or an explicit interjection), while a
+## spectator follows whichever computer currently has a decision/priority.
 func _private_decision_seat() -> int:
 	if game.awaiting_choice != null:
 		return game.awaiting_choice.pid
@@ -5097,7 +5145,64 @@ func _private_decision_seat() -> int:
 		return game.opponent_of(game.active_player)
 	if _pending_card != null:
 		return _pending_pid
+	if config.private_hotseat():
+		if _hotseat_response_turn == [game.turn_number, game.active_player] \
+				and _hotseat_response_seat >= 0:
+			return _hotseat_response_seat
+		return game.active_player
 	return game.priority_player
+
+
+func _hotseat_required_decision() -> bool:
+	return game.awaiting_choice != null or game.awaiting_attackers \
+		or game.awaiting_blockers or game.awaiting_discard or game.awaiting_damage_assignment
+
+
+## Routine opponent passes are agreed shortcuts in this local mode. Never
+## inspect either hand to decide whether to pass, answer mandatory choices,
+## or change priority directly. The current player still clicks Done; a
+## verbal response must use Opponent BEFORE that click resolves/advances.
+func _settle_hotseat_priority() -> void:
+	if not config.private_hotseat() or _toss_active or game.turn_number == 0:
+		return
+	if _hotseat_response_turn != [game.turn_number, game.active_player]:
+		_hotseat_response_seat = -1
+		_hotseat_response_turn = []
+	_hotseat_passing = true
+	# Normally one pass. Recheck after resolution: it may owe a choice,
+	# start a new turn, or end the game. Nested state signals never draw
+	# the transient priority recipient and never recurse into this driver.
+	for _i in 8:
+		if game.game_over or _hotseat_required_decision() or _pending_card != null:
+			break
+		if game.priority_player == _private_decision_seat():
+			break
+		if game.pass_priority(game.priority_player) != "":
+			break
+	_hotseat_passing = false
+
+
+func _hotseat_can_interject() -> bool:
+	return config.private_hotseat() and not _toss_active and not game.game_over \
+		and game.turn_number > 0 and mode == Mode.NORMAL and _pending_card == null \
+		and not _modal_open() and not _hotseat_required_decision()
+
+
+func _request_hotseat_opponent(pid: int) -> void:
+	if not _hotseat_can_interject() or pid != _hotseat_seat:
+		return
+	_cancel_advance()
+	_rested_at = _phase_key()
+	if pid != game.active_player:
+		_on_pass()
+		return
+	_hotseat_response_seat = game.opponent_of(pid)
+	_hotseat_response_turn = [game.turn_number, game.active_player]
+	_refresh()
+
+
+func _spectator_hands() -> bool:
+	return config.is_ai(0) and config.is_ai(1)
 
 
 func _private_view_key() -> Array:
@@ -5162,9 +5267,11 @@ func _make_hotseat_hand(pid: int) -> HotseatHand:
 	var hand := HotseatHand.new()
 	hand.seat = pid
 	hand.pinned = false
+	hand.spectator = _spectator_hands()
 	hand.set_deck_color(config.panel_colors[pid])
 	hand.size_flags_horizontal = Control.SIZE_SHRINK_END
 	hand.visibility_toggled.connect(_toggle_hotseat_hand.bind(pid))
+	hand.opponent_requested.connect(_request_hotseat_opponent.bind(pid))
 	return hand
 
 
@@ -5408,7 +5515,7 @@ func _phase_menu_label(half: int, bar: int, slot: int) -> String:
 	if bar == PhaseStops.Bar.COMBAT:
 		return CombatBar.TOOLTIPS[clampi(slot, 0, CombatBar.TOOLTIPS.size() - 1)]
 	return PhaseBar.cue_card(half, slot,
-		config.player_names[1 - _human_seat()])
+		config.seat_name(1 - _human_seat()))
 
 
 # ------------------------------------------------ the @MENU_TERRITORY menu --
@@ -6372,7 +6479,9 @@ const OPPONENT_HAND_TITLE := "Opponent (%d)"
 func _rebuild_hand(pid: int, container: Control) -> void:
 	var hidden := hidden_hands.has(pid)
 	if container is HotseatHand:
-		container.present(_hand_order(pid), pid == _hotseat_seat,
+		container.can_interject = _hotseat_can_interject()
+		var deciding := _private_decision_seat() if _spectator_hands() else _hotseat_seat
+		container.present(_hand_order(pid), pid == deciding,
 			_may_see_hand(pid), _card_preview, _on_card_clicked, _highlight_for)
 		_arm_hand_auto_cast(container)
 		return
@@ -7753,13 +7862,14 @@ func _build_ui() -> void:
 	var opp_hand_row := MarginContainer.new()
 	# Keep it clear of the right edge — the player's hand window lives there.
 	opp_hand_row.add_theme_constant_override("margin_right", 0 if config.private_hotseat() else 200)
-	var opp_hand: Control = _make_hotseat_hand(1) if config.private_hotseat() else HFlowContainer.new()
+	var seat_stacks := config.private_hotseat() or _spectator_hands()
+	var opp_hand: Control = _make_hotseat_hand(1) if seat_stacks else HFlowContainer.new()
 	# Room for the whole plate: the window's top cap plus its foot. It read
 	# 24 while the old chip was a squashed 22px strip.
 	opp_hand.custom_minimum_size.y = StackHand.TITLE_HEIGHT + StackHand.FOOT
 	if opp_hand is HFlowContainer:
 		opp_hand.alignment = FlowContainer.ALIGNMENT_END
-	if config.private_hotseat():
+	if seat_stacks:
 		add_child(opp_hand)
 		opp_hand_row.free()
 	else:
@@ -7803,7 +7913,7 @@ func _build_ui() -> void:
 	# The player's own hand: the fan (our default) or the ORIGINAL's
 	# draggable stacked list window ("Hand display" in Options). The stack
 	# floats over the board — the board keeps the reclaimed vertical space.
-	if config.private_hotseat():
+	if seat_stacks:
 		var hand := _make_hotseat_hand(0)
 		add_child(hand)
 		_hand_rows.append(hand)
@@ -7841,7 +7951,7 @@ func _build_ui() -> void:
 		# @MENU_PHASEBAR mini-menu (game/duel/phase_bar.gd).
 		_phase_bar = PhaseBar.new()
 		_phase_bar.stops = stops
-		_phase_bar.opponent_name = config.player_names[1 - _human_seat()]
+		_phase_bar.opponent_name = config.seat_name(1 - _human_seat())
 		_phase_bar.slot_pressed.connect(_on_phase_bar_slot)
 		_phase_bar.slot_context.connect(_on_phase_bar_context)
 		bar_holder.add_child(_phase_bar)
@@ -8342,8 +8452,8 @@ func _player_panel(pid: int, life_first := true) -> Control:
 		# clickable to point at. s30's handleGraveyardClick: a non-empty
 		# pile opens the view, the same pile again closes it.
 		grave_icon.mouse_filter = Control.MOUSE_FILTER_STOP
-		grave_icon.tooltip_text = "Your graveyard" if pid == _human_seat() \
-			else "%s graveyard" % config.player_names[pid]
+		grave_icon.tooltip_text = "Your graveyard" if pid == _human_seat() and not config.private_hotseat() \
+			else "%s graveyard" % config.seat_name(pid)
 		grave_icon.gui_input.connect(func(event: InputEvent) -> void:
 			if event is InputEventMouseButton and event.pressed \
 					and event.button_index == MOUSE_BUTTON_LEFT:
@@ -8589,7 +8699,7 @@ func _seat_portrait_block(pid: int, name_above: bool) -> Control:
 	block.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var seat_name := String(config.player_names[pid]) if config != null else ""
+	var seat_name := config.seat_name(pid) if config != null else ""
 	var name_label := Label.new()
 	name_label.text = seat_name
 	name_label.add_theme_font_size_override("font_size", SEAT_NAME_FONT_SIZE)
@@ -8646,6 +8756,18 @@ func _seat_portrait_block(pid: int, name_above: bool) -> Control:
 	else:
 		block.add_child(face)
 		block.add_child(name_label)
+	if config != null and config.private_hotseat():
+		# The 40px portrait caption trims long names. Keep the side suffix
+		# visible on its own line too, rather than hiding it in an ellipsis.
+		var side := Label.new()
+		side.name = "SeatSide"
+		side.text = "(below)" if pid == 0 else "(above)"
+		side.add_theme_font_size_override("font_size", 9)
+		side.add_theme_color_override("font_color", PILE_COUNT_INK)
+		side.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		side.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		block.add_child(side)
+		block.move_child(side, name_label.get_index() + 1)
 	return block
 
 

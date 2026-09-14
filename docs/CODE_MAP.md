@@ -3084,12 +3084,16 @@ shandalar/
 │    tests/ui/test_demo_seat_wiring.gd — demo view stays on bottom seat 0:
 │    phase highlights/controls, combat colours and lanes agree with the
 │    battlefield; portraits, deck names, life/mana/zone counts and pile
-│    menus keep their own seat. Spectators gain no control of AI cards;
+│    menus keep their own seat. Both demo hands use matching draggable
+│    stacks, open for the deciding computer and count-only for the other.
+│    Spectators gain no control of AI cards;
 │    tests/ui/test_hotseat_privacy.gd — private opening and mulligan
 │    sequences for either toss winner, fixed named seats, empty initial
 │    battlefields, anonymous concealed stacks, deliberate Show/Hide,
-│    private draws/hover previews, priority/turn handoff concealment,
-│    independent dragging and modal-safe Hide without answering a choice;
+│    private draws/hover previews, routine passes without a handoff,
+│    explicit Opponent interjections/counterspells, required decisions,
+│    turn handoff concealment, independent dragging with both buttons,
+│    resolution-safe passes and modal-safe Hide without answering a choice;
 │    tests/ui/test_land_art.gd — a land retuned to a basic type wears that
 │    land's art (Blood Moon, Evil Presence) and gets its own back when the
 │    effect goes;
@@ -6244,12 +6248,14 @@ shandalar/
 │       │                      SHRINKS in its row (see MiniCard._init) so a
 │       │                      short pile is neither stretched nor stranded
 │       │                      at the top of a tall row
-│       ├── hotseat_hand.gd  class HotseatHand — private StackHand variant:
+│       ├── hotseat_hand.gd  class HotseatHand — two-seat StackHand variant:
 │       │                      count-only inactive seat, anonymous card
 │       │                      backs until reveal, Show/Hide button on the
-│       │                      right. Independently draggable in the duel;
-│       │                      pinned in the opening window. The toggle
-│       │                      travels with its parent stack.
+│       │                      right and Opponent beneath it. Independently
+│       │                      draggable with both buttons; pinned (Show/Hide
+│       │                      only) in the opening window. Spectator mode
+│       │                      shows the deciding computer's hand openly,
+│       │                      without any privacy/control buttons.
 │       ├── stack_hand.gd    class StackHand — the ORIGINAL's draggable
 │       │                      hand window (s30 drawHandPanel): the whole
 │       │                      Hand_* window NINE-PATCHED round a CardPile

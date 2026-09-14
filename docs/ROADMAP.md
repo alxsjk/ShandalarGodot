@@ -12807,6 +12807,75 @@ Final pre-publication gate: **6,265 tests / 232,082 assertions**,
 367 scripts, 212.751 seconds, wrapper exit 0. This includes the final
 keyboard-focus and edge-dragging checks on the exact source to be committed.
 
+## 2026-09-14 — Hotseat interjections and spectator hand stacks
+
+The owner's follow-up playtest reported constant private handovers at every
+phase. Reproduced for both seats before the change: the new regression
+reported `routine priority must not hand the screen to the opponent` and
+`the current player need not reveal again every phase`; Done left the game
+in the same main phase instead of including the silent opponent's pass.
+The demo regression also failed: its upper hand was an HFlowContainer of
+exposed cards, not a StackHand.
+
+Private hotseat now treats the turn player as the screen's controller until
+an explicit **Opponent** interjection, independently of routine rules
+priority. The button sits below Show/Hide and moves with the stack. The
+shortcut uses the ordinary `pass_priority` API, without reading either hand
+to decide whether to pass. Opponent offers the other player priority before
+the spell resolves or the phase advances; their Done returns control, with
+a fresh concealed handover. The turn player can answer a response normally.
+The players must announce an interjection before Done: this is a local
+agreed shortcut, not a rewind of an already-resolved action.
+
+Required blockers, combat damage assignment, discards and card choices still
+belong to the player the engine asks. The button is disabled during those
+decisions, pending casts and modal dialogs; it never answers them. Each new
+turn and actual handover conceals both hands and clears private previews.
+Both stacks retain independent positions, and clamping keeps both buttons
+on screen. Opening/mulligan stacks keep only their Show/Hide button.
+
+An additional regression caught re-entry during an Ancestral Recall
+resolution when an opponent declined to act: `[1] expected to equal [0]:
+the shortcut cannot pass priority inside a resolving effect`. Private
+hotseat now coalesces engine signals into a deferred refresh; UI actions
+refresh after the synchronous engine API returns. Routine shortcut passes
+cannot run midway through an effect's draw/payment/recalculation signal.
+The new timing regression, counterspells in either direction and the
+Fifth Edition Will-o'-the-Wisp regeneration interjection all pass.
+
+Both demo seats now use the same draggable stack widget. The computer
+currently deciding or holding priority shows its hand openly; the other
+stack shows its count. There are no privacy or interjection controls for
+spectators, and the display grants no authority to operate computer cards.
+The physical seat/phase/portrait wiring remains unchanged. Standard computer
+information access and decision policy are untouched.
+
+Hotseat names append **(below)** / **(above)** in the introduction, duel
+labels and logs, without modifying saved player names. A separate small
+suffix line beside each portrait remains legible when a long name is
+trimmed. Coin toss and private handover messages use the same side words.
+In-game help describes the shortcut and demo display.
+
+Focused hotseat verification: **20 tests / 296 assertions**, 5.294 seconds,
+wrapper exit 0. A disposable native Mac probe passed real Show/Hide and
+Opponent clicks, Done without a handover, title-bar dragging, Space after
+Show, and both read-only demo stacks. Screenshots at 1280×800 were inspected;
+the probe exited 0 without warnings/errors and was removed afterward.
+Python tools: **227 tests**, one platform skip, exit 0. All tests use the
+isolated test profile. Windows, Linux and Web runtimes were not exercised;
+the production changes are platform-neutral.
+
+Final full GUT gate: **6,276 tests / 232,232 assertions**, 367 scripts,
+214.324 seconds, wrapper exit 0. Existing suite warning/deprecation and
+transient-orphan diagnostics remain; there were no gate failures.
+
+Native seed-92000 whole-duel checks also passed: modern demo 16 turns /
+19.7s and human 19 turns / 21.6s / 155 clicks; Fifth Edition demo 16 turns /
+20.0s and human 14 turns / 20.7s / 146 clicks. Winners, life totals and turn
+counts match the preceding build. Both wrappers exited 0, with no
+ERROR/WARNING/STALL. No commit, push, export or release asset was changed
+in this pass.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

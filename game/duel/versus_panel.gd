@@ -134,7 +134,7 @@ func _build_seat(board: Control, config: DuelConfig, pid: int,
 		board.add_child(frame)
 		board.move_child(frame, face.get_index())
 
-	var name_label := make_label(String(config.player_names[pid]), 16)
+	var name_label := make_label(config.seat_name(pid), 16)
 	name_label.position = Vector2(well.position.x - 20, well.end.y + 12)
 	name_label.size = Vector2(well.size.x + 40, 22)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

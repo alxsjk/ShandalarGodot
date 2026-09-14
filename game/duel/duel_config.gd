@@ -78,8 +78,15 @@ func private_hotseat() -> bool:
 	return hotseat_privacy and not is_ai(0) and not is_ai(1)
 
 
+## Keep saved names intact; seat annotations belong to this hotseat duel.
+func seat_name(pid: int) -> String:
+	if private_hotseat():
+		return "%s (%s)" % [player_names[pid], "below" if pid == 0 else "above"]
+	return player_names[pid]
+
+
 static func seat_label(pid: int) -> String:
-	return "Player %d (%s playfield)" % [pid + 1, "bottom" if pid == 0 else "top"]
+	return "Player %d (%s)" % [pid + 1, "below" if pid == 0 else "above"]
 
 
 func is_ai(pid: int) -> bool:
@@ -102,7 +109,8 @@ func challenge_label() -> String:
 
 ## Static visibility for mixed games and open fixtures. Private hotseat
 ## concealment is managed per decision by DuelScreen, not by pilot type.
-## Nothing is hidden in a demo (watching both hands is the point).
+## A demo has no private hands; DuelScreen displays the deciding seat's
+## stack openly and folds the other down to its count.
 func hidden_seats() -> Array[int]:
 	var hidden: Array[int] = []
 	if is_ai(0) and is_ai(1):

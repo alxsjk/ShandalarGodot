@@ -1,4 +1,4 @@
-extends GutTest
+extends GameTest
 ## Pass-and-play privacy: empty opening battlefields, explicit seat names,
 ## concealed hands, deliberate reveal/hide and private control handoffs.
 
@@ -14,6 +14,7 @@ func before_each() -> void:
 	add_child_autofree(screen)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	g = screen.game
 
 
 func test_hotseat_starts_with_empty_battlefields_and_concealed_hands() -> void:
@@ -102,7 +103,8 @@ func test_hotseat_show_hide_is_private_for_either_seat(pid = use_parameters([0, 
 func test_hotseat_priority_handoff_conceals_both_hands_without_flipping_the_board() -> void:
 	_stand(0)
 	_hand(0).toggle_button.pressed.emit()
-	assert_eq(screen.game.pass_priority(0), "")
+	_hand(0).opponent_button.pressed.emit()
+	assert_eq(screen.game.priority_player, 1)
 	assert_eq(screen._hotseat_seat, 1)
 	assert_false(screen._hotseat_revealed)
 	assert_eq(screen.hidden_hands, [0, 1] as Array[int])
@@ -118,6 +120,19 @@ func test_hotseat_priority_handoff_conceals_both_hands_without_flipping_the_boar
 	assert_eq(screen._phase_key()[0], PhaseStops.Half.OPPONENTS)
 
 
+func test_hotseat_names_include_the_physical_side_without_changing_saved_names() -> void:
+	for pid in 2:
+		var expected := "%s (%s)" % [screen.config.player_names[pid], "below" if pid == 0 else "above"]
+		assert_eq(screen.game.players[pid].player_name, expected)
+		assert_eq(screen._seat_name_labels[pid].text, expected)
+		assert_eq(screen.config.seat_name(pid), expected)
+		assert_eq(screen._seat_name_labels[pid].get_parent().get_node("SeatSide").text,
+			"(below)" if pid == 0 else "(above)", "side remains visible even when a long name is trimmed")
+	assert_eq(screen.config.player_names, ["White Wizard", "Black Wizard"] as Array[String])
+	assert_eq(DuelConfig.demo_default().seat_name(0), "AI White")
+	assert_eq(DuelConfig.hotseat_default().seat_name(0), "White Wizard")
+
+
 func test_hotseat_hidden_draws_never_fill_the_showcase() -> void:
 	_stand(0)
 	screen.game.draw_cards(0, 1)
@@ -129,6 +144,206 @@ func test_hotseat_hidden_draws_never_fill_the_showcase() -> void:
 	assert_false(screen._card_preview._back.visible, "a deliberately revealed hand may preview its draw")
 	_hand(0).toggle_button.pressed.emit()
 	assert_true(screen._card_preview._back.visible)
+
+
+func test_routine_pass_keeps_the_current_players_hand_open(pid = use_parameters([0, 1])) -> void:
+	_stand(pid)
+	_hand(pid).toggle_button.pressed.emit()
+	screen._on_done()
+	assert_eq(screen._hotseat_seat, pid, "routine priority must not hand the screen to the opponent")
+	assert_true(screen._may_see_hand(pid), "the current player need not reveal again every phase")
+	assert_eq(screen.game.current_step(), Mtg.Step.COMBAT_BEGIN,
+		"Done includes the silent opponent's pass and advances one window")
+
+
+func test_opponent_can_counter_before_a_spell_resolves(pid = use_parameters([0, 1])) -> void:
+	_stand(pid)
+	var other := 1 - int(pid)
+	_hand(pid).toggle_button.pressed.emit()
+	var bear := give_hand(pid, "Grizzly Bears")
+	var counter := give_hand(other, "Counterspell")
+	add_mana(pid, Mtg.ManaColor.G, 2)
+	add_mana(other, Mtg.ManaColor.U, 2)
+	assert_ok(g.cast_spell(pid, bear))
+	assert_eq(g.stack.size(), 1)
+	assert_eq(screen._hotseat_seat, pid, "casting keeps control until a response is requested")
+	_hand(pid).opponent_button.pressed.emit()
+	assert_eq(g.stack.size(), 1, "interjection grants priority BEFORE resolving the spell")
+	assert_eq(g.priority_player, other)
+	assert_false(screen._hotseat_revealed)
+	_hand(other).toggle_button.pressed.emit()
+	assert_ok(g.cast_spell(other, counter, [TargetRef.card(bear)]))
+	assert_true(screen._may_see_hand(other), "respondent retains priority after casting")
+	screen._on_pass_turn() # Enter is Done for the respondent, not a whole-turn run.
+	assert_eq(g.priority_player, pid)
+	assert_eq(screen._hotseat_seat, pid)
+	assert_false(screen._hotseat_revealed)
+	assert_eq(g.stack.size(), 2, "the turn player can respond to the counterspell")
+	_hand(pid).toggle_button.pressed.emit()
+	screen._on_done()
+	assert_eq(bear.zone, Mtg.Zone.GRAVEYARD)
+	assert_eq(counter.zone, Mtg.Zone.GRAVEYARD)
+	assert_true(g.stack.is_empty())
+	assert_eq(g.current_step(), Mtg.Step.MAIN1, "resolving the top never also skips a phase")
+	assert_true(screen._may_see_hand(pid))
+
+
+func test_declining_an_interjection_returns_control_and_ends_only_one_window() -> void:
+	_stand(0)
+	_hand(0).toggle_button.pressed.emit()
+	_hand(0).opponent_button.pressed.emit()
+	_hand(1).toggle_button.pressed.emit()
+	_hand(1).opponent_button.pressed.emit()
+	assert_eq(g.current_step(), Mtg.Step.COMBAT_BEGIN)
+	assert_eq(screen._hotseat_seat, 0)
+	assert_false(screen._hotseat_revealed)
+
+
+func test_declining_a_response_does_not_pass_inside_a_draw_spells_resolution() -> void:
+	_stand(0)
+	_hand(0).toggle_button.pressed.emit()
+	var recall := give_hand(0, "Ancestral Recall")
+	add_mana(0, Mtg.ManaColor.U)
+	assert_ok(g.cast_spell(0, recall, [TargetRef.player(0)]))
+	_hand(0).opponent_button.pressed.emit()
+	_hand(1).toggle_button.pressed.emit()
+	var passes_during_resolution: Array = []
+	g.state_changed.connect(func():
+		if g.current_resolution_controller() >= 0:
+			passes_during_resolution.append(g._passes))
+	var before := g.players[0].hand.size()
+	screen._on_done()
+	assert_eq(g.players[0].hand.size(), before + 3)
+	assert_false(passes_during_resolution.is_empty(), "draw emits state during resolution")
+	for count in passes_during_resolution:
+		assert_eq(count, 0, "the shortcut cannot pass priority inside a resolving effect")
+	assert_eq(g.current_step(), Mtg.Step.MAIN1)
+	assert_eq(g.priority_player, 0)
+	assert_false(screen._hotseat_revealed)
+
+
+func test_required_blocking_hands_over_but_does_not_choose_for_the_defender() -> void:
+	var bear := put_battlefield(0, "Grizzly Bears")
+	var blocker := put_battlefield(1, "Grizzly Bears")
+	_stand(0)
+	_hand(0).toggle_button.pressed.emit()
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS))
+	screen._refresh()
+	assert_true(_hand(0).opponent_button.disabled)
+	_hand(0).opponent_button.pressed.emit()
+	assert_eq(screen._hotseat_seat, 0, "cannot transfer a required attacker choice")
+	assert_ok(g.declare_attackers(0, [bear.id]))
+	screen.mode = DuelScreen.Mode.NORMAL
+	screen._refresh()
+	screen._on_done()
+	assert_true(g.awaiting_blockers)
+	assert_eq(screen._hotseat_seat, 1)
+	assert_false(screen._hotseat_revealed)
+	assert_true(_hand(1).opponent_button.disabled)
+	_hand(1).toggle_button.pressed.emit()
+	assert_ok(g.declare_blockers(1, {blocker.id: bear.id}))
+	screen._refresh()
+	assert_false(g.awaiting_blockers)
+	assert_eq(screen._hotseat_seat, 0)
+	assert_false(screen._hotseat_revealed)
+
+
+func test_pending_cast_and_private_choice_cannot_be_interrupted() -> void:
+	_stand(0)
+	_hand(0).toggle_button.pressed.emit()
+	var spell := give_hand(0, "Lightning Bolt")
+	screen._on_card_clicked(spell)
+	assert_not_null(screen._pending_card)
+	assert_false(screen._hotseat_can_interject())
+	_hand(0).opponent_button.pressed.emit()
+	assert_eq(screen._hotseat_seat, 0)
+	assert_eq(screen._pending_card, spell)
+	screen._on_cancel()
+	var choice := PlayerChoice.new(PlayerChoice.Kind.DISCARD, 1, "Choose a card.")
+	choice.count = 1
+	choice.candidates.assign(g.players[1].hand)
+	g.awaiting_choice = choice
+	screen._refresh()
+	assert_eq(screen._hotseat_seat, 1)
+	assert_false(screen._hotseat_revealed)
+	assert_true(_hand(1).opponent_button.disabled)
+	_hand(1).opponent_button.pressed.emit()
+	assert_eq(g.awaiting_choice, choice, "the shortcut never answers a forced choice")
+	assert_eq(screen._hotseat_seat, 1)
+
+
+func test_new_turn_conceals_and_cancels_a_run_even_when_the_same_player_gets_it() -> void:
+	_stand(0)
+	_hand(0).toggle_button.pressed.emit()
+	g.turn_number += 1 # extra turn: same seat, new private session
+	screen._refresh()
+	assert_false(screen._hotseat_revealed)
+	assert_eq(screen._advance_mode, DuelScreen.Advance.NONE)
+	assert_eq(screen._hotseat_seat, 0)
+
+
+func test_a_standing_order_stops_privately_at_the_next_players_turn() -> void:
+	_stand(0)
+	while g.players[0].hand.size() > 7:
+		g.put_into_graveyard(g.players[0].hand[0])
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.END))
+	screen._refresh()
+	_hand(0).toggle_button.pressed.emit()
+	var turn := g.turn_number
+	screen._order_next_phase()
+	assert_eq(g.turn_number, turn + 1)
+	assert_eq(g.active_player, 1)
+	assert_eq(screen._hotseat_seat, 1)
+	assert_false(screen._hotseat_revealed)
+	assert_eq(screen._advance_mode, DuelScreen.Advance.NONE)
+	await get_tree().process_frame
+	assert_eq(g.turn_number, turn + 1, "a queued refresh cannot resume the old order")
+	assert_false(screen._hotseat_revealed)
+
+
+func test_opponent_interjection_allows_fifth_edition_regeneration() -> void:
+	var attacker := put_battlefield(0, "Hill Giant")
+	var wisp := put_battlefield(1, "Will-o'-the-Wisp")
+	_stand(0)
+	g.rules.damage_prevention_window = true
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS))
+	screen._refresh()
+	_hand(0).toggle_button.pressed.emit()
+	screen._selected_attackers = [attacker.id]
+	screen._on_done()
+	screen._on_done()
+	assert_true(g.awaiting_blockers)
+	_hand(1).toggle_button.pressed.emit()
+	screen._block_map = {wisp.id: [attacker.id]}
+	screen._on_done()
+	_hand(0).toggle_button.pressed.emit()
+	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
+	screen._refresh()
+	for i in 8:
+		if g.awaiting_regeneration:
+			break
+		screen._on_done()
+	assert_true(g.awaiting_regeneration)
+	if not g.awaiting_regeneration:
+		return
+	assert_true(screen._hotseat_can_interject())
+	_hand(0).opponent_button.pressed.emit()
+	assert_eq(g.priority_player, 1)
+	assert_false(screen._hotseat_revealed)
+	_hand(1).toggle_button.pressed.emit()
+	add_mana(1, Mtg.ManaColor.B)
+	assert_ok(g.activate_ability(1, wisp, 0))
+	screen._on_done()
+	assert_eq(screen._hotseat_seat, 0)
+	_hand(0).toggle_button.pressed.emit()
+	for i in 8:
+		if not g.awaiting_regeneration:
+			break
+		screen._on_done()
+	assert_false(g.awaiting_regeneration)
+	assert_eq(wisp.zone, Mtg.Zone.BATTLEFIELD)
+	assert_true(wisp.tapped)
+	assert_eq(wisp.damage, 0)
 
 
 func test_hiding_a_private_choice_keeps_the_engine_question_unanswered() -> void:
@@ -161,6 +376,9 @@ func test_each_stack_drags_with_its_button_and_keeps_its_own_position(pid = use_
 	var before := hand.position
 	var other_before := other.position
 	var button_offset := hand.toggle_button.global_position - hand.global_position
+	var opponent_offset := hand.opponent_button.global_position - hand.global_position
+	assert_gt(hand.opponent_button.position.y, hand.toggle_button.position.y + hand.toggle_button.size.y)
+	assert_eq(hand.opponent_button.focus_mode, Control.FOCUS_NONE)
 	var saved := Settings.hand_stack_pos()
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
@@ -176,6 +394,7 @@ func test_each_stack_drags_with_its_button_and_keeps_its_own_position(pid = use_
 	hand._on_title_input(press)
 	assert_eq(hand.position, before + Vector2(-180, 32))
 	assert_eq(hand.toggle_button.global_position - hand.global_position, button_offset)
+	assert_eq(hand.opponent_button.global_position - hand.global_position, opponent_offset)
 	assert_eq(other.position, other_before)
 	var dragged := hand.position
 	hand.toggle_button.pressed.emit()
@@ -188,6 +407,8 @@ func test_each_stack_drags_with_its_button_and_keeps_its_own_position(pid = use_
 	hand._clamp_on_screen()
 	assert_true(screen.get_viewport_rect().encloses(hand.toggle_button.get_global_rect()),
 		"even an edge drag keeps the entire button on screen")
+	assert_true(screen.get_viewport_rect().encloses(hand.opponent_button.get_global_rect()),
+		"the second button stays on screen too")
 
 
 func test_hotseat_opening_hand_reconceals_for_the_next_player() -> void:

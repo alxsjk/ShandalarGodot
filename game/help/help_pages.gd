@@ -163,7 +163,11 @@ static func _page_table() -> Dictionary:
 		_heading("Hand, library and graveyard"),
 		_text("Your hand holds cards you can play. The face-down library supplies draws. Click either graveyard to inspect discarded cards; the menu also gives access to exile."),
 		_heading("Hotseat · Take turns privately"),
-		_text("Player 1 always uses the bottom playfield; Player 2 uses the top. The player making a decision has a face-down hand stack; the other hand shows only its card count. Drag either stack by its title bar; its Show/Hide button moves with it. When the other player looks away, press Show hand beside your stack. The same button becomes Hide hand; H also toggles it during play. Hands hide automatically when control passes to the other player, including responses, and at each new turn. Opening hands and mulligans use the same Show/Hide button."),
+		_text("Player 1 uses the lower playfield; Player 2 uses the upper one. Names carry (below) or (above). Drag either hand stack by its title bar; both buttons move with it. Press Show hand when the other player looks away. Hide hand (or H) conceals it again. The other hand shows only its card count. Opening hands and mulligans use the same Show/Hide button."),
+		_heading("Hotseat · Let your opponent respond"),
+		_text("The turn player keeps control through routine phases. Before pressing Done, give your opponent time to say they want to respond. Press Opponent below Show/Hide to hand over; the other player reveals their hand and can cast an instant or use an ability. Their Done returns control. This shortcut assumes the silent opponent passes: it cannot rewind an action already resolved. Blockers, combat-damage assignments and required card choices still hand over automatically. Every handover and new turn hides both hands."),
+		_heading("Demo · Watch both players"),
+		_text("In AI-versus-AI games, both players have matching draggable hand stacks. The computer currently making a play or response shows its hand openly; the other stack shows its card count. Watching a hand does not let you play its cards."),
 	]}
 
 

@@ -1,17 +1,22 @@
 class_name HotseatHand
 extends StackHand
-## A pass-and-play hand. The inactive seat has only a count; the
-## deciding seat has anonymous card backs until Show hand is pressed.
+## A two-seat hand. The inactive seat has only a count; the deciding
+## seat has anonymous card backs until Show hand is pressed. Spectator
+## mode shows that seat openly, with no privacy/control buttons.
 ## Hidden widgets never receive a CardInstance, hover callback or tooltip.
 
 signal visibility_toggled
+signal opponent_requested
 
 const GAP := 8.0
 const BUTTON_WIDTH := 104.0
 var seat := 0
 var active := false
 var revealed := false
+var spectator := false
+var can_interject := false
 var toggle_button: Button
+var opponent_button: Button
 var _backs: Control
 var _count := 0
 var _positioned := false
@@ -35,6 +40,13 @@ func _init() -> void:
 	toggle_button.position = Vector2(WIDTH + GAP, BAR_TOP)
 	toggle_button.pressed.connect(func(): visibility_toggled.emit())
 	add_child(toggle_button)
+	opponent_button = UiChrome.menu_button("Opponent", Vector2(BUTTON_WIDTH, 32), 14)
+	opponent_button.name = "Opponent"
+	opponent_button.focus_mode = Control.FOCUS_NONE
+	opponent_button.position = toggle_button.position + Vector2(0, 32 + GAP)
+	opponent_button.pressed.connect(func(): opponent_requested.emit())
+	opponent_button.hide()
+	add_child(opponent_button)
 
 
 func present(hand: Array, deciding: bool, shown: bool, showcase: CardPreview,
@@ -83,14 +95,20 @@ func populate(hand: Array, hidden: bool, click_cb: Callable,
 	_title.text = "Player %d (%d)" % [seat + 1, _count]
 	_title_bg.tooltip_text = "%s — %d cards in hand" % [DuelConfig.seat_label(seat), _count]
 	if not pinned:
-		_title_bg.tooltip_text += "\nDrag the title bar to move this stack and its button."
+		_title_bg.tooltip_text += "\nDrag the title bar to move this stack."
 	_title_bg.mouse_default_cursor_shape = Control.CURSOR_ARROW if pinned else Control.CURSOR_MOVE
-	toggle_button.visible = active
+	toggle_button.visible = active and not spectator
 	toggle_button.text = "Hide hand" if revealed else "Show hand"
 	toggle_button.tooltip_text = "Hide these cards before passing control." if revealed \
 		else "Reveal only when the other player has looked away."
+	opponent_button.visible = active and not spectator and not pinned
+	opponent_button.disabled = not can_interject
+	opponent_button.tooltip_text = "Let the other player respond now. Done returns control." if can_interject \
+		else "Finish the current choice or action before passing control."
 	var height := TITLE_HEIGHT + FOOT + (_pile.pile_height(_count) if active else 0.0)
-	custom_minimum_size = Vector2(WIDTH + GAP + BUTTON_WIDTH, height)
+	if opponent_button.visible:
+		height = maxf(height, opponent_button.position.y + opponent_button.size.y)
+	custom_minimum_size = Vector2(_full_width(), height)
 	size = custom_minimum_size
 	_clamp_on_screen()
 
@@ -105,11 +123,18 @@ func _clamp_on_screen() -> void:
 	if pinned or get_parent() == null:
 		return
 	var view := get_viewport_rect().size
-	var width := WIDTH + GAP + BUTTON_WIDTH
+	var width := _full_width()
 	if not _positioned:
 		var opening_height := TITLE_HEIGHT + FOOT + _pile.pile_height(7)
 		position = Vector2(view.x - width - 8.0,
 			view.y * (0.5 if seat == 1 else 1.0) - opening_height - 8.0)
 		_positioned = true
 	position.x = clampf(position.x, 0.0, maxf(0.0, view.x - width))
-	position.y = clampf(position.y, 0.0, maxf(0.0, view.y - TITLE_HEIGHT - FOOT))
+	var cap := TITLE_HEIGHT + FOOT
+	if not spectator:
+		cap = opponent_button.position.y + opponent_button.size.y
+	position.y = clampf(position.y, 0.0, maxf(0.0, view.y - cap))
+
+
+func _full_width() -> float:
+	return WIDTH if spectator else WIDTH + GAP + BUTTON_WIDTH
