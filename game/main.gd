@@ -273,6 +273,7 @@ func _ready() -> void:
 			SetBadges.describe(code), 520.0))
 	var badges := UiChrome.panel_around(row, 8.0)
 	badges.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	badges.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var pool_row := HBoxContainer.new()
 	pool_row.name = "CardPool"
 	pool_row.add_theme_constant_override("separation", 8)

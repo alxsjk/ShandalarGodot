@@ -14,7 +14,7 @@ needed); card files have NO class_name (they register by name instead);
   deck-requirement tracking, and registry configuration.
 - `game/card_packs_screen.gd`: Options → Card Packs management, including
   Open Folder, Rescan, versions, enabled state and readable rejection reasons.
-- `game/card_pack_badges.gd`: the square `1-tDotP` status button beside the
+- `game/card_pack_badges.gd`: the compact `1-tDotP` status button beside the
   title-screen set badges.
 - `cards/optional/pack_1/*.gd`: four trusted dormant digital adaptations;
   pack archives never provide executable code.

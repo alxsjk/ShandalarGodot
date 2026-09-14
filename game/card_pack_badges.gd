@@ -4,10 +4,9 @@ extends HBoxContainer
 
 signal pack_clicked(id: String)
 
-# The owner's exact `1-tDotP` mark measures 71 px with the shared stone
-# button's content margins. A 72 px square keeps the mark whole and aligns
-# with the title's other small square control.
-const SIZE := Vector2(72, 72)
+# Match the compact set plaque; a square pack button used to stretch the
+# entire bottom-left strip to 72 px tall.
+const SIZE := Vector2(72, 38)
 
 
 func _ready() -> void:
@@ -24,7 +23,7 @@ func rebuild() -> void:
 
 
 func _badge(id: String) -> Button:
-	var button := UiChrome.menu_button("1-tDotP", SIZE, 10, 0.04)
+	var button := UiChrome.menu_button("1-tDotP", SIZE, 14, 0.04)
 	button.name = "Pack1"
 	button.custom_minimum_size = SIZE
 	button.size = SIZE

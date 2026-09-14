@@ -351,7 +351,7 @@ The one the game fetches or you choose in Options is called cardart.zip;
 add other art zips beside it under any name.
 
 Pack-1-DotP-complete.zip is different: it is the exact, validated gameplay
-Pack 1. When it is present, the title screen shows a square 1-tDotP button.
+Pack 1. When it is present, the title screen shows a compact 1-tDotP button.
 Click it for quick information, or use Options > Card Packs for Open Folder,
 Rescan, enabled state, version and any validation failure. Enabling adds 373
 named set entries (369 reprints and four digitally adapted cards), so the
