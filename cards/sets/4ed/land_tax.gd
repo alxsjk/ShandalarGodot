@@ -59,7 +59,7 @@ static func _collect_taxes(game: MtgGame, source: CardInstance, event: GameEvent
 		return   # "you may": declined, and nothing to shuffle after
 	for i in want:
 		game.search_library(pid, _is_basic_land,
-			_PROMPTS[mini(i, _PROMPTS.size() - 1)], false, false)
+			_PROMPTS[mini(i, _PROMPTS.size() - 1)], false, false, "Land Tax — found card")
 	game.shuffle_library(pid)   # once, after the last search
 
 

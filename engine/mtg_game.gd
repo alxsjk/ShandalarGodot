@@ -46,6 +46,9 @@ signal event_occurred(event: GameEvent)
 ## by the player if [member PlayerChoice.answered_by_player], otherwise by
 ## a heuristic on their behalf (docs/duel-todo.md §1.3).
 signal choice_requested(choice: PlayerChoice)
+## CR 701.16 / 701.20: explicit rule-authorized looks and reveals. Names only;
+## viewer -1 means public. A networking UI must filter the audience itself.
+signal information_revealed(viewer: int, title: String, names: Array)
 ## A line was added to the game log, with its [member log_meta] entry —
 ## the turn and step it was written in, the seat and the card it is about.
 signal log_appended(line: String, meta: Dictionary)
@@ -410,6 +413,8 @@ var awaiting_choice: PlayerChoice = null
 ## state signals and its choice ledger are all suppressed, because the whole
 ## run is about to be rewound and a listener's reaction cannot be.
 var _probing := false
+## Presentation-only scratch during preflight, not rules state or an AI input.
+var _probe_information: Array = []
 
 ## THE SEARCH JOURNAL, or null — and null is the default, so a normal duel
 ## pays one reference comparison per instrumented write and nothing else.
@@ -669,6 +674,7 @@ func make_mark() -> int:
 	# it rather than inventing a second flag — and the journal puts it back.
 	undo_log.record(self, &"_probing", _probing)
 	_probing = true
+	_probe_information = []
 	# The MANA POOLS are recorded here rather than at their eight mutation
 	# sites: two small dictionaries a side, touched by nearly every move,
 	# and cheaper to save unconditionally than to instrument.
@@ -704,6 +710,7 @@ func end_search() -> void:
 		undo_log = null
 	continuous.journal = null
 	_probing = false
+	_probe_information = []
 
 ## How many of the current item's questions the player had answered the
 ## last time the engine held it open, -1 before the first hold. If a probe
@@ -5826,8 +5833,10 @@ func put_into_graveyard(inst: CardInstance) -> void:
 ## that searches several times and shuffles once at the end (Land Tax's
 ## "up to three basic land cards ... then shuffle" — CR 701.19a puts the
 ## shuffle after the whole search); it then owes [method shuffle_library].
+## A nonempty [param reveal_title] publicly reveals the found card. Leave
+## empty for private searches such as Demonic Tutor.
 func search_library(pid: int, filter: Callable, prompt: String,
-		to_battlefield := false, shuffle_after := true) -> void:
+		to_battlefield := false, shuffle_after := true, reveal_title := "") -> void:
 	var p := players[pid]
 	var candidates: Array[CardInstance] = []
 	for inst in p.library:
@@ -5835,6 +5844,8 @@ func search_library(pid: int, filter: Callable, prompt: String,
 			candidates.append(inst)
 	var chosen := agents[pid].choose_card(self, pid, candidates, prompt, true)
 	if chosen != null and p.library.has(chosen):
+		if not reveal_title.is_empty():
+			reveal_information(-1, reveal_title, [chosen.data.card_name])
 		_rec_move(chosen, pid, Mtg.Zone.HAND)
 		p.library.erase(chosen)
 		log_line("%s searches their library and finds %s" % [
@@ -6452,6 +6463,7 @@ func _preflight() -> PlayerChoice:
 	var outer_item := _resolving_item
 	var outer_choices := _resolving_choices
 	_probing = true
+	_probe_information = []
 	_resolving_source = item.card.data.card_name if item.card != null else ""
 	_resolving_controller = item.controller
 	_resolving_item = item
@@ -6459,6 +6471,7 @@ func _preflight() -> PlayerChoice:
 	_run_item(item)
 	var asked: Array = _resolving_choices.duplicate()
 	_probing = false
+	_probe_information = []
 	snapshot.restore()
 	_resolving_source = outer_source
 	_resolving_controller = outer_controller
@@ -9010,6 +9023,7 @@ func is_paying_cost() -> bool:
 ## visible rather than invisible.
 func record_choice(choice: PlayerChoice, seat_wanted_it := false) -> void:
 	if _probing:
+		choice.information = _probe_information.duplicate(true)
 		# A probe exists ONLY to collect the questions: they go on the
 		# resolution's list (which _preflight reads and the rewind then
 		# clears) and nowhere else. No log line, no ledger, no signal —
@@ -9027,6 +9041,16 @@ func record_choice(choice: PlayerChoice, seat_wanted_it := false) -> void:
 		log_line("(decided for %s) %s" % [
 			players[choice.pid].player_name, choice.describe()])
 	choice_requested.emit(choice)
+
+
+## Only effects that explicitly authorize seeing these names call this API.
+## Probes keep prior information on their question, never emit future reveals.
+func reveal_information(viewer: int, title: String, names: Array) -> void:
+	if viewer not in [-1, 0, 1]: return
+	if _probing:
+		_probe_information.append({"viewer": viewer, "title": title, "cards": names.duplicate()})
+	else:
+		information_revealed.emit(viewer, title, names.duplicate())
 
 
 # ---------------------------------------------------------- turn structure --

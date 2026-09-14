@@ -809,6 +809,7 @@ func recalculate(game: MtgGame) -> void:
 		p.life_gain_becomes_draw = false
 		p.max_hand_size = 7
 		p.top_card_revealed = false   # Field of Dreams rebuilds it
+		p.hand_revealed = false       # Revelation rebuilds it
 		p.discard_to_library_top = false   # Library of Leng rebuilds both
 		p.min_life_from_damage = 0
 		p.artifact_damage_redirect = -1

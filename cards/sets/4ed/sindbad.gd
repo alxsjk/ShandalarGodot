@@ -29,6 +29,7 @@ class SindbadEffect extends EffectBase:
 		if hand.size() <= before:
 			return   # drew from an empty library
 		var drawn: CardInstance = hand[-1]
+		game.reveal_information(-1, "Sindbad — drawn card", [drawn.data.card_name])
 		game.log_line("Sindbad reveals %s" % drawn.data.card_name)
 		if not drawn.data.is_land():
 			game.discard_cards(controller, [drawn])

@@ -36,6 +36,9 @@ class NaturalSelectionEffect extends EffectBase:
 		var left: Array[CardInstance] = []
 		for i in mini(3, pile.size()):
 			left.append(pile[pile.size() - 1 - i])
+		var seen: Array = []
+		for card in left: seen.append(card.data.card_name)
+		game.reveal_information(controller, "Natural Selection — top cards, top first", seen)
 		# The first card named ends on top.
 		if target.player_id == controller:
 			left.sort_custom(NaturalSelectionEffect._cheaper_first)

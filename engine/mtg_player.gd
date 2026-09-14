@@ -32,6 +32,10 @@ var max_hand_size: int = 7
 ## through MtgGame.revealed_top_card, which also announces a new top.
 var top_card_revealed: bool = false
 
+## Revelation makes this seat's entire hand public. Rebuilt by continuous
+## effects; separate from a single card's revealed_in_hand duration.
+var hand_revealed: bool = false
+
 ## "If an effect causes you to discard a card, discard it, but you may put
 ## it on top of your library instead of into your graveyard" (Library of
 ## Leng). Honoured by MtgGame.discard_cards / discard_random /

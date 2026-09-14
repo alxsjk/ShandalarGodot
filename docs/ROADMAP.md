@@ -12446,7 +12446,12 @@ Updated at the owner's request, 2026-09-14. Planned features, not part of
 the 0.20.0 duel and Deck Builder release:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
-- [ ] **Manalink** — online multiplayer duels.
+- [ ] **SGManalink** — browse, host and join online duels; later booster
+  drafting and complete tournaments. Develop on `sgmanalink`, preserving
+  the classic interface and offline play. Experienced networking and
+  authentication developers are welcome.
+- [ ] **MElo** — a community player ranking tied to protected personas and
+  trusted, server-verified matches; separate from DeckLab's deck ratings.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
 - [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
 
@@ -12454,7 +12459,9 @@ The finite early-Magic core remains the default; optional additions must
 not change it when disabled. Existing card-art import tools are available
 now; Cardpacks here means additional playable card sets, not picture ZIPs.
 See [the set-pack design](set-packages-plan.md) and
-[the Manalink plan](manalink-planning.md) for the existing groundwork.
+[the SGManalink design](sgmanalink-design.md) for the proposed groundwork.
+The earlier [Manalink planning study](manalink-planning.md) concerns the
+original engine's AI, not an implemented online service.
 
 ## 2026-09-13 — Manalink globe placeholder on the main menu
 
@@ -13076,6 +13083,287 @@ exit 0 and no errors, warnings or stalls. Outcomes, turns, life totals and
 human click counts matched the preceding gauntlet/hotseat verification.
 All three playtest fixes remain local; no commit, build or release was
 made in this turn.
+
+## 2026-09-14 — SGManalink local referee and room browser
+
+Development moved to the owner's `sgmanalink` branch from `5b0b037`.
+The first working slice is deliberately local and unrated: the main-menu
+globe opens a classic-styled Host / Browse / Join lobby, and two game
+windows can ready up and play a complete fixed-deck practice duel through
+a server referee. Opening the lobby itself starts no network connection.
+
+The service binds only to loopback and requires a temporary invitation
+capability. Each guest gets a distinct memory-only resume capability;
+the server derives its seat from that session. Commands name their room,
+revision and sequence; duplicate delivery cannot repeat a move, and a
+reconnect can recover a lost acknowledgement. A disconnected seat pauses
+the game, and a replacement connection retires its previous controller.
+
+The practice referee uses `MtgGame` without changing the offline rules or
+computer players. Clients receive detached, allowlisted views: no opposing
+hand contents, library order, engine logs, seeds/RNG state or raw instance
+IDs. Tests substitute those secrets while preserving the visible state.
+The six-creature Forest pool exercises mana, casting, priority, attackers,
+blockers, manual damage division, cleanup, mulligans and concession. A
+broader card pool requires explicit choices/targets/reveal handling first.
+
+This is not the public SGManalink service. There are no permanent personas,
+passkeys, durable matches, MElo or tournaments yet. Closing the service
+loses its games; closing a client loses its temporary seat. The limits and
+two-window instructions are in [the local playtest guide](sgmanalink-local-playtest.md);
+the public service and tournament requirements remain in
+[the design](sgmanalink-design.md). Existing release files, `main` and the
+release tag are unchanged.
+
+The final GUT gate passed **6,311 tests / 233,528 assertions / 369 scripts**
+in **236.659 seconds**, wrapper exit 0. This includes 17 new protocol,
+referee and real-socket/GUI tests. Python tooling passed **227 tests** with
+one existing skip. Native macOS visual checks rendered the lobby and live
+practice table successfully; the two-window GUI test also pins both
+independent views at 960x600. No cross-platform runtime certification is
+claimed by the Mac checks.
+
+Final native offline soaks passed all **four duels** at seed **92000**:
+demo plus fuzzed human under both modern and Fifth Edition rules, all
+wrappers exit 0 with no errors, warnings or stalls. Temporary visual
+probe scripts were removed. Work remains local and uncommitted on
+`sgmanalink`; no release build, push or asset replacement was performed.
+
+## 2026-09-14 — Temporary guest names and authentication options
+
+SGManalink now accepts an optional 20-character temporary nickname before
+connecting. The server validates it, adds a service-local guest number and
+shows the accepted label in room listings, seat summaries, turn prompts,
+battlefields and the result. Duplicate nicknames remain distinct sessions;
+reconnection preserves the label and seat only with the resume capability.
+Closing forgets the client's name/capability, and a new session cannot
+recover an occupied seat just by reusing its nickname. No permanent name
+reservation, account store, MElo or public listener was introduced.
+
+The exact nickname handshake is local protocol version 2, so playtest
+windows must use the same updated checkout. The offline engine and standard
+duel paths are unchanged. The [authentication note](sgmanalink-authentication.md)
+records hosted/free and self-hosted choices, Nakama's Godot integration and
+separate-referee requirements, domain/recovery decisions and decentralized
+alternatives. No provider has been selected or installed and no hosting or
+billing account was created.
+
+Verification: the targeted protocol/network/UI gate passed **20 tests /
+1,037 assertions** in **24.197 seconds**, wrapper exit 0. The complete GUT
+gate passed **6,314 tests / 233,452 assertions / 369 scripts** in
+**234.105 seconds**, wrapper exit 0. New cases cover bounded/invalid names,
+wire-side validation, duplicates, reconnect naming and failed nickname-only
+seat recovery. The two-view GUI path verifies names in the live table and
+960x600 layout with a maximum-length nickname. No new release build or
+cross-platform runtime certification; work remains local and uncommitted.
+
+## 2026-09-14 — Decentralized desktop LAN practice
+
+SGManalink can now host on one selected private IPv4 adapter and discover
+nearby hosts without a central directory, account service or ranking.
+The globe offers Host on LAN, opt-in Find LAN games, List on LAN versus
+invitation-only hosting, and Copy invitation. The old same-computer path
+remains available; opening the globe starts neither a listener nor a scan.
+
+LAN invitations carry the address, port, ephemeral public certificate and
+random access secret. Native clients use pinned, common-name-checked TLS;
+no plain-LAN fallback, unsafe TLS option or system trust-store change.
+Discovery carries no access/resume credentials, only bounded public host
+metadata, and requires a separately shared invitation to join. UDP replies
+use the queried port for stateful firewall compatibility. Listings expire;
+invitation-only hosts do not open a discovery listener. No router ports,
+Internet service, Nakama integration or permanent personas were introduced.
+
+Host response schemas now validate nested room/game/card values before UI
+use, in addition to the existing command validation, seat filtering,
+deduplication and reconnect handling. The 960x600 connection controls were
+visually checked and their label wrapping corrected. Both players still
+use the fixed 40-card Forest practice pool and temporary table; arbitrary
+deck uploads, full duel GUI, web networking and Internet discovery remain
+future work. Player-hosted games are unrated and trust their host operator.
+
+The pinned Godot's certificate string export was reproduced adding a NUL
+replacement character: public PEM file 1,147 bytes, string 1,148 characters,
+last code point 65,533. Exporting the public certificate through an
+automatically removed temporary file avoids that defect. Private keys and
+all invitation/session secrets stay in memory.
+
+Verification: full GUT **6,321 tests / 233,672 assertions / 369 scripts**,
+**239.471 seconds**, wrapper exit **0**. Existing unrelated warning and
+deprecation counts remain. Python tools: **227 tests, one skipped**, exit 0.
+The native Mac smoke exercised the real Host on LAN button, broadcast
+discovery through the LAN adapter, two encrypted seats and 960x600 lobby/
+duel rendering. A deliberately wrong certificate failed TLS verification
+and created no guest; its expected TLS errors are confined to that negative
+probe, not the passing suite. Temporary probe scripts were removed.
+
+Local Linux x86-64 and macOS playtest exports were refreshed outside the
+repository. The macOS app booted and passed ad-hoc signature verification;
+the Linux pack booted with the native Mac runtime, which does **not** certify
+the Linux executable. Native Linux/two-physical-computer firewall and Wi-Fi
+checks remain the owner's playtest. No Windows/web runtime certification,
+commit, push or public-release replacement was performed. See the
+[LAN playtest guide](sgmanalink-local-playtest.md) for joining and limits.
+
+## 2026-09-14 — SGManalink windows and classic network table
+
+The globe now opens a dedicated hub with separate **Identity**, **Host Game**
+and **Game Browser** windows. Identity offers a temporary name generator and
+explicit opt-in local remembering, without an account, email, SSH key, reserved
+name or ranking claim. Cancel discards edits; using a name without Remember
+removes the saved preference. Invitations and seat credentials remain memory-only.
+
+Host Game creates its room after the host's encrypted self-connection, then
+opens a waiting room with Copy invitation, named seats, Ready and Leave.
+Browser supports opt-in LAN search, selected-host invitation matching and
+direct invitations; private hosts remain invitation-only. Opening menus does
+not start sockets. Same-computer testing remains a separate advanced path.
+
+A dedicated full-screen network practice duel replaces the temporary button
+table. Shared MiniCard/CardPreview graphics, a draggable private hand, fixed
+below/above seat orientation, phase progress, life/mana/deck counts, graveyards,
+spell stack, opening decisions, casting, attacks, blocks, damage assignment,
+cleanup discards, results and confirmed exits now work through the network
+client. A pending acknowledgement does not rebuild the fields. Damage picks
+appear on recipients before confirmation. Display cards are detached render
+objects, never host CardInstances or a client MtgGame simulation. Wire version
+3 adds public block assignments and seat-private playable-card hints; both
+players need this build. Local hand dragging does not overwrite offline preferences.
+
+This is still the fixed Forest practice pool, not complete card-pool or offline
+interface parity. Arbitrary deck selection, general targets/abilities/choices,
+hidden-zone transitions and event/replay animations remain work. No accounts,
+MElo, Internet directory, NAT traversal or web multiplayer were added. Existing
+offline gameplay files are unchanged. Host-refereed play is unrated and trusts
+the host operator, not a claim of cheat-proof multiplayer.
+
+Verification: final full GUT gate **6,328 tests / 234,535 assertions / 370
+scripts**, **243.096 seconds**, wrapper exit **0**. Python tools: **227 tests,
+one skipped**, exit 0. A complete encrypted duel ran through the interface
+controls using only each client's view; focused cases cover multi-blocking,
+damage markers/confirmation, tapping, private rendering, stable pending-ack
+fields, name save/cancel/forget, responsive windows and modal lifecycle.
+Native Mac rendering was inspected at 960x600 and 1280x800; the actual LAN
+Host Game action created a room, admitted an encrypted guest and opened the
+duel after both players readied. No two-physical-computer claim is made.
+
+Fresh Linux x86-64 and **Apple Silicon-only macOS** local playtest builds are
+outside the repository. The Mac app booted and passed strict ad-hoc signature
+verification. The Linux pack booted in the native Mac runtime, not a Linux
+executable test. Disk exhaustion interrupted the first universal-Mac export
+and a concurrent gate; only generated failed output was removed and the gate
+was rerun successfully. The local Mac build used the unchanged arm64 slice of
+the existing 4.7.2 debug runtime, with Godot's built-in signer and a temporary
+template. The normal universal preset was restored, and temporary templates
+were removed. Prior working builds and public release assets remain intact.
+No commit or push was performed.
+
+## 2026-09-14 — SGManalink full-pool decks and decisions
+
+The waiting room now offers searchable shipped and locally saved decks, with
+complete main-deck and sideboard lists. The host validates 40–250 main-deck
+cards against the complete implemented registry; a deck change clears both
+Ready flags. A seat sees its own registered list and both deck titles, not
+the other seat's submitted list. The Forest practice list remains an explicit
+fallback, no longer a pool restriction. Current room rules are Unrestricted,
+20 life, mana burn and free damage assignment; sideboards are review-only in
+this single-duel milestone.
+
+The network table now shares classic territory backgrounds, card/land/aura
+piles, the large preview, hand stack and phase bars. Live types, colors, P/T,
+counters, regeneration, prevention and chosen creature-type reminders travel
+as bounded values. Targets, modal and X spells, mana/activated abilities,
+divided damage, banding, multiple blocks, resolution/cost questions and special
+payments run through the referee's normal engine APIs. Public stack details
+show announced targets, modes and X; private announcements stay with their seat.
+
+An explicit engine information channel carries only rule-authorized looks and
+reveals. Preflight captures information preceding each question, never a future
+answer's reveal. Library search choices use sorted names, not deck order;
+hidden-zone transitions retire old handles. Face-down battlefield/exile cards
+withhold printed identity and private characteristics. Revelation now grants
+continuous hand visibility while active, also respected by fair observations;
+Land Tax publicly reveals its finds while Demonic Tutor's search stays private.
+The protocol is version 4, with separate bounded commands and expanded views.
+
+This is not complete offline-interface parity: event/audio animation polish,
+all offline rules options, durable replay, Internet/web multiplayer and
+tournaments remain work. There are no accounts, central authentication or MElo.
+Player-hosted games remain unrated and trust their host; filtering the remote
+client does not make the operator of the referee incapable of cheating.
+
+Verification: full GUT gate **6,344 tests / 236,629 assertions / 371 scripts**,
+**262.310 seconds**, wrapper exit **0**; existing warning/deprecation counts
+remain. Python tooling: **227 tests, one skipped**, exit 0 with Python 3.14.
+Every registered card (897) round-trips through the network card schema and
+detached renderer. Focused network tests include a complete encrypted practice
+duel, full-deck submission/privacy/readiness/reconnects and representative full-pool
+mechanics. Native Mac deck, battlefield and targeting windows were inspected at
+1280x800 and 960x600; preview-over-modal overlap and deck-list contrast were fixed.
+The renderer-free live-interface soak also finished both seed-4242 duels:
+demo in 17 turns and human-seat in 13 turns (93 clicks), exit 0, with no
+errors, warnings or stalls. Rendering was checked separately as described above.
+
+Separate local Linux x86-64 and universal **Intel/Apple Silicon macOS** playtest
+exports were refreshed. The Mac app booted and passed strict ad-hoc signature
+verification; the Linux content pack booted in the Mac runtime, which is not
+a native Linux executable test. Both machines must use protocol 4. Existing
+builds, player art packs and the public release remain intact. Native Linux,
+two-physical-computer firewall/Wi-Fi behavior and wider full-deck playtesting
+remain owner checks. No commit, push or public release replacement was performed.
+
+## 2026-09-14 — SGManalink uses the actual duel interface
+
+Online play now subclasses the existing `DuelScreen`. The separate network
+table has been replaced, not reskinned: layout, large preview, hand styles,
+territories, land/aura piles, portraits, phase stops, Combat window, spell chain,
+target arrows, damage markers, spell flights, card sounds and music share the
+offline implementation. Local presentation preferences apply to both. Each
+client places its own seat below the opponent. A small Online button below the
+preview holds connection controls, revealed information and special payments.
+
+The referee still owns the complete normal game engine and implemented card
+pool. A render-only projection receives strictly validated, allowlisted seat
+views; it never receives the host game, snapshots, hidden hands/library order,
+engine IDs, logs or RNG state. Stable public handles preserve card animations
+across visible zone changes and retire when identity becomes hidden. This
+protects ordinary clients, not against an operator modifying the trusted host.
+Games remain friendly and unrated, with temporary identities and no MElo.
+
+The shared controls now support click-to-cast, modes/X, direct target selection,
+post-selection mana payment, double-click auto-payment, live abilities,
+attackers/blockers, per-point combat damage and private resolution/cost choices.
+The host supplies legal targets and response hints; the client never runs a
+second rules simulation. Pending acknowledgements lock commands until the
+corresponding revision arrives. Unpayable spells cancel cleanly. The normal
+opening presentation offers Play/Draw and mulligans; leaving it requires an
+online-session confirmation rather than navigating into offline setup.
+
+Rule-authorized looks appear inside the shared question window, and Revelation
+reveals the opponent's hand only while its effect permits. Public stack tooltips
+retain targets. Filtered sound/draw/death events are deduplicated on refresh.
+The wire protocol is now **5**; both players need the updated build. Wider
+room/rules options, match sideboarding, durable replay, public Internet/web
+multiplayer and tournaments remain separate work.
+
+Verification: final full GUT gate **6,351 tests / 236,961 assertions / 372
+scripts**, **268.952 seconds**, wrapper exit **0**. Existing warning/deprecation
+counts remain. Python tooling: **227 tests, one skipped**, exit 0. Shared-screen
+integration tests cover click-target-pay, double-click mana, modal/X spells,
+regeneration, private searches, explicit looks, Revelation, public card identity,
+opening/exit confirmation and combat damage. The encrypted two-client test
+finishes a duel using the real screen controls and only permitted client views.
+The offline interface soak finished seed 4242 in both modes: demo in 17 turns,
+human-seat in 13 turns with 93 clicks, exit 0. Native rendering was checked at
+1280x800 and 960x600, including the Online button placement.
+
+Fresh Linux x86-64 and universal Intel/Apple Silicon macOS local playtest builds
+are separate from previous builds and the public release. The Mac app booted
+and passed strict ad-hoc signature verification. The Linux content pack was
+checked using the Mac runtime, not by executing its Linux binary. Native Linux,
+two-physical-computer networking and wider full-deck playtesting remain owner
+checks. Both players need protocol 5. Existing art/skin packs remain reusable.
+No commit, push or public release replacement was performed.
 
 ## Standing quality gates
 

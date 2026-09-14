@@ -1,0 +1,596 @@
+extends GutTest
+## Actual loopback/LAN WebSocket, TLS and UDP exchanges plus hostile DTO checks.
+
+var server: SgLocalServer
+var a: SgLocalClient
+var b: SgLocalClient
+
+
+func before_each() -> void:
+	server = SgLocalServer.new()
+	add_child_autofree(server)
+	assert_eq(server.start_local(0), OK)
+	a = SgLocalClient.new()
+	b = SgLocalClient.new()
+	add_child_autofree(a)
+	add_child_autofree(b)
+
+
+func after_each() -> void:
+	a.forget()
+	b.forget()
+	server.stop()
+
+
+func _until(predicate: Callable, frames := 400) -> bool:
+	for i in frames:
+		if predicate.call():
+			return true
+		await get_tree().process_frame
+	assert_true(false, "network operation did not finish within its frame budget")
+	return false
+
+
+func _pair() -> void:
+	if server.lan_address.is_empty():
+		assert_eq(a.connect_local(server.port, server.access_code), OK)
+		assert_eq(b.connect_local(server.port, server.access_code), OK)
+	else:
+		assert_eq(a.connect_invitation(server.invitation()), OK)
+		assert_eq(b.connect_invitation(server.invitation()), OK)
+	await _until(func() -> bool: return a.online and b.online)
+
+
+func _act(client: SgLocalClient, action: Dictionary) -> bool:
+	var accepted := client.command(action)
+	assert_true(accepted, "command accepted by client: " + str(action))
+	if not accepted:
+		return false
+	if not await _until(func() -> bool: return not client.busy()):
+		return false
+	for i in 3:
+		await get_tree().process_frame
+	return true
+
+
+func _start_duel() -> void:
+	await _pair()
+	await _act(a, {"op": "host", "name": "Practice room"})
+	await _act(b, {"op": "join", "room": a.state.room.id})
+	await _act(a, {"op": "ready", "value": true})
+	await _act(b, {"op": "ready", "value": true})
+	await _until(func() -> bool: return not a.state.room.game.is_empty() \
+		and not b.state.room.game.is_empty())
+
+
+func test_browser_host_join_ready_and_seat_filtered_duel() -> void:
+	await _start_duel()
+	assert_eq(int(a.state.room.seat), 0)
+	assert_eq(int(b.state.room.seat), 1)
+	assert_eq(a.state.rooms.size(), 1)
+	assert_false(a.state.rooms[0].open)
+	assert_eq(a.state.room.game.hand.size(), 7)
+	assert_eq(b.state.room.game.hand.size(), 7)
+	assert_false(a.state.room.game.players[1].has("hand"))
+	assert_false(b.state.room.game.players[0].has("hand"))
+	assert_false(JSON.stringify(a.state).contains(server.access_code))
+	assert_false(JSON.stringify(a.state).contains(b._resume))
+	assert_false(JSON.stringify(a.state).contains("seed"))
+	assert_eq(a.state.room.deck_names, ["Forest practice", "Forest practice"])
+	assert_ne(a._resume, b._resume)
+	var actor: SgLocalClient = a if int(a.state.room.game.actor) == 0 else b
+	var other: SgLocalClient = b if actor == a else a
+	await _act(actor, {"op": "keep"})
+	await _act(other, {"op": "keep"})
+	assert_eq(a.state.room.game.mode, "priority")
+
+
+func test_encrypted_full_decks_are_private_and_changes_reset_readiness() -> void:
+	server.stop()
+	assert_eq(server.start_lan("127.0.0.1", 0, false), OK)
+	await _pair()
+	await _act(a, {"op": "host", "name": "Full pool"})
+	await _act(b, {"op": "join", "room": a.state.room.id})
+	await _act(a, {"op": "deck", "name": "Knights", "cards": Array(StarterDecks.WHITE_KNIGHTS), "sideboard": ["Terror"]})
+	assert_eq(a.state.room.deck.cards.size(), 40)
+	assert_eq(a.state.room.deck.sideboard, ["Terror"])
+	assert_true(b.state.room.deck.is_empty())
+	assert_false(SgProtocol.encode(b.state).contains("Savannah Lions"))
+	await _act(a, {"op": "ready", "value": true})
+	await _act(b, {"op": "deck", "name": "Raiders", "cards": Array(StarterDecks.BLACK_RED_RAIDERS), "sideboard": []})
+	assert_eq(a.state.room.ready, [false, false])
+	assert_eq(a.state.room.deck_names, ["Knights", "Raiders"])
+	assert_false(SgProtocol.encode(a.state).contains("Hypnotic Specter"))
+	var revision: int = int(b.state.room.revision)
+	var bad: Array = StarterDecks.BLACK_RED_RAIDERS.duplicate()
+	bad[0] = "unimplemented card"
+	await _act(b, {"op": "deck", "name": "Bad deck", "cards": bad, "sideboard": []})
+	assert_eq(int(b.state.room.revision), revision)
+	assert_eq(b.state.room.deck.name, "Raiders")
+	await _act(a, {"op": "ready", "value": true})
+	await _act(b, {"op": "ready", "value": true})
+	await _until(func() -> bool: return not a.state.room.game.is_empty())
+	assert_true(SgViewProtocol.room(a.state.room))
+	assert_true(SgViewProtocol.room(b.state.room))
+	assert_eq(a.state.room.game.hand.size(), 7)
+	assert_eq(a.state.room.game.players[1].hand_count, 7.0)
+	for card in a.state.room.game.hand: assert_has(StarterDecks.WHITE_KNIGHTS, card.name)
+	for card in b.state.room.game.hand: assert_has(StarterDecks.BLACK_RED_RAIDERS, card.name)
+	var owner_deck: Dictionary = b.state.room.deck.duplicate(true)
+	b._socket.close()
+	assert_true(await _until(func() -> bool: return not b.online))
+	assert_true(await _until(func() -> bool: return b.online and not b.state.room.game.is_empty()))
+	assert_eq(b.state.room.deck, owner_deck)
+	await _act(a, {"op": "concede"})
+	assert_eq(int(a.state.room.game.winner), 1)
+	assert_eq(int(b.state.room.game.winner), 1)
+	await _act(a, {"op": "leave"})
+	await _act(b, {"op": "leave"})
+	assert_eq(server._rooms.size(), 0)
+
+
+func test_duplicate_host_and_concede_are_not_executed_twice() -> void:
+	await _pair()
+	assert_true(a.command({"op": "host", "name": "One room"}))
+	var duplicate := a._pending.duplicate(true)
+	await _until(func() -> bool: return not a.busy())
+	a._socket.send_text(JSON.stringify(duplicate))
+	for i in 12:
+		await get_tree().process_frame
+	assert_eq(server._rooms.size(), 1)
+	assert_eq(server._next_room, 2)
+	await _act(b, {"op": "join", "room": a.state.room.id})
+	await _act(a, {"op": "ready", "value": true})
+	await _act(b, {"op": "ready", "value": true})
+	assert_true(a.command({"op": "concede"}))
+	duplicate = a._pending.duplicate(true)
+	await _until(func() -> bool: return not a.busy())
+	var revision := int(server._rooms[a.state.room.id].revision)
+	a._socket.send_text(JSON.stringify(duplicate))
+	for i in 12:
+		await get_tree().process_frame
+	assert_eq(server._rooms[a.state.room.id].revision, revision)
+	assert_eq(int(a.state.room.game.winner), 1)
+
+
+func test_lost_ack_reconnect_resumes_same_seat_and_retries_same_command() -> void:
+	await _start_duel()
+	var resume := a._resume
+	var room_id := String(a.state.room.id)
+	# Send but prevent the client from consuming the response before disconnection.
+	a.set_process(false)
+	assert_true(a.command({"op": "concede"}))
+	await _until(func() -> bool: return server._rooms[room_id].match.game.game_over)
+	a._socket.close(-1)
+	a._retry_at = 0
+	a.set_process(true)
+	await _until(func() -> bool: return a.online and not a.busy())
+	assert_eq(a._resume, resume)
+	assert_eq(a.state.room.id, room_id)
+	assert_eq(int(a.state.room.seat), 0)
+	assert_eq(int(a.state.room.game.winner), 1)
+	assert_eq(server._sessions.size(), 2, "reconnect did not create another identity")
+
+
+func test_outsider_and_stale_revision_cannot_modify_a_match() -> void:
+	await _start_duel()
+	var room_id := String(a.state.room.id)
+	var stranger := SgLocalClient.new()
+	add_child_autofree(stranger)
+	assert_eq(stranger.connect_local(server.port, server.access_code), OK)
+	await _until(func() -> bool: return stranger.online)
+	await _act(stranger, {"op": "join", "room": room_id})
+	assert_true(stranger.state.room.is_empty())
+	await _act(stranger, {"op": "concede"})
+	assert_false(server._rooms[room_id].match.game.game_over)
+	var revision := int(server._rooms[room_id].revision)
+	a.state.room.revision = 0
+	await _act(a, {"op": "concede"})
+	assert_eq(server._rooms[room_id].revision, revision)
+	assert_false(server._rooms[room_id].match.game.game_over)
+	a.state.room.id = "r999"
+	await _act(a, {"op": "concede"})
+	assert_eq(server._rooms[room_id].revision, revision)
+	assert_false(server._rooms[room_id].match.game.game_over, "a command names its room, not just its revision")
+	stranger.forget()
+
+
+func test_invalid_access_or_resume_never_creates_a_session() -> void:
+	assert_eq(a.connect_local(server.port, "0".repeat(64)), OK)
+	for i in 30:
+		await get_tree().process_frame
+	assert_false(a.online)
+	assert_eq(server._sessions.size(), 0)
+	a.forget()
+	assert_eq(a.connect_local(server.port, server.access_code), OK)
+	a._resume = "0".repeat(64)
+	for i in 30:
+		await get_tree().process_frame
+	assert_false(a.online)
+	assert_eq(server._sessions.size(), 0)
+
+
+func test_temporary_names_are_disambiguated_and_cannot_reclaim_a_seat() -> void:
+	assert_eq(a.connect_local(server.port, server.access_code, "  Forest Fox  "), OK)
+	assert_eq(b.connect_local(server.port, server.access_code, "Forest Fox"), OK)
+	await _until(func() -> bool: return a.online and b.online)
+	var first_name := a.guest
+	var second_name := b.guest
+	assert_true(first_name.begins_with("Forest Fox (Guest "))
+	assert_true(second_name.begins_with("Forest Fox (Guest "))
+	assert_ne(first_name, second_name)
+	await _act(a, {"op": "host", "name": "Guest table"})
+	await _act(b, {"op": "join", "room": a.state.room.id})
+	assert_eq(a.state.room.names, [first_name, second_name])
+	assert_eq(b.state.room.names, a.state.room.names)
+	assert_eq(b.state.rooms[0].host, first_name)
+	b._nickname = "Different name"
+	b.reconnect()
+	await _until(func() -> bool: return b.online)
+	assert_eq(b.guest, second_name, "resuming preserves the server's accepted label")
+	assert_eq(server._sessions.size(), 2)
+	var room_id := String(a.state.room.id)
+	b.forget()
+	assert_eq(b.guest, "")
+	assert_eq(b._nickname, "")
+	assert_eq(b.connect_local(server.port, server.access_code, "Forest Fox"), OK)
+	await _until(func() -> bool: return b.online)
+	assert_ne(b.guest, second_name, "the same nickname is not the old identity")
+	await _act(b, {"op": "join", "room": room_id})
+	assert_true(b.state.room.is_empty(), "nickname knowledge cannot recover an occupied seat")
+	assert_eq(server._sessions.size(), 3)
+
+
+func test_invalid_nickname_is_refused_locally_and_over_the_wire() -> void:
+	assert_eq(a.connect_local(server.port, server.access_code, "[b]Fox[/b]"), ERR_INVALID_PARAMETER)
+	assert_false(a._wanted)
+	assert_eq(server._sessions.size(), 0)
+	assert_eq(a.connect_local(server.port, server.access_code), OK)
+	a._nickname = "Fox (Guest 1)"
+	for i in 30:
+		await get_tree().process_frame
+	assert_false(a.online)
+	assert_eq(server._sessions.size(), 0, "server validates names from modified clients too")
+
+
+func test_lobby_opens_without_network_and_fits_small_window() -> void:
+	var host := Control.new()
+	add_child_autofree(host)
+	host.size = Vector2(960, 600)
+	var lobby := SgLobby.new()
+	host.add_child(lobby)
+	for i in 8:
+		await get_tree().process_frame
+	assert_null(lobby.service)
+	assert_false(lobby.client.online)
+	assert_eq(lobby.size, host.size)
+	assert_lte(lobby.get_child(1).size.x, host.size.x)
+	assert_lte(lobby.get_child(1).size.y, host.size.y)
+	assert_not_null(lobby.find_child("StartService", true, false))
+	assert_not_null(lobby.find_child("TemporaryName", true, false))
+	assert_true(lobby._nickname.editable)
+	assert_null(lobby._discovery, "opening the lobby does not start a search")
+	for label: Label in lobby._connection_controls.find_children("*", "Label", true, false):
+		if label.text in ["Temporary name", "Port"]:
+			assert_lte(label.size.y, 38.0, "field labels must not wrap one syllable per line")
+
+
+func _click(lobby: SgLobby, text: String) -> void:
+	for node in lobby.find_children("*", "Button", true, false):
+		if node.text == text and node.is_visible_in_tree():
+			assert_false(node.disabled, text + " is enabled")
+			node.pressed.emit()
+			for i in 4:
+				await get_tree().process_frame
+			return
+	assert_true(false, "missing button: " + text)
+
+
+func test_gui_host_browser_join_and_ready_reach_a_private_table() -> void:
+	# Independent viewports reproduce two windows' sizing and keyboard focus.
+	# Hiding one root suppresses layout, so it cannot be used as a size probe.
+	var lobbies: Array[SgLobby] = []
+	for i in 2:
+		var viewport := SubViewport.new()
+		viewport.size = Vector2i(960, 600)
+		add_child_autofree(viewport)
+		var host := Control.new()
+		viewport.add_child(host)
+		host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var lobby := SgLobby.new()
+		host.add_child(lobby)
+		lobbies.append(lobby)
+	var first := lobbies[0]
+	var second := lobbies[1]
+	first._nickname.text = "Forest Fox"
+	second._nickname.text = "W".repeat(SgProtocol.NICKNAME_LIMIT)
+	first._port.min_value = 0
+	first._port.value = 0
+	await _click(first, "Host Game")
+	await _click(first, "Same-computer testing")
+	await _click(first, "Start local service")
+	assert_not_null(first.service)
+	if first.service == null:
+		return
+	second._port.value = first.service.port
+	second._code.text = first.service.access_code
+	await _click(second, "Game Browser")
+	await _click(second, "Connect")
+	await _until(func() -> bool: return first.client.online and second.client.online)
+	assert_true(first.client.guest.begins_with("Forest Fox (Guest "))
+	assert_true(second.client.guest.begins_with("W".repeat(SgProtocol.NICKNAME_LIMIT)))
+	assert_false(first._nickname.editable)
+	assert_false(second._nickname.editable)
+	await _click(first, "Host a duel")
+	await _until(func() -> bool: return second.client.state.rooms.size() == 1)
+	await _click(second, "Join")
+	await _until(func() -> bool: return not second.client.state.room.is_empty())
+	await _click(first, "Ready")
+	await _click(second, "Ready")
+	await _until(func() -> bool: return not first.client.state.room.game.is_empty())
+	for i in 8:
+		await get_tree().process_frame
+	assert_false(first._connection_controls.visible)
+	assert_false(second._connection_controls.visible)
+	for lobby in lobbies:
+		assert_lte(lobby.get_child(1).size.x, 960.0)
+		assert_lte(lobby.get_child(1).size.y, 600.0)
+	assert_false(first.client.state.room.game.players[1].has("hand"))
+	assert_false(second.client.state.room.game.players[0].has("hand"))
+	for lobby in lobbies:
+		var captions := PackedStringArray()
+		assert_not_null(lobby._duel)
+		for label: Label in lobby._duel.find_children("*", "Label", true, false):
+			captions.append(label.text)
+		assert_true("\n".join(captions).contains(first.client.guest), "first nickname visible in duel")
+		assert_true("\n".join(captions).contains(second.client.guest), "second nickname visible in duel")
+	first.client.forget()
+	second.client.forget()
+	first.service.stop()
+
+
+func test_disconnect_pauses_play_and_resuming_replaces_the_old_connection() -> void:
+	await _start_duel()
+	a.set_process(false)
+	a._socket.close(-1)
+	await _until(func() -> bool: return b.state.room.connected == [false, true])
+	var revision := int(server._rooms[b.state.room.id].revision)
+	await _act(b, {"op": "keep"})
+	assert_eq(server._rooms[b.state.room.id].revision, revision)
+	a.set_process(true)
+	await _until(func() -> bool: return a.online and b.state.room.connected == [true, true])
+	var replacement := SgLocalClient.new()
+	add_child_autofree(replacement)
+	assert_eq(replacement.connect_local(server.port, server.access_code), OK)
+	replacement._resume = a._resume
+	await _until(func() -> bool: return replacement.online and not a._wanted)
+	assert_eq(int(replacement.state.room.seat), 0)
+	assert_eq(server._sessions.size(), 2)
+	replacement.forget()
+
+
+func test_two_network_clients_finish_a_duel_using_only_their_views() -> void:
+	server.stop()
+	assert_eq(server.start_lan("127.0.0.1", 0, false), OK)
+	await _start_duel()
+	var screens: Array[SgDuelView] = []
+	for peer in [a, b]:
+		var viewport := SubViewport.new()
+		viewport.size = Vector2i(960, 600)
+		add_child_autofree(viewport)
+		var screen := SgDuelView.new()
+		screen.stops.from_masks(PackedInt32Array([255, 255, 255, 255]))
+		viewport.add_child(screen)
+		peer.refused.connect(screen.show_notice)
+		screen.action_requested.connect(func(action: Dictionary) -> void:
+			assert_true(peer.command(action), "UI command accepted by the client"))
+		peer.changed.connect(func() -> void:
+			if not peer.state.room.is_empty():
+				screen.present(peer.state.room, peer.online, peer.busy()))
+		screen.present(peer.state.room, peer.online, peer.busy())
+		screens.append(screen)
+	var played_land: Dictionary = {}
+	var commands := 0
+	var casts := 0
+	while a.state.room.game.mode != "finished" and commands < 2000:
+		var actor := int(a.state.room.game.actor)
+		assert_true(actor in [0, 1], "practice pool must not produce unsupported choices")
+		if actor not in [0, 1]:
+			break
+		var pilot: SgLocalClient = a if actor == 0 else b
+		var action := _practice_action(pilot.state.room.game, actor, played_land)
+		if action.op == "play":
+			casts += 1
+		var screen := screens[actor]
+		match String(action.op):
+			"order": screen._opening_answer(0)
+			"keep": screen._opening_answer(1)
+			"play", "tap":
+				screen._on_card_clicked(screen.game.find_instance(screen.projection.local_id(action.card)))
+			"attack", "discard":
+				for handle: String in action.cards:
+					screen._on_card_clicked(screen.game.find_instance(screen.projection.local_id(handle)))
+				screen._on_done()
+			_:
+				assert_false(screen._pass_button.disabled)
+				screen._on_done()
+		assert_true(pilot.busy(), "duel interface emitted a network action")
+		if not await _until(func() -> bool: return not pilot.busy()):
+			break
+		for i in 3:
+			await get_tree().process_frame
+		# Stay below the same per-connection rate limit as human clients.
+		await get_tree().create_timer(0.025).timeout
+		commands += 1
+	assert_eq(a.state.room.game.mode, "finished")
+	assert_eq(b.state.room.game.mode, "finished")
+	assert_lt(commands, 2000)
+	assert_gt(casts, 5, "real spells and lands were played, not just passing to deck-out")
+	assert_eq(int(a.state.room.game.winner), int(b.state.room.game.winner))
+
+
+func test_encrypted_private_lan_invitation_reconnect_and_fresh_host_secrets() -> void:
+	server.stop()
+	var addresses := SgLanInvite.local_addresses()
+	var address := String(addresses[0]) if not addresses.is_empty() else "127.0.0.1"
+	assert_eq(server.start_lan(address, 0, false, "Forest Fox"), OK)
+	assert_null(server.discovery, "invitation-only hosts do not bind the discovery port")
+	var invitation := server.invitation()
+	var parsed := SgLanInvite.parse(invitation)
+	assert_eq(parsed.address, address)
+	assert_lt(invitation.length(), SgLanInvite.MAX_LENGTH)
+	assert_false(invitation.contains("PRIVATE KEY"))
+	await _start_duel()
+	assert_not_null(a._tls_options)
+	assert_false(a._tls_options.is_unsafe_client())
+	assert_eq(SgLanInvite.public_pem(a._tls_options.get_trusted_ca_chain()), server._lan_pem)
+	assert_eq(a._socket.get_connected_host(), address)
+	var resume := a._resume
+	a.reconnect()
+	await _until(func() -> bool: return a.online)
+	assert_eq(a._resume, resume)
+	assert_eq(server._sessions.size(), 2)
+	await _act(a, {"op": "concede"})
+	a.forget()
+	b.forget()
+	assert_null(a._tls_options)
+	server.stop()
+	assert_eq(server.invitation(), "")
+	assert_eq(server.start_lan(address, 0, false), OK)
+	var fresh := SgLanInvite.parse(server.invitation())
+	assert_ne(fresh.access, parsed.access)
+	assert_ne(fresh.fingerprint, parsed.fingerprint)
+
+
+func test_lan_discovery_real_udp_reply_has_no_credentials_and_stops() -> void:
+	var advertiser := SgLanDiscovery.new()
+	var scanner := SgLanDiscovery.new()
+	add_child_autofree(advertiser)
+	add_child_autofree(scanner)
+	var advert := {"address": "127.0.0.1", "port": server.port, "name": "Forest Fox",
+		"fingerprint": "a".repeat(64), "rooms": 1}
+	assert_eq(advertiser.advertise(advert, 0), OK)
+	assert_eq(scanner.scan(), OK)
+	scanner.query("127.0.0.1", advertiser._socket.get_local_port())
+	await _until(func() -> bool: return scanner.hosts.size() == 1)
+	var entry: Dictionary = scanner.hosts.values()[0]
+	assert_eq(entry.host.name, "Forest Fox")
+	assert_eq(int(entry.host.rooms), 1)
+	assert_false(JSON.stringify(scanner.hosts).contains(server.access_code))
+	var probe := PacketPeerUDP.new()
+	assert_eq(probe.bind(0, "127.0.0.1"), OK)
+	assert_eq(probe.set_dest_address("127.0.0.1", advertiser._socket.get_local_port()), OK)
+	assert_eq(probe.put_packet(JSON.stringify({"v": SgProtocol.VERSION,
+		"type": "sg-lan-query", "nonce": scanner._nonce}).to_ascii_buffer()), OK)
+	await _until(func() -> bool: return probe.get_available_packet_count() > 0)
+	probe.get_packet()
+	assert_eq(probe.get_packet_port(), advertiser._socket.get_local_port(),
+		"discovery replies use the queried port for stateful firewall compatibility")
+	probe.close()
+	advertiser.update_rooms(0)
+	scanner.query("127.0.0.1", advertiser._socket.get_local_port())
+	await _until(func() -> bool: return int(scanner.hosts.values()[0].host.rooms) == 0)
+	advertiser.stop()
+	assert_false(advertiser._socket.is_bound())
+	scanner.expire(Time.get_ticks_msec() + SgLanDiscovery.EXPIRES_MS)
+	assert_true(scanner.hosts.is_empty())
+	scanner.stop()
+	assert_false(scanner._socket.is_bound())
+
+
+func test_hostile_server_view_is_refused_without_exposing_it_to_ui() -> void:
+	await _pair()
+	var sid := int(server._tokens[a._resume.sha256_text()])
+	server._send(int(server._sessions[sid].peer), {"type": "state", "rooms": [],
+		"room": {"seat": 999, "game": {"players": []}}})
+	await _until(func() -> bool: return not a._wanted)
+	assert_false(a.online)
+	assert_true(a.state.room.is_empty())
+	assert_true(a.status.contains("invalid response"))
+
+
+func test_gui_lan_invitation_flow_and_discovery_selection_mismatch() -> void:
+	var lobbies: Array[SgLobby] = []
+	for i in 2:
+		var viewport := SubViewport.new()
+		viewport.size = Vector2i(960, 600)
+		add_child_autofree(viewport)
+		var lobby := SgLobby.new()
+		viewport.add_child(lobby)
+		lobbies.append(lobby)
+	var host := lobbies[0]
+	var guest := lobbies[1]
+	# Loopback exercises the LAN TLS/UI path even on machines without an adapter.
+	host._interfaces.clear()
+	host._interfaces.add_item("127.0.0.1")
+	host._port.min_value = 0
+	host._port.value = 0
+	host._advertise.button_pressed = false
+	# The production GUI only offers actual LAN addresses. Start the test service explicitly.
+	host.service = SgLocalServer.new()
+	host.add_child(host.service)
+	assert_eq(host.service.start_lan("127.0.0.1", 0, false, "Host"), OK)
+	host._code.text = host.service.invitation()
+	host._connect_local()
+	guest._code.text = host.service.invitation()
+	guest._selected_host = {"address": "127.0.0.1", "port": host.service.port,
+		"fingerprint": "0".repeat(64), "name": "Impostor"}
+	guest._connect_local()
+	assert_false(guest.client._wanted)
+	assert_true(guest._notice.text.contains("does not match"))
+	guest._selected_host = {}
+	await _click(guest, "Game Browser")
+	await _click(guest, "Connect")
+	await _until(func() -> bool: return host.client.online and guest.client.online)
+	await _click(host, "Host Game")
+	await _click(host, "Host a duel")
+	await _until(func() -> bool: return guest.client.state.rooms.size() == 1)
+	await _click(guest, "Join")
+	await _until(func() -> bool: return not guest.client.state.room.is_empty())
+	await _click(host, "Ready")
+	await _click(guest, "Ready")
+	await _until(func() -> bool: return not host.client.state.room.game.is_empty())
+	for lobby in lobbies:
+		assert_lte(lobby.get_child(1).size.x, 960.0)
+		assert_lte(lobby.get_child(1).size.y, 600.0)
+		lobby.client.forget()
+	host.service.stop()
+
+
+func _practice_action(view: Dictionary, seat: int, played_land: Dictionary) -> Dictionary:
+	# Test driver sees the same value-only state as the UI, never the server game.
+	match String(view.mode):
+		"opening": return {"op": "keep"} if view.presentation.order else {"op": "order", "play": true}
+		"attack":
+			var cards: Array = []
+			for card: Dictionary in view.players[seat].battlefield:
+				if not card.land and not card.sick and not card.tapped:
+					cards.append(card.id)
+			return {"op": "attack", "cards": cards}
+		"block": return {"op": "block", "pairs": []}
+		"discard":
+			var cards: Array = []
+			for i in int(view.discard_count):
+				cards.append(view.hand[i].id)
+			return {"op": "discard", "cards": cards}
+		"priority":
+			if int(view.active) != seat or view.step not in ["MAIN1", "MAIN2"] or not view.stack.is_empty():
+				return {"op": "pass"}
+			for card: Dictionary in view.hand:
+				if card.land and played_land.get(seat, -1) != int(view.turn):
+					played_land[seat] = int(view.turn)
+					return {"op": "play", "card": card.id}
+			var lands: Array = []
+			for card: Dictionary in view.players[seat].battlefield:
+				if card.land and not card.tapped:
+					lands.append(card)
+			for card: Dictionary in view.hand:
+				if card.land:
+					continue
+				var cost := ManaCost.parse(card.cost).mana_value()
+				var pool := int(view.players[seat].mana)
+				if cost <= pool:
+					return {"op": "play", "card": card.id}
+				if cost <= pool + lands.size():
+					return {"op": "tap", "card": lands[0].id}
+	return {"op": "pass"}

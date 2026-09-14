@@ -41,6 +41,10 @@ var prompt: String = ""
 ## The card whose resolution asked, "" when the question came from the turn
 ## machine rather than from a resolving spell or ability.
 var source: String = ""
+## Rule-authorized information seen BEFORE this question, captured by the
+## preflight. Viewer -1 is public; other values name the sole allowed seat.
+## Never an unrestricted log or library/hand snapshot.
+var information: Array = []
 
 ## The Mtg.Step the question was asked in, -1 outside a game. It is what
 ## tells an UPKEEP COST ("Pay {B}{B} to keep Junún Efreet?") from any other

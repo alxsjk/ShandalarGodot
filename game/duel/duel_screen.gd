@@ -2796,8 +2796,7 @@ func _toggle_attacker(inst: CardInstance) -> void:
 		# their board is not a mistake.
 		if inst.controller_id == game.active_player \
 				and inst.zone == Mtg.Zone.BATTLEFIELD:
-			_set_prompt("Illegal attacker. %s" % CombatState.attack_illegality(
-				game, inst, game.opponent_of(game.active_player)))
+			_set_prompt("Illegal attacker. %s" % _attack_refusal(inst))
 		return
 	if _selected_attackers.has(inst.id):
 		# Taking an attacker back. The 1997 game did NOT allow this
@@ -2809,7 +2808,7 @@ func _toggle_attacker(inst: CardInstance) -> void:
 			return
 		_selected_attackers.erase(inst.id)
 	else:
-		var why := CombatState.attack_illegality(game, inst, game.opponent_of(game.active_player))
+		var why := _attack_refusal(inst)
 		if why != "":
 			# @PROMPT_MAIN entry 6, UIStrings.txt:1063 — the original says
 			# "Illegal attacker." and stops; we keep the engine's reason
@@ -2895,7 +2894,7 @@ func _pick_block(inst: CardInstance) -> void:
 			_set_prompt("Illegal block. %s can block only %d attacker(s)"
 				% [blocker.data.card_name, game.blocks_allowed(blocker)])
 			return
-		var why := CombatState.block_illegality(game, blocker, inst, defender)
+		var why := _block_refusal(blocker, inst, defender)
 		if why != "":
 			# @PROMPT_DEFENDWHOM / @PROMPT_CHOOSEBLOCKERS, UIStrings.txt:993
 			# and :1139 — "Illegal block.", plus the engine's reason.
@@ -2930,7 +2929,7 @@ func _cannot_block_anything(blocker: CardInstance) -> String:
 		var attacker := game.find_instance(int(attacker_id))
 		if attacker == null:
 			continue
-		var why := CombatState.block_illegality(game, blocker, attacker, defender)
+		var why := _block_refusal(blocker, attacker, defender)
 		if why == "":
 			return ""
 		if first == "":
@@ -3604,6 +3603,13 @@ func _build_choice_overlay(choice: PlayerChoice) -> void:
 	scroll.add_child(column)
 	lines.add_child(scroll)
 	var labels := choice_options(choice)
+	# A rule-authorized look can precede the question (for example Visions).
+	# Keep that information in the same scrollable area as the answers.
+	for info in choice.information:
+		if int(info.get("viewer", -2)) not in [-1, choice.pid]: continue
+		var revealed := OriginalDialog.label(String(info.title) + "\n" + "\n".join(info.cards), 14)
+		revealed.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		column.add_child(revealed)
 	for i in labels.size():
 		# s30's `fmt.Sprintf("%d. %s", i+1, opt.Label)` and its number keys.
 		var text: String = "%d. %s" % [i + 1, labels[i]] if i < 9 \
@@ -4248,7 +4254,7 @@ func _has_a_legal_attacker(pid: int) -> bool:
 		return false
 	var defender := game.opponent_of(pid)
 	for inst in game.players[pid].battlefield:
-		if CombatState.attack_illegality(game, inst, defender) == "":
+		if _attack_refusal(inst) == "":
 			return true
 	return false
 
@@ -4425,7 +4431,7 @@ func _cancel_advance() -> void:
 func _auto_pass_applies() -> bool:
 	if game == null or game.game_over or _toss_active:
 		return false
-	if _ais.is_empty():
+	if _ais.is_empty() and not _network_opponent():
 		return false              # hotseat: no seat is "the opponent"
 	if _modal_open() or _pending_card != null:
 		return false
@@ -4516,6 +4522,8 @@ func _drive_advance() -> void:
 	# 200 is a safety net, not a design: every real run ends on an arrival
 	# or one of the three exceptions long before this.
 	for _i in 200:
+		if _waiting_for_action():
+			break
 		if not _advance_moved and _phase_key() != _advance_from:
 			_advance_moved = true
 		if (_advance_mode == Advance.RUN_TO or _advance_mode == Advance.SKIP_COMBAT) \
@@ -7617,7 +7625,7 @@ func _highlight_for(inst: CardInstance) -> int:
 				return MiniCard.Highlight.COMMITTED
 			if inst.controller_id == game.active_player \
 					and inst.is_creature() \
-					and CombatState.attack_illegality(game, inst, game.opponent_of(game.active_player)) == "":
+					and _attack_refusal(inst) == "":
 				# ORANGE for a creature that MUST attack (manual p.128:
 				# forced attackers are "highlighted, and you must add them
 				# to the Combat window"). Juggernaut's printed keyword and
@@ -7728,6 +7736,24 @@ func _clear_children(node: Node) -> void:
 	for child in node.get_children():
 		node.remove_child(child)
 		child.queue_free()
+
+
+## Presentation adapters can wait for an acknowledgement and use the referee's
+## legal candidates without replacing any of the card or combat gestures.
+func _waiting_for_action() -> bool:
+	return false
+
+
+func _network_opponent() -> bool:
+	return false
+
+
+func _attack_refusal(inst: CardInstance) -> String:
+	return CombatState.attack_illegality(game, inst, game.opponent_of(game.active_player))
+
+
+func _block_refusal(blocker: CardInstance, attacker: CardInstance, defender: int) -> String:
+	return CombatState.block_illegality(game, blocker, attacker, defender)
 
 
 # ================================================================= UI build --

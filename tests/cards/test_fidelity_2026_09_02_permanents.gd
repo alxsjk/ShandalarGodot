@@ -113,6 +113,22 @@ func test_artifact_ward_lets_an_artifact_spell_target_the_creature() -> void:
 
 # ---------------------------------------------------------- Field of Dreams --
 
+func test_revelation_public_hands_follow_continuous_state_and_rewind() -> void:
+	assert_false(g.players[0].hand_revealed)
+	var revelation := put_battlefield(0, "Revelation")
+	assert_true(g.players[0].hand_revealed)
+	assert_true(g.players[1].hand_revealed)
+	var snapshot := GameSnapshot.take(g)
+	g.destroy(revelation, false)
+	assert_false(g.players[0].hand_revealed)
+	assert_false(g.players[1].hand_revealed)
+	snapshot.restore()
+	assert_true(g.players[0].hand_revealed)
+	assert_true(g.players[1].hand_revealed)
+	g.sacrifice_permanent(revelation)
+	assert_false(g.players[1].hand_revealed)
+
+
 func test_field_of_dreams_reveals_both_library_tops() -> void:
 	assert_null(g.revealed_top_card(0), "hidden without the Field")
 	var field := put_battlefield(0, "Field of Dreams")

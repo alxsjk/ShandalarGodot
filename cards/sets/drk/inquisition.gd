@@ -26,6 +26,7 @@ class InquisitionEffect extends EffectBase:
 			names.append(inst.data.card_name)
 			if (inst.cur_colors & Mtg.ManaColor.W) != 0:
 				white += 1
+		game.reveal_information(-1, "Inquisition — revealed hand", Array(names))
 		game.log_line("%s reveals: %s" % [p.player_name, ", ".join(names)])
 		game.deal_damage(source, target, white)
 

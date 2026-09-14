@@ -59,6 +59,15 @@ so give it the same treatment when it writes.
 | **A saved duel log** | `user://duel_log_<ms>.txt` | What the duel log window's **Save** writes: one duel, on request. |
 | **Screenshots** | `user://screenshot_<ms>.png` | What the duel screen's screenshot key writes. |
 
+### SGManalink display-name preference
+
+The **Identity** window can remember a temporary display name on this device.
+It writes only `sgmanalink_nickname` under `[options]` in `user://settings.cfg`,
+and only when **Use this identity** is confirmed with **Remember** checked.
+Confirming with Remember unchecked removes that key. This does not create a
+verified account or reserve the name. Invitations, private keys and seat-resume
+credentials are never saved there; closing SGManalink forgets the temporary seat.
+
 ## What ships inside the pack (read-only)
 
 | What | Where |

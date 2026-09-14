@@ -22,7 +22,7 @@ static func capture(game: MtgGame, seat: int, ignore_own: Array = [],
 			if own and ignore_own.has(card.id):
 				record["hand_count"] -= 1
 				continue
-			if own or card.revealed_in_hand:
+			if own or player.hand_revealed or card.revealed_in_hand:
 				record["known_hand"].append(_card(card, true))
 		for zone in ["battlefield", "graveyard", "exile", "ante"]:
 			for card in player.get(zone):

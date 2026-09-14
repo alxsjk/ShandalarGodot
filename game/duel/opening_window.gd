@@ -338,6 +338,14 @@ func set_status(text: String) -> void:
 ## button the player may not use is DISABLED rather than removed, because
 ## the original's window always shows both of its buttons.
 func ask(answers: Array) -> int:
+	set_answers(answers)
+	while _pressed < 0 and is_inside_tree():
+		await get_tree().process_frame
+	return _pressed
+
+
+## Shared button row for asynchronous network openings.
+func set_answers(answers: Array) -> void:
 	# Un-parent BEFORE queueing: a queue_free'd child is still in the tree
 	# for the rest of the frame, so the old row would lay out beside the
 	# new one for a frame (the same trap CardPreview documents).
@@ -355,9 +363,6 @@ func ask(answers: Array) -> int:
 			_pressed = answer
 			answered.emit(answer))
 		_buttons.append(btn)
-	while _pressed < 0 and is_inside_tree():
-		await get_tree().process_frame
-	return _pressed
 
 
 ## The window is done; fade it away rather than snapping it off.

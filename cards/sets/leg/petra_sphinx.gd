@@ -97,6 +97,7 @@ class RiddleEffect extends EffectBase:
 				return
 			named = names[picked]
 		var top: CardInstance = game.players[pid].library.back()
+		game.reveal_information(-1, "Petra Sphinx — revealed card", [top.data.card_name])
 		game.log_line("%s names %s; %s reveals %s" % [
 			game.players[pid].player_name, named,
 			source.data.card_name, top.data.card_name])
