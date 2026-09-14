@@ -4860,7 +4860,9 @@ func _refresh() -> void:
 	_settle_hotseat_priority()
 	_sync_hotseat()
 	if _spectator_hands():
-		hidden_hands.assign([1 - _private_decision_seat()])
+		# [QoL] Both demo hands stay open. Following priority made them
+		# alternately fold and unfold on every pass, obscuring the game.
+		hidden_hands.clear()
 	_watch_for_extra_turn()
 	# THE CHOICE OVERLAY (§1.3): the engine holds a resolution open the
 	# moment it finds a question this seat has not answered, and it can do
@@ -5132,8 +5134,8 @@ func _grave_tooltip(pid: int) -> String:
 # =================================================== the combat furniture --
 
 ## Forced decisions belong to their rule-defined seat. Otherwise private
-## hotseat follows the turn player (or an explicit interjection), while a
-## spectator follows whichever computer currently has a decision/priority.
+## hotseat follows the turn player (or an explicit interjection). Otherwise
+## this is the rules decision/priority seat, not a spectator visibility gate.
 func _private_decision_seat() -> int:
 	if game.awaiting_choice != null:
 		return game.awaiting_choice.pid
@@ -6480,8 +6482,8 @@ func _rebuild_hand(pid: int, container: Control) -> void:
 	var hidden := hidden_hands.has(pid)
 	if container is HotseatHand:
 		container.can_interject = _hotseat_can_interject()
-		var deciding := _private_decision_seat() if _spectator_hands() else _hotseat_seat
-		container.present(_hand_order(pid), pid == deciding,
+		var open_stack := _spectator_hands() or pid == _hotseat_seat
+		container.present(_hand_order(pid), open_stack,
 			_may_see_hand(pid), _card_preview, _on_card_clicked, _highlight_for)
 		_arm_hand_auto_cast(container)
 		return

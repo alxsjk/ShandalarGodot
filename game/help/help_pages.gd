@@ -167,7 +167,7 @@ static func _page_table() -> Dictionary:
 		_heading("Hotseat · Let your opponent respond"),
 		_text("The turn player keeps control through routine phases. Before pressing Done, give your opponent time to say they want to respond. Press Opponent below Show/Hide to hand over; the other player reveals their hand and can cast an instant or use an ability. Their Done returns control. This shortcut assumes the silent opponent passes: it cannot rewind an action already resolved. Blockers, combat-damage assignments and required card choices still hand over automatically. Every handover and new turn hides both hands."),
 		_heading("Demo · Watch both players"),
-		_text("In AI-versus-AI games, both players have matching draggable hand stacks. The computer currently making a play or response shows its hand openly; the other stack shows its card count. Watching a hand does not let you play its cards."),
+		_text("In AI-versus-AI games, both players have matching draggable hand stacks. Both hands stay openly visible throughout the duel, including responses and turn changes. Watching a hand does not let you play its cards."),
 	]}
 
 

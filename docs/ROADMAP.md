@@ -12876,6 +12876,51 @@ counts match the preceding build. Both wrappers exited 0, with no
 ERROR/WARNING/STALL. No commit, push, export or release asset was changed
 in this pass.
 
+## 2026-09-14 — Keep both demo hands open
+
+The next playtest rejected the alternating spectator stacks: routine
+priority passes repeatedly folded one hand and expanded the other. The
+regression reproduced it before the fix: `passing priority must not fold
+the other stack` failed, and the two heights swapped between
+`[251.0, 43.0]` and `[43.0, 251.0]`.
+
+AI-versus-AI presentation now leaves both hand stacks openly visible,
+independent of priority, phase or turn. They remain separate, independently
+draggable stacks on their original sides; no spectator control over cards
+is added. Hotseat concealment and human-versus-computer privacy are
+unchanged. The computer players' information access and decision policy
+are also unchanged: showing cards to a human spectator does not expose
+them to the opposing computer's decision logic.
+
+The focused demo suite passed **6 tests / 230 assertions**, 2.616 seconds,
+wrapper exit 0. It covers stable heights/positions across passes and phases,
+both turn owners, live hand counts after draws and land plays, combat
+blocking and read-only spectator interaction. In-game help and the code map
+now describe both hands staying open.
+
+Validation: full GUT gate **6,277 tests / 232,378 assertions**, 367 scripts,
+211.496 seconds, wrapper exit 0. Python tool gate **227 tests**, one
+platform skip, 2.823 seconds, exit 0. A native 1280×800 gameplay probe
+checked both hand contents and visibility through 100 computer decisions
+and captured both stacks open; exit 0 with no errors or warnings. The
+temporary probe was removed after inspection.
+
+Native whole-duel gates, seed 92000: modern demo/human completed in
+20.3/21.6 seconds; fifth demo/human in 20.5/20.6 seconds. Winners, turns,
+life totals and human click counts match the preceding build. Both wrappers
+exited 0, with no ERROR/WARNING/STALL.
+
+Local Linux x86-64 play copy: `shandalar-build/linux-demo-open-20260914`,
+based on `dd4c3dc` plus this fix. Fresh game pack, unchanged
+verified desktop runtime, original skin and existing local-only card art.
+Copy-on-write clones preserve the older build while limiting disk use.
+The exported pack booted and passed its own 100-decision visibility probe
+with the native Mac runtime, exit 0 and no errors/warnings; the Linux ELF
+itself still needs Linux playtesting. Inventory, privacy, executable bits,
+both archives and the mana-burn sound passed checks. `SHA256SUMS` accompanies
+the play copy. This local build preceded the commit; no public release
+asset is included in this change.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

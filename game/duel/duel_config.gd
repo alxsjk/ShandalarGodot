@@ -109,8 +109,7 @@ func challenge_label() -> String:
 
 ## Static visibility for mixed games and open fixtures. Private hotseat
 ## concealment is managed per decision by DuelScreen, not by pilot type.
-## A demo has no private hands; DuelScreen displays the deciding seat's
-## stack openly and folds the other down to its count.
+## A demo has no private hands; DuelScreen keeps both stacks openly visible.
 func hidden_seats() -> Array[int]:
 	var hidden: Array[int] = []
 	if is_ai(0) and is_ai(1):

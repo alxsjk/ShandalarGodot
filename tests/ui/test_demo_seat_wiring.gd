@@ -44,8 +44,7 @@ func test_demo_uses_the_bottom_view_without_creating_a_human() -> void:
 	assert_false(screen._is_human(0))
 	assert_false(screen._is_human(1))
 	assert_true(screen._humans.is_empty())
-	assert_eq(screen.hidden_hands, [1 - screen._private_decision_seat()] as Array[int],
-		"spectators see the deciding player's stack openly")
+	assert_true(screen.hidden_hands.is_empty(), "spectators see both hand stacks throughout the duel")
 	var land: CardInstance = screen.game.players[0].hand[0]
 	screen._on_card_clicked(land)
 	assert_eq(land.zone, Mtg.Zone.HAND, "viewing seat 0 does not let us play its cards")
@@ -61,14 +60,49 @@ func test_demo_gives_both_players_matching_hand_stacks() -> void:
 		var other := screen._hand_rows[pid] as HotseatHand
 		assert_true(hand.revealed)
 		assert_eq(hand._pile.get_child_count(), screen.game.players[pid].hand.size())
-		assert_eq(other._pile.get_child_count(), 0)
+		assert_true(other.revealed, "the other computer's hand stays open too")
+		assert_eq(other._pile.get_child_count(), screen.game.players[1 - pid].hand.size())
 		assert_eq(other._backs.get_child_count(), 0)
 		assert_false(hand.toggle_button.visible, "a spectator never needs Show hand")
 		assert_false(hand.opponent_button.visible, "a spectator cannot interject")
 		assert_eq(screen.game.pass_priority(pid), "")
-		assert_true(other.revealed, "a response shows the responding computer's hand")
-		assert_false(hand.revealed)
+		assert_true(other.revealed, "responding never changes hand visibility")
+		assert_true(hand.revealed, "passing priority must not fold the other stack")
 		assert_eq(screen.game.active_player, pid)
+		var corners := [hand.position, other.position]
+		var heights := [hand.size.y, other.size.y]
+		assert_eq(screen.game.pass_priority(1 - pid), "")
+		assert_true(hand.revealed and other.revealed, "both remain open across phases")
+		assert_eq([hand.position, other.position], corners)
+		assert_eq([hand.size.y, other.size.y], heights, "no folding or jumping as priority changes")
+
+
+func _assert_both_stacks_open() -> void:
+	assert_true(screen.hidden_hands.is_empty())
+	for pid in 2:
+		var hand := screen._hand_rows[1 - pid] as HotseatHand
+		assert_true(hand.revealed and hand._pile.visible)
+		assert_eq(hand._pile.get_child_count(), screen.game.players[pid].hand.size())
+		assert_eq(hand._backs.get_child_count(), 0)
+		assert_false(hand.toggle_button.visible)
+		assert_false(hand.opponent_button.visible)
+
+
+func test_demo_both_hands_update_without_concealment_on_draw_play_and_new_turn() -> void:
+	for pid in 2:
+		_stand_in(pid, Mtg.Step.MAIN1)
+		_assert_both_stacks_open()
+		screen.game.draw_cards(1 - pid, 1)
+		_assert_both_stacks_open()
+		var card: CardInstance = screen.game.players[pid].hand[0]
+		screen._on_card_clicked(card)
+		assert_eq(card.zone, Mtg.Zone.HAND, "both open hands remain read-only for spectators")
+		assert_eq(screen.game.play_land(pid, card), "")
+		_assert_both_stacks_open()
+		# A new turn must never conceal either hand, even though hotseat does.
+		screen.game.turn_number += 1
+		_stand_in(1 - pid, Mtg.Step.UPKEEP)
+		_assert_both_stacks_open()
 
 
 func test_demo_phase_strip_follows_the_same_side_as_the_battlefield(
@@ -101,10 +135,12 @@ func test_demo_combat_stays_on_the_attackers_physical_side(
 			break
 		assert_eq(screen.game.pass_priority(screen.game.priority_player), "")
 	assert_true(screen.game.awaiting_blockers)
+	_assert_both_stacks_open()
 	var defender := 1 - int(pid)
 	assert_eq(screen.game.declare_blockers(defender,
 		{tokens[defender].id: tokens[pid].id}), "")
 	screen._refresh()
+	_assert_both_stacks_open()
 	assert_not_null(screen._combat_window)
 	assert_eq(screen._combat_window.lane_ids(), [[tokens[1].id], [tokens[0].id]],
 		"combat lanes must match the top and bottom battlefields")

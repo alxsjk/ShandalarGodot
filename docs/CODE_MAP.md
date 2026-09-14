@@ -3085,7 +3085,7 @@ shandalar/
 │    phase highlights/controls, combat colours and lanes agree with the
 │    battlefield; portraits, deck names, life/mana/zone counts and pile
 │    menus keep their own seat. Both demo hands use matching draggable
-│    stacks, open for the deciding computer and count-only for the other.
+│    stacks, both open throughout priority, phase and turn changes.
 │    Spectators gain no control of AI cards;
 │    tests/ui/test_hotseat_privacy.gd — private opening and mulligan
 │    sequences for either toss winner, fixed named seats, empty initial
@@ -6254,7 +6254,7 @@ shandalar/
 │       │                      right and Opponent beneath it. Independently
 │       │                      draggable with both buttons; pinned (Show/Hide
 │       │                      only) in the opening window. Spectator mode
-│       │                      shows the deciding computer's hand openly,
+│       │                      keeps both computers' hands openly visible,
 │       │                      without any privacy/control buttons.
 │       ├── stack_hand.gd    class StackHand — the ORIGINAL's draggable
 │       │                      hand window (s30 drawHandPanel): the whole

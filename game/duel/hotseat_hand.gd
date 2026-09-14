@@ -2,7 +2,7 @@ class_name HotseatHand
 extends StackHand
 ## A two-seat hand. The inactive seat has only a count; the deciding
 ## seat has anonymous card backs until Show hand is pressed. Spectator
-## mode shows that seat openly, with no privacy/control buttons.
+## mode keeps both seats open, with no privacy/control buttons.
 ## Hidden widgets never receive a CardInstance, hover callback or tooltip.
 
 signal visibility_toggled
