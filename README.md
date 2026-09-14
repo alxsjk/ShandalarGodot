@@ -21,445 +21,136 @@
 > — b0realis
 
 An open-source, from-scratch remake of MicroProse's 1997 *Magic: The
-Gathering* ("Shandalar") in **GDScript** on the latest stable **Godot 4.7** —
-chosen deliberately for its community size and full engine independence.
+Gathering*, built in GDScript with Godot. Early Magic, a modern rules
+engine, and the freedom to keep the game alive.
 
-At its core is a modular MTG rules engine written for this project: pure
-GDScript, no scene dependencies, fully headless-testable, with **every card
-in its own documented file** so new cards and whole sets can be added without
-touching engine code.
+## Play — 0.20.0
 
-## 0.20.0 — our first comfortably playable duel release
+**Our first comfortably playable release for duels and deck building is out.**
 
-The duel and Deck Builder are ready to enjoy. After the 0.19.0 debut and
-further fixes and playtesting, **0.20.0 is our first release we consider
-comfortably playable for duels and deck building**. It is a milestone, not
-a promise that every interaction is bug-free. **Shandalar adventure and
-Manalink online multiplayer are not implemented yet.**
+[Download Shandalar 0.20.0](https://github.com/b0realis/ShandalarGodot/releases/tag/v0.20.0)
+for **Windows, Linux, macOS or web**. The release page has launch
+instructions, standalone and original-skin packages, and SHA-256 checksums.
 
-We are especially proud of a solid **non-cheating computer opponent**:
-Apprentice, Magician, Sorcerer and Wizard all play with fair information.
-They study their own deck, plan their plays and analyse combat without
-reading your hidden hand or either library's secret order. Higher standard
-difficulty means more analysis, never extra resources or different rules.
-The separately labelled, opt-in **Unfair** challenge sees your current hand;
-it is off by default, unrated, and not a fifth standard difficulty.
-
-[Download 0.20.0](https://github.com/b0realis/ShandalarGodot/releases/tag/v0.20.0)
-for **Windows x86-64, Linux x86-64, macOS (Apple Silicon and Intel), or web**.
-Each platform has a standalone package and a `-with-skin` package containing
-the original skin. **Card pictures are never bundled**; import your own
-`cardart.zip` through Options → Skin. See the
-[release notes and launch instructions](docs/releases/0.20.0.md).
-
-Thank you to the Shandalar community and every project that helped keep
-this game alive. Have fun, build something unexpected, and enjoy the duels.
-All the best, good luck, and good health to every player!
+Play with an **897-card early-Magic pool**, historic decks, four computer
+opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
+sideboarding. The Deck Builder supports large cards, live filters and
+keyboard browsing. Adventure and online multiplayer are still to come.
 
 ## Philosophy
 
-The paragraph above is the brief, and **the limitation is the feature**: a
-closed pool of about 900 early cards is not a shortfall to grow out of, it
-is the thing being preserved. Everything below is how the brief becomes
-code.
+**The limitation is the feature.** Preserve the finite early-Magic pool
+and the 1997 feeling. Optional additions should leave that core intact.
 
-**Port, don't invent.** Where the 1997 game made a decision, that decision
-wins. Its own string tables, its manual, its help file and its data files are
-the authority, and they are consulted before anything is designed. When the
-original is silent, the modern rules decide; when both are silent, the choice
-is labelled as ours and says so at the site.
+**Port, don't invent.** The original game's decisions guide the remake;
+quality-of-life changes and rules simplifications are explicit. The
+[source history](Provenance.md) and [fidelity ledger](docs/simplified-cards.md)
+keep those choices open to inspection.
 
-**Provenance is a first-class fact, not a footnote.** Every source is ranked
-in [`Provenance.md`](Provenance.md) — Tier 1 the original's own files, Tier 2
-decompilations, Tier 3 community reimplementations — and behaviour is marked
-`[1997]`, `[s30]` or `[QoL]` where it lives. In a mixed tree, file dates
-decide authorship. A negative finding is a finding: "the 1997 shell played no
-music" is recorded so nobody has to derive it twice.
+**Strong play. Fair information.** Apprentice, Magician, Sorcerer and Wizard
+are **non-cheating** opponents. They study their own deck, plan spells and
+mana, and analyse combat without reading your hidden hand, secret library
+order or future draws. Stronger difficulty means stronger analysis, never
+free resources or special rules. See the [fair-play contract](docs/fair-play.md).
 
-**Every shortcut is written down.** A rules simplification carries a
-`SIMPLIFIED` marker at the site *and* a row in
-[`docs/simplified-cards.md`](docs/simplified-cards.md), and a test pins the
-marker and the ledger to each other so the two cannot drift. There are nine
-such rows today. Fidelity you cannot audit is fidelity you cannot trust.
+The separate, opt-in **Unfair — sees your hand** challenge gives Wizard
+knowledge of your current hand. It is off by default, unrated, and not a
+fifth standard difficulty; it still gets no future draws or rule exceptions.
 
-**The engine stays pure.** `engine/` and `cards/` are RefCounted only — no
-nodes, no scenes, no input, no `game/`. All state moves through one mutation
-surface. That is what makes the whole rules layer testable headless in
-seconds, and what lets a headless AI-vs-AI harness measure a change in
-thousands of games.
+**Open and testable.** The rules engine runs without graphics, every card
+has its own documented implementation, and changes are checked through
+regression tests and reproducible simulations. Godot keeps the project
+independent and the source accessible.
 
-**Claims are measured, not asserted.** An AI change ships with a
-before-and-after over thousands of simulated games against a null run at the
-same seed, or it does not ship. Several plausible improvements have been
-measured and thrown away.
+## Art and skins
 
-**Strong play. Fair information.** Our four standard difficulties study their own
-deck and the visible game—not your hidden hand or future draws. Higher
-standard difficulty adds analysis, never secret information or special rules.
-That is a design principle we are proud of, backed by hidden-information
-regression tests. Read [our fair-play contract](docs/fair-play.md).
+The game is playable with its built-in appearance. Choose a `-with-skin`
+release for the original look and sounds, or add `original_skin.zip`
+separately. Import packs through **Options → Skin**; on desktop they can
+also live in `skin/` beside the game.
 
-The separate, opt-in **Unfair — sees your hand** challenge adds current-hand
-knowledge to Wizard. It is explicitly unrated, not a fair difficulty level.
-It still has no future-draw knowledge, free resources or rule exceptions.
-
-**The source tree contains no original art.** The original skin is an
-optional, separate release download; card pictures are never release assets.
-The game reads art from optional packs or the filesystem at runtime and is
-fully playable with none of it, because every skinned path has a drawn
-fallback of the same geometry.
-
-## Status
-
-**M1 — engine core: done.** Turn structure, priority, the stack, casting,
-mana (including restricted mana and cost modifiers), activated / triggered /
-static abilities, auras, a CR 613 layered continuous-effects pipeline,
-combat (flying, reach, vigilance, trample, first strike, banding, rampage),
-protection, regeneration, prevention, poison, phasing, copying, tokens,
-control changes, ante, and state-based actions.
-
-**M2 — duel screen: shipped.** **M3 — card pool: complete** — all **897**
-cards of the eight 1997 sets, one documented file each, no stubs left.
-**M4 — AI: attacking, blocking and casting audited and measured.**
-**319 decks** ship — 312 of them ported with their provenance
-recorded, five the 1997 starters, two our own.
-
-Verified by **6,242 tests / 231,734 assertions** across 365 scripts, running
-headless, plus duel soaks that play whole games through the live UI.
-Adventure mode (M5) is next — see [docs/ROADMAP.md](docs/ROADMAP.md).
-
-## Quick start
-
-```sh
-# Run the test suite (headless; uses the pinned Godot in ../tools/godot)
-./run_tests.sh
-
-# Play whole duels through the live screen under Xvfb
-./duel_soak.sh
-
-# Open in the editor (Godot 4.7+)
-godot -e --path .
-```
-
-## Play in the browser / on a tablet
-
-```sh
-./build_release.sh --web                                        # -> ../shandalar-build/web/
-python3 -m http.server --directory ../shandalar-build/web 8000  # then open http://localhost:8000/
-```
-
-Any static host will do — the web build runs without threads, so there
-are no COOP/COEP headers to arrange. On a touchscreen the game types the
-mouse for your finger: tap clicks, hold and lift right-clicks, drag drags,
-a swipe scrolls a list; *Options → Touch controls* is Auto / On / Off. The
-table is landscape; a phone held upright gets a small picture. So far
-this has been checked in a desktop browser pretending to be a tablet,
-not on a real one.
-
-The browser wears the art the same way the desktop does — as **two
-zips** mounted in place: `original_skin.zip` (the 1997 material) and
-`cardart.zip` (the card pictures). Choose either in *Options → Skin* or
-drop it on the page, and the game keeps it (in the browser's own
-storage, across visits); or serve the skin zip beside the page as
-`skin/original_skin.zip` and the game fetches it once if it lacks a
-skin — `./build_release.sh --web --skin` places it there, plain `--web`
-never does. Whether the 1997 graphics are hosted anywhere is the
-owner's call, not the build's; the card art is never hosted (`--web
---skin --cardart` puts `skin/cardart.zip` beside the page for a serve
-on your own machine only — see below).
-
-## The art, and how to reconstruct it
-
-The repository carries **no 1997 assets and no card art**. Everything needed
-to rebuild both is here; the art itself is yours, not ours. Neither step is
-required to play — with no art at all, panels, buttons, cards and portraits
-fall back to drawn equivalents of the same geometry, and nothing is
-unreachable.
-
-### 1. The 1997 art, from your own copy of the game
-
-```sh
-python3 tools/mtg_assets.py                          # what it needs, in full
-python3 tools/mtg_assets.py --check   /path/to/game  # looks, writes nothing
-python3 tools/mtg_assets.py --install /path/to/game  # imports, writes a zip
-```
-
-`--check` reports on seven groups of files separately — shell art, card
-frames and mana symbols, portraits, fonts, sounds, the card database and the
-coin-toss movies — so a partial install tells you exactly which parts stay
-drawn. `--install` writes one archive whose inner folder is `skin/` — a
-**skin zip**, which the game mounts as it is — the same shape as the
-`original_skin.zip` a release offers as its own download beside the
-game: put it beside the executable
-as `skin/original_skin.zip`, choose it in *Options → Skin* (it is kept in
-the game's `skins/` folder under its own name and worn from then on), or
-drop it onto the running game's window — a tar.gz at any of these doors
-(`skin/original_skin.tar.gz` beside the executable too) is repacked into
-a zip of its name once, since only a zip can be mounted.
-Nothing is unpacked. Would you rather have loose files? `tools/import_original.py --source /path/to/game`
-fills the **skin folder** (`user://original_skin/`) instead, and *Use the
-skin folder instead of the zip* on the same screen wears it alone.
-
-*Options → Skin* shows every place the game reads for you by its path —
-the skin zip, the skin folder, the card folder, the portraits folder and
-the music folder — with what is in each; a face or a tune of your own is
-**added** to the 1997 ones, never put in their place. Each place is a key
-in `settings.cfg` (`skin_zip`, `skin_folder`, `cardpacks_folder`,
-`portraits_folder`, `music_folder` under `[options]`), so any of them can
-live wherever you like; the screen names the file.
-
-The `-with-skin` packages include the original skin zip, but never the card
-art pack. Every package includes `skin/SKIN.txt`, a generated catalogue (`docs/skin-catalogue.txt`,
-`tools/skin_catalogue.py`) of every picture, font, sound, tune, movie and
-portrait the game wears — format, dimensions, sheet grids and names — so
-a skin can be drawn from scratch and checked with
-`python3 tools/skin_catalogue.py --check my_skin.zip`. The catalogue's
-*To draw your own* says how a zip is put together: a `skin/` folder at
-the top, the files under the names listed, and whatever is missing the
-game draws for itself.
-
-It **reads your install and never writes to it.** A genuine 1997 install is
-the best source: its raw `.SPR` and `.PIC` files hold seventy portraits, five
-of which exist in no community conversion. Manalink 3.0 installs and s30
-checkouts also work, and several `--install` flags can be combined.
-
-The decoders are **standard library only** — `.PIC` (LZW + RLE), `.SPR`, and
-an AVI header parser — so a bare Python 3 is enough. Two exceptions, both
-optional and both announced rather than fatal: the coin-toss movies are
-Microsoft Video 1 (CRAM) and are transcoded to sprite sheets with **ffmpeg**
-or **gst-launch-1.0**, whichever you have; and Pillow is needed by exactly
-one *fallback* path (cutting a community-converted portrait sheet).
-
-The source movies travel in the archive beside the sheets they produced, so
-the conversion can always be redone without the disc:
-
-```sh
-python3 tools/mtg_assets.py --transcode-movies /path/to/the/game/skin
-```
-
-### 2. Card art for the 897 cards, from Scryfall
+**Card pictures are not included in the repository or release downloads.**
+Use your own `cardart.zip`, or build one for personal use with Python 3:
 
 ```sh
 python3 tools/fetch_card_art.py --out assets/cardart/
 python3 tools/mtg_assets.py --from-cardart assets/cardart/ --out cardart.zip
 ```
 
-Python 3 and a network connection, nothing else. It is deliberately polite to
-the API, **skips what it already has** so an interrupted run just carries on,
-and prints what it could not fetch rather than stopping. Run beside a shipped
-binary — where `cards/data/` lives inside the `.pck` and cannot be opened as
-a file — it asks Scryfall for the pool instead, one paged search per set.
-The second line zips the folder as `skin/cardart/<card_name>.jpg` — a
-**card pack**, kept apart from the skin zip because it is twice the size
-and on another licence; it goes beside the executable as
-`skin/cardart.zip`, or through the same *Options → Skin* row and drop
-into the **card folder** (`user://cardpacks/`), where every zip is worn —
-one per card set, as many as you like, the first to hold a picture
-winning. **The card pack is never a release file and never hosted** —
-the pictures are Scryfall's, on their own licence — so a release ships
-these two scripts and nothing they fetch; `build_release.sh --package`
-writes the pack to `../shandalar-build/local/` for play on this
-machine, and the game zip that goes up carries no art at all.
+To rebuild the original skin from your own game installation:
 
-### 3. Everything else
-
-| To rebuild | Run | Needs |
-|---|---|---|
-| Card data (`cards/data/*.json`) | `tools/fetch_cards.py` | network — but it is committed, so you don't need it |
-| Auto-generated cards and stubs | `tools/gen_cards.py` | the data above |
-| Frozen set packages | `tools/build_card_packs.py` | network, or `--offline` |
-| The Linux 64 build | `./build_release.sh` | Godot 4.7 + export templates; copy `export_presets.cfg.example` first |
-| The web build | `./build_release.sh --web` | the same, plus the `web_nothreads` templates |
-
-The 897 card implementations are **authored, not generated** — `gen_cards.py`
-emits stubs, and the hand-written rules files are the project itself.
-
-Every one of these — the seven scripts in `tools/`, the five shell scripts
-and the Deck Lab — answers `-h` with its own manual and `-V`/`--version`
-with the one version string, read from `project.godot`; none of them keeps
-a copy of it. Each opens with a small wordmark naming itself, and a **bare**
-command line gets two or three lines under it saying what that run is about
-to do and where the rest of the flags are. Both are drawn **on stderr and
-only on a terminal**, so a redirected or piped run is exactly as clean as it
-was before there were banners. `SHANDALAR_NO_BANNER=1` turns them all off,
-`NO_COLOR=1` keeps the shape without the colour.
-
-`docs/setup.txt` maps every path the built game reads or writes, and ships
-beside the binary so players read the same file you edit.
-
-## Getting oriented
-
-| Read | To learn |
-|---|---|
-| [DEVELOPMENT.md](DEVELOPMENT.md) | **Start here if you have just cloned this.** The folder tour, the gate commands, how the work is done here, and the traps that have already cost time |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The design: two-layer rule, one mutation surface, how everything fits |
-| [docs/CODE_MAP.md](docs/CODE_MAP.md) | Where every file is and what's in it |
-| [docs/adding-cards.md](docs/adding-cards.md) | How to add a card or a set (the most common contribution) |
-| [docs/mechanics.md](docs/mechanics.md) | Every mechanic the engine implements, its CR rule and the class behind it |
-| [Provenance.md](Provenance.md) | Every source, which outranks which, and the traps in reading them |
-| [docs/simplified-cards.md](docs/simplified-cards.md) | The fidelity ledger: every card that deviates from its printed text |
-| [docs/ai-difficulty.md](docs/ai-difficulty.md) | The four opponents: what the AI at each difficulty can and cannot do |
-| [DeckLab/README.md](DeckLab/README.md) | The headless AI-vs-AI deck testing harness |
-
-A taste of what a card looks like (`cards/sets/2ed/lightning_bolt.gd`):
-
-```gdscript
-extends CardScript
-## Lightning Bolt — {R} — Instant (Alpha, common)
-## Oracle: Lightning Bolt deals 3 damage to any target.
-
-func build() -> CardData:
-    return CardData.new("Lightning Bolt", "{R}", Mtg.CardType.INSTANT) \
-        .spell(DamageEffect.new(3).any_target()) \
-        .oracle("Lightning Bolt deals 3 damage to any target.")
+```sh
+python3 tools/mtg_assets.py --install /path/to/game
 ```
+
+The importer reads your installation without changing it. See the
+[player-files guide](docs/player-files.md) for pack locations and the
+[skin catalogue](docs/skin-catalogue.txt) for creating your own skin.
+Card pictures stay personal—do not include them in a public web build.
+
+## DeckLab CLI
+
+The desktop releases include a headless deck-analysis tool: run
+computer-versus-computer duels in parallel, compare matchups or gauntlets,
+and study win rates, confidence intervals, charts and CSV/JSON reports.
+Seeded runs make it useful for experimenting with decks and comparing ideas.
+
+Run `./deck_lab.sh --help` on Linux/macOS or `.\deck_lab.bat --help`
+on Windows. `--procs` and `--jobs` control parallel workers;
+`--no-elo` keeps experiments out of the ratings ledger.
+The [DeckLab manual](DeckLab/README.md) has examples and all options.
+
+## Future roadmap
+
+Planned features, not part of 0.20.0:
+
+- [ ] **Adventure** — the Shandalar world, quests and campaign.
+- [ ] **Manalink** — online multiplayer duels.
+- [ ] **Commander mode** — dedicated rules and deck-building support.
+- [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
+
+See the [development roadmap](docs/ROADMAP.md#major-features-for-the-future)
+for the longer record.
+
+## Build and contribute
+
+Use **Godot 4.7.2** for source development; export templates are needed to
+build releases. Start with [DEVELOPMENT.md](DEVELOPMENT.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup and the test workflow.
+
+```sh
+godot -e --path .
+./run_tests.sh
+```
+
+Explore the [architecture](docs/ARCHITECTURE.md),
+[code map](docs/CODE_MAP.md), [card-authoring guide](docs/adding-cards.md)
+and [cross-platform build guide](docs/release-builds.md).
+Bug reports are welcome—include your platform, version, decks and duel seed
+when possible.
 
 ## Thanks
 
-This project stands on nearly thirty years of other people's work, most of it
-given away for free.
+Thank you to **Godot and GUT**, **MicroProse**, the **Shandalar and Manalink
+community**, **[SlightlyMagic](https://www.slightlymagic.net/)** and **The Dojo**;
+to **Ben Prew** and the [s30](https://github.com/benprew/s30),
+[mage-go](https://github.com/benprew/mage-go) and
+[mp_pic_tools](https://github.com/benprew/mp_pic_tools) contributors;
+to [Forge](https://github.com/Card-Forge/forge), Scryfall, the artists, and
+everyone who tested, documented or preserved this game.
 
-**The Godot Engine team**, hugely and first. Godot made this possible in the
-most literal sense: a genuinely free engine, with no runtime fee, no seat, no
-licence server and no company able to change the terms afterwards — which is
-exactly what a project that intends to still be here in ten years needs. Its
-headless mode is why the rules engine and thousands of tests can run in
-a terminal; its Compatibility renderer is why a 1997 game's look runs on the
-kind of machine people actually have; and GDScript is why a card is a
-readable twenty-line file instead of a build system. Thank you for building
-it in the open and giving it away.
-
-**MicroProse**, for the 1997 game itself — a design good enough that people
-are still taking it apart and rebuilding it three decades later. Its string
-tables, manual and help file are quoted throughout this code as the authority
-they are.
-
-**The Shandalar and Manalink community**, who kept the game alive long after
-its publisher stopped: the patchers, the DLL replacements, the people who
-made a 1997 Windows program run on machines it was never built for, and who
-documented what they found instead of keeping it.
-
-**[SlightlyMagic](https://www.slightlymagic.net/)**, the forum that has been
-the home of that work for years — Manalink development, card databases,
-format documentation and the long threads where the file formats in
-`Provenance.md` were originally worked out in public.
-
-**The Dojo**, and the 1990s deck-building and strategy writing it collected.
-Decks of that era survive because that community wrote them down; a good part
-of the 319 decks here trace back to lists it preserved.
-
-**Ben Prew and the 30th-anniversary authors** —
-[s30](https://github.com/benprew/s30), its rules engine
-[mage-go](https://github.com/benprew/mage-go), and
-[mp_pic_tools](https://github.com/benprew/mp_pic_tools), whose `.PIC`/`.SPR`
-decoding made the original's raw art readable at all.
-
-**The Forge team** — [Forge](https://github.com/Card-Forge/forge), the open
-Magic engine whose AI was read for what a competent player does at the
-table (`docs/forge/`).
-
-And everyone who converted, catalogued or simply archived a file so that
-somebody later could find it.
+Have fun, build something unexpected, and enjoy the duels.
+**All the best, good luck and good health to every player!**
 
 ## Licence
 
-**GNU General Public License, version 3** — see [LICENSE](LICENSE).
-
-Copyleft, so this stays free: anyone may use, study, change and share it,
-and anything built on it carries the same freedoms forward. Version 3
-because it is the current one, with the patent and anti-tivoisation terms
-version 2 predates.
+Code and project-created assets: **[GPL-3.0](LICENSE)**.
+Third-party components and fonts retain their own licences; see the
+[asset inventory](game/art/README.md) and [provenance](Provenance.md).
 
 ## Legal
 
-*Magic: The Gathering* is a trademark of Wizards of the Coast LLC. This is an
-unaffiliated, non-commercial fan project. Card names and rules text are used
-under Wizards' Fan Content Policy, which requires that this stay
-non-commercial.
-
-### What travels with this source, and what does not
-
-**Not in the source tree: no card image, no 1997 file, and no third party's
-restyle of a 1997 file.** Original artwork, fonts, sounds, music and movies
-are not covered by this source code's GPL licence. The optional original
-skin download and `-with-skin` release packages are separate from the source;
-they do not change ownership of those assets. Card pictures are never
-published as release downloads. Players can also import their own copy of
-the 1997 game at runtime
-(`tools/import_original.py`, `docs/player-files.md`); with none of it
-present the game is complete and plays in a look of its own.
-
-**This: twelve files, of exactly two kinds,** listed here one by one
-because "some assets ship" is not a thing to leave vague. Each kind is
-ours to hand on for a different reason, and the two reasons are not
-interchangeable: what this project MADE, and what somebody else GAVE
-AWAY under a licence that permits redistribution. There was a third kind
-until 2026-09-09 — one sound, under a stranger's licence — and it is gone
-because the sound was replaced with one of our own (`Provenance.md`, the row for `game/deck_builder/stone_grind.wav`).
-
-**One — nine pictures and one sound, every one of them ours,** under
-this project's own GPL-3.0.
-
-| file | what it is |
-|---|---|
-| `game/art/set_icon_arn.png` | Arabian Nights, a scimitar |
-| `game/art/set_icon_atq.png` | Antiquities, an anvil |
-| `game/art/set_icon_leg.png` | Legends, a broken column |
-| `game/art/set_icon_drk.png` | The Dark, a crescent moon |
-| `game/art/set_icon_4ed.png` | Fourth Edition, a Roman `IV` |
-| `game/art/set_icon_past.png` | Astral, a comet trailing sparks |
-| `game/art/damage_marker.png` | the dagger a wounded creature wears |
-| `game/icon.png` | the window and taskbar icon (`branding/logo.png` is its master) |
-| `game/boot_splash.png` | the picture shown while the game loads |
-| `game/deck_builder/stone_grind.wav` | the Deck Builder's filter-button cue, a quarter of a second of stone |
-
-The seven in `game/art/` are drawn from scratch by
-`tools/draw_our_art.gd` — polygons and arcs in code, no source file of
-any kind — so the same command reproduces them byte for byte on a
-machine that has never seen the 1997 game. The sound is made the same
-way: noise, a filter and an envelope, generated rather than recorded.
-`game/art/README.md` records each one's SHA-256;
-`tests/ui/test_our_art.gd` holds the list to the folder, so a file that
-arrived from anywhere else fails the suite.
-
-**Two — one typeface, ours to pass on because its authors said so.**
-
-| file | what it is |
-|---|---|
-| `game/art/fonts/Spectral-Regular.ttf` | Spectral Regular 2.005 (Production Type), the face the rules text, the duel log and the dialogs are set in when no skin is imported |
-| `game/art/fonts/OFL.txt` | the SIL Open Font Licence 1.1 it is given away under, which travels with it into every build |
-
-Fetched on 2026-09-09 from the family's own upstream, Google Fonts'
-`ofl/spectral` directory, and hashed into `game/art/README.md` before it
-entered the checkout. The OFL is a redistribution licence — that is what
-it is for — and the licence file ships beside the font wherever the font
-goes, which is what the OFL asks and what
-`tests/ui/test_our_art.gd` asserts.
-
-It is a FLOOR and not a replacement. `MPlantin`, the face the 1997 game
-actually sets its rules text in, is Monotype's and is not here and never
-will be; a player who imports their own copy of the original still gets
-MPlantin, because the loader looks in every skin directory before it
-looks at ours (`GameSkin.font`). Spectral is what a player who has
-imported nothing reads instead of Godot's default sans.
-
-**The sound, in detail, because it used to be somebody else's.**
-
-| file | what it is | source | licence | SHA-256 |
-|---|---|---|---|---|
-| `game/deck_builder/stone_grind.wav` | the Deck Builder's filter-button cue: 0.250 s, 22 050 Hz, mono, 16-bit PCM, 11 068 B | ours — generated, not recorded | ours (GPL-3.0) | `4e61a797760ae9ccfd550073c0ca6233b094c5f2128ad9bd21d256ee9644da6e` |
-
-It is the only sound in the game that did not come out of the 1997
-install, which is why it ships inside the pack rather than being read
-off the player's own copy (`game/deck_builder/deck_audio.gd`). It is
-noise, a filter and an envelope, generated to simulate the sound of stone
-scraping on stone.
-
-`game/art/README.md` is the one inventory behind the tables above: it
-carries the source and the SHA-256 of every row above except
-`game/icon.png` and `game/boot_splash.png`, which are this project's own
-and predate it. `tests/ui/test_our_art.gd` holds that inventory to the
-files — a shipped asset that quietly stops shipping, or one that appears
-with nothing said about where it came from, fails the suite.
-
-Everything else the game needs it draws for itself, in code, at runtime.
+*Magic: The Gathering* is a trademark of Wizards of the Coast LLC.
+This is an unaffiliated, non-commercial fan project. The original skin and
+card pictures are separate from the source-code licence and remain the
+property of their respective owners.

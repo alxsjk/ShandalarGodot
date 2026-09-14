@@ -12442,11 +12442,19 @@ local branch; no online push.
 
 ## Major features for the future
 
-Added at the owner's request, 2026-09-13. Planned work, not part of the
-current deck-builder changes:
+Updated at the owner's request, 2026-09-14. Planned features, not part of
+the 0.20.0 duel and Deck Builder release:
 
-- [ ] **Shandalar adventure** — the adventure/campaign mode.
-- [ ] **Manalink multiplayer** — multiplayer duels.
+- [ ] **Adventure** — the Shandalar world, quests and campaign.
+- [ ] **Manalink** — online multiplayer duels.
+- [ ] **Commander mode** — dedicated rules and deck-building support.
+- [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
+
+The finite early-Magic core remains the default; optional additions must
+not change it when disabled. Existing card-art import tools are available
+now; Cardpacks here means additional playable card sets, not picture ZIPs.
+See [the set-pack design](set-packages-plan.md) and
+[the Manalink plan](manalink-planning.md) for the existing groundwork.
 
 ## 2026-09-13 — Manalink globe placeholder on the main menu
 
