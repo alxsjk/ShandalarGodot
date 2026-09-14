@@ -27,6 +27,7 @@ var _opening_started := false
 var _shown_choice: Dictionary = {}
 var _result_seen := false
 var _hosting := false
+var _announcement_refused := false
 
 
 func _ready() -> void:
@@ -59,6 +60,7 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 		config.decks[0] = room.deck.cards.duplicate() if not room.deck.is_empty() else []
 		_humans[0] = HumanAgent.new()
 		projection.action_requested.connect(_dispatch)
+		projection.log_appended.connect(_on_log_line)
 		_build_ui()
 		_build_network_controls()
 		_built = true
@@ -84,6 +86,7 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 
 
 func _dispatch(action: Dictionary) -> void:
+	if action.op != "submit": _announcement_refused = false
 	_sent_revision = int(_room.revision)
 	_awaiting_ack = true
 	_sent_op = action.op
@@ -161,6 +164,7 @@ func _on_done() -> void:
 
 
 func _on_card_clicked(inst: CardInstance) -> void:
+	if not projection.locked: _announcement_refused = false
 	if projection.locked: return
 	if mode == Mode.NORMAL and inst.zone == Mtg.Zone.BATTLEFIELD and not _modal_open() and not _toss_active:
 		_click_permanent(inst)
@@ -169,6 +173,7 @@ func _on_card_clicked(inst: CardInstance) -> void:
 
 
 func _on_life_clicked(pid: int) -> void:
+	if not projection.locked: _announcement_refused = false
 	if not projection.locked: super._on_life_clicked(pid)
 
 
@@ -209,6 +214,9 @@ func _sync_announcement() -> void:
 			_clear_pending(true)
 			_prepared_key = ""
 		return
+	# A mana source can suspend payment for a colour/cost question. Do not
+	# submit the draft until that question (and any subsequent one) is done.
+	if game.awaiting_choice != null or _announcement_refused: return
 	if mode == Mode.PAYING and not draft.reachable:
 		_clear_pending()
 		_send({"op": "cancel"})
@@ -257,7 +265,7 @@ func _sync_announcement() -> void:
 
 
 func _submit_pending() -> void:
-	if projection.locked or _pending_card == null: return
+	if projection.locked or _pending_card == null or game.awaiting_choice != null or _announcement_refused: return
 	var targets: Array = []
 	for i in _pending_groups.size():
 		for ref in _pending_groups[i]:
@@ -281,7 +289,14 @@ func show_notice(message: String) -> void:
 		_set_target_cursor(false)
 		_set_prompt(GRAB_MANA_PROMPT % _pending_card.data.card_name)
 		return
-	if _sent_op == "prepare": _clear_pending()
+	if _sent_op in ["prepare", "autoprepare"]: _clear_pending()
+	if _sent_op == "submit":
+		_announcement_refused = true
+		_pending_slot = 0
+		_pending_groups.clear()
+		for slot in _pending_slots: _pending_groups.append([])
+		mode = Mode.TARGETING if not _pending_slots.is_empty() else Mode.NORMAL
+		_set_target_cursor(mode == Mode.TARGETING)
 	_report(message)
 
 
@@ -295,8 +310,14 @@ func _auto_cast(inst: CardInstance) -> void:
 		_click_hand_card(inst)
 	if _pending_card != inst: return
 	if _x_dialog != null:
-		_x_spin.value = _option_detail().get("budget", 0)
-		_on_x_confirmed()
+		var count := int(_x_dialog.get_meta("targets").value) if _x_dialog.has_meta("targets") else 1
+		_pending_target_count = count if _pending_card.data.extra_cost_per_target > 0 else -1
+		_x_dialog.dismiss()
+		_x_dialog = null
+		_send({"op": "autoprepare", "card": projection.handle(inst.id),
+			"kind": "spell" if _pending_ability_index < 0 else "ability", "index": maxi(0, _pending_ability_index),
+			"mode": _pending_mode, "excluded": _excluded_sources(), "count": count})
+		return
 	if projection.locked:
 		_auto_pay_requested = true
 		return
@@ -307,11 +328,15 @@ func _auto_tap_for_pending() -> void:
 	if projection.locked or _prepared_key.is_empty():
 		_auto_pay_requested = true
 		return
+	_send({"op": "autopay", "excluded": _excluded_sources(), "count": maxi(maxi(1, _pending_target_count), _flatten_pending_targets().size())})
+
+
+func _excluded_sources() -> Array:
 	var excluded: Array = []
 	for id in _no_auto_tap:
 		var handle := projection.handle(id)
 		if not handle.is_empty(): excluded.append(handle)
-	_send({"op": "autopay", "excluded": excluded, "count": maxi(maxi(1, _pending_target_count), _flatten_pending_targets().size())})
+	return excluded
 
 
 func _option_detail() -> Dictionary:
@@ -328,7 +353,8 @@ func _open_x_dialog() -> void:
 	var cost := ManaCost.parse(option.get("cost", ""))
 	var per_x := maxi(1, cost.x_count)
 	var per_target := _pending_card.data.extra_cost_per_target if _pending_ability_index < 0 else 0
-	_x_dialog = FireballDialog.window(_pending_card.data.card_name, int(option.get("budget", 0)), per_target, SgProtocol.MAX_CARDS, per_x)
+	# The referee reports maximum X; the shared dialog dials X payment units.
+	_x_dialog = FireballDialog.window(_pending_card.data.card_name, int(option.get("budget", 0)) * per_x, per_target, SgProtocol.MAX_CARDS, per_x)
 	_x_spin = _x_dialog.get_meta("mana")
 	_x_dialog.add_button("OK").pressed.connect(_on_x_confirmed)
 	_x_dialog.add_button("Cancel").pressed.connect(_on_x_canceled)

@@ -525,7 +525,7 @@ func _waiting_room(room: Dictionary) -> void:
 	_body.add_child(_label("Unrestricted • 40-250 cards • 20 life • Mana burn on\n"
 		+ "Free combat damage assignment • Single friendly duel\n"
 		+ "Choose any implemented deck. Deck contents go only to the referee, not your opponent.\n"
-		+ "Both players must be ready to begin. Changing a deck clears both Ready marks.", 16))
+		+ "Both players must be ready to begin. Changing a deck or opponent clears both Ready marks.", 16))
 	var decks := _button("Choose / review deck", _open_decks)
 	decks.disabled = not client.online or client.busy()
 	_body.add_child(decks)
@@ -536,6 +536,12 @@ func _waiting_room(room: Dictionary) -> void:
 	var leave := _button("Leave room", func() -> void: _send({"op": "leave"}))
 	leave.disabled = not client.online or client.busy()
 	_body.add_child(leave)
+	if int(room.seat) == 0 and not room.connected[1] and room.names[1] != "Empty seat":
+		var remove := _button("Remove disconnected guest", func() -> void: _send({"op": "remove_guest"}))
+		remove.disabled = not client.online or client.busy()
+		_body.add_child(remove)
+	_body.add_child(_label("Disconnected seats are held for 5 minutes. Leaving releases your seat.\n"
+		+ "Friendly, unrated game: trust your host, whose computer runs the referee.", 15))
 	if not client.online:
 		_body.add_child(_button("Reconnect", client.reconnect))
 
@@ -663,7 +669,7 @@ func _send(action: Dictionary) -> void:
 	_confirm_close = false
 	_notice.text = ""
 	if not client.command(action):
-		var reason := "Wait for the connection or the current action."
+		var reason := client.command_error
 		_notice.text = reason
 		if is_instance_valid(_duel):
 			_duel.show_notice(reason)

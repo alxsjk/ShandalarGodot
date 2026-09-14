@@ -18,9 +18,9 @@ static func text(value: Variant, limit := 128) -> bool:
 static func valid(message: Dictionary) -> bool:
 	match message.get("type"):
 		"welcome":
-			return SgProtocol.exact(message, ["type", "v", "resume", "seq", "guest"]) \
+			return SgProtocol.exact(message, ["type", "v", "resume", "seq", "guest", "build"]) \
 				and message.v == SgProtocol.VERSION and SgProtocol.token(message.resume) \
-				and SgProtocol.integer(message.seq) and text(message.guest, 40)
+				and SgProtocol.integer(message.seq) and text(message.guest, 40) and SgProtocol.token(message.build)
 		"ack":
 			return SgProtocol.exact(message, ["type", "seq", "ok", "error"]) \
 				and SgProtocol.integer(message.seq, 1) and message.ok is bool and text(message.error, 512)
@@ -88,6 +88,8 @@ static func cards(value: Variant) -> bool:
 				return false
 		for key in ["types", "colors", "protection"]:
 			if not SgProtocol.integer(card[key], 0, 65535): return false
+		for keyword in card.keywords:
+			if not SgProtocol.integer(keyword, 0, Mtg.Keyword.size() - 1): return false
 		if not SgProtocol.integer(card.owner, 0, 1) or not SgProtocol.integer(card.controller, 0, 1): return false
 	return true
 
@@ -98,14 +100,14 @@ static func game(value: Variant) -> bool:
 	if value.is_empty():
 		return true
 	if not SgProtocol.exact(value, ["players", "hand", "stack", "mode", "actor", "active", "turn",
-		"step", "first", "winner", "draw", "discard_count", "damage_request", "choice", "announcement", "information", "specials", "presentation"]) \
+		"step", "first", "winner", "draw", "discard_count", "damage_request", "choice", "announcement", "information", "specials", "presentation", "journal"]) \
 		or not value.players is Array or value.players.size() != 2 or not cards(value.hand) \
 		or not value.stack is Array or value.stack.size() > SgProtocol.MAX_CARDS \
 		or value.mode not in ["priority", "opening", "attack", "block", "discard", "damage", "finished", "choice"] \
 		or value.step not in Mtg.Step or not value.draw is bool \
 		or not SgProtocol.integer(value.discard_count, 0, SgProtocol.MAX_CARDS) or not SgProtocol.integer(value.turn, 0, 1000000) \
 		or not damage(value.damage_request) or not choice(value.choice) or not announcement(value.announcement) or not information(value.information) \
-		or not labels(value.specials, SgProtocol.MAX_CARDS) or not presentation(value.presentation) \
+		or not labels(value.specials, SgProtocol.MAX_CARDS) or not presentation(value.presentation) or not journal(value.journal) \
 		or value.presentation.chain.size() != value.stack.size():
 		return false
 	for key in ["actor", "winner", "active", "first"]:
@@ -136,6 +138,75 @@ static func game(value: Variant) -> bool:
 			for card in player.battlefield:
 				if card.id == value.presentation.assignment.source: found = true
 		if not found: return false
+	return linked_cards(value)
+
+
+static func _zone_cards(index: Dictionary, values: Array, zone: String) -> bool:
+	var seen := {}
+	for card in values:
+		if seen.has(card.id): return false
+		seen[card.id] = true
+		if index.has(card.id) and (index[card.id].zone != zone or index[card.id].card != card): return false
+		index[card.id] = {"zone": zone, "card": card}
+	return true
+
+
+static func linked_cards(value: Dictionary) -> bool:
+	# Physical zones cannot alias a handle. Own revealed hands and stack-source
+	# faces may repeat a card, but must describe the same object consistently.
+	var index := {}
+	if not value.hand.is_empty():
+		var owner := int(value.hand[0].owner)
+		for card in value.hand:
+			if int(card.owner) != owner: return false
+		if not _zone_cards(index, value.hand, "hand/%d" % owner): return false
+	for seat in 2:
+		for zone in ["battlefield", "graveyard", "exile", "ante", "revealed"]:
+			if not _zone_cards(index, value.players[seat][zone],
+				"%s/%d" % ["hand" if zone == "revealed" else zone, seat]): return false
+	var objects := {}
+	for row in value.presentation.chain:
+		if objects.has(row.id): return false
+		objects[row.id] = true
+		if not row.face.is_empty():
+			if index.has(row.face.id):
+				if index[row.face.id].card != row.face: return false
+			else: index[row.face.id] = {"zone":"stack", "card":row.face}
+	for row in value.presentation.packets:
+		if objects.has(row.id): return false
+		objects[row.id] = true
+	for id in objects:
+		if index.has(id): return false
+	for row in value.presentation.cards:
+		if not index.has(row.id): return false
+	for entry in index.values():
+		if entry.card.blocking != "" and not index.has(entry.card.blocking): return false
+	for pair_value in value.presentation.blocks:
+		if not index.has(pair_value[0]) or (pair_value[1] != "" and not index.has(pair_value[1])): return false
+	for band in value.presentation.bands:
+		for id in band:
+			if not index.has(id): return false
+	for id in value.presentation.attackable + value.presentation.blocked:
+		if not index.has(id): return false
+	for row in value.presentation.blockable:
+		if not index.has(row[0]): return false
+		for id in row[1]:
+			if not index.has(id): return false
+	if not value.damage_request.is_empty():
+		for target in value.damage_request.targets:
+			if target.id != "player" and not index.has(target.id): return false
+	return true
+
+
+static func journal(value: Variant) -> bool:
+	if not value is Array or value.size() > SgJournal.LIMIT: return false
+	var serial := 0
+	for entry in value:
+		if not entry is Dictionary or not SgProtocol.exact(entry, ["serial", "turn", "step", "pid", "kind", "text"]) \
+			or not SgProtocol.integer(entry.serial, serial + 1) or (serial > 0 and entry.serial != serial + 1) \
+			or not SgProtocol.integer(entry.turn) or not SgProtocol.integer(entry.step, 0, Mtg.Step.size() - 1) \
+			or not SgProtocol.integer(entry.pid, -1, 1) or not SgProtocol.short_text(entry.kind, 16) or not text(entry.text, 512): return false
+		serial = int(entry.serial)
 	return true
 
 
@@ -194,7 +265,8 @@ static func choice(value: Variant) -> bool:
 	if value.is_empty(): return true
 	return SgProtocol.exact(value, ["prompt", "source", "options", "count", "cancel", "information"]) \
 		and text(value.prompt, 4096) and text(value.source, 128) and labels(value.options, 4096) \
-		and SgProtocol.integer(value.count, 0, SgProtocol.MAX_CARDS) and value.cancel is bool and information(value.information)
+		and SgProtocol.integer(value.count, 0, mini(SgProtocol.MAX_CARDS, value.options.size())) \
+		and value.cancel is bool and information(value.information)
 
 
 static func information(value: Variant) -> bool:
@@ -236,13 +308,28 @@ static func target_reference(value: Variant) -> bool:
 		and (value.kind != "player" or value.id in ["0", "1"]) and SgProtocol.integer(value.amount, 0, 1000000)))
 
 
-static func pairs(value: Variant, amounts := false) -> bool:
+static func pairs(value: Variant, amounts := false, departed_target := false) -> bool:
 	if not value is Array or value.size() > SgProtocol.MAX_CARDS: return false
 	for pair_value in value:
 		if not pair_value is Array or pair_value.size() != 2 or not SgProtocol.short_text(pair_value[0], 16): return false
 		if amounts:
 			if not SgProtocol.integer(pair_value[1], 0, 1000000): return false
-		elif not SgProtocol.short_text(pair_value[1], 16): return false
+		elif not (departed_target and pair_value[1] == "") and not SgProtocol.short_text(pair_value[1], 16): return false
+	return true
+
+
+static func block_matrix(value: Variant) -> bool:
+	# Bound rows and columns separately: legal relationships are not cards.
+	if not value is Array or value.size() > SgProtocol.MAX_CARDS: return false
+	var seen := {}
+	for row in value:
+		if not row is Array or row.size() != 2 or not SgProtocol.short_text(row[0], 16) \
+			or not SgProtocol.handles(row[1]) or seen.has(row[0]): return false
+		seen[row[0]] = true
+		var columns := {}
+		for column in row[1]:
+			if columns.has(column): return false
+			columns[column] = true
 	return true
 
 
@@ -261,7 +348,7 @@ static func presentation(value: Variant) -> bool:
 		if not value[key] is Array or value[key].size() > SgProtocol.MAX_CARDS: return false
 	if value.players.size() != 2 or value.cues.size() > 64: return false
 	if not SgProtocol.handles(value.blocked) or not SgProtocol.handles(value.attackable) \
-		or not pairs(value.blocks) or not pairs(value.blockable): return false
+		or not pairs(value.blocks, false, true) or not block_matrix(value.blockable): return false
 	for cue in value.cues:
 		if not cue is Dictionary or not SgProtocol.exact(cue, ["serial", "cue"]) or not SgProtocol.integer(cue.serial, 1): return false
 		if cue.cue not in SgDuelPresentation.CUES and cue.cue not in DuelAudio.LAND_PAIR_SOUNDS.values() \

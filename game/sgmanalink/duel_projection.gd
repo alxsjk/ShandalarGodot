@@ -14,6 +14,10 @@ var details: Dictionary = {}
 var _local_ids: Dictionary = {}
 var _next_local_id := 1
 var _seen: Dictionary = {}
+var _block_matrix: Dictionary = {}
+var _used_handles: Dictionary = {}
+var _hidden_slots: Array = [{}, {}]
+var _journal_serial := 0
 
 
 func local_seat(remote: int) -> int:
@@ -28,6 +32,7 @@ func all_battlefield() -> Array[CardInstance]:
 
 func local_id(handle: String) -> int:
 	if handle.is_empty(): return -1
+	_used_handles[handle] = true
 	if not _local_ids.has(handle):
 		_local_ids[handle] = _next_local_id
 		_next_local_id += 1
@@ -47,6 +52,12 @@ func ingest(room: Dictionary) -> void:
 	faces.clear()
 	details.clear()
 	_seen.clear()
+	_used_handles.clear()
+	_block_matrix.clear()
+	for row in presentation.blockable:
+		var columns := {}
+		for column in row[1]: columns[column] = true
+		_block_matrix[row[0]] = columns
 	if players.is_empty():
 		players = [MtgPlayer.new(0, "", 20), MtgPlayer.new(1, "", 20)]
 	for key in SgDuelPresentation.RULES: rules.set(key, presentation.rules[key])
@@ -68,9 +79,8 @@ func ingest(room: Dictionary) -> void:
 		p.exile.assign(_zone(dto.exile, Mtg.Zone.EXILE))
 		p.ante.assign(_zone(dto.ante, Mtg.Zone.ANTE))
 		p.hand.assign(_zone(view.hand if pid == 0 else dto.revealed, Mtg.Zone.HAND))
-		while p.hand.size() < int(dto.hand_count): p.hand.append(_unknown(pid, Mtg.Zone.HAND))
-		p.library.clear()
-		for i in int(dto.library_count): p.library.append(_unknown(pid, Mtg.Zone.LIBRARY))
+		p.hand.append_array(_hidden_zone(pid, Mtg.Zone.HAND, maxi(0, int(dto.hand_count) - p.hand.size())))
+		p.library.assign(_hidden_zone(pid, Mtg.Zone.LIBRARY, int(dto.library_count)))
 		p.top_card_revealed = not dto.top.is_empty()
 		if p.top_card_revealed and not p.library.is_empty() and CardRegistry.has_card(dto.top):
 			p.library[-1] = CardInstance.new(CardRegistry.get_card(dto.top), -1, pid)
@@ -108,6 +118,7 @@ func ingest(room: Dictionary) -> void:
 		combat.bands.append(ids)
 	for pair in presentation.blocks:
 		var blocker := local_id(pair[0])
+		# An empty target maps to -1: still blocking, but its attacker left.
 		if not combat.blocks.has(blocker): combat.blocks[blocker] = local_id(pair[1])
 		else:
 			if not combat.extra_blocks.has(blocker): combat.extra_blocks[blocker] = []
@@ -151,6 +162,33 @@ func ingest(room: Dictionary) -> void:
 	# No stale hidden card may survive a bounce, shuffle or concealment.
 	for id in _instances.keys():
 		if not _seen.has(id): _instances.erase(id)
+	for key in _local_ids.keys():
+		if not _used_handles.has(key): _local_ids.erase(key)
+	_ingest_journal(view.journal)
+
+
+func _ingest_journal(entries: Array) -> void:
+	for entry in entries:
+		if int(entry.serial) <= _journal_serial: continue
+		var meta := {"turn": int(entry.turn), "step": int(entry.step), "pid": local_seat(int(entry.pid)),
+			"kind": entry.kind, "card": "", "colors": 0}
+		if int(entry.serial) > _journal_serial + 1:
+			log_lines.append("Earlier online history is no longer available on the host.")
+			log_meta.append(meta.duplicate())
+			log_appended.emit(log_lines[-1], meta)
+		_journal_serial = int(entry.serial)
+		log_lines.append(entry.text)
+		log_meta.append(meta)
+		log_appended.emit(entry.text, meta)
+
+
+func _hidden_zone(pid: int, zone: int, count: int) -> Array:
+	# These are interchangeable UI slots, all id -1; never hidden identities.
+	var slots: Array = _hidden_slots[pid].get(zone, [])
+	while slots.size() > count: slots.pop_back()
+	while slots.size() < count: slots.append(_unknown(pid, zone))
+	_hidden_slots[pid][zone] = slots
+	return slots
 
 
 func _zone(cards: Array, zone: int) -> Array:
@@ -161,15 +199,11 @@ func _zone(cards: Array, zone: int) -> Array:
 
 func _face(dto: Dictionary, zone: int) -> CardInstance:
 	var id := local_id(dto.id)
-	var fresh := SgCardPresentation.make(dto, local_seat(int(dto.owner)), zone)
-	var card: CardInstance = _instances.get(id, fresh)
-	# Preserve object identity as the shared screen holds pending cards and flights.
-	for key in ["data", "printed_data", "cur_power", "cur_toughness", "tapped", "damage",
-		"summoning_sick", "cur_types", "cur_colors", "cur_keywords", "cur_subtypes", "cur_landwalk",
-		"cur_protection", "cur_rampage", "counters", "prevention", "regeneration_shields", "face_down"]:
-		card.set(key, fresh.get(key))
+	var previous: CardInstance = _instances.get(id)
+	var retained_zone := previous.zone if previous != null else zone
+	var card := SgCardPresentation.make(dto, local_seat(int(dto.owner)), zone, previous)
 	card.id = id
-	card.zone = zone if not _seen.has(id) else card.zone
+	card.zone = zone if not _seen.has(id) else retained_zone
 	card.owner_id = local_seat(int(dto.owner))
 	card.controller_id = local_seat(int(dto.controller))
 	card.revealed_in_hand = card.owner_id != 0 and zone == Mtg.Zone.HAND
@@ -294,4 +328,4 @@ func attack_refusal(card: CardInstance) -> String:
 
 
 func block_refusal(blocker: CardInstance, attacker: CardInstance) -> String:
-	return "" if presentation.blockable.has([handle(blocker.id), handle(attacker.id)]) else "This creature cannot block that attacker."
+	return "" if _block_matrix.get(handle(blocker.id), {}).has(handle(attacker.id)) else "This creature cannot block that attacker."

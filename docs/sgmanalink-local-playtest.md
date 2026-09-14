@@ -31,7 +31,8 @@ builds do not contain this LAN milestone.
 6. In the connected browser, choose **Join** beside the host's duel.
    Use **Choose / review deck** to search shipped and locally saved decks,
    inspect the complete list, then **Use this deck**. Both choose **Ready**.
-   Changing either deck clears both Ready flags so both players can review again.
+   Changing either deck or replacing an opponent clears both Ready flags so
+   both players can review again. Reconnecting the same seat preserves readiness.
 7. Play on the **same duel screen as an offline duel**. The coin-toss winner
    chooses Play first or Draw first; keep or redraw when prompted. Click a hand
    card, choose any mode/X, then click its targets on the table, portraits, spell
@@ -41,6 +42,18 @@ builds do not contain this LAN milestone.
    clicking them; click a blocker then an attacker to block. Confirm with Done.
    Divide damage with the existing click-per-point combat controls and choose
    cleanup discards in your hand.
+
+Auto-payment pauses for a mana source's colour/cost question and resumes after
+your answer. Automatic X respects **Don't auto tap** marks, coloured X costs,
+cost modifiers and target-count charges. You can still select X and tap manually.
+
+The normal **L** duel log now shows a filtered online history. It records public
+actions and information your seat was allowed to see, including private looks;
+it never copies the host's raw log or duel seed. Reconnect catch-up retains the
+last 256 entries per seat on the host; if older entries are unavailable, the log
+says so. Received history stays in the current client window and may be saved
+with its Save button. Previously public observations remain history even if a
+card later becomes hidden; they are not live access to that hidden card.
 
 The host must keep its lobby and application open for the whole duel.
 Closing that host stops its service and all rooms. There is no account
@@ -165,21 +178,42 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
 - Disconnects pause game actions until both seats reconnect; concession is
   still available. Retry restores the same seat and does not execute a
   command twice. Replacing the controlling connection displaces the old one.
+- A submitted action remains pending until both its acknowledgement and a
+  following room snapshot arrive. If it has not completed after 15 seconds
+  on an established connection, the client reconnects and retries the same
+  sequence; an already-applied action is not executed again. This deadline
+  concerns a pending command, not the time a player takes to decide a move.
+- A disconnected room seat is held for **five minutes**. On expiry it is
+  released; an unfinished duel is conceded by the expired seat. Roomless
+  disconnected guests expire after 30 seconds and may be reclaimed sooner
+  when capacity is needed. Before the duel starts, the room host can choose
+  **Remove disconnected guest**. Connected guests cannot be removed this way.
 - Closing the client lobby forgets its seat; it cannot be recovered by
-  reopening. Concede before intentionally leaving a running match. Host
-  shutdown loses all room/session state; there is no durable match journal.
+  reopening. Departure requests release it immediately; if the request cannot
+  reach the host, the disconnect grace applies. Concede before intentionally
+  leaving a running match. Host shutdown loses all room/session state;
+  there is no durable match journal.
 - Limits: eight connections, sixteen guest sessions, eight rooms per host;
   bounded JSON nesting, arrays, bytes, command queues and acknowledgements;
-  32 KiB commands, 2 MiB views and a 512-card limit per transmitted collection;
+  32 KiB commands, 2 MiB views and a 512-card limit per transmitted collection
+  (legal-block adjacency is bounded separately by rows and columns);
   handshake deadline and message rate limits. Discovery has a 64-host cache,
   768-byte packet ceiling and at most sixteen replies per second per host.
+  An oversized command is rejected locally with an explanation before it
+  consumes a sequence or enters the retry queue; limits apply after encoding.
 - Server commands and host-to-client DTOs are validated before use. No
   arbitrary object deserialization, script/resource loading or remote method
-  dispatch. Seat authorization comes from the connection, not a player
-  number submitted by the client. The data protocol is version 5 (both players
-  need the updated build for the shared duel presentation and mana-payment controls);
+  dispatch. Duplicate/contradictory card locations, absent combat-card references
+  and unknown keyword values are rejected before replacing the client view.
+  Seat authorization comes from the connection, not a player
+  number submitted by the client. The data protocol is version 6 (both players
+  need this updated build for compact blocking tables and filtered history);
   the invitation keeps the `sglan1:` envelope prefix and carries the same
-  version-5 compatibility check inside it.
+  version-6 compatibility check inside it. A handshake fingerprint additionally
+  checks the release version, maintained rules revision and printed card catalogue.
+  It detects incompatible builds, not modified-client cheating or player identity.
+  Invalid invitations, expired seats, incompatible builds and full hosts report
+  distinct failures and do not trigger endless automatic retries.
 - Each client receives a detached allowlisted view. Opponent hands and library
   order are not transmitted unless a card rule expressly permits that look/reveal.
   Engine logs, RNG state and raw engine IDs are never transmitted. Deck lists
@@ -187,6 +221,8 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   are public. Hidden-zone searches use sorted names, not library order.
   Handles survive public moves so the shared card animations retain continuity;
   they are retired when a card becomes hidden to a seat, or an opening hand is shuffled.
+  A creature remains marked as blocking when its attacker leaves combat, but
+  that historical block does not create a handle for a hidden or vanished card.
 
 The player operating the host can inspect its full rules-engine state or
 modify the executable. Transport encryption and filtered client views do
@@ -207,6 +243,39 @@ through the view schema and detached renderer. Focused mechanic cases exercise
 auras, modal/X spells, counterspells, regeneration, divided damage, sacrifice costs,
 searches, private/public reveals, masked cards and special payments. Encrypted
 deck-submission tests check privacy, validation, readiness resets and reconnects.
+
+The stabilization regressions include 24-by-24 combats, reserved-mana X,
+colour-choice cancellation and lost-ack recovery, journal privacy/deduplication,
+session churn/expiry, and compatibility failures. Searches, triggered payments
+and split combat damage also survive interrupted connections and lost answers.
+After reconnecting, input stays disabled until the fresh room snapshot arrives;
+a welcome alone must not enable commands against a stale room revision.
+The second robustness pass also holds back acknowledgements' following snapshots,
+recovers a stalled result without repeating the action, rejects malformed views
+over a real socket, checks fresh readiness after an opponent changes, and keeps
+returned/shuffled attackers private while preserving the remaining blocker's status.
+The varied-deck socket soak
+alternates shipped decks and reuses sessions across rematches, with delayed
+processing, duplicate commands and repeated reconnects. For a longer run:
+
+```sh
+SGMANALINK_SOAK_ROUNDS=4 ./run_tests.sh -gselect=test_sgmanalink_network.gd -gunit_test_name=test_varied_deck_rematches_with_latency_disconnects_and_duplicate_commands
+```
+
+Rounds are bounded to 2–20; each duel also has a command ceiling and each
+network wait a frame budget. These tests do not replace physical LAN playtests.
+
+Implementation notes: `SgCompatibility.RULES_REVISION` must change for engine
+or card-behaviour changes between release versions. The current optimized
+encoder retains ASCII escaping and the original parser limits. View construction
+is memoized per room revision and seat; publications are coalesced, including
+duplicate-command replies, and unrelated duels are not rebuilt for another room's
+command or a roomless visitor's departure. X-budget estimates share one
+source enumeration within each view and use a bounded search against actual
+engine payment costs.
+
+See the [second-pass record](sgmanalink-hardening-2026-09-14.md) for its
+reproductions, recovery checks and verification results.
 
 Next: two-computer full-deck playtests; then
 Internet invitations and decentralized public discovery. Account providers,

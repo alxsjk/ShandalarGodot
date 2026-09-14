@@ -3,8 +3,8 @@ extends RefCounted
 ## [QoL] Unrated loopback/LAN protocol. Data only; no Variant object decoding or RPC.
 ## Version this independently from the application release and future rated protocol.
 
-const VERSION := 5
-const SUBPROTOCOL := "sgmanalink-local-v5"
+const VERSION := 6
+const SUBPROTOCOL := "sgmanalink-local-v6"
 const NICKNAME_LIMIT := 20
 const MAX_BYTES := 2097152
 const MAX_COMMAND_BYTES := 32768
@@ -21,7 +21,10 @@ const FIELDS := {
 	"special": ["index"],
 	"order": ["play"], "mana": ["card", "index"],
 	"autopay": ["excluded", "count"],
+	"autoprepare": ["card", "kind", "index", "mode", "excluded", "count"],
+	"remove_guest": [],
 }
+static var _unicode_pattern: RegEx
 
 
 static func integer(value: Variant, low := 0, high := 1000000) -> bool:
@@ -105,9 +108,10 @@ static func valid(message: Dictionary) -> bool:
 	if not integer(message.get("v"), VERSION, VERSION):
 		return false
 	if message.get("type") == "hello":
-		return exact(message, ["v", "type", "access", "resume", "nickname"]) \
+		return exact(message, ["v", "type", "access", "resume", "nickname", "build"]) \
 			and token(message.access) and (message.resume == "" or token(message.resume)) \
-			and nickname(message.nickname)
+			and nickname(message.nickname) and token(message.build)
+	if message.get("type") == "abandon": return exact(message, ["v", "type"])
 	if not exact(message, ["v", "type", "seq", "room", "revision", "action"]):
 		return false
 	if message.room != "" and not short_text(message.room, 16):
@@ -125,6 +129,10 @@ static func valid(message: Dictionary) -> bool:
 		"order": return action.play is bool
 		"mana": return short_text(action.card, 16) and integer(action.index, 0, 63)
 		"autopay": return handles(action.excluded) and integer(action.count, 1, MAX_CARDS)
+		"autoprepare":
+			return short_text(action.card, 16) and action.kind in ["spell", "ability"] \
+				and integer(action.index, 0, 63) and integer(action.mode, 0, 63) \
+				and handles(action.excluded) and integer(action.count, 1, MAX_CARDS)
 		"special": return integer(action.index, 0, MAX_CARDS)
 		"deck":
 			return SgViewProtocol.text(action.name, 128) and not action.name.strip_edges().is_empty() \
@@ -192,14 +200,21 @@ static func indices(value: Variant, maximum: int) -> bool:
 
 ## ASCII wire framing still permits printed names such as Junún Efreet.
 static func encode(value: Dictionary) -> String:
-	var result := ""
-	for character in JSON.stringify(value):
-		var code: int = character.unicode_at(0)
-		if code < 128:
-			result += character
-		elif code <= 65535:
-			result += "\\u%04x" % code
+	# Scan in native code and join chunks once, not one allocation per character.
+	if _unicode_pattern == null:
+		_unicode_pattern = RegEx.new()
+		_unicode_pattern.compile("[^\\x{0}-\\x{7f}]")
+	var json := JSON.stringify(value)
+	var chunks := PackedStringArray()
+	var start := 0
+	for found in _unicode_pattern.search_all(json):
+		chunks.append(json.substr(start, found.get_start() - start))
+		var code: int = found.get_string().unicode_at(0)
+		if code <= 65535:
+			chunks.append("\\u%04x" % code)
 		else:
 			code -= 65536
-			result += "\\u%04x\\u%04x" % [55296 + (code >> 10), 56320 + (code & 1023)]
-	return result
+			chunks.append("\\u%04x\\u%04x" % [55296 + (code >> 10), 56320 + (code & 1023)])
+		start = found.get_end()
+	chunks.append(json.substr(start))
+	return "".join(chunks)

@@ -68,6 +68,13 @@ Confirming with Remember unchecked removes that key. This does not create a
 verified account or reserve the name. Invitations, private keys and seat-resume
 credentials are never saved there; closing SGManalink forgets the temporary seat.
 
+SGManalink's duel history is audience-filtered and kept in memory, with bounded
+host catch-up on reconnect. Unlike offline duels, it is not automatically appended
+to the running `duel_log.txt` (the raw referee log can contain hidden information).
+The normal log window's **Save** button explicitly saves only your received history
+to `user://duel_log_<ms>.txt`. Such a saved log can include private looks that card
+rules authorized for your seat; consider that before sharing it.
+
 ## What ships inside the pack (read-only)
 
 | What | Where |

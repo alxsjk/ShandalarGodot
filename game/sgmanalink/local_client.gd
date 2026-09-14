@@ -5,8 +5,10 @@ extends Node
 
 signal changed
 signal refused(reason: String)
+const COMMAND_TIMEOUT_MS := 15000
 var state: Dictionary = {"rooms": [], "room": {}}
 var status := "Not connected"
+var command_error := ""
 var online := false
 var guest := ""
 var _socket: WebSocketPeer
@@ -16,7 +18,11 @@ var _resume := ""
 var _nickname := ""
 var _seq := 1
 var _pending: Dictionary = {}
+var _pending_wire := ""
+var _pending_ack: Dictionary = {}
+var _pending_started := 0
 var _hello_sent := false
+var _welcomed := false
 var _wanted := false
 var _retry_at := 0
 var _backoff := 500
@@ -24,6 +30,9 @@ var _opened := 0
 var _sent_at := 0
 var _address := "127.0.0.1"
 var _tls_options: TLSOptions
+var build_fingerprint := SgCompatibility.fingerprint()
+var _closing: Array = []
+var _unavailable_since := 0
 
 
 func connect_invitation(invitation: String, temporary_name := "") -> Error:
@@ -67,8 +76,13 @@ func _connect() -> Error:
 	_socket.max_queued_packets = 64
 	_socket.heartbeat_interval = 10.0
 	_hello_sent = false
+	_welcomed = false
 	_opened = Time.get_ticks_msec()
-	status = "Connecting..."
+	_pending_ack.clear()
+	_pending_started = _opened
+	if _unavailable_since == 0: _unavailable_since = Time.get_ticks_msec()
+	status = "Connecting..." if Time.get_ticks_msec() - _unavailable_since < 5000 \
+		else "Host unavailable. Check that it is running; reconnecting..."
 	changed.emit()
 	var scheme := "wss" if _tls_options != null else "ws"
 	return _socket.connect_to_url("%s://%s:%d" % [scheme, _address, _port], _tls_options)
@@ -76,8 +90,13 @@ func _connect() -> Error:
 
 func forget() -> void:
 	_wanted = false
+	_welcomed = false
 	if _socket != null:
-		_socket.close(-1)
+		if online and _socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
+			_socket.send_text(SgProtocol.encode({"v": SgProtocol.VERSION, "type": "abandon"}))
+			_socket.poll()
+			_closing.append({"socket": _socket, "until": Time.get_ticks_msec() + 1000})
+		else: _socket.close(-1)
 	_socket = null
 	_access = ""
 	_resume = ""
@@ -87,9 +106,13 @@ func forget() -> void:
 	_tls_options = null
 	guest = ""
 	_pending = {}
+	_pending_wire = ""
+	_pending_ack.clear()
+	command_error = ""
 	_seq = 1
 	online = false
 	_backoff = 500
+	_unavailable_since = 0
 	state = {"rooms": [], "room": {}}
 	status = "Not connected"
 
@@ -118,14 +141,24 @@ func reconnect() -> void:
 
 
 func command(action: Dictionary) -> bool:
+	command_error = "Wait for the connection or the current action."
 	if not online or busy() or _socket == null or _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		return false
 	var message := {"v": SgProtocol.VERSION, "type": "command", "seq": _seq,
 		"room": String(state.room.get("id", "")),
 		"revision": int(state.room.get("revision", 0)), "action": action.duplicate(true)}
 	if not SgProtocol.valid(message):
+		command_error = "This action is not supported."
 		return false
+	var wire := SgProtocol.encode(message)
+	if wire.length() > SgProtocol.MAX_COMMAND_BYTES:
+		command_error = "This action is too large to send. Reduce the number of selected cards."
+		return false
+	command_error = ""
 	_pending = message
+	_pending_wire = wire
+	_pending_ack.clear()
+	_pending_started = Time.get_ticks_msec()
 	_seq += 1
 	_send_pending()
 	changed.emit()
@@ -135,7 +168,8 @@ func command(action: Dictionary) -> bool:
 func _send_pending() -> void:
 	if not _pending.is_empty() and _socket != null \
 		and _socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		_socket.send_text(SgProtocol.encode(_pending))
+		if _socket.send_text(_pending_wire) != OK:
+			_socket.close(-1)
 		_sent_at = Time.get_ticks_msec()
 
 
@@ -144,6 +178,11 @@ func _process(_delta: float) -> void:
 
 
 func poll() -> void:
+	for closing in _closing.duplicate():
+		closing.socket.poll()
+		if closing.socket.get_ready_state() == WebSocketPeer.STATE_CLOSED or Time.get_ticks_msec() >= int(closing.until):
+			closing.socket.close(-1)
+			_closing.erase(closing)
 	if not _wanted or _socket == null:
 		return
 	var now := Time.get_ticks_msec()
@@ -161,6 +200,8 @@ func poll() -> void:
 			status = "Connection lost; reconnecting..."
 			_retry_at = now + _backoff
 			changed.emit()
+		elif now - _opened > 5000:
+			status = "Host unavailable. Check that it is running; reconnecting..."
 		if now >= _retry_at:
 			_retry_at = now + _backoff
 			_backoff = mini(_backoff * 2, 8000)
@@ -175,15 +216,16 @@ func poll() -> void:
 		return
 	if not _hello_sent:
 		_socket.send_text(JSON.stringify({"v": SgProtocol.VERSION,
-			"type": "hello", "access": _access, "resume": _resume, "nickname": _nickname}))
+			"type": "hello", "access": _access, "resume": _resume, "nickname": _nickname, "build": build_fingerprint}))
 		_hello_sent = true
 	for i in 32:
 		if _socket.get_available_packet_count() == 0:
 			break
 		var packet := _socket.get_packet()
 		var message := SgProtocol.decode_payload(packet) if _socket.was_string_packet() else {}
-		if not SgViewProtocol.valid(message) or (not online and message.get("type") != "welcome") \
-			or (online and message.get("type") == "welcome"):
+		if not SgViewProtocol.valid(message) or (not _welcomed and message.get("type") not in ["welcome", "fatal"]) \
+			or (_welcomed and message.get("type") == "welcome") \
+			or (_welcomed and not online and message.get("type") not in ["state", "fatal"]):
 			_wanted = false
 			online = false
 			status = "Host sent an invalid response. Connection stopped."
@@ -192,32 +234,57 @@ func poll() -> void:
 			return
 		match message.get("type", ""):
 			"welcome":
+				if message.build != build_fingerprint:
+					_wanted = false
+					online = false
+					status = "Incompatible game builds. Install the same build as the host."
+					_socket.close(-1)
+					changed.emit()
+					return
 				if message.get("v") != SgProtocol.VERSION or not SgProtocol.token(message.get("resume")):
 					_socket.close(-1)
 					return
 				_resume = message.resume
 				guest = message.guest
 				_seq = maxi(_seq, int(message.seq) + 1)
-				online = true
-				_backoff = 500
-				status = "Connected - %s playtest (unrated)" % ("encrypted LAN" if _tls_options != null else "local")
-				_send_pending()
+				_welcomed = true
+				status = "Synchronizing with host..."
 			"state":
 				if not message.get("rooms") is Array or not message.get("room") is Dictionary:
 					_socket.close(-1)
 					return
 				state = message
+				if not _pending_ack.is_empty():
+					var acknowledgement := _pending_ack.duplicate()
+					_pending.clear()
+					_pending_wire = ""
+					_pending_ack.clear()
+					if not acknowledgement.ok: refused.emit(acknowledgement.error)
+				if not online:
+					# A welcome authenticates this connection, not the cached room
+					# revision. Enable input only after its first fresh snapshot.
+					online = true
+					_unavailable_since = 0
+					_backoff = 500
+					status = "Connected - %s playtest (unrated)" % ("encrypted LAN" if _tls_options != null else "local")
+					_send_pending()
 			"ack":
 				if not _pending.is_empty() and message.get("seq") == _pending.seq:
-					_pending = {}
-					if not bool(message.get("ok", false)):
-						refused.emit(String(message.get("error", "Command refused.")))
+					# Keep input locked until a following state reflects this result.
+					# The host sends acknowledgements before publishing snapshots.
+					_pending_ack = message
 			"fatal":
 				_wanted = false
 				online = false
-				status = "Session cannot continue. Start a new local session."
+				status = message.error
 				_socket.close(-1)
 			_: _socket.close(-1)
 		changed.emit()
-	if online and busy() and now - _sent_at > 2000:
-		_send_pending()
+	if online and busy():
+		if now - _pending_started >= COMMAND_TIMEOUT_MS:
+			_socket.close(-1)
+			online = false
+			_retry_at = now + _backoff
+			status = "Host response stalled; reconnecting to recover this action..."
+			changed.emit()
+		elif now - _sent_at > 2000: _send_pending()

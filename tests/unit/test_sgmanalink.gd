@@ -72,7 +72,7 @@ func test_server_dtos_validate_nested_shapes_before_ui_use() -> void:
 
 func test_temporary_names_are_bounded_display_text_not_credentials() -> void:
 	var hello := {"v": SgProtocol.VERSION, "type": "hello", "access": "0".repeat(64),
-		"resume": "", "nickname": ""}
+		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint()}
 	for value in ["", "Silver Fox", "Forest-7", "a".repeat(SgProtocol.NICKNAME_LIMIT)]:
 		hello.nickname = value
 		assert_true(SgProtocol.valid(hello), str(value))

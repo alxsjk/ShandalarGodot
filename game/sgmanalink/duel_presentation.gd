@@ -19,7 +19,10 @@ const CUES := ["sfx_cast", "sfx_land", "sfx_draw", "sfx_tap", "sfx_attack",
 static func object_handle(match_state: SgPracticeMatch, pid: int, kind: String, id: int) -> String:
 	var key := kind + str(id)
 	var handles: Dictionary = match_state._object_handles[pid]
-	if not handles.has(key): handles[key] = "o%d" % (handles.size() + 1)
+	match_state._used_objects[pid][key] = true
+	if not handles.has(key):
+		match_state._object_serial[pid] += 1
+		handles[key] = "o%d" % match_state._object_serial[pid]
 	return handles[key]
 
 
@@ -37,6 +40,8 @@ static func target_reference(m: SgPracticeMatch, pid: int, target: TargetRef) ->
 
 static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 	var g := m.game
+	var sources := ManaPlanner.sources(g, pid)
+	var budgets := {}
 	var result := {"priority": g.priority_player, "toss": m.toss_winner, "order": m.order_chosen,
 		"rules": {}, "cues": m.cues.duplicate(true), "events": m.visual_events[pid].duplicate(true), "cards": [], "players": [],
 		"chain": [], "packets": [], "bands": [], "blocks": [], "blocked": [],
@@ -63,11 +68,11 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 			for option in ([] if card.face_down else SgDuelActions.options(card, pid)):
 				var cost: ManaCost = card.data.cost if option.kind == "spell" else ManaCost.new()
 				if option.kind == "ability": cost = card.cur_activated_abilities[option.index].cost
-				var surcharge := g.spell_surcharge(pid, card.data) if option.kind == "spell" else 0
-				var usage := g.mana_usage_keys(card.data) if option.kind == "spell" else []
 				var budget := 0
 				if option.x:
-					while budget < 1000 and not ManaPlanner.plan(g, pid, cost, surcharge + budget + 1, usage).is_empty(): budget += 1
+					var key := card.data.card_name if option.kind == "spell" else "%d/%d" % [card.id, option.index]
+					if not budgets.has(key): budgets[key] = SgPayment.budget(g, pid, card, option.kind, option.index, sources)
+					budget = budgets[key]
 				row.abilities.append({"kind": option.kind, "index": option.index, "cost": str(cost), "budget": budget})
 				if option.kind == "ability":
 					var ability: ActivatedAbility = card.cur_activated_abilities[option.index]
@@ -77,10 +82,12 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 			result.cards.append(row)
 			if card.zone == Mtg.Zone.BATTLEFIELD and card.controller_id == pid:
 				if CombatState.attack_illegality(g, card, 1 - pid).is_empty(): result.attackable.append(row.id)
+				var legal: Array = []
 				for attacker_id in g.combat.attackers:
 					var attacker := g.find_instance(attacker_id)
 					if attacker != null and CombatState.block_illegality(g, card, attacker, pid).is_empty():
-						result.blockable.append([row.id, m._handle(pid, attacker)])
+						legal.append(m._handle(pid, attacker))
+				if not legal.is_empty(): result.blockable.append([row.id, legal])
 	for item in g.stack:
 		var card := item.card
 		# A source can have left for a private zone while its ability remains.
@@ -102,8 +109,17 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 		for id in band: members.append(m._handle(pid, g.find_instance(id)))
 		result.bands.append(members)
 	for id in g.combat.blocks:
+		var blocker := g.find_instance(id)
+		if blocker == null or blocker.zone != Mtg.Zone.BATTLEFIELD: continue
+		var linked := false
 		for attacker in [g.combat.blocks[id]] + g.combat.extra_blocks.get(id, []):
-			result.blocks.append([m._handle(pid, g.find_instance(id)), m._handle(pid, g.find_instance(attacker))])
+			var card := g.find_instance(attacker)
+			if card == null or card.zone != Mtg.Zone.BATTLEFIELD or not g.combat.attackers.has(attacker): continue
+			result.blocks.append([m._handle(pid, blocker), m._handle(pid, card)])
+			linked = true
+		# Empty destination means "still blocking, no remaining attacker".
+		# Preserve that public status without a link to a private/ceased object.
+		if not linked: result.blocks.append([m._handle(pid, blocker), ""])
 	for id in g.combat.blocked_attackers:
 		var card := g.find_instance(id)
 		if card != null: result.blocked.append(m._handle(pid, card))

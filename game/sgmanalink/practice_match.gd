@@ -19,9 +19,13 @@ var cues: Array = []
 var visual_events: Array = [[], []]
 var _cue_serial := 0
 var _object_handles: Array = [{}, {}]
+var _object_serial: Array[int] = [0, 0]
+var _used_objects: Array = [{}, {}]
 var actions: SgDuelActions
 var deck_names: Array = ["Forest practice", "Forest practice"]
 var _zones: Array = [{}, {}]
+var journal: SgJournal
+var state_generation := 0
 
 
 func _init(seed_value := -1, decks: Array = [{}, {}], names: Array = ["Player 1", "Player 2"]) -> void:
@@ -47,8 +51,9 @@ func _init(seed_value := -1, decks: Array = [{}, {}], names: Array = ["Player 1"
 	first_player = game.rng.randi_range(0, 1)
 	toss_winner = first_player
 	game.deal_opening_hands()
-	game.state_changed.connect(_retire_hidden)
+	game.state_changed.connect(_on_state_changed)
 	game.event_occurred.connect(_on_event)
+	journal = SgJournal.new(game)
 
 
 func _on_event(event: GameEvent) -> void:
@@ -66,6 +71,12 @@ func _on_event(event: GameEvent) -> void:
 				"kind": "dies" if event.type == Mtg.EventType.DIES else "draw",
 				"card": _handle(viewer, card), "sacrificed": bool(event.data.get("sacrificed", false))})
 			if visual_events[viewer].size() > 64: visual_events[viewer].pop_front()
+	_retire_hidden()
+
+
+func _on_state_changed() -> void:
+	if game.is_probing(): return
+	state_generation += 1
 	_retire_hidden()
 
 
@@ -109,6 +120,11 @@ func _cards(pid: int, list: Array) -> Array:
 	var out: Array = []
 	for card: CardInstance in list:
 		var blocked := game.find_instance(int(game.combat.blocks.get(card.id, -1)))
+		# A blocker stays blocking after its attacker leaves combat. Never turn
+		# that historical engine reference into a new hidden-zone card handle.
+		var blocking := ""
+		if blocked != null and blocked.zone == Mtg.Zone.BATTLEFIELD and game.combat.attackers.has(blocked.id):
+			blocking = _handle(pid, blocked)
 		var masked := card.face_down
 		var chosen := ""
 		if not masked and card.data.chosen_type_key != "" and card.memory.has(card.data.chosen_type_key):
@@ -120,7 +136,7 @@ func _cards(pid: int, list: Array) -> Array:
 			"power": card.cur_power, "toughness": card.cur_toughness,
 			"tapped": card.tapped, "sick": card.summoning_sick,
 			"damage": card.damage, "attacking": game.combat.attackers.has(card.id),
-			"blocking": "" if blocked == null else _handle(pid, blocked),
+			"blocking": blocking,
 			"playable": _playable(pid, card), "creature": card.is_creature(),
 			"owner": card.owner_id, "controller": card.controller_id, "masked": masked,
 			"types": card.cur_types, "colors": card.cur_colors, "keywords": Array(card.cur_keywords),
@@ -154,13 +170,27 @@ func _playable(pid: int, card: CardInstance) -> bool:
 	return game.cast_timing_refusal(pid, card).is_empty() and game.can_afford(pid, card.data)
 
 
+func decision_state() -> Dictionary:
+	if game.game_over: return {"mode": "finished", "actor": -1}
+	if game.mulligan_open: return {"mode": "opening", "actor": first_player if not game.mulligan_kept[first_player] else 1 - first_player}
+	if game.awaiting_choice != null: return {"mode": "choice", "actor": game.awaiting_choice.pid}
+	if game.awaiting_attackers: return {"mode": "attack", "actor": game.active_player}
+	if game.awaiting_blockers: return {"mode": "block", "actor": 1 - game.active_player}
+	if game.awaiting_discard: return {"mode": "discard", "actor": game.active_player}
+	if game.awaiting_damage_assignment: return {"mode": "damage", "actor": int(game.damage_assignment_request().assigner)}
+	return {"mode": "priority", "actor": game.priority_player}
+
+
 func view(pid: int) -> Dictionary:
 	if pid not in [0, 1]:
 		return {}
 	if actions.game != game: actions = SgDuelActions.new(game)
-	if not game.state_changed.is_connected(_retire_hidden): game.state_changed.connect(_retire_hidden)
+	if journal == null or journal.game != game: journal = SgJournal.new(game)
+	journal.observe()
+	if not game.state_changed.is_connected(_on_state_changed): game.state_changed.connect(_on_state_changed)
 	if not game.event_occurred.is_connected(_on_event): game.event_occurred.connect(_on_event)
 	_retire_hidden()
+	_used_objects[pid].clear()
 	var players: Array = []
 	for seat in 2:
 		var player := game.players[seat]
@@ -200,29 +230,11 @@ func view(pid: int) -> Dictionary:
 		else: details += " — choosing mode or targets"
 		stack.append({"name": "Effect" if item.card == null else ("Face-down creature" if item.card.face_down else item.card.data.card_name),
 			"controller": item.controller, "details": details, "x": item.x_value, "targets": targets})
-	var mode := "priority"
-	var actor := game.priority_player
+	var decision := decision_state()
+	var mode: String = decision.mode
+	var actor: int = decision.actor
 	var damage: Dictionary = {}
-	if game.game_over:
-		mode = "finished"
-		actor = -1
-	elif game.mulligan_open:
-		mode = "opening"
-		actor = first_player if not game.mulligan_kept[first_player] else 1 - first_player
-	elif game.awaiting_choice != null:
-		mode = "choice"
-		actor = game.awaiting_choice.pid
-	elif game.awaiting_attackers:
-		mode = "attack"
-		actor = game.active_player
-	elif game.awaiting_blockers:
-		mode = "block"
-		actor = 1 - game.active_player
-	elif game.awaiting_discard:
-		mode = "discard"
-		actor = game.active_player
-	elif game.awaiting_damage_assignment:
-		mode = "damage"
+	if mode == "damage":
 		var request := game.damage_assignment_request()
 		actor = int(request.assigner)
 		if actor == pid:
@@ -243,18 +255,22 @@ func view(pid: int) -> Dictionary:
 		"first": first_player, "winner": game.winner, "draw": game.is_draw,
 		"discard_count": game.discard_count, "damage_request": damage,
 		"choice": actions.choice_view(pid), "announcement": actions.request(pid),
-		"information": actions.information[pid].duplicate(true), "specials": actions.specials(pid)}
+		"information": actions.information[pid].duplicate(true), "specials": actions.specials(pid),
+		"journal": journal.entries[pid].duplicate(true)}
 	result.presentation = SgDuelPresentation.build(self, pid, result)
+	for key in _object_handles[pid].keys():
+		if not _used_objects[pid].has(key): _object_handles[pid].erase(key)
 	return result
 
 
 func act(pid: int, action: Dictionary) -> String:
+	if actions.game != game: actions = SgDuelActions.new(game)
 	if pid not in [0, 1]:
 		return "No such seat."
 	var op := String(action.op)
 	if op == "concede":
 		return game.concede(pid)
-	var state := view(pid)
+	var state := decision_state()
 	if state.actor != pid:
 		return "Wait for your decision."
 	if game.mulligan_open:
@@ -284,18 +300,21 @@ func act(pid: int, action: Dictionary) -> String:
 			var card := _card(pid, action.card)
 			if card == null: return "Card unavailable."
 			return game.tap_for_mana(pid, card, int(action.index))
-		"autopay":
+		"autopay", "autoprepare":
 			var excluded := {}
 			for handle in action.excluded:
 				var card := _card(pid, handle)
 				if card != null: excluded[card.id] = true
-			return actions.autopay(pid, excluded, int(action.count))
+			return actions.autopay(pid, excluded, int(action.count)) if op == "autopay" \
+				else actions.auto_prepare(pid, _card(pid, action.card), action, excluded)
 		"special":
 			if state.mode != "priority": return "Wait for priority."
 			return actions.special(pid, int(action.index))
 		"choice": return actions.answer(pid, action.picks)
 		"cancel":
-			if game.awaiting_choice != null: return game.cancel_choice()
+			if game.awaiting_choice != null:
+				var error := game.cancel_choice()
+				if not error.is_empty(): return error
 			actions.clear()
 			return ""
 		"prepare": return actions.prepare(pid, _card(pid, action.card), action)

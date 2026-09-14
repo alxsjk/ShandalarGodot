@@ -8,6 +8,8 @@ const MAX_CONNECTIONS := 8
 const MAX_SESSIONS := 16
 const MAX_ROOMS := 8
 const ACK_WINDOW := 128
+const RECONNECT_GRACE_MS := 300000
+const LOBBY_GRACE_MS := 30000
 var port := 0
 var access_code := ""
 var _listener := TCPServer.new()
@@ -24,6 +26,9 @@ var _lan_pem := ""
 var discovery: SgLanDiscovery
 var discovery_error := OK
 var _tls_options: TLSOptions
+var _view_cache: Dictionary = {}
+var _pending_publish: Dictionary = {}
+var _flush_queued := false
 
 
 func start_lan(address: String, requested_port := 17897, visible := true, nickname := "") -> Error:
@@ -97,6 +102,9 @@ func stop() -> void:
 	_sessions.clear()
 	_tokens.clear()
 	_rooms.clear()
+	_view_cache.clear()
+	_pending_publish.clear()
+	_flush_queued = false
 	access_code = ""
 	port = 0
 	lan_address = ""
@@ -118,6 +126,7 @@ func poll() -> void:
 	if not _listener.is_listening():
 		return
 	var now := Time.get_ticks_msec()
+	_expire_disconnected(now)
 	if discovery != null:
 		var available := 0
 		for room: Dictionary in _rooms.values():
@@ -156,6 +165,9 @@ func poll() -> void:
 		var peer: Dictionary = _peers[id]
 		var socket: WebSocketPeer = peer.socket
 		socket.poll()
+		if peer.has("reject_until"):
+			if now >= int(peer.reject_until): _drop(id)
+			continue
 		if socket.get_ready_state() == WebSocketPeer.STATE_CLOSED \
 			or (peer.session == 0 and now - int(peer.opened) > 5000):
 			_drop(id)
@@ -166,7 +178,7 @@ func poll() -> void:
 			_drop(id)
 			continue
 		for i in 16:
-			if not _peers.has(id) or socket.get_available_packet_count() == 0:
+			if not _peers.has(id) or _peers[id].has("reject_until") or socket.get_available_packet_count() == 0:
 				break
 			var bytes := socket.get_packet()
 			if now - int(peer.window) >= 1000:
@@ -178,6 +190,7 @@ func poll() -> void:
 				_drop(id)
 				break
 			_receive(id, message)
+	_flush_publish()
 
 
 func _drop(id: int) -> void:
@@ -189,17 +202,55 @@ func _drop(id: int) -> void:
 	var session: Dictionary = _sessions.get(peer.session, {})
 	if not session.is_empty() and session.peer == id:
 		session.peer = 0
+		session.disconnected_at = Time.get_ticks_msec()
 		_bump_room(session.room)
-		_publish()
+		_publish(session.room, 0, true)
+
+
+func _reject(id: int, reason: String) -> void:
+	_send(id, {"type": "fatal", "error": reason})
+	# Keep the transport alive long enough for the peer to consume the reason.
+	if _peers.has(id): _peers[id].reject_until = Time.get_ticks_msec() + 1000
+
+
+func _expire_disconnected(now: int) -> void:
+	for sid in _sessions.keys():
+		var session: Dictionary = _sessions[sid]
+		var grace := LOBBY_GRACE_MS if session.room.is_empty() else RECONNECT_GRACE_MS
+		if session.peer == 0 and now - int(session.disconnected_at) >= grace: _abandon(sid)
+
+
+func _abandon(sid: int) -> void:
+	if not _sessions.has(sid): return
+	var session: Dictionary = _sessions[sid]
+	var room_id: String = session.room
+	var room: Dictionary = _rooms.get(room_id, {})
+	if not room.is_empty():
+		var seat: int = room.seats.find(sid)
+		if seat >= 0:
+			if room.match != null and not room.match.game.game_over: room.match.game.concede(seat)
+			room.seats[seat] = 0
+			room.ready = [false, false]
+			room.decks[seat] = {}
+			room.revision += 1
+			if room.seats == [0, 0] or (room.match == null and seat == 0):
+				for member in room.seats:
+					if _sessions.has(member): _sessions[member].room = ""
+				_rooms.erase(room_id)
+	var peer := int(session.peer)
+	_sessions.erase(sid)
+	_tokens.erase(session.token_hash)
+	_drop(peer)
+	_publish(room_id, 0, true)
 
 
 func _send(id: int, message: Dictionary) -> void:
 	if not _peers.has(id):
 		return
 	var socket: WebSocketPeer = _peers[id].socket
-	var text := SgProtocol.encode(message)
 	if socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		return
+	var text := SgProtocol.encode(message)
 	if text.length() > SgProtocol.MAX_BYTES or socket.get_current_outbound_buffered_amount() > SgProtocol.MAX_BYTES:
 		socket.close(-1)
 		return
@@ -211,17 +262,26 @@ func _receive(id: int, message: Dictionary) -> void:
 	var sid := int(_peers[id].session)
 	if sid == 0:
 		if message.type != "hello" or message.access != access_code:
-			_drop(id)
+			_reject(id, "Invalid invitation. Ask the host for a current invitation.")
+			return
+		if message.build != SgCompatibility.fingerprint():
+			_reject(id, "Incompatible builds or card catalogue. Both players must use the same game build.")
 			return
 		var resume := String(message.resume)
 		if not resume.is_empty():
 			sid = int(_tokens.get(resume.sha256_text(), 0))
 			if sid == 0:
-				_drop(id)
+				_reject(id, "This temporary seat has expired. Disconnect and join with the current invitation.")
 				return
 		else:
+			# Reclaim only disconnected, roomless guests under capacity pressure.
 			if _sessions.size() >= MAX_SESSIONS:
-				_drop(id)
+				for candidate in _sessions.keys():
+					if not _connected(candidate) and _sessions[candidate].room.is_empty():
+						_abandon(candidate)
+						break
+			if _sessions.size() >= MAX_SESSIONS:
+				_reject(id, "Host is full. Wait for a seat to become available, then reconnect.")
 				return
 			var secret := Crypto.new().generate_random_bytes(32)
 			if secret.size() != 32:
@@ -231,12 +291,13 @@ func _receive(id: int, message: Dictionary) -> void:
 			sid = _next_session
 			_next_session += 1
 			_sessions[sid] = {"peer": 0, "room": "", "seq": 0, "acks": {},
-				"nickname": message.nickname}
+				"nickname": message.nickname, "disconnected_at": 0, "token_hash": resume.sha256_text()}
 			_tokens[resume.sha256_text()] = sid
 		var session: Dictionary = _sessions[sid]
 		var previous := int(session.peer)
 		# Assign replacement first; dropping the old socket cannot detach the new one.
 		session.peer = id
+		session.disconnected_at = 0
 		_peers[id].session = sid
 		if previous != 0 and _peers.has(previous):
 			_peers[previous].session = 0
@@ -244,8 +305,11 @@ func _receive(id: int, message: Dictionary) -> void:
 			_peers[previous].socket.close(4001, "Session moved")
 		_bump_room(session.room)
 		_send(id, {"type": "welcome", "v": SgProtocol.VERSION,
-			"resume": resume, "seq": session.seq, "guest": _guest_name(sid)})
-		_publish()
+			"resume": resume, "seq": session.seq, "guest": _guest_name(sid), "build": SgCompatibility.fingerprint()})
+		_publish(session.room, sid, true)
+		return
+	if message.type == "abandon":
+		_abandon(sid)
 		return
 	if message.type != "command":
 		_drop(id)
@@ -257,16 +321,17 @@ func _receive(id: int, message: Dictionary) -> void:
 	if seq <= int(session.seq):
 		var previous: Dictionary = session.acks.get(seq, {})
 		if previous.is_empty() or previous.payload != encoded:
-			_send(id, {"type": "fatal", "error": "Expired or conflicting command."})
-			_peers[id].socket.close(-1)
+			_reject(id, "Expired or conflicting command. Disconnect and start a new session.")
 			return
 		_send(id, previous.ack)
-		_send(id, _state(sid))
+		_publish("", sid, false)
 		return
 	if seq != int(session.seq) + 1:
 		_drop(id)
 		return
 	var error := "The room changed. Please try again."
+	var old_room: String = session.room
+	var old_revision := int(_rooms.get(old_room, {}).get("revision", -1))
 	if message.room == session.room:
 		error = _command(sid, message.action, int(message.revision))
 	ack = {"type": "ack", "seq": seq, "ok": error.is_empty(), "error": error}
@@ -274,7 +339,14 @@ func _receive(id: int, message: Dictionary) -> void:
 	session.acks[seq] = {"payload": encoded, "ack": ack}
 	session.acks.erase(seq - ACK_WINDOW)
 	_send(id, ack)
-	_publish()
+	var current_room: String = session.room
+	var changed := current_room != old_room or int(_rooms.get(current_room, {}).get("revision", -1)) != old_revision
+	if current_room != old_room and not old_room.is_empty(): _publish(old_room, 0, true)
+	_publish(current_room if changed else "", sid, action_changes_listings(message.action.op) and changed)
+
+
+func action_changes_listings(op: String) -> bool:
+	return op in ["host", "join", "leave", "ready", "remove_guest", "concede"]
 
 
 func _bump_room(room_id: String) -> void:
@@ -309,6 +381,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		if target.seats[1] != 0 or target.match != null or not _connected(target.seats[0]):
 			return "Room unavailable."
 		target.seats[1] = sid
+		target.ready = [false, false]
 		target.revision += 1
 		session.room = action.room
 		return ""
@@ -317,6 +390,11 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 	var seat := int(room.seats.find(sid))
 	if seat < 0:
 		return "Seat unavailable."
+	if op == "remove_guest":
+		if seat != 0 or room.match != null or room.seats[1] == 0 or _connected(room.seats[1]):
+			return "Only the room host can remove a disconnected guest before the duel starts."
+		_abandon(int(room.seats[1]))
+		return ""
 	if op == "leave":
 		if room.match != null and not room.match.game.game_over:
 			return "Concede before leaving a running duel."
@@ -328,7 +406,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 			_rooms.erase(room.id)
 		else:
 			room.seats[seat] = 0
-			room.ready[seat] = false
+			room.ready = [false, false]
 			room.decks[seat] = {}
 			room.revision += 1
 			if room.seats == [0, 0]:
@@ -355,8 +433,12 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		return "Both players must be ready."
 	if op != "concede" and (not _connected(room.seats[0]) or not _connected(room.seats[1])):
 		return "Waiting for the other player to reconnect."
+	var generation: int = room.match.state_generation
+	var draft: Dictionary = room.match.actions.draft.duplicate()
 	var error: String = room.match.act(seat, action)
-	if error.is_empty():
+	# A refused cast may still change its private target-count/payment draft;
+	# multi-step payments can also change rules state before a later refusal.
+	if error.is_empty() or generation != room.match.state_generation or draft != room.match.actions.draft:
 		room.revision += 1
 	return error
 
@@ -384,11 +466,38 @@ func _state(sid: int) -> Dictionary:
 			"connected": [_connected(own.seats[0]), _connected(own.seats[1])],
 			"deck_names": [own.decks[0].get("name", "Forest practice"), own.decks[1].get("name", "Forest practice")],
 			"deck": own.decks[seat].duplicate(true),
-			"game": {} if own.match == null else own.match.view(seat)}
+			"game": _room_game(own, seat)}
 	return {"type": "state", "rooms": rooms, "room": view}
 
 
-func _publish() -> void:
+func _room_game(room: Dictionary, seat: int) -> Dictionary:
+	if room.match == null: return {}
+	var cached: Dictionary = _view_cache.get(room.id, {})
+	if cached.is_empty() or cached.revision != room.revision or cached.match != room.match:
+		cached = {"revision": room.revision, "match": room.match, "views": {}}
+		_view_cache[room.id] = cached
+	if not cached.views.has(seat): cached.views[seat] = room.match.view(seat)
+	return cached.views[seat]
+
+
+func _publish(changed_room := "*", requester := 0, listings := true) -> void:
+	# A no-argument call is an explicit refresh (also used by test fixtures).
+	# An explicitly empty room only updates listings; it cannot dirty all duels.
+	var refresh_all := changed_room == "*"
+	if refresh_all: _view_cache.clear()
+	elif not changed_room.is_empty(): _view_cache.erase(changed_room)
 	for sid: int in _sessions:
 		if _connected(sid):
-			_send(_sessions[sid].peer, _state(sid))
+			if refresh_all or sid == requester or (not changed_room.is_empty() and _sessions[sid].room == changed_room) or listings:
+				_pending_publish[sid] = true
+	if not _flush_queued:
+		_flush_queued = true
+		_flush_publish.call_deferred()
+
+
+func _flush_publish() -> void:
+	_flush_queued = false
+	var pending := _pending_publish.keys()
+	_pending_publish.clear()
+	for sid in pending:
+		if _connected(sid): _send(_sessions[sid].peer, _state(sid))

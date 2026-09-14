@@ -14,6 +14,11 @@ needed); card files have NO class_name (they register by name instead);
   player MElo; phased work on `sgmanalink`, no public online service.
 - `docs/sgmanalink-local-playtest.md`: desktop LAN/loopback instructions,
   pinned invitations, discovery/firewall help, full-pool deck selection and test gates.
+- `docs/sgmanalink-stability-2026-09-14.md`: LAN review fixes, recovery
+  semantics, regression/soak coverage and before/after performance measurements.
+- `docs/sgmanalink-hardening-2026-09-14.md`: second LAN robustness pass,
+  acknowledgement/snapshot ordering, command recovery, readiness, malformed
+  card references, departed-attacker privacy and redundant-publication regressions.
 - `docs/sgmanalink-authentication.md`: temporary-name decision, backend
   responsibilities, dated free-service comparison (including Nakama's
   Godot/referee boundary), domain/recovery planning and decentralized
@@ -22,7 +27,7 @@ needed); card files have NO class_name (they register by name instead);
   options, name ownership, consensus and referee trust, privacy, recovery
   and verification gates; documentation only, no selected implementation.
 - `game/sgmanalink/protocol.gd` (`SgProtocol`): bounded ASCII JSON and exact
-  command schemas; bounded temporary nicknames, version-4 handshake and
+  command schemas; bounded temporary nicknames, version-6 handshake and
   separate message limits from per-seat view nesting.
 - `game/sgmanalink/practice_match.gd` (`SgPracticeMatch`): server-side full-pool
   referee, explicit player actions, public/seat-private views and retiring hidden-zone
@@ -32,19 +37,27 @@ needed); card files have NO class_name (they register by name instead);
 - `game/sgmanalink/duel_actions.gd` (`SgDuelActions`): referee-owned announcements,
   targets, modes, X, live abilities, private choices, special actions and authorized
   information history; never serializes Callables, instances or library order.
+- `game/sgmanalink/payment.gd` (`SgPayment`): shared referee-side bounded X
+  search using actual spell/ability costs and precomputed eligible mana sources.
+- `game/sgmanalink/compatibility.gd` (`SgCompatibility`): portable protocol,
+  release/rules-revision and printed-catalogue fingerprint; not authentication.
+- `game/sgmanalink/journal.gd` (`SgJournal`): bounded, seat-filtered online
+  event history built from public events and authorized reveals, never raw logs.
 - `game/sgmanalink/lan_invite.gd` (`SgLanInvite`): private IPv4 validation,
   local adapter addresses and bounded certificate-pinned temporary invitations.
 - `game/sgmanalink/lan_discovery.gd` (`SgLanDiscovery`): opt-in UDP LAN search,
   bounded untrusted host listings, unicast replies, expiry and secret exclusion.
 - `game/sgmanalink/view_protocol.gd` (`SgViewProtocol`): exact bounded host
-  response/room/game/card schemas before a client UI sees remote values.
+  response/room/game/card schemas and consistent card/combat references before
+  a client UI sees remote values.
 - `game/sgmanalink/local_server.gd` (`SgLocalServer`): loopback or TLS LAN service,
   room membership, ephemeral capabilities, sequencing/deduplication and
   seat resumption; disambiguated guest labels, bounded in-memory state,
   ephemeral certificate/invitations, optional LAN advertising, no MElo/public auth.
 - `game/sgmanalink/local_client.gd` (`SgLocalClient`): value-only WebSocket
   client, pinned native LAN TLS, one outstanding command, retry/reconnect,
-  hostile-response refusal and memory-only tokens.
+  acknowledgement-plus-snapshot completion, stalled-action recovery, bounded
+  encoded sends, hostile-response refusal and memory-only tokens.
 - `game/sgmanalink/identity.gd` (`SgIdentity`): temporary name generator and
   opt-in local display-name preference; no cryptographic identity or saved credentials.
 - `game/sgmanalink/lobby.gd` (`SgLobby`): separate classic Identity, Host Game,
@@ -85,6 +98,17 @@ needed); card files have NO class_name (they register by name instead);
   responsive separate windows, detached private card rendering, stable fields,
   deck-list selection, casting/targeting/choices/combat/damage controls,
   modal lifecycle and confirmed exits.
+- `tests/unit/test_sgmanalink_stability.gd`: codec round trips, bounded combat
+  adjacency, actual X costs, anonymous projection slots and private journal bounds.
+- `tests/ui/test_sgmanalink_recovery.gd`: live-lobby mana questions,
+  cancellation, private searches, triggered payments, divided damage,
+  lost-ack/reconnect, journal deduplication, large-combat sockets and
+  cache invalidation after refused multi-target payments.
+- `tests/ui/test_sgmanalink_hardening.gd`: delayed/missing snapshots, bounded
+  outgoing commands, replacement-opponent readiness, redundant publication
+  counts, malformed host-card graphs and departed/vanished attacker handling;
+  `GateServer` delays real-socket state delivery and `CountingMatch` counts
+  view construction.
 
 `MtgGame.reveal_information` is a presentation-only, viewer-scoped channel for
 rule-authorized looks/reveals. Choice preflight records only information preceding

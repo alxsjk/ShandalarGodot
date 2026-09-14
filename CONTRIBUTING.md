@@ -217,6 +217,11 @@ scratch script plays through the live screen is appended there too.
 
 ## Hard rules
 
+SGManalink compatibility: when engine or card behavior changes between release
+versions, bump `SgCompatibility.RULES_REVISION`. The handshake also hashes the
+printed catalogue and protocol/release versions. This portable stamp is a
+compatibility check, not player authentication or executable attestation.
+
 1. `engine/` and `cards/` stay pure: RefCounted only — never Node, scenes,
    Input, or anything from `game/`. Must run headless.
 2. ALL game-state mutation goes through `MtgGame` helpers. Never move cards

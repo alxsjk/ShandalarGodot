@@ -13365,6 +13365,42 @@ two-physical-computer networking and wider full-deck playtesting remain owner
 checks. Both players need protocol 5. Existing art/skin packs remain reusable.
 No commit, push or public release replacement was performed.
 
+## 2026-09-14 — SGManalink stabilization
+
+Implemented the five LAN review fixes: colour-choice/payment suspension,
+large-combat adjacency, abandoned-session cleanup, reserved-source automatic X,
+and a seat-filtered duel journal. Added protocol 6 compatibility fingerprints,
+explicit expiry/rejection messages, disconnected waiting-guest removal,
+coalesced per-room view caching, native-scanned ASCII encoding, bounded X search
+and anonymous projection-slot reuse. Public-host trust and desktop-LAN-only
+scope remain explicit; no identity/ranking service was added.
+
+See [the stabilization record](sgmanalink-stability-2026-09-14.md) for the
+regressions, varied-deck reconnect/rematch soak and measured improvements.
+Both players need this updated build; existing art and skins remain reusable.
+
+## 2026-09-14 — SGManalink second robustness pass
+
+Fixed acknowledgement-before-snapshot input races, oversized client sends,
+inherited Ready marks after opponent replacement, unrelated cache invalidation
+on browser departure, duplicate-command snapshot bursts and contradictory
+host card/combat references. A 15-second pending-action watchdog now reconnects
+with the original sequence to recover an uncertain result without replaying its
+effect. No player turn limit, central backend or offline rules change was added.
+An additional combat fix preserves blocking status without sending a link to a
+departed attacker in a private zone or a token that has ceased to exist.
+
+The final full suite passed **6,388 tests / 240,260 assertions / 375 scripts**,
+wrapper exit 0, including all twelve new regressions. Detailed reproductions,
+work-count reductions and verification gates are in
+[the robustness record](sgmanalink-hardening-2026-09-14.md). Both peers need the
+updated compatibility revision; this remains friendly desktop LAN play.
+The four-round network soak finished 1,298 commands with 3,964 assertions,
+including repeated reconnects and duplicates. Four offline demo/human-seat
+duels also finished under Fifth Edition and modern rules, with no error,
+warning or stall lines. All wrappers exited 0. Work remains local and
+uncommitted; no release export or push was performed in this pass.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

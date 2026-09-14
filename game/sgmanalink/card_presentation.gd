@@ -5,14 +5,16 @@ extends RefCounted
 ## only for a named card already disclosed in the seat-filtered, validated DTO.
 
 
-static func make(card: Dictionary, seat: int, zone: int) -> CardInstance:
+static func make(card: Dictionary, seat: int, zone: int, existing: CardInstance = null) -> CardInstance:
 	var data: CardData = CardRegistry.get_card(card.name) if CardRegistry.has_card(card.name) else null
 	if data == null or card.masked:
 		# Tokens and masked creatures need no executable definition from a host.
 		data = CardData.new(card.name, "", int(card.types)).oracle(card.rules)
 	# Numeric ids are UI-local, not the referee's instance ids. Keep the opaque
 	# handle separately; never manufacture a command by guessing an engine id.
-	var instance := CardInstance.new(data, -1, seat)
+	var instance := existing if existing != null else CardInstance.new(data, -1, seat)
+	instance.data = data
+	instance.printed_data = data
 	instance.zone = zone
 	instance.cur_power = int(card.power)
 	instance.cur_toughness = int(card.toughness)

@@ -121,9 +121,10 @@ func test_tutor_choices_hide_order_and_validate_answers_before_engine() -> void:
 
 
 func test_masked_cards_hide_printed_identity_and_retire_hidden_handles() -> void:
-	var duel := _match()
 	var angel := put_battlefield(0, "Serra Angel")
 	g.turn_face_down(angel)
+	# The fixture starts concealed; a real prior public reveal belongs in history.
+	var duel := _match()
 	var view := duel.view(1)
 	assert_false(SgProtocol.encode(view).contains("Serra Angel"))
 	assert_eq(view.players[0].battlefield[0].name, "Face-down creature")

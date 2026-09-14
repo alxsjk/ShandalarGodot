@@ -83,6 +83,114 @@ func test_online_is_the_actual_duel_screen_with_private_projection() -> void:
 	for card in screen.game.players[1].library: assert_eq(card.data.card_name, "Unknown card")
 
 
+func test_auto_payment_waits_for_color_and_resumes_once() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var bears := give_hand(0, "Grizzly Bears")
+	put_battlefield(0, "Forest")
+	put_battlefield(0, "Fellwar Stone")
+	put_battlefield(1, "Mountain")
+	put_battlefield(1, "Island")
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, bears))
+	screen._auto_cast(_local(screen, bears))
+	await _pump()
+	assert_not_null(g.awaiting_choice)
+	assert_eq(commands.size(), 2, "only prepare and autopay before the question")
+	assert_eq(refusals, [])
+	screen._on_choice_option(0)
+	await _pump()
+	assert_null(g.awaiting_choice)
+	assert_eq(g.stack.size(), 1)
+	assert_eq(g.stack[0].card, bears)
+	assert_eq(commands.filter(func(action: Dictionary) -> bool: return action.op == "submit").size(), 1)
+	assert_eq(refusals, [])
+
+
+func test_auto_x_respects_reserved_sources_and_payment_multipliers() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var fireball := give_hand(0, "Fireball")
+	put_battlefield(0, "Mountain")
+	put_battlefield(0, "Mountain")
+	var reserved := put_battlefield(0, "Mountain")
+	var screen := _screen()
+	screen._no_auto_tap[_local(screen, reserved).id] = true
+	screen._on_card_clicked(_local(screen, fireball))
+	screen._auto_cast(_local(screen, fireball))
+	await _pump()
+	assert_eq(screen._pending_x, 1)
+	assert_false(reserved.tapped)
+	assert_eq(g.players[0].mana_pool.total(), 2)
+	screen._on_life_clicked(1)
+	await _pump()
+	assert_eq(g.stack.size(), 1)
+	assert_eq(g.stack[0].x_value, 1)
+	assert_eq(refusals, [])
+
+
+func test_online_journal_is_private_deduplicated_and_live() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var forest := give_hand(0, "Forest")
+	var screen := _screen()
+	screen._open_duel_log()
+	screen._on_card_clicked(_local(screen, forest))
+	await _pump()
+	assert_string_contains("\n".join(screen.game.log_lines), "plays Forest")
+	var count := screen.game.log_lines.size()
+	screen.present(_room(), true, false)
+	assert_eq(screen.game.log_lines.size(), count)
+	g.reveal_information(0, "Private look", ["Black Lotus"])
+	g.log_line("SECRET seed and opponent hand: Ancestral Recall")
+	assert_string_contains(JSON.stringify(referee.view(0).journal), "Black Lotus")
+	assert_false(JSON.stringify(referee.view(1).journal).contains("Black Lotus"))
+	assert_false(JSON.stringify(referee.view(0).journal).contains("Ancestral Recall"))
+
+
+func test_projection_reuses_anonymous_slots_without_secret_identity() -> void:
+	var projection := SgDuelProjection.new()
+	projection.ingest(_room())
+	var slot: CardInstance = projection.players[1].library[0]
+	projection.ingest(_room())
+	assert_same(projection.players[1].library[0], slot)
+	assert_eq(slot.id, -1)
+	assert_false(slot.has_meta("sg_handle"))
+	assert_eq(slot.data.card_name, "Unknown card")
+
+
+func test_nonpayment_refusal_stops_retries_and_allows_new_target() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var bolt := give_hand(0, "Lightning Bolt")
+	var bears := put_battlefield(1, "Grizzly Bears")
+	add_mana(0, Mtg.ManaColor.R)
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, bolt))
+	await _pump()
+	screen._pending_slot = screen._pending_slots.size()
+	screen._send({"op":"submit", "targets":[["no-longer-offered", 0]]})
+	await _pump()
+	var count := commands.size()
+	assert_eq(refusals.size(), 1)
+	screen.present(_room(), true, false)
+	await _pump()
+	assert_eq(commands.size(), count, "a refusal never automatically submits again")
+	screen._on_card_clicked(_local(screen, bears))
+	await _pump()
+	assert_eq(g.stack.size(), 1)
+	assert_eq(g.stack[0].card, bolt)
+
+
+func test_manual_double_x_dialog_uses_payment_units() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var part_water := give_hand(0, "Part Water")
+	for i in 5: put_battlefield(0, "Island")
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, part_water))
+	assert_not_null(screen._x_dialog)
+	screen._x_spin.value = 4
+	screen._on_x_confirmed()
+	await _pump()
+	assert_eq(screen._pending_x, 2, "five mana can pay {X}{X}{U} with X=2")
+
+
 func test_click_target_then_tap_mana_preserves_the_spell_and_casts_once() -> void:
 	advance_to_step(Mtg.Step.MAIN1)
 	var bolt := give_hand(0, "Lightning Bolt")

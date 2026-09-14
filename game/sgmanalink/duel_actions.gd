@@ -7,6 +7,7 @@ var game: MtgGame
 var draft: Dictionary = {}
 var _targets: Dictionary = {}
 var information: Array = [[], []]
+var _auto_payment: Dictionary = {}
 
 
 func _init(referee: MtgGame) -> void:
@@ -60,12 +61,25 @@ func prepare(pid: int, card: CardInstance, action: Dictionary) -> String:
 		if not error.is_empty(): return error
 	draft = {"pid": pid, "card": card, "kind": action.kind, "index": int(action.index),
 		"x": int(action.x), "mode": int(action.mode)}
+	_auto_payment.clear()
 	return ""
 
 
 func clear() -> void:
 	draft.clear()
 	_targets.clear()
+	_auto_payment.clear()
+
+
+func auto_prepare(pid: int, card: CardInstance, action: Dictionary, excluded: Dictionary) -> String:
+	var request_data := action.duplicate()
+	request_data.x = 0
+	var error := prepare(pid, card, request_data)
+	if not error.is_empty(): return error
+	var cost: ManaCost = card.data.cost if draft.kind == "spell" else card.cur_activated_abilities[draft.index].cost
+	if cost.has_x:
+		draft.x = SgPayment.budget(game, pid, card, draft.kind, draft.index, ManaPlanner.sources(game, pid, excluded), action.count)
+	return autopay(pid, excluded, action.count)
 
 
 func special_entries(pid: int) -> Array:
@@ -184,6 +198,8 @@ func payment(count := 1) -> Dictionary:
 
 func autopay(pid: int, excluded: Dictionary, count: int) -> String:
 	if draft.is_empty() or draft.pid != pid: return "No announcement is waiting."
+	if game.awaiting_choice != null: return "Answer the pending question first."
+	_auto_payment.clear()
 	var due := payment(count)
 	if due.is_empty(): return "This action has no mana payment."
 	var plan := ManaPlanner.plan(game, pid, due.cost, int(due.extra), due.usage, excluded)
@@ -191,7 +207,9 @@ func autopay(pid: int, excluded: Dictionary, count: int) -> String:
 		if step[0] == null: continue
 		var error := game.tap_for_mana(pid, step[0], step[1])
 		if not error.is_empty(): return error
-		if game.awaiting_choice != null: break
+		if game.awaiting_choice != null:
+			_auto_payment = {"pid": pid, "excluded": excluded.duplicate(), "count": count}
+			break
 	return ""
 
 
@@ -258,4 +276,8 @@ func answer(pid: int, picks: Array) -> String:
 		if index < 0 or index >= entries.size() or seen.has(int(index)): return "Invalid or repeated choice."
 		seen[int(index)] = true
 		answers.append(entries[int(index)].answer)
-	return game.answer_choice(answers if question.kind == PlayerChoice.Kind.DISCARD else answers[0])
+	var error := game.answer_choice(answers if question.kind == PlayerChoice.Kind.DISCARD else answers[0])
+	if error.is_empty() and game.awaiting_choice == null and not _auto_payment.is_empty():
+		var resume := _auto_payment.duplicate(true)
+		return autopay(resume.pid, resume.excluded, resume.count)
+	return error

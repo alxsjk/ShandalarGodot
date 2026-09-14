@@ -5,6 +5,26 @@ var server: SgLocalServer
 var a: SgLocalClient
 var b: SgLocalClient
 
+class CountingMatch extends SgPracticeMatch:
+	var views_built := 0
+	func view(pid: int) -> Dictionary:
+		views_built += 1
+		return super.view(pid)
+
+
+class SnapshotGateServer extends SgLocalServer:
+	var hold_states := false
+	var held: Dictionary = {}
+	func _send(id: int, message: Dictionary) -> void:
+		if hold_states and message.type == "state":
+			held[id] = message.duplicate(true)
+			return
+		super._send(id, message)
+	func release_states() -> void:
+		hold_states = false
+		for id in held: _send(id, held[id])
+		held.clear()
+
 
 func before_each() -> void:
 	server = SgLocalServer.new()
@@ -201,6 +221,8 @@ func test_invalid_access_or_resume_never_creates_a_session() -> void:
 		await get_tree().process_frame
 	assert_false(a.online)
 	assert_eq(server._sessions.size(), 0)
+	assert_false(a._wanted, "invalid invitations are not retried forever")
+	assert_string_contains(a.status, "Invalid invitation")
 	a.forget()
 	assert_eq(a.connect_local(server.port, server.access_code), OK)
 	a._resume = "0".repeat(64)
@@ -208,6 +230,110 @@ func test_invalid_access_or_resume_never_creates_a_session() -> void:
 		await get_tree().process_frame
 	assert_false(a.online)
 	assert_eq(server._sessions.size(), 0)
+	assert_false(a._wanted)
+	assert_string_contains(a.status, "expired")
+
+
+func test_departing_guests_do_not_exhaust_host_capacity() -> void:
+	assert_eq(a.connect_local(server.port, server.access_code), OK)
+	await _until(func() -> bool: return a.online)
+	await _act(a, {"op": "host", "name": "Stable host"})
+	for i in SgLocalServer.MAX_SESSIONS + 4:
+		assert_eq(b.connect_local(server.port, server.access_code), OK)
+		await _until(func() -> bool: return b.online)
+		b.forget()
+		await _until(func() -> bool: return server._sessions.size() == 1)
+	assert_eq(server._tokens.size(), 1)
+	assert_true(a.online)
+	assert_eq(b.connect_local(server.port, server.access_code), OK)
+	await _until(func() -> bool: return b.online)
+
+
+func test_expired_seat_is_reclaimed_and_retry_explains_the_failure() -> void:
+	await _start_duel()
+	var room_id: String = a.state.room.id
+	var sid := int(server._rooms[room_id].seats[1])
+	b.set_process(false)
+	b._socket.close(-1)
+	await _until(func() -> bool: return not server._connected(sid))
+	var disconnected_at := int(server._sessions[sid].disconnected_at)
+	server._expire_disconnected(disconnected_at + SgLocalServer.RECONNECT_GRACE_MS - 1)
+	assert_true(server._sessions.has(sid), "running seat survives its grace interval")
+	server._expire_disconnected(disconnected_at + SgLocalServer.RECONNECT_GRACE_MS + 1)
+	assert_false(server._sessions.has(sid))
+	assert_true(server._rooms[room_id].match.game.game_over)
+	b.set_process(true)
+	b.reconnect()
+	await _until(func() -> bool: return not b._wanted)
+	assert_string_contains(b.status, "expired")
+	await _act(a, {"op": "leave"})
+	assert_true(server._rooms.is_empty())
+
+
+func test_host_can_remove_only_a_disconnected_waiting_guest() -> void:
+	await _pair()
+	await _act(a, {"op": "host", "name": "Waiting room"})
+	await _act(b, {"op": "join", "room": a.state.room.id})
+	await _act(a, {"op": "remove_guest"})
+	assert_true(server._connected(int(server._rooms[a.state.room.id].seats[1])))
+	b.set_process(false)
+	b._socket.close(-1)
+	await _until(func() -> bool: return a.state.room.connected == [true, false])
+	await _act(a, {"op": "remove_guest"})
+	assert_eq(a.state.room.names[1], "Empty seat")
+	assert_eq(server._sessions.size(), 1)
+	b.set_process(true)
+
+
+func test_incompatible_build_fails_before_allocating_a_seat() -> void:
+	a.build_fingerprint = "0".repeat(64)
+	assert_eq(a.connect_local(server.port, server.access_code), OK)
+	await _until(func() -> bool: return not a._wanted)
+	assert_string_contains(a.status, "Incompatible")
+	assert_false(a.online)
+	assert_true(server._sessions.is_empty())
+	assert_true(server._tokens.is_empty())
+
+
+func test_reconnect_waits_for_fresh_snapshot_before_enabling_input() -> void:
+	server.stop()
+	var gate := SnapshotGateServer.new()
+	add_child_autofree(gate)
+	server = gate
+	assert_eq(server.start_local(0), OK)
+	await _start_duel()
+	var revision := int(a.state.room.revision)
+	gate.hold_states = true
+	a.reconnect()
+	await _until(func() -> bool: return a._welcomed)
+	assert_false(a.online, "welcome alone must not expose the stale room revision")
+	assert_false(a.command({"op":"concede"}), "no new action before the fresh snapshot")
+	assert_eq(int(a.state.room.revision), revision)
+	assert_string_contains(a.status, "Synchronizing")
+	gate.release_states()
+	await _until(func() -> bool: return a.online)
+	assert_gt(int(a.state.room.revision), revision)
+	assert_eq(int(a.state.room.revision), int(server._rooms[a.state.room.id].revision))
+
+
+func test_unrelated_and_refused_commands_reuse_the_cached_room_views() -> void:
+	await _start_duel()
+	var match_state := CountingMatch.new(42)
+	server._rooms[a.state.room.id].match = match_state
+	server._publish()
+	for i in 4: await get_tree().process_frame
+	assert_eq(match_state.views_built, 2)
+	var visitor := SgLocalClient.new()
+	add_child_autofree(visitor)
+	assert_eq(visitor.connect_local(server.port, server.access_code), OK)
+	await _until(func() -> bool: return visitor.online)
+	await _act(visitor, {"op":"host", "name":"Other room"})
+	await _act(visitor, {"op":"concede"})
+	assert_eq(match_state.views_built, 2, "unrelated room does not rebuild either duel view")
+	a.state.room.revision = 0
+	await _act(a, {"op":"pass"})
+	assert_eq(match_state.views_built, 2, "stale refusal refreshes only its sender from cache")
+	visitor.forget()
 
 
 func test_temporary_names_are_disambiguated_and_cannot_reclaim_a_seat() -> void:
@@ -233,12 +359,13 @@ func test_temporary_names_are_disambiguated_and_cannot_reclaim_a_seat() -> void:
 	b.forget()
 	assert_eq(b.guest, "")
 	assert_eq(b._nickname, "")
+	await _until(func() -> bool: return server._sessions.size() == 1)
 	assert_eq(b.connect_local(server.port, server.access_code, "Forest Fox"), OK)
 	await _until(func() -> bool: return b.online)
 	assert_ne(b.guest, second_name, "the same nickname is not the old identity")
 	await _act(b, {"op": "join", "room": room_id})
-	assert_true(b.state.room.is_empty(), "nickname knowledge cannot recover an occupied seat")
-	assert_eq(server._sessions.size(), 3)
+	assert_eq(b.state.room.id, room_id, "explicit departure released the old seat, not its identity")
+	assert_eq(server._sessions.size(), 2)
 
 
 func test_invalid_nickname_is_refused_locally_and_over_the_wire() -> void:
@@ -594,3 +721,103 @@ func _practice_action(view: Dictionary, seat: int, played_land: Dictionary) -> D
 				if cost <= pool + lands.size():
 					return {"op": "tap", "card": lands[0].id}
 	return {"op": "pass"}
+
+
+func test_varied_deck_rematches_with_latency_disconnects_and_duplicate_commands() -> void:
+	await _pair()
+	var decks := [StarterDecks.WHITE_KNIGHTS, StarterDecks.BLACK_RED_RAIDERS]
+	var rounds := maxi(2, mini(20, int(OS.get_environment("SGMANALINK_SOAK_ROUNDS"))))
+	var casts := 0
+	for round_index in rounds:
+		await _act(a, {"op":"host", "name":"Soak duel"})
+		await _act(b, {"op":"join", "room":a.state.room.id})
+		for seat in 2:
+			await _act(a if seat == 0 else b, {"op":"deck", "name":"Shipped deck",
+				"cards":Array(decks[(seat + round_index) % 2]), "sideboard":[]})
+		await _act(a, {"op":"ready", "value":true})
+		await _act(b, {"op":"ready", "value":true})
+		var skipped := {}
+		var errors: Array = []
+		var record := func(reason: String) -> void: errors.append(reason)
+		a.refused.connect(record)
+		b.refused.connect(record)
+		var commands := 0
+		while a.state.room.game.mode != "finished" and commands < 2400:
+			var seat := int(a.state.room.game.actor)
+			var pilot: SgLocalClient = a if seat == 0 else b
+			var state: Dictionary = pilot.state.room.game
+			var action := _soak_action(state, seat, skipped)
+			var pending_card: String = state.presentation.draft.get("card", action.get("card", ""))
+			if action.op == "cancel": skipped[pending_card] = true
+			var errors_before := errors.size()
+			# Delayed processing adds latency without bypassing the wire or rules.
+			if commands % 37 == 0:
+				pilot.set_process(false)
+				assert_true(pilot.command(action))
+				var duplicate := pilot._pending.duplicate(true)
+				await get_tree().create_timer(0.08).timeout
+				pilot._socket.send_text(SgProtocol.encode(duplicate))
+				pilot.set_process(true)
+				await _until(func() -> bool: return not pilot.busy())
+				for i in 3: await get_tree().process_frame
+			else: await _act(pilot, action)
+			if errors.size() != errors_before:
+				skipped[pending_card] = true
+				if not pilot.state.room.game.announcement.is_empty(): await _act(pilot, {"op":"cancel"})
+			elif action.op == "submit": casts += 1
+			if commands % 71 == 35:
+				var old_identity := pilot.guest
+				pilot._socket.close(-1)
+				pilot.reconnect()
+				await _until(func() -> bool: return pilot.online and not pilot.busy())
+				for i in 3: await get_tree().process_frame
+				assert_eq(pilot.guest, old_identity)
+			assert_true(a.online and b.online)
+			assert_eq(a.state.room.game.winner, b.state.room.game.winner)
+			commands += 1
+			if commands % 200 == 0: print("SGManalink soak: round ", round_index + 1, ", commands ", commands, ", turn ", a.state.room.game.turn, ", step ", state.step, ", action ", action.op)
+			await get_tree().create_timer(0.025).timeout
+		assert_eq(a.state.room.game.mode, "finished", "varied-deck soak must finish")
+		assert_lt(commands, 2400)
+		print("SGManalink soak: round ", round_index + 1, " finished in ", commands, " commands")
+		if a.state.room.game.mode != "finished":
+			await _act(a, {"op":"concede"})
+		a.refused.disconnect(record)
+		b.refused.disconnect(record)
+		await _act(a, {"op":"leave"})
+		await _act(b, {"op":"leave"})
+		assert_true(server._rooms.is_empty())
+		assert_eq(server._sessions.size(), 2, "rematches reuse both sessions")
+	assert_gt(casts, rounds * 2)
+
+
+func _soak_action(view: Dictionary, seat: int, skipped: Dictionary) -> Dictionary:
+	# Deliberately simple test driver, exclusively consuming the seat's DTO.
+	match String(view.mode):
+		"opening": return {"op":"keep"} if view.presentation.order else {"op":"order", "play":true}
+		"choice":
+			var picks: Array = []
+			for i in int(view.choice.count): picks.append(i)
+			return {"op":"choice", "picks":picks}
+		"damage": return {"op":"damage", "points":[[view.damage_request.targets[0].id, view.damage_request.amount]]}
+		"attack": return {"op":"attack", "cards":view.presentation.attackable.duplicate()}
+		"block": return {"op":"block", "pairs":[]}
+		"discard":
+			var cards: Array = []
+			for i in int(view.discard_count): cards.append(view.hand[i].id)
+			return {"op":"discard", "cards":cards}
+	if not view.announcement.is_empty():
+		var targets: Array = []
+		for slot in view.announcement.slots:
+			if slot.targets.size() < int(slot.min): return {"op":"cancel"}
+			for i in int(slot.min): targets.append([slot.targets[i].id, int(slot.divided) if i == 0 else 0])
+		return {"op":"submit", "targets":targets}
+	if view.active == seat and view.step in ["MAIN1", "MAIN2"] and view.stack.is_empty():
+		for card in view.hand:
+			if card.land and card.playable: return {"op":"play", "card":card.id}
+		for row in view.presentation.cards:
+			if not row.castable or skipped.has(row.id): continue
+			for option in row.abilities:
+				if option.kind == "spell":
+					return {"op":"autoprepare", "card":row.id, "kind":"spell", "index":0, "mode":0, "count":1, "excluded":[]}
+	return {"op":"pass"}
