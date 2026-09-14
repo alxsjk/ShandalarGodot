@@ -2,9 +2,11 @@ class_name CardRegistry
 extends RefCounted
 ## The card database: every registered CardData, keyed by exact card name.
 ##
-## Cards register themselves by existing as files: [method load_all_sets]
-## scans every folder under res://cards/sets/, instantiates each .gd card
-## file (they all extend CardScript), calls build(), and stores the result.
+## Default cards register themselves by existing as files: [method
+## ensure_loaded] scans the fixed eight [constant SET_ORDER] folders,
+## instantiates each .gd card file (they all extend CardScript), calls build(),
+## and stores the result. Validated numbered packs may explicitly add trusted,
+## dormant scripts without allowing executable code from an archive.
 ## The folder name becomes CardData.set_code, so "what set is this card in"
 ## is answered by the filesystem — one obvious place per card, no manifest
 ## to keep in sync.
@@ -17,6 +19,16 @@ extends RefCounted
 ## name -> CardData
 static var _cards: Dictionary = {}
 static var _loaded: bool = false
+
+## Pack 1 is DATA-GATED, while its four trusted implementations ship
+## dormant in the game. These values contain strings and JSON-like data
+## only — never CardData or its Callables (see [method unload]).
+static var _optional_enabled := false
+static var _optional_sets: Dictionary = {}
+static var _optional_membership: Dictionary = {}
+static var _optional_scripts: Array = []
+static var _optional_records: Array = []
+static var _optional_counts: Dictionary = {}
 
 ## Root folder scanned for set subfolders.
 const SETS_ROOT := "res://cards/sets"
@@ -34,17 +46,13 @@ static func ensure_loaded() -> void:
 		return
 	_loaded = true
 	_ensure_printings()
-	var root := DirAccess.open(SETS_ROOT)
-	if root == null:
-		push_error("CardRegistry: cannot open %s" % SETS_ROOT)
-		return
-	root.list_dir_begin()
-	var entry := root.get_next()
-	while entry != "":
-		if root.current_is_dir() and not entry.begins_with("."):
-			_load_set(entry)
-		entry = root.get_next()
-	root.list_dir_end()
+	# The eight known folders, not every directory someone happens to add
+	# under cards/sets. Numbered packs are configured explicitly below.
+	for code in SET_ORDER:
+		_load_set_at(SETS_ROOT, code)
+	if _optional_enabled:
+		for spec in _optional_scripts:
+			_load_optional_script(spec)
 
 
 ## DROP EVERY CARD BEFORE THE PROCESS ENDS — and the reason is a crash.
@@ -121,7 +129,11 @@ static func card_files_in(entries: PackedStringArray) -> PackedStringArray:
 ## card — see [method card_files_in] for what "card script" means in an
 ## exported build.
 static func _load_set(set_code: String) -> void:
-	var dir_path := "%s/%s" % [SETS_ROOT, set_code]
+	_load_set_at(SETS_ROOT, set_code)
+
+
+static func _load_set_at(root_path: String, set_code: String) -> void:
+	var dir_path := "%s/%s" % [root_path, set_code]
 	var dir := DirAccess.open(dir_path)
 	if dir == null:
 		push_error("CardRegistry: cannot open set folder %s" % dir_path)
@@ -162,6 +174,29 @@ static func _load_set(set_code: String) -> void:
 			push_warning("CardRegistry: '%s' has no oracle text and no behavior" % data.card_name)
 
 
+## One dormant card implementation unlocked by a validated metadata pack.
+static func _load_optional_script(spec: Dictionary) -> void:
+	var path := String(spec.get("path", ""))
+	var set_code := String(spec.get("set", ""))
+	var expected := String(spec.get("name", ""))
+	var loaded: Variant = load(path)
+	if not (loaded is GDScript):
+		push_error("CardRegistry: Pack 1 card script cannot load: %s" % path)
+		return
+	var card_script: CardScript = loaded.new()
+	var data: CardData = card_script.build()
+	if data == null:
+		push_error("CardRegistry: Pack 1 card built null: %s" % path)
+		return
+	if data.card_name != expected:
+		push_error("CardRegistry: Pack 1 expected '%s', script built '%s'" % [
+			expected, data.card_name])
+		return
+	data.set_code = set_code
+	data.artist = artist_of(data.card_name, set_code)
+	register(data)
+
+
 ## Register one card. Registering the same name twice is an authoring error
 ## (two files claim one card) and fails loudly.
 static func register(data: CardData) -> void:
@@ -200,6 +235,77 @@ static func all_names() -> Array:
 static func size() -> int:
 	ensure_loaded()
 	return _cards.size()
+
+
+## Configure the optional pool before the next load. JSON-like values only;
+## the registry continues to own and clear every constructed CardData.
+static func configure_optional_pack(enabled: bool, sets: Dictionary,
+		scripts: Array, records: Array, counts: Dictionary) -> void:
+	if _loaded:
+		unload()
+	_optional_enabled = enabled
+	_optional_sets = sets.duplicate(true) if enabled else {}
+	_optional_scripts = scripts.duplicate(true) if enabled else []
+	_optional_records = records.duplicate(true) if enabled else []
+	_optional_counts = counts.duplicate(true) if enabled else {}
+	_optional_membership.clear()
+	if not enabled:
+		return
+	for code in _optional_sets:
+		var one: Variant = _optional_sets[code]
+		if not (one is Dictionary):
+			continue
+		for value in one.get("names", []):
+			var name := String(value)
+			if not _optional_membership.has(name):
+				_optional_membership[name] = {}
+			_optional_membership[name][String(code)] = true
+
+
+static func optional_pack_enabled() -> bool:
+	return _optional_enabled
+
+
+## Whether a named rules identity belongs to this displayed set. With no
+## pack, the historical one-script/one-set assignment remains unchanged;
+## Pack 1 expands it to every published set that printed the name.
+static func card_in_set(card_name: String, set_code: String) -> bool:
+	ensure_loaded()
+	if _optional_enabled:
+		return bool(_optional_membership.get(card_name, {}).get(set_code, false))
+	var data: CardData = _cards.get(card_name)
+	return data != null and data.set_code == set_code
+
+
+static func names_in_set(set_code: String) -> Array[String]:
+	ensure_loaded()
+	var out: Array[String] = []
+	if _optional_enabled:
+		var one: Variant = _optional_sets.get(set_code, {})
+		if one is Dictionary:
+			for value in one.get("names", []):
+				var name := String(value)
+				if _cards.has(name):
+					out.append(name)
+		return out
+	for name in _cards:
+		var data: CardData = _cards[name]
+		if data.set_code == set_code:
+			out.append(String(name))
+	out.sort()
+	return out
+
+
+## Named set entries count a reprint once in each set, while [method size]
+## counts one playable rules identity per name.
+static func named_set_entry_count() -> int:
+	ensure_loaded()
+	return int(_optional_counts.get("named_set_entries", _cards.size()))
+
+
+static func published_printing_count() -> int:
+	ensure_loaded()
+	return int(_optional_counts.get("published_printings", _cards.size()))
 
 
 # ------------------------------------------------- original printings (CR 201) --
@@ -305,6 +411,24 @@ static func _ensure_printings() -> void:
 			artists["%s|%s" % [code, name]] = who
 			if not artists.has(name):
 				artists[name] = who   # first printing wins, as SET_ORDER runs
+	# The base snapshots intentionally omit the four physical/manual cards.
+	# A validated enabled pack provides their printing metadata here, before
+	# its dormant implementations ask [method artist_of] during loading.
+	if _optional_enabled:
+		for entry in _optional_records:
+			if not (entry is Dictionary):
+				continue
+			var name := String(entry.get("name", ""))
+			var code := String(entry.get("set", ""))
+			if name == "" or code == "":
+				continue
+			if not original.has(name):
+				original[name] = code
+			var who := String(entry.get("artist", ""))
+			if who != "":
+				artists["%s|%s" % [code, name]] = who
+				if not artists.has(name):
+					artists[name] = who
 	_artists = artists
 	_original_set = original
 	_printings_loaded = true

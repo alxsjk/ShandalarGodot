@@ -7,6 +7,33 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
+## Numbered gameplay packs
+
+- `game/card_packs.gd`: exact Pack 1 discovery, version/compatibility and
+  SHA-256 ZIP validation, safe art mounting, persistent enable/disable,
+  deck-requirement tracking, and registry configuration.
+- `game/card_packs_screen.gd`: Options → Card Packs management, including
+  Open Folder, Rescan, versions, enabled state and readable rejection reasons.
+- `game/card_pack_badges.gd`: the square `1-tDotP` status button beside the
+  title-screen set badges.
+- `cards/optional/pack_1/*.gd`: four trusted dormant digital adaptations;
+  pack archives never provide executable code.
+- `engine/effects/random_destroy_effect.gd`, `coin_flip_damage_effect.gd`,
+  `coin_flip_life_loss_effect.gd`, and `chosen_discard_effect.gd`: reusable,
+  seeded digital mechanics for Pack 1 and later packs; all four are read
+  structurally by `EffectIntent` and priced by `AiPlayer`.
+- `docs/pack-1-mechanics.md`: the four-identity mechanic audit, simplification
+  decisions, engine mappings, AI policy, and criteria for future fidelity.
+- `packaging/card_packs/pack_1_dotp_complete/`: Pack 1 manifest, player README,
+  and source records for its four new rules identities.
+- `tools/pack_1_dotp_complete.py`: separate Pack 1 census, Scryfall art fetch,
+  deterministic checksum-bearing ZIP build and strict verification. The
+  generated artifact is local-only and never included by release packaging; it has
+  373 set entries: 369 cross-set reprints and four new identities.
+- `tools/test_pack_1_dotp_complete.py`, `tests/unit/test_card_packs.gd`,
+  `tests/cards/test_pack_1_dotp_complete.gd`, and
+  `tests/ui/test_card_pack_badges.gd`: tool, loader, rules, and UI contracts.
+
 ## Release packaging (0.20.0)
 
 - `tools/package_release.py`: packages verified Linux, Windows, macOS and
@@ -315,6 +342,18 @@ shandalar/
 │   │   ├── draw_effect.gd   class DrawEffect — draw N or X; .target_player()
 │   │   ├── destroy_effect.gd class DestroyEffect — destroy target;
 │   │   │                      can_regenerate honored by MtgGame.destroy
+│   │   ├── random_destroy_effect.gd class RandomDestroyEffect — a seeded
+│   │   │                      random subset of one opponent's permanents;
+│   │   │                      optional nontoken, source-presence and
+│   │   │                      destroy-source riders; AI reads the same pool
+│   │   ├── coin_flip_damage_effect.gd class CoinFlipDamageEffect — one
+│   │   │                      logged 50% flip per chosen creature, damage
+│   │   │                      and optional tap of each survivor
+│   │   ├── coin_flip_life_loss_effect.gd class CoinFlipLifeLossEffect —
+│   │   │                      two-player coin wager for a rounded fraction
+│   │   ├── chosen_discard_effect.gd class ChosenDiscardEffect — controller
+│   │   │                      chooses eligible opposing hand cards through
+│   │   │                      DecisionAgent; optional nonland filter
 │   │   ├── pump_effect.gd   class PumpEffect — +P/+T (+keywords) until EOT;
 │   │   │                      .self_buff() for firebreathing-style pumps
 │   │   ├── destroy_all_effect.gd class DestroyAllEffect — Wrath of God
@@ -2789,7 +2828,7 @@ shandalar/
 │    values, Spitting Slug's once-per-combat block, Dark Sphere's source
 │    pool, Wormwood Treefolk's unconditional self-burn)
 │   (tests/test_simplified_ledger.gd — CONTRIBUTING.md RULE 6, PINNED both ways:
-│    every card file carrying the word SIMPLIFIED is named in
+│    every core or optional-pack card file carrying the word SIMPLIFIED is named in
 │    docs/simplified-cards.md, and every card a ledger row names carries
 │    the word — registry names matched as whole words, longest first, so
 │    `Mountain Stronghold` does not name `Mountain`; struck-through LIFTED
@@ -6982,9 +7021,9 @@ shandalar/
     │                          (2.2 superseded by the Combat window; 2.8
     │                          done; 2.3/2.4/2.10/2.15 re-tagged; 2.9's
     │                          premise reversed by manual p.114)
-    ├── set-packages-plan.md  THE SET-PACKAGES PLAN (2026-09-02; the
-    │                          gating/loader is not built, the PACK FORMAT
-    │                          is — see its "Implemented: pack format v1"
+    ├── set-packages-plan.md  THE SET-PACKAGES PLAN (2026-09-02; Pack 1's
+    │                          gating/loader is now built, while the broader
+    │                          classic-expansion plan remains — see its format
     │                          section, tools/build_card_packs.py and the
     │                          sibling ../shandalar-packs/) — how a
     │                          toggleable "classic

@@ -271,7 +271,13 @@ WORK_DIR="$(cd "$(dirname "$OUT")" && pwd)/tmp"
 # from a checkout path once carried one into a package — and the build
 # fails rather than ship it.
 guard_stage() {  # guard_stage STAGE_DIR
-	local hit
+	local hit pack_zip
+	pack_zip="$(find "$1" -type f -name 'Pack-1-DotP-complete.zip' -print -quit)"
+	if [ -n "$pack_zip" ]; then
+		echo "BUILD FAILED: Pack-1-DotP-complete.zip is a local build artifact, not a release file:" >&2
+		echo "$pack_zip" >&2
+		exit 1
+	fi
 	hit="$(grep -rlF --exclude='*.zip' --exclude='*.pck' --exclude='*.wasm' --exclude='*.x86_64' -- "$HOME" "$1" 2>/dev/null || true)"
 	if [ -n "$hit" ]; then
 		echo "BUILD FAILED: a file in the package names this machine's home folder:" >&2

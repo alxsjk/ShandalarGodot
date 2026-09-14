@@ -25,7 +25,8 @@ extends GutTest
 ##
 ## Card names come from each file's own header line (`## Name — cost —
 ## type — (set, rarity)`, rule 4), not from the registry, so this test
-## needs no card loaded and runs in a few milliseconds.
+## covers both the always-loaded set tree and dormant optional-pack scripts
+## without enabling a pack, and runs in a few milliseconds.
 ##
 ## ---------------------------------------------------------------------
 ## THE ENGINE HALF (2026-09-11). Rule 6 asks for a row in `ROADMAP.md`
@@ -74,6 +75,7 @@ extends GutTest
 
 const LEDGER := "res://docs/simplified-cards.md"
 const SETS_ROOT := "res://cards/sets"
+const OPTIONAL_ROOT := "res://cards/optional"
 const ENGINE_ROOT := "res://engine"
 static var MARKER := RegEx.create_from_string("\\bSIMPLIFIED\\b")
 static var HEADER := RegEx.create_from_string("^## (.+?) — ")
@@ -98,7 +100,7 @@ const PROSE_MENTIONS := {
 		["marked SIMPLIFIED: inline at the exact spot"],
 }
 
-## name → path, for every card file under cards/sets/.
+## name → path, for every card file under cards/sets/ and cards/optional/.
 var _files := {}
 ## The whole ledger, and its data rows' first cells.
 var _ledger := ""
@@ -113,15 +115,15 @@ var _docs := {}
 
 
 func before_all() -> void:
-	for set_dir in DirAccess.get_directories_at(SETS_ROOT):
-		var dir_path := "%s/%s" % [SETS_ROOT, set_dir]
-		for file in DirAccess.get_files_at(dir_path):
-			if not file.ends_with(".gd") or file.begins_with("_"):
-				continue
-			var path := "%s/%s" % [dir_path, file]
-			var card_name := _header_name(path)
-			if card_name != "":
-				_files[card_name] = path
+	var card_files: Array[String] = []
+	_gd_files_under(SETS_ROOT, card_files)
+	_gd_files_under(OPTIONAL_ROOT, card_files)
+	for path in card_files:
+		if path.get_file().begins_with("_"):
+			continue
+		var card_name := _header_name(path)
+		if card_name != "":
+			_files[card_name] = path
 	_ledger = FileAccess.get_file_as_string(LEDGER)
 	var seen_header := false
 	for line in _ledger.split("\n"):
@@ -205,6 +207,7 @@ func test_the_scan_found_the_pool_and_the_ledger() -> void:
 	assert_true(_ledger.contains("| Card | What's simplified |"),
 		"the ledger's table was read")
 	assert_true(_files.has("Grizzly Bears"))
+	assert_true(_files.has("Chaos Orb"), "dormant optional cards are audited too")
 
 
 func test_every_marked_card_is_named_in_the_ledger() -> void:

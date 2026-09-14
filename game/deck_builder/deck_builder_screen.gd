@@ -357,6 +357,7 @@ var _audio: DeckAudio
 var _music: MusicPlayer
 ## The Q/Esc menu ([method _open_deck_menu]) while it is up.
 var _menu: OriginalDialog = null
+var _pack_requirement_notice: Control = null
 var _bar_ground: Control
 var _side_ground: Control
 var _status_timer := 0.0
@@ -1141,6 +1142,8 @@ func _build_inventory() -> void:
 	_inventory.badge_min = 1
 	_inventory.count_source = func(card_name: String) -> int:
 		return deck.count_of(card_name)
+	_inventory.art_set_for = func(data: CardData) -> String:
+		return filter.preferred_printing(data)
 	_inventory.card_activated.connect(_add_one)
 	_inventory.card_bulk.connect(_add_playset)
 	_inventory.card_shifted.connect(_add_one_side)
@@ -1163,7 +1166,8 @@ func _show_in_showcase(data: CardData) -> void:
 		_showcase.visible = false
 		return
 	_proxy_showcase.visible = false
-	_showcase.show_card(CardInstance.new(data, -1, 0))
+	_showcase.show_card(CardInstance.new(data, -1, 0),
+		filter.preferred_printing(data))
 
 
 func _add_one(card_name: String) -> bool:
@@ -1369,6 +1373,9 @@ func _dropped_on_inventory(card_name: String, from: String) -> void:
 ## that list — it shows the whole pool through the filter and changes only
 ## when the filter does.
 func refresh() -> void:
+	var current_names := deck.names()
+	current_names.append_array(deck.side_names())
+	CardPacks.set_current_deck_names(current_names)
 	_header_label.text = deck.deck_name
 	if _header_slab != null:
 		_header_slab.tooltip_text = "%s\n\nDeck Info — name this deck" % deck.deck_name
@@ -3668,6 +3675,47 @@ func _load_deck(path: String) -> void:
 	if loaded == null:
 		_say(String(report[0]) if not report.is_empty() else DeckStore.LOAD_ERROR, true)
 		return
+	var missing := CardPacks.missing_requirements(loaded.required_pack_ids())
+	if not missing.is_empty():
+		_offer_required_pack(path, loaded, report, missing[0])
+		return
+	_finish_load(loaded, report)
+
+
+## A Pack 1 deck never silently becomes a proxy deck. The player may enable
+## its declared dependency and reload, deliberately inspect it without the
+## pack, or cancel without changing the current deck.
+func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
+		pack_id: String) -> void:
+	if is_instance_valid(_pack_requirement_notice):
+		return
+	var available := CardPacks.has_pack(pack_id)
+	var body := "%s requires Pack 1, which is disabled." % loaded.deck_name
+	if not available:
+		body += (" The exact %s file is not available; place a locally built " \
+			+ "copy in the Card Packs folder and Rescan from Options.") % \
+			CardPacks.FILE_NAME
+	else:
+		body += " Enable it now and reload this deck?"
+	_pack_requirement_notice = UiChrome.action_popup(self,
+		"This deck requires Pack 1", body, [
+			{"label": "Enable Pack 1", "name": "EnablePack1",
+				"disabled": not available,
+				"callable": _enable_pack_and_reload.bind(pack_id, path)},
+			{"label": "Load as proxies", "name": "LoadAsProxies",
+				"callable": _finish_load.bind(loaded, report)},
+			{"label": "Cancel", "name": "Cancel"},
+		], 600.0)
+	_pack_requirement_notice.tree_exited.connect(
+		func() -> void: _pack_requirement_notice = null)
+
+
+func _enable_pack_and_reload(pack_id: String, path: String) -> void:
+	if CardPacks.set_enabled(pack_id, true):
+		_load_deck(path)
+
+
+func _finish_load(loaded: DeckModel, report: Array) -> void:
 	_set_deck(loaded)
 	_cleared = null
 	_undo = null

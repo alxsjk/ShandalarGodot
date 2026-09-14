@@ -203,6 +203,16 @@ static func menu_button(label: String, min_size := Vector2(260, 46),
 ## screen's dialogs were just fixed for.
 static func explain_popup(host: Control, title: String, body: String,
 		width := 470.0) -> Control:
+	return action_popup(host, title, body, [
+		{"label": "OK", "name": "OK"}
+	], width)
+
+
+## The same in-game modal with an action row. Each action is a Dictionary
+## with `label`, optional `name`, `disabled`, and a zero-argument
+## `callable`. The popup closes after any enabled action runs.
+static func action_popup(host: Control, title: String, body: String,
+		actions: Array, width := 470.0) -> Control:
 	var veil := Control.new()
 	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	veil.mouse_filter = Control.MOUSE_FILTER_STOP   # swallow clicks behind
@@ -226,10 +236,22 @@ static func explain_popup(host: Control, title: String, body: String,
 	text.custom_minimum_size.x = width - 60.0
 	column.add_child(text)
 
-	var ok := menu_button("OK", Vector2(140, 38))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(ok)
+	row.add_theme_constant_override("separation", 10)
+	var first: Button = null
+	for action in actions:
+		if not (action is Dictionary):
+			continue
+		var label := String(action.get("label", "OK"))
+		var button := menu_button(label, Vector2(140, 38))
+		button.name = String(action.get("name", label))
+		button.disabled = bool(action.get("disabled", false))
+		button.pressed.connect(_popup_action.bind(
+			action.get("callable", Callable()), veil))
+		row.add_child(button)
+		if first == null and not button.disabled:
+			first = button
 	column.add_child(row)
 
 	var panel := panel_around(column, 18.0)
@@ -239,10 +261,17 @@ static func explain_popup(host: Control, title: String, body: String,
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	veil.add_child(panel)
 
-	ok.pressed.connect(veil.queue_free)
 	host.add_child(veil)
-	ok.grab_focus()
+	if first != null:
+		first.grab_focus()
 	return veil
+
+
+static func _popup_action(callback: Callable, veil: Control) -> void:
+	if callback.is_valid():
+		callback.call()
+	if is_instance_valid(veil):
+		veil.queue_free()
 
 
 ## Text label in the era's body font.

@@ -179,13 +179,7 @@ static func facts_for(code: String) -> Dictionary:
 ## How many cards of a set THIS game implements — counted, never stored,
 ## because the pool is the filesystem (see [CardRegistry]).
 static func cards_here(code: String) -> int:
-	CardRegistry.ensure_loaded()
-	var total := 0
-	for name in CardRegistry.all_names():
-		var card := CardRegistry.get_card(String(name))
-		if card != null and card.set_code == code:
-			total += 1
-	return total
+	return CardRegistry.names_in_set(code).size()
 
 
 ## The popup's body for one set: the two counts, the date, then the
@@ -199,11 +193,17 @@ static func describe(code: String) -> String:
 	var here := cards_here(code)
 	# An em dash, not a middle dot: the imported MPlantin has no U+00B7
 	# and drops it silently, which read as a hole in the sentence.
-	var line := "%s — %s" % [_date_words(String(facts.get("released", ""))),
-		"%d of its %d cards are in this game" % [here, printed]]
-	if here == printed:
-		line = "%s — all %d of its cards are in this game" % [
-			_date_words(String(facts.get("released", ""))), printed]
+	var line := "%s — %d named cards are available (%d published " % [
+		_date_words(String(facts.get("released", ""))), here, printed] \
+		+ "collector slots)"
+	if not CardRegistry.optional_pack_enabled():
+		if here == printed:
+			line = "%s — all %d of its cards are in this game" % [
+				_date_words(String(facts.get("released", ""))), printed]
+		else:
+			line = "%s — %d of its %d cards are in this game; Pack 1 " % [
+				_date_words(String(facts.get("released", ""))), here, printed] \
+				+ "restores the complete named checklist"
 	return "%s\n\n%s" % [line, String(facts.get("lore", ""))]
 
 

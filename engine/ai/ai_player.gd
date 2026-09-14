@@ -1563,6 +1563,12 @@ func _ability_option(game: MtgGame, inst: CardInstance, index: int, moment: int)
 			return {}
 		targets = option["targets"]
 		value = float(option["value"])
+	elif intent.random_destroy != null and intent.target_spec != null:
+		var option := _random_destroy_option(game, inst, intent.random_destroy)
+		if option.is_empty():
+			return {}
+		targets = option["targets"]
+		value = float(option["value"])
 	elif intent.damage > 0 and intent.target_spec != null:
 		# Kill the best creature it can; failing that, the face.
 		var victim := _best_victim(game, inst, intent, 0)
@@ -3722,6 +3728,12 @@ func _size_and_aim(game: MtgGame, inst: CardInstance, intent: EffectIntent,
 	# names and nothing else — the pilot that Erupted itself to death.
 	if intent.blasts and profile.prices_fallout and not data.is_modal():
 		return _size_blast(game, inst, max_x, mode)
+	if intent.coin_damage != null and not data.is_modal():
+		return _coin_damage_option(game, inst, intent.coin_damage)
+	if intent.coin_life_loss != null and not data.is_modal():
+		return _coin_life_option(game, inst, intent.coin_life_loss)
+	if intent.chosen_discard != null and not data.is_modal():
+		return _chosen_discard_option(game, inst, intent.chosen_discard)
 	if intent.damage_uses_x and intent.target_spec != null and not data.is_modal():
 		return _size_x_burn(game, inst, intent, max_x)
 	# A tap is worth nothing by itself: it has a POLICY, not a value.
@@ -3831,6 +3843,112 @@ func _size_and_aim(game: MtgGame, inst: CardInstance, intent: EffectIntent,
 	if targets == null:
 		return {}
 	return {"x": max_x, "targets": targets, "value": _cast_value(game, inst, targets, max_x)}
+
+
+## Expected payoff of a random-destruction ability. The effect exposes the
+## exact pool it will roll, so lands and bombs are averaged rather than the AI
+## quietly valuing the ability as though it could choose the bomb. Destroying
+## the source on resolution is a real board price even though it is not an
+## activation-cost rider.
+func _random_destroy_option(game: MtgGame, source: CardInstance,
+		effect: RandomDestroyEffect) -> Dictionary:
+	var opponent := game.opponent_of(pid)
+	var target := TargetRef.player(opponent)
+	if not game.target_legal_at(effect.target_spec, target, source, 0):
+		return {}
+	var pool := effect.candidates(game, opponent)
+	if pool.is_empty() or effect.count <= 0:
+		return {}
+	var expected := 0.0
+	for victim in pool:
+		if not victim.cur_indestructible:
+			expected += _victim_value(game, victim)
+	expected *= float(mini(effect.count, pool.size())) / float(pool.size())
+	expected += 1.0   # the standard removal premium used by _ability_option
+	if effect.requires_won_coin_flip:
+		expected *= 0.5
+	if effect.destroy_source_after:
+		expected -= _own_value(game, source, true)
+	return {"targets": [target], "value": expected}
+
+
+## Falling-Star-shaped effects have no downside to naming another opposing
+## creature, but each individual result is only a 50% hit. Rank profitable
+## enemy creatures and respect the effect's target cap, pricing each at the
+## real probability instead of treating a won flip as certain.
+func _coin_damage_option(game: MtgGame, source: CardInstance,
+		effect: CoinFlipDamageEffect) -> Dictionary:
+	var opponent := game.opponent_of(pid)
+	var ranked: Array[Dictionary] = []
+	for victim in game.players[opponent].battlefield:
+		if not victim.is_creature():
+			continue
+		var ref := TargetRef.card(victim)
+		if not game.target_legal_at(effect.target_spec, ref, source, 0):
+			continue
+		var needed: int = victim.cur_toughness - victim.damage
+		var hit_value := 0.0
+		if effect.amount >= needed and needed > 0 and not victim.cur_indestructible:
+			hit_value = _victim_value(game, victim) + 1.0
+		elif effect.tap_survivors and not victim.tapped \
+				and game.current_step() == Mtg.Step.MAIN1 and _has_attackers(game):
+			hit_value = Evaluator.permanent_value(victim, profile) * 0.4 + 1.0
+		if hit_value <= 0.0:
+			continue
+		ranked.append({"target": ref, "value": hit_value * 0.5})
+	if ranked.is_empty():
+		return {}
+	ranked.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if float(a["value"]) != float(b["value"]):
+			return float(a["value"]) > float(b["value"])
+		return int(a["target"].instance_id) < int(b["target"].instance_id))
+	var limit := ranked.size() if effect.target_max < 0 \
+		else mini(effect.target_max, ranked.size())
+	var targets: Array = []
+	var expected := 0.0
+	for i in limit:
+		targets.append(ranked[i]["target"])
+		expected += float(ranked[i]["value"])
+	return {"x": 0, "targets": targets,
+		"value": _card_value(source.data) + expected}
+
+
+## Expected position swing of a two-player life wager. Linear life changes
+## cancel at equal totals, so the AI waits rather than spending a card on a
+## fair zero-sum flip; when behind it may embrace the variance. A flip that
+## can end the game is priced at the same lethal scale as every deterministic
+## line in this pilot.
+func _coin_life_option(game: MtgGame, _source: CardInstance,
+		effect: CoinFlipLifeLossEffect) -> Dictionary:
+	var opponent := game.opponent_of(pid)
+	var our_loss := effect.loss_at(game.players[pid].life)
+	var their_loss := effect.loss_at(game.players[opponent].life)
+	var gain := LETHAL_WORTH if their_loss >= game.players[opponent].life \
+		else float(their_loss) * Evaluator.W_LIFE
+	var risk := LETHAL_WORTH if our_loss >= game.players[pid].life \
+		else float(our_loss) * Evaluator.W_LIFE
+	var expected := (gain - risk) * 0.5
+	if expected <= 0.0:
+		return {}
+	return {"x": 0, "targets": [], "value": expected}
+
+
+## A fixed chosen discard waits against an empty hand. It deliberately does
+## NOT ask the effect for its eligible cards here: their identities are hidden
+## information until the spell resolves. After the reveal, DecisionAgent may
+## choose the best eligible card legitimately.
+func _chosen_discard_option(game: MtgGame, source: CardInstance,
+		effect: ChosenDiscardEffect) -> Dictionary:
+	var opponent := game.opponent_of(pid)
+	var target := TargetRef.player(opponent)
+	if not game.target_legal_at(effect.target_spec, target, source, 0):
+		return {}
+	var available := game.players[opponent].hand.size()
+	if available <= 0 or effect.count <= 0:
+		return {}
+	return {"x": 0, "targets": [target],
+		"value": _cast_value(game, source, [target], 0)
+			+ float(mini(effect.count, available)) * profile.w_hand}
 
 
 ## Does this card's TARGETING move with its X? "Target artifact with mana

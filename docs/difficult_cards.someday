@@ -8,6 +8,13 @@ never turned on, so that when a community decklist names one of them
 than quiet. The `.someday` suffix says the rest: a future pass may pick
 any of these up, and this file is where it starts.
 
+**Status update, 2026-09-14:** the historical default-core exclusions below
+remain true, but optional Pack 1 now supplies clearly labelled, tested digital
+adaptations of Chaos Orb, Falling Star, Shahrazad and Word of Command. The
+current contracts and AI decisions live in `docs/pack-1-mechanics.md` and every
+deviation lives in `docs/simplified-cards.md`; later “HERE” and “SOMEDAY” lines
+are retained as the dated research record they originally were.
+
 The rule of the file: every statement is either SOURCED (a quote, with
 who said it, where and when) or a RECEIVED CLAIM (something we were
 told, marked as such, not yet found in a readable source). The two are
@@ -86,9 +93,10 @@ what this repository does today, and what a future pass would need.
   mechanic has no honest software form. Plausible on its face — S3
   gives the general reason dexterity cards are banned everywhere — but
   no source ties that reasoning to MicroProse's decision.
-- HERE: excluded from the pool outright, `tools/fetch_cards.py`
-  `EXCLUDED_NAMES`, following s30's precedent (`docs/audit-vs-s30.md`,
-  "DEFAULT_EXCLUDED_NAMES"). Not a stub, not simplified: absent.
+- HERE: excluded from the default pool by `tools/fetch_cards.py`
+  `EXCLUDED_NAMES`, following s30's precedent, but now available through
+  optional Pack 1 as a marked digital adaptation: a won coin flip destroys
+  one random opposing nontoken permanent, then the Orb destroys itself.
 - DECKLIST CONSEQUENCE: the community lists in `docs/decks-1997.md`
   count Chaos Orb as their most-proxied name (tables at lines ~477,
   ~657, ~706; "The Old School lists proxy mostly one name, Chaos Orb,
@@ -96,11 +104,11 @@ what this repository does today, and what a future pass would need.
   is The Deck with Nevinyrral's Disk in the Orb's slot — the header of
   that file explains that this is the one change and why it is filed
   under "Playable variants" rather than with the ledgers.
-- SOMEDAY: a software Orb. Manalink's precedent is the "Silly Orb Thing"
+- RESOLVED FOR PACK 1: a software Orb. Manalink's precedent is the "Silly Orb Thing"
   — {1}, tap and sacrifice, destroy target nontoken permanent — i.e. a
   guaranteed hit with no flip; a stricter reading would be a coin flip
-  per attempt. Either is a `[QoL]` invention, which is why it is not
-  done: the 1997 game did not have it either.
+  per attempt. Either is a `[QoL]` invention. Pack 1 uses the stricter
+  coin-flip reading and records it as simplified rather than hiding the gap.
 
 ### City in a Bottle (Arabian Nights, artifact)
 
@@ -233,16 +241,16 @@ nothing more.
 ## 6. Our own exclusions, for the record
 
 `tools/fetch_cards.py`, `EXCLUDED_NAMES = {"Chaos Orb", "Shahrazad",
-"Word of Command", "Falling Star"}` — the same three as s30 plus Falling
-Star (the Legends dexterity card, S3), see `docs/mechanics.md` ("excluded
-from the pool outright … not simplified") and `docs/audit-vs-s30.md`.
+"Word of Command", "Falling Star"}` — they remain excluded from the default
+897-card core. Optional Pack 1 now unlocks marked digital adaptations without
+changing that default; see `docs/pack-1-mechanics.md`.
 
-| Card | Why it is out | Someday |
+| Card | Why it is out of the default core | Pack 1 resolution |
 |---|---|---|
-| Chaos Orb | Dexterity — the flip has no honest software form | A software Orb (Manalink's "Silly Orb Thing": {1}, T, sacrifice: destroy target nontoken permanent — or a coin flip). A `[QoL]` invention either way |
-| Falling Star | Dexterity, same as the Orb | Same — a random-or-guaranteed 3 damage to a set of creatures |
-| Shahrazad | A subgame: the duel inside the duel | Needs a second `MtgGame` on the same seats with half-life stakes; the engine is a plain object and could host one, the screen could not, today |
-| Word of Command | Drives the opponent's turn: choose a card in their hand and make them play it | A bounded form fits the owner's 2026-09-07 ruling (a list from the opponent's hand, the engine casts it), but it still needs "play it as if you controlled them" |
+| Chaos Orb | Dexterity — the flip has no honest software form | Coin flip; on a win destroy one random opposing nontoken permanent; destroy the Orb after either result |
+| Falling Star | Dexterity, same as the Orb | Choose one or two creatures; independent coin flips deal 3 and tap survivors |
+| Shahrazad | A subgame: the duel inside the duel | Coin flip; the loser loses half their life rounded up |
+| Word of Command | Drives the opponent's turn: choose a card in their hand and make them play it | Reveal the target hand and choose one nonland to discard |
 
 Also open, though in the pool: Illusionary Mask's remaining deviation
 (`docs/simplified-cards.md`), and Magical Hack / Sleight of Mind, whose
@@ -259,5 +267,6 @@ models, no free text).
    broken, and whether any was cut by a flag or by missing code. That
    turns every RECEIVED CLAIM in section 3 into a sourced line or
    strikes it.
-3. Decide the Orb. Until then The Deck is played with the Disk, and the
-   community lists that name the Orb stay proxied in the ledger.
+3. **Resolved for Pack 1:** use the stricter coin-flip Orb. The default-core
+   playable Deck variant keeps the Disk; enabling Pack 1 makes the original
+   name playable and required-pack metadata records that dependency.

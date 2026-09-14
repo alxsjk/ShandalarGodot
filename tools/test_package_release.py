@@ -102,6 +102,13 @@ class PackageReleaseTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.build("macos")
 
+    def test_local_pack_inside_mac_app_is_refused(self):
+        self.make_export("macos")
+        path = self.folder / "Shandalar.app/Contents/Resources" / pack.LOCAL_PACK
+        path.write_bytes(b"must remain a local construction artifact")
+        with self.assertRaisesRegex(ValueError, "must not be released"):
+            self.build("macos")
+
     def test_home_path_in_binary_is_refused(self):
         self.make_export("linux64")
         (self.folder / "Shandalar.x86_64").write_bytes(str(Path.home()).encode())

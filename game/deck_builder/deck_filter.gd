@@ -912,7 +912,35 @@ static func aura_kind(d: CardData) -> int:
 
 
 func matches_set(d: CardData) -> bool:
-	return set_on(d.set_code)
+	# Pack 1 makes a reprint visible under every set that published the
+	# name. CardData remains one rules identity, so it is returned once.
+	# Synthetic and proxy CardData are deliberately outside the registry;
+	# retain the original set-code fallback for those callers.
+	if not CardRegistry.has_card(d.card_name):
+		return set_on(d.set_code)
+	for code in CardRegistry.SET_ORDER:
+		if set_on(code) and CardRegistry.card_in_set(d.card_name, code):
+			return true
+	return false
+
+
+## Which printing should represent this name in the Deck Builder. The deck
+## remains name-based: this only follows the live set filter so a Fourth
+## Edition-only view can show Fourth Edition art for a reprint. With several
+## matching sets visible, retain the implementation's native set when possible
+## and otherwise take the earliest visible printing.
+func preferred_printing(d: CardData) -> String:
+	if not CardRegistry.has_card(d.card_name):
+		return d.set_code
+	var first := ""
+	for code in CardRegistry.SET_ORDER:
+		if not set_on(code) or not CardRegistry.card_in_set(d.card_name, code):
+			continue
+		if code == d.set_code:
+			return code
+		if first == "":
+			first = code
+	return first if first != "" else d.set_code
 
 
 ## The type-ahead. Empty box = everything. With [member search_rules] on

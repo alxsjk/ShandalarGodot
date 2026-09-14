@@ -511,11 +511,11 @@ simplified-cards (*Oubliette*, *Halfdane*, *Copy choices*).
 
 ## 11. The card-authoring vocabulary
 
-A card file is one `.gd` under `cards/sets/<set>/`, extends `CardScript`, and
-returns a `CardData` from `build()`. The folder name becomes the set code; the
-registry scans folders, so there is no manifest. See `docs/adding-cards.md`
-for the checklist. 828 cards are implemented today; 68 documented stubs are
-parked (unloaded) in `cards/todo/`.
+A core card file is one `.gd` under `cards/sets/<set>/`; trusted optional-pack
+identities live dormant under `cards/optional/<pack>/`. Both extend
+`CardScript` and return a `CardData` from `build()`. The core has 897 rules
+identities and `cards/todo/` is empty; Pack 1 conditionally adds four more.
+See `docs/adding-cards.md` and `docs/pack-1-mechanics.md`.
 
 **`CardData` builders** — `.pt`, `.with_keywords`, `.with_supertypes`,
 `.with_subtypes`, `.oracle`, `.spell`, `.activated`, `.triggered`,
@@ -557,6 +557,10 @@ chain.
 | `AddManaEffect` | Spell-produced mana (Dark Ritual) |
 | `SearchLibraryEffect` | Tutor to hand or `.to_battlefield()` |
 | `ExtraTurnEffect` | Queue an extra turn |
+| `RandomDestroyEffect` | Destroy a seeded random subset of a target opponent's permanents, with optional nontoken/source-presence/self-destruction riders |
+| `CoinFlipDamageEffect` | Independently flip for chosen creatures; won flips deal damage and may tap survivors |
+| `CoinFlipLifeLossEffect` | A seeded two-player coin wager whose loser loses a rounded-up fraction of current life |
+| `ChosenDiscardEffect` | Controller chooses eligible cards from a target opponent's hand through `DecisionAgent`; optional nonland filter |
 | `RandomEffectTable` / `RandomCreatureEffectTable` | The Astral grab-bags: Whimsy's 17 fast effects and Faerie Dragon's 20 creature effects (the 1997 lists), rolled through the game RNG |
 
 Effects that need the whole target group at once override `resolve_multi`; the
@@ -587,6 +591,8 @@ seed-stable parallelism, and AI self-play.
 | Seeding | `MtgGame.setup(..., seed_value)` | `0` is an ordinary seed; pass `-1` for a deliberately random game |
 | Shuffling | `MtgGame._shuffle` | Fisher–Yates on `rng`; never `Array.shuffle()`, which uses the global RNG |
 | Coin flips | `MtgGame.flip_coin` (CR 705) | true = the flipping player won; Mijae Djinn (`arn/mijae_djinn.gd`) |
+| Coin-flip effect vocabulary | `CoinFlipDamageEffect`, `CoinFlipLifeLossEffect` | Per-target flips and a two-player fractional-life wager, both structurally visible to the AI |
+| Random destruction | `RandomDestroyEffect` → `RandomEffects.sample` | The resolver and AI read the same eligible-permanent pool |
 | Random discard | `MtgGame.discard_random` | Hypnotic Specter (`2ed/hypnotic_specter.gd`) |
 | Random choosers | `RandomEffects.roll` / `pick` / `permanent` / `creature` / `spell_or_permanent` / `damage_target` / `player` / `color` / `card_in_graveyard` / `card_in_libraries` / `creature_type_of` / `distribute` | Pure choosers — they never mutate; callers act through `MtgGame` |
 | Random effect tables | `RandomEffectTable.play` / `play_random`, `COUNT = 17` (`MESSAGES` = `@WHIMSY_MESSAGES`); `RandomCreatureEffectTable.play(game, source, controller, which, target)`, `COUNT = 20` (`@FAERIEDRAGON_MESSAGES`) | Whimsy (`past/whimsy.gd`), Faerie Dragon (`past/faerie_dragon.gd`) |
@@ -754,5 +760,10 @@ are tracked in `docs/ROADMAP.md`, card-visible consequences in
   more than two players.** None of these exist in the 1997 pool or the engine.
 - **Priority during cleanup**, and a second cleanup step when something
   happened during the first.
-- **Chaos Orb, Falling Star, Shahrazad and Word of Command** are excluded from
-  the pool outright (same exclusions as s30), not simplified.
+- **Chaos Orb, Falling Star, Shahrazad and Word of Command** remain excluded
+  from the default 897-card core (the same exclusions as s30). Optional Pack 1
+  supplies clearly labelled digital adaptations: coin-gated random permanent
+  destruction, coin flips for at most two creatures, a half-life subgame stand-in, and a chosen nonland
+  discard respectively. They register only while Pack 1 is enabled. The full
+  classification and lift criteria are in `docs/pack-1-mechanics.md`; every
+  deviation is also pinned in `docs/simplified-cards.md`.

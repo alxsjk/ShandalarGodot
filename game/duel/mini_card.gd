@@ -77,6 +77,11 @@ enum State {
 ## The engine card this widget shows. The widget never mutates it.
 var instance: CardInstance
 
+## Optional presentation-only crop used by the Deck Builder when a set
+## filter selects a particular reprint. It never changes CardData or the
+## name-based deck identity.
+var art_override: Texture2D = null
+
 ## OPTIONAL game reference, set by whoever builds the widget when it has
 ## one (the duel screen does; the deck builder, the help screen and the
 ## pile views do not). Two of the 1997 card states — "Is a target" and the
@@ -1107,7 +1112,8 @@ func refresh() -> void:
 	# The ART window — real art when fetched, identity color otherwise.
 	# art_name, not card_name: a land whose SUBTYPE has been changed wears
 	# the new basic land's art (§2.12).
-	var art := GameSkin.card_art(art_name(instance))
+	var art := art_override if art_override != null \
+		else GameSkin.card_art(art_name(instance))
 	_art.texture = art
 	_art.visible = art != null
 	_art_placeholder.color = frame_color(d).darkened(0.35)

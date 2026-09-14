@@ -581,6 +581,13 @@ func test_a_deck_naming_cards_we_have_not_built_still_opens() -> void:
 	file.store_string("name: Partial\n4 Lightning Bolt\n2 Chaos Orb\n20 Mountain\n")
 	file.close()
 	screen._load_deck(path)
+	assert_not_null(screen._pack_requirement_notice,
+		"a disabled Pack 1 deck offers enable, proxies, or cancel")
+	var proxies := screen._pack_requirement_notice.find_child(
+		"LoadAsProxies", true, false) as Button
+	assert_not_null(proxies)
+	proxies.pressed.emit()
+	await get_tree().process_frame
 	assert_eq(screen.deck.count_of("Lightning Bolt"), 4, "what we do have came in")
 	assert_eq(screen.deck.count_of("Mountain"), 20)
 	assert_eq(screen.deck.count_of("Chaos Orb"), 2,

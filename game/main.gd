@@ -36,10 +36,16 @@ const MANALINK_SIZE := Vector2(72, 72)
 ## that just played their duel. `DeckLab/README.md` is its manual and
 ## ships beside the binary.
 const DECK_LAB_FLAG := "--deck-lab"
+## Release-only integration probe: validates a real external ZIP, activates
+## its dormant trusted scripts, checks every set-specific art pair, then exits.
+const VERIFY_PACK_1_FLAG := "--verify-pack-1"
 
 ## The corner line that reports a skin zip on its way (web builds).
 var _fetching: Label
 var _manalink_notice: Control
+var _pack_notice: Control
+var _pack_warning: Control
+var _version_label: Label
 
 
 func _ready() -> void:
@@ -48,6 +54,9 @@ func _ready() -> void:
 	# headless run.
 	if OS.get_cmdline_user_args().has(DECK_LAB_FLAG):
 		_run_deck_lab()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_1_FLAG):
+		_verify_exported_pack_1()
 		return
 	CardRegistry.ensure_loaded()
 	var title_bg := GameSkin.texture("title_background")
@@ -211,9 +220,8 @@ func _ready() -> void:
 	# Version tag stays at the bottom-right corner beneath the new button.
 	var version := Label.new()
 	version.name = "Version"
-	version.text = "v%s · %d cards" % [
-		ProjectSettings.get_setting("application/config/version", "dev"),
-		CardRegistry.size()]
+	_version_label = version
+	_refresh_version()
 	_corner_label(version, 12)
 	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	status.add_child(version)
@@ -265,7 +273,16 @@ func _ready() -> void:
 			SetBadges.describe(code), 520.0))
 	var badges := UiChrome.panel_around(row, 8.0)
 	badges.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	corner.add_child(badges)
+	var pool_row := HBoxContainer.new()
+	pool_row.name = "CardPool"
+	pool_row.add_theme_constant_override("separation", 8)
+	pool_row.add_child(badges)
+	if not CardPacks.available_ids().is_empty():
+		var packs := CardPackBadges.new()
+		packs.pack_clicked.connect(_open_pack_notice)
+		pool_row.add_child(packs)
+	corner.add_child(pool_row)
+	CardPacks.changed.connect(_on_card_pack_changed)
 
 	# THE TITLE SCREEN HAS MUSIC, and it is the SHELL'S — one bed, looping,
 	# held by the `ShellMusic` autoload so it carries on unbroken into
@@ -281,6 +298,81 @@ func _ready() -> void:
 func _on_fetch_progressed(fraction: float) -> void:
 	_fetching.visible = SkinPack.busy()
 	_fetching.text = SkinPack.transfer_line(fraction)
+
+
+func _refresh_version() -> void:
+	if _version_label == null:
+		return
+	var version := String(ProjectSettings.get_setting(
+		"application/config/version", "dev"))
+	if CardRegistry.optional_pack_enabled():
+		_version_label.text = "v%s · %s set entries · %d unique cards" % [version,
+			_grouped(CardRegistry.named_set_entry_count()), CardRegistry.size()]
+	else:
+		_version_label.text = "v%s · %d cards" % [version, CardRegistry.size()]
+
+
+static func _grouped(value: int) -> String:
+	var digits := str(value)
+	var out := ""
+	while digits.length() > 3:
+		out = "," + digits.right(3) + out
+		digits = digits.left(-3)
+	return digits + out
+
+
+func _on_card_pack_changed(_id: String, _enabled: bool) -> void:
+	_refresh_version()
+
+
+func _open_pack_notice(id: String) -> void:
+	if is_instance_valid(_pack_notice):
+		return
+	var info := CardPacks.info(id)
+	if info.is_empty():
+		return
+	var enabled := CardPacks.is_enabled(id)
+	var counts: Dictionary = info.get("counts", {})
+	var body := "%s\n\n" % String(info.get("description", ""))
+	body += "Status: %s\n\n" % ("Enabled" if enabled else "Disabled")
+	body += "Pack 1 adds %s named set entries: %s cross-set reprints and " % [
+		_grouped(int(counts.get("pack_card_entries", 0))),
+		_grouped(int(counts.get("reprint_entries", 0)))]
+	body += "%d new rules identities. Enabled, the eight checklists contain " % \
+		int(counts.get("new_rules_identities", 0))
+	body += "%s set entries representing %d unique cards. The catalog " % [
+		_grouped(int(counts.get("named_set_entries", 0))),
+		int(counts.get("distinct_cards", 0)),
+	]
+	body += "preserves %s published collector slots.\n\n" % \
+		_grouped(int(counts.get("published_printings", 0)))
+	body += "The four new identities are Chaos Orb, Word of Command, "
+	body += "Shahrazad, and Falling Star. "
+	body += String(info.get("rules_note", ""))
+	_pack_notice = UiChrome.action_popup(self, "Pack 1 — DotP Complete", body, [
+		{"label": "Enable", "name": "Enable", "disabled": enabled,
+			"callable": CardPacks.set_enabled.bind(id, true)},
+		{"label": "Disable", "name": "Disable", "disabled": not enabled,
+			"callable": _request_disable_pack.bind(id)},
+		{"label": "Close", "name": "Close"},
+	], 620.0)
+	_pack_notice.tree_exited.connect(func() -> void: _pack_notice = null)
+
+
+func _request_disable_pack(id: String) -> void:
+	var warning := CardPacks.disable_warning(id)
+	if warning == "":
+		CardPacks.set_enabled(id, false)
+		return
+	if is_instance_valid(_pack_warning):
+		return
+	_pack_warning = UiChrome.action_popup(self, "Current deck uses Pack 1",
+		warning, [
+			{"label": "Keep enabled", "name": "KeepEnabled"},
+			{"label": "Disable anyway", "name": "DisableAnyway",
+				"callable": CardPacks.set_enabled.bind(id, false)},
+		], 570.0)
+	_pack_warning.tree_exited.connect(func() -> void: _pack_warning = null)
 
 
 ## The placeholder never changes rooms or attempts a network connection.
@@ -312,6 +404,52 @@ func _run_deck_lab() -> void:
 		code = int(lab.call("_main", forwarded))
 	lab.free()
 	get_tree().quit(code)
+
+
+func _verify_exported_pack_1() -> void:
+	var was_enabled := Settings.enabled_card_packs().has(CardPacks.ID)
+	var failures: Array[String] = []
+	if not CardPacks.has_pack(CardPacks.ID):
+		failures.append("the exact ZIP was not discovered or validated")
+	elif not CardPacks.set_enabled(CardPacks.ID, true):
+		failures.append("Pack 1 could not be enabled")
+	else:
+		if CardRegistry.size() != 901 \
+				or CardRegistry.named_set_entry_count() != 1270:
+			failures.append("the enabled registry did not reach 901 / 1,270")
+		for name in CardPacks.ADDED_NAMES:
+			if not CardRegistry.has_card(name):
+				failures.append("dormant card script missing: " + name)
+		var orb := CardRegistry.get_card("Chaos Orb") if \
+			CardRegistry.has_card("Chaos Orb") else null
+		var star := CardRegistry.get_card("Falling Star") if \
+			CardRegistry.has_card("Falling Star") else null
+		if orb == null or orb.activated_abilities.is_empty() \
+				or not (orb.activated_abilities[0].effects[0] is RandomDestroyEffect):
+			failures.append("Chaos Orb's exported effect script did not load")
+		if star == null or star.spell_effects.is_empty() \
+				or not (star.spell_effects[0] is CoinFlipDamageEffect):
+			failures.append("Falling Star's exported effect script did not load")
+		var art_count := 0
+		for row in CardPacks.entry_records(CardPacks.ID):
+			for full_card in [false, true]:
+				if CardPacks.art_path(String(row.get("name", "")),
+						String(row.get("set", "")), full_card) == "":
+					failures.append("mounted artwork missing: %s / %s" % [
+						row.get("set", ""), row.get("name", "")])
+				else:
+					art_count += 1
+		if art_count != 746:
+			failures.append("expected 746 mounted set-art files, found %d" % art_count)
+	CardPacks.set_enabled(CardPacks.ID, was_enabled)
+	if failures.is_empty():
+		print("PACK 1 EXPORT VERIFY OK — 901 identities, 1,270 set entries, "
+			+ "746 set-art files, dormant scripts loaded")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			printerr("PACK 1 EXPORT VERIFY FAILED: " + failure)
+		get_tree().quit(2)
 
 
 ## One shell button, at this screen's size.

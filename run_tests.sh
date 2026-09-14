@@ -140,6 +140,15 @@ SUITE_TIMEOUT="${SUITE_TIMEOUT:-1800}"
 # `res://assets/original` in a dev checkout, which is why).
 shandalar_test_profile
 
+# PACK 1 IS A REAL EXTERNAL ZIP, even in tests. Build it with its own
+# dedicated standard-library tool and point the process at that exact file;
+# this tests discovery/validation without depending on a developer's sibling
+# shandalar-packs folder. The Python unit test pins deterministic packaging.
+python3 tools/test_pack_1_dotp_complete.py >/dev/null
+PACK_ONE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-1-DotP-complete.zip"
+python3 tools/pack_1_dotp_complete.py build "$PACK_ONE_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_1="$PACK_ONE_PATH"
+
 # Import step (quick no-op when the .godot cache is warm; a cold import
 # of the card art is minutes, not hours, so 600 s is generous).
 "$SHANDALAR_TIMEOUT" -k 5 600 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true

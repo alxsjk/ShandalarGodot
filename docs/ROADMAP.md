@@ -12,8 +12,8 @@ numbers:
 
 | | |
 |---|---|
-| Card pool | **897 implemented, `cards/todo/` EMPTY** — M3 complete |
-| Test suite | **6085 tests, 0 failing, 353 scripts** (156 339 asserts, the 2026-09-12 gate); tools self-tests **217 OK**, `./run_tests.sh` exit 0 — and exit 0 MEANS something, see the review bullet below |
+| Card pool | **897 implemented in the default core, `cards/todo/` EMPTY** — M3 complete; optional Pack 1 raises the eight set checklists to **1,270 named entries / 901 unique rules identities** |
+| Test suite | **6326 tests, 0 failing, 371 scripts** (235 026 asserts, the 2026-09-14 Pack 1 gate); tools self-tests **217 OK**, `./run_tests.sh` exit 0 — and exit 0 MEANS something, see the review bullet below |
 | Fidelity ledger | **6 live rows over 7 card files** (53 over 84 on the morning of 2026-09-02, 88 over 128 the day before), pinned to the `SIMPLIFIED` markers by `tests/test_simplified_ledger.gd` |
 | Duel to-do | **cleared** (`docs/duel-todo.md`) |
 | Rules forks | **7** in `engine/rules_options.gd`, all defaulting modern — and the fifth-edition side is now audited AS A SET, which is how its one HIGH defect was found |
@@ -12442,17 +12442,26 @@ local branch; no online push.
 
 ## Major features for the future
 
-Updated at the owner's request, 2026-09-14. Planned features, not part of
+Updated at the owner's request, 2026-09-14. Work completed or planned after
 the 0.20.0 duel and Deck Builder release:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
 - [ ] **Manalink** — online multiplayer duels.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
-- [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
+- [x] **Cardpacks foundation + Pack 1** — exact-name discovery, validation,
+  live enable/disable control and the first numbered pack; further expansions
+  remain future work.
 
-The finite early-Magic core remains the default; optional additions must
-not change it when disabled. Existing card-art import tools are available
-now; Cardpacks here means additional playable card sets, not picture ZIPs.
+The finite 897-card early-Magic core remains the default. The first pack,
+`Pack-1-DotP-complete.zip`, adds 373 named set entries (369 cross-set reprints
+and four digital adaptations), producing 1,270 entries / 901 unique identities
+only while enabled through its `1-tDotP` title-screen button. Its dedicated
+Python tool builds and verifies the pack and fetches both art variants for all
+373 entries. Ordinary picture-only ZIPs remain separate.
+The four new identities have a completed
+[mechanics and AI audit](pack-1-mechanics.md): reusable seeded effects landed
+in the engine, the AI prices their real candidate pools and probabilities, and
+all four printed deviations are pinned in the simplified-card ledger.
 See [the set-pack design](set-packages-plan.md) and
 [the Manalink plan](manalink-planning.md) for the existing groundwork.
 

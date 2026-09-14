@@ -824,11 +824,14 @@ func show_back() -> void:
 	visible = true
 
 
-## Fill and show the preview for one card instance.
-func show_card(inst: CardInstance) -> void:
+## Fill and show the preview for one card instance. [param printing_set]
+## is presentation-only: the Deck Builder uses it to show the artwork,
+## symbol, and credit of the reprint selected by its set filter.
+func show_card(inst: CardInstance, printing_set := "") -> void:
 	_back.visible = false
 	_shown = inst
 	var d := inst.data
+	var shown_set: String = printing_set if printing_set != "" else d.set_code
 	var frame_key := MiniCard.frame_skin_key(d)
 	var skinned := GameSkin.texture(frame_key) != null
 	_name_label.text = d.card_name
@@ -847,12 +850,12 @@ func show_card(inst: CardInstance) -> void:
 			[_type_size, _type_size - 2, _type_size - 4, _type_size - 6,
 				_type_size - 8]))
 	# The set symbol (none for Unlimited/promos, as printed).
-	_set_icon.texture = GameSkin.set_icon(d.set_code)
+	_set_icon.texture = GameSkin.set_icon(shown_set)
 	_set_icon.visible = _set_icon.texture != null
-	_set_text.text = "" if _set_icon.visible else GameSkin.set_label(d.set_code)
+	_set_text.text = "" if _set_icon.visible else GameSkin.set_label(shown_set)
 	_set_text.visible = not _set_icon.visible
 	_set_suffix.text = "" if _set_icon.visible \
-		else GameSkin.set_label_suffix(d.set_code)
+		else GameSkin.set_label_suffix(shown_set)
 	_set_suffix.visible = _set_suffix.text != ""
 	_oracle.text = d.oracle_text if d.oracle_text != "" else "(no rules text)"
 	# THE TEXT BOX, then the type in it — in that order, because how big
@@ -873,8 +876,11 @@ func show_card(inst: CardInstance) -> void:
 	# nothing after it. `CardData.artist` comes from the `cards/data/`
 	# snapshot, and an older snapshot (or a printing Scryfall does not
 	# credit) simply leaves it empty.
-	_artist_label.text = (ILLUS_PREFIX + d.artist) if d.artist != "" else ""
-	_artist_label.visible = d.artist != ""
+	var shown_artist := CardRegistry.artist_of(d.card_name, shown_set)
+	if shown_artist == "":
+		shown_artist = d.artist
+	_artist_label.text = (ILLUS_PREFIX + shown_artist) if shown_artist != "" else ""
+	_artist_label.visible = shown_artist != ""
 	# The credit steps down rather than losing the artist's surname to an
 	# ellipsis: a fifth of the pool is credited to a name too long for the
 	# corner at the full size (Margaret Organ-Kean, Kev Brockschmidt, the
@@ -912,7 +918,9 @@ func show_card(inst: CardInstance) -> void:
 			icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		_cost_holder.add_child(row)
 	# Art, or the quiet identity-colored placeholder.
-	var art := GameSkin.card_art(d.card_name)
+	var art := CardPacks.art_texture(d.card_name, shown_set)
+	if art == null:
+		art = GameSkin.card_art(d.card_name)
 	_art.texture = art
 	_art.visible = art != null
 	_art_placeholder.color = MiniCard.frame_color(d).darkened(0.55)

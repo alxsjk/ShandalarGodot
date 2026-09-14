@@ -228,7 +228,10 @@ func _ready() -> void:
 	if not folder_instead:
 		_mount_if_present(own_skin_zip(), false)
 	for path in cardpacks():
-		_mount_if_present(path, false)
+		# Numbered gameplay packs share the player's card folder but are
+		# consumed by CardPacks, not mounted as artwork under res://skin.
+		if path.get_file() != CardPacks.FILE_NAME:
+			_mount_if_present(path, false)
 	if not folder_instead:
 		_mount_if_present(portable_zip("skin"), false)
 	_mount_if_present(portable_zip("cardart"), false)
@@ -329,7 +332,8 @@ static func own_skin_zip() -> String:
 	return USER_ZIP
 
 
-## Every zip in the card folder, by name — the order they are mounted.
+## Every art zip in the card folder, by name — the order they are mounted.
+## The exact gameplay archive is owned and validated by CardPacks instead.
 static func cardpacks() -> Array[String]:
 	return _zips_in(GamePaths.cardpacks_folder())
 
@@ -337,16 +341,25 @@ static func cardpacks() -> Array[String]:
 ## The instructions the game writes into the card folder, the way
 ## [PortraitLibrary] and [MusicLibrary] explain theirs.
 const CARD_README_NAME := "README.txt"
-const CARD_README := """CARD PACKS — the pictures on the cards
+const CARD_README := """CARD PACKS — pictures and optional gameplay
 
-Every zip in this folder is worn by the game from its next start, in
-name order; where two hold the same picture the first wins. A card
-pack is a zip with skin/cardart/<card_name>.jpg (or .png) inside it —
-"mishra_s_factory.jpg" for Mishra's Factory — and nothing outside
-skin/. The one the game fetches or you choose in Options is called
-cardart.zip; add others beside it under any name.
+Ordinary art zips in this folder are worn by the game from its next start,
+in name order; where two hold the same picture the first wins. An art zip
+has skin/cardart/<card_name>.jpg (or .png) inside it —
+"mishra_s_factory.jpg" for Mishra's Factory — and nothing outside skin/.
+The one the game fetches or you choose in Options is called cardart.zip;
+add other art zips beside it under any name.
 
-To build one: fetch_card_art.py beside the game downloads the pictures,
+Pack-1-DotP-complete.zip is different: it is the exact, validated gameplay
+Pack 1. When it is present, the title screen shows a square 1-tDotP button.
+Click it for quick information, or use Options > Card Packs for Open Folder,
+Rescan, enabled state, version and any validation failure. Enabling adds 373
+named set entries (369 reprints and four digitally adapted cards), so the
+title count changes from 897 cards to 1,270 set entries / 901 unique cards.
+The exact ZIP is not distributed: build it locally from the source repository
+with tools/pack_1_dotp_complete.py. Its manifest and artwork are checksummed.
+
+To build an ordinary art zip: fetch_card_art.py beside the game downloads the pictures,
 then mtg_assets.py --from-cardart <folder> --out cardart.zip packs them.
 SKIN.txt beside the game lists every name the game looks for.
 

@@ -1,0 +1,132 @@
+extends GutTest
+## Pack management away from the title-screen shortcut: compatibility details,
+## deck dependencies, readable failures, and name-based reprint selection.
+
+const DECK_PATH := "user://pack_1_requirement_test.deck"
+
+var _was_enabled := false
+
+
+func before_each() -> void:
+	_was_enabled = CardPacks.is_enabled(CardPacks.ID)
+	CardPacks.set_enabled(CardPacks.ID, false)
+	CardPacks.set_current_deck_names([])
+
+
+func after_each() -> void:
+	CardPacks.set_current_deck_names([])
+	CardPacks.set_enabled(CardPacks.ID, _was_enabled)
+	if FileAccess.file_exists(DECK_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(DECK_PATH))
+
+
+func _screen(path: String) -> Control:
+	var screen: Control = load(path).instantiate()
+	add_child_autofree(screen)
+	await get_tree().process_frame
+	return screen
+
+
+func _button(root: Node, name: String) -> Button:
+	return root.find_child(name, true, false) as Button
+
+
+func test_options_has_a_card_packs_page_entry() -> void:
+	var options := await _screen("res://game/options_screen.tscn")
+	var button := _button(options, "CardPacks")
+	assert_not_null(button)
+	assert_eq(button.text, "Card Packs...")
+
+
+func test_page_shows_folder_controls_state_version_and_compatibility() -> void:
+	var page := await _screen("res://game/card_packs_screen.tscn")
+	assert_not_null(_button(page, "OpenFolder"))
+	assert_not_null(_button(page, "Rescan"))
+	assert_false(_button(page, "EnablePack1").disabled)
+	assert_true(_button(page, "DisablePack1").disabled)
+	var status := page.find_child("Pack1Status", true, false) as Label
+	assert_string_contains(status.text, "Status: Disabled")
+	assert_string_contains(status.text, "Version: 1.0.0")
+	assert_string_contains(status.text, "Minimum game version: 0.20.0")
+	assert_string_contains(status.text, "1,270 set entries · 901 unique cards")
+	var local_only := page.find_child("LocalOnly", true, false) as Label
+	assert_string_contains(local_only.text, "not distributed with the game")
+	assert_string_contains(local_only.text, "tools/pack_1_dotp_complete.py")
+
+
+func test_page_prints_a_readable_rejection_reason() -> void:
+	var saved_available := CardPacks._available.duplicate(true)
+	var saved_rejections := CardPacks._rejections.duplicate(true)
+	CardPacks._available.clear()
+	CardPacks._rejections = [{"path": "/bad/Pack-1-DotP-complete.zip",
+		"why": "its metadata checksum does not match"}]
+	var page := await _screen("res://game/card_packs_screen.tscn")
+	var status := page.find_child("Pack1Status", true, false) as Label
+	assert_string_contains(status.text, "Status: Not available")
+	assert_string_contains(status.text, "Reason: its metadata checksum does not match")
+	CardPacks._available = saved_available
+	CardPacks._rejections = saved_rejections
+
+
+func test_saved_deck_declares_pack_but_keeps_plain_card_names() -> void:
+	CardPacks.set_enabled(CardPacks.ID, true)
+	var model := DeckModel.new()
+	model.deck_name = "Orbital"
+	assert_eq(model.add("Chaos Orb"), "")
+	assert_eq(model.add("Disenchant"), "")
+	var text := model.to_text()
+	assert_string_contains(text, "# requires-pack: pack-1")
+	assert_string_contains(text, "1 Chaos Orb")
+	assert_string_contains(text, "1 Disenchant")
+	assert_false(text.contains("Chaos Orb ["), "no printing is pinned")
+	assert_eq(text.count("# requires-pack:"), 1)
+	var parsed := DeckList.new()
+	parsed.parse(text, "fallback", true)
+	assert_eq(parsed.required_packs, [CardPacks.ID])
+
+
+func test_loading_a_disabled_pack_deck_offers_enable_then_reloads_it() -> void:
+	var file := FileAccess.open(DECK_PATH, FileAccess.WRITE)
+	file.store_string("# requires-pack: pack-1\nname: Orbital\n1 Chaos Orb\n")
+	file.close()
+	var builder := await _screen(
+		"res://game/deck_builder/deck_builder_screen.tscn") as DeckBuilderScreen
+	builder._load_deck(DECK_PATH)
+	await get_tree().process_frame
+	assert_true(is_instance_valid(builder._pack_requirement_notice))
+	assert_false(CardPacks.is_enabled(CardPacks.ID))
+	_button(builder._pack_requirement_notice, "EnablePack1").pressed.emit()
+	await get_tree().process_frame
+	assert_true(CardPacks.is_enabled(CardPacks.ID))
+	assert_eq(builder.deck.deck_name, "Orbital")
+	assert_eq(builder.deck.count_of("Chaos Orb"), 1)
+	assert_false(builder.deck.has_proxies())
+
+
+func test_disabling_warns_when_the_current_deck_needs_pack_one() -> void:
+	CardPacks.set_enabled(CardPacks.ID, true)
+	CardPacks.set_current_deck_names(["Chaos Orb"])
+	var page := await _screen("res://game/card_packs_screen.tscn")
+	_button(page, "DisablePack1").pressed.emit()
+	await get_tree().process_frame
+	assert_true(is_instance_valid(page._warning))
+	assert_true(CardPacks.is_enabled(CardPacks.ID), "the first click only warns")
+	var labels := ""
+	for label in page._warning.find_children("*", "Label", true, false):
+		labels += (label as Label).text + "\n"
+	assert_string_contains(labels, "Chaos Orb")
+	_button(page._warning, "DisableAnyway").pressed.emit()
+	await get_tree().process_frame
+	assert_false(CardPacks.is_enabled(CardPacks.ID))
+
+
+func test_selected_set_chooses_reprint_art_without_changing_identity() -> void:
+	CardPacks.set_enabled(CardPacks.ID, true)
+	var data := CardRegistry.get_card("Disenchant")
+	var filter := DeckFilter.new()
+	assert_eq(filter.preferred_printing(data), data.set_code)
+	for code in CardRegistry.SET_ORDER:
+		if code != "4ed":
+			filter.toggle_set(code)
+	assert_eq(filter.preferred_printing(data), "4ed")
+	assert_eq(CardRegistry.all_names().count("Disenchant"), 1)

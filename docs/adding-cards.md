@@ -60,6 +60,10 @@ caller supplies one `TargetRef` per slot, in the same order.
 | Deal damage | `DamageEffect` | lightning_bolt.gd |
 | Draw cards | `DrawEffect` (`.target_player()` to aim it) | ancestral_recall.gd |
 | Destroy | `DestroyEffect` + `TargetSpec.creature(desc, filter)` | terror.gd |
+| Destroy random permanents a player controls | `RandomDestroyEffect` | optional/pack_1/chaos_orb.gd |
+| Coin-flip damage to chosen creatures | `CoinFlipDamageEffect` | optional/pack_1/falling_star.gd |
+| Coin-flip fractional life loss | `CoinFlipLifeLossEffect` | optional/pack_1/shahrazad.gd |
+| Choose cards for an opponent to discard | `ChosenDiscardEffect` (+`.nonland_only()`) | optional/pack_1/word_of_command.gd |
 | +P/+T until EOT | `PumpEffect` | giant_growth.gd |
 | Filtered targets | a `static func` predicate in the card file | terror.gd |
 | "{cost}: effect" | `ActivatedAbility` | prodigal_sorcerer.gd |
@@ -148,9 +152,9 @@ over and over. Read your card's oracle text once more and ask:
 
 ## The pool pipeline (tools/)
 
-The full 1997 pool — base game (2ed, 4ed, arn, atq, past, phpr) plus the
+The default 1997 pool — base game (2ed, 4ed, arn, atq, past, phpr) plus the
 Duels of the Planeswalkers expansion (leg, drk), 897 unique cards — is
-already downloaded and stubbed:
+already downloaded and implemented:
 
 ```sh
 python3 tools/fetch_cards.py   # refresh cards/data/<set>.json from Scryfall
@@ -175,10 +179,23 @@ If the card needs a missing mechanic (first strike, protection, regeneration,
 banding...), the mechanic lands in `engine/` first — check docs/ROADMAP.md,
 implement it with engine tests, then graduate every stub it unblocks.
 
-## Future card packs (design policy)
+## Pack 1 and future card packs
+
+`tools/pack_1_dotp_complete.py` is a dedicated, separate pipeline for the
+exact `Pack-1-DotP-complete.zip` gameplay add-on. It derives and packages all
+373 missing named set entries, fetches their set-specific crop and full-card
+art into the sibling cache, and verifies the archive contract. The manifest
+carries pack/minimum-game versions plus SHA-256 metadata and artwork checks;
+the built ZIP stays local and releases distribute its construction source,
+not the artifact. Of those 373,
+369 are reprints of an existing rules identity and four unlock dormant,
+clearly marked digital adaptations. Run its `--help` for fetch, build, and
+verify commands. With Pack 1 enabled, the eight checklists contain 1,270
+named set entries representing 901 unique rules identities; the default
+897-card core is unchanged when it is disabled.
 
 The pool's identity is the original game + its expansion. Community
-mini-packs are welcome later under new set folders, with one hard rule
+mini-packs are welcome under new set folders, with one hard rule
 inherited from the project owner: **added cards must not change the balance
 of the original game** — no new tournament staples into rogue decks, no
 power-level creep; think flavor, variety, and filling curve gaps. Pack

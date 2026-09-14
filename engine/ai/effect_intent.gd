@@ -32,6 +32,21 @@ var self_damage: int = 0
 ## Targeted destroy / exile / "removal-shaped" card-local effect.
 var removes: bool = false
 
+## A random subset of permanents controlled by the targeted player is
+## destroyed. Kept as the effect because the AI needs its exact candidate
+## pool and count to price the lottery honestly rather than pretending it
+## can choose the best permanent.
+var random_destroy: RandomDestroyEffect = null
+
+## Independent coin-flip damage for each selected creature. Kept whole so
+## the target planner can select every profitable target while valuing each
+## at the actual one-half success rate.
+var coin_damage: CoinFlipDamageEffect = null
+
+## The flipper or their opponent loses a fraction of their current life on
+## a coin flip. This is a position-dependent wager, not fixed damage.
+var coin_life_loss: CoinFlipLifeLossEffect = null
+
 ## The removal says "can't be regenerated" (Terror) — a shield is no answer.
 var removal_ignores_regeneration: bool = false
 
@@ -185,6 +200,11 @@ var animates: AnimateSelfEffect = null
 ## Twist, Nebuchadnezzar). See [method _aimed_discard] for why this is
 ## read the way it is.
 var discards: int = 0
+
+## A chosen-card discard from a shared effect. Kept whole because its
+## eligibility filter (for example, nonlands only) determines whether a
+## target player's hand actually contains anything the spell can take.
+var chosen_discard: ChosenDiscardEffect = null
 
 ## Damage the effect deals to the TARGET'S CONTROLLER — the sting on the
 ## end of a punisher's removal ("Detonate deals X damage to that
@@ -557,7 +577,16 @@ static func read(effects: Array, card_name: String = "") -> EffectIntent:
 	for e in effects:
 		if intent.target_spec == null and e.target_spec != null:
 			intent.target_spec = e.target_spec
-		if e is DamageEffect:
+		if e is RandomDestroyEffect:
+			intent.random_destroy = e
+		elif e is CoinFlipDamageEffect:
+			intent.coin_damage = e
+		elif e is CoinFlipLifeLossEffect:
+			intent.coin_life_loss = e
+		elif e is ChosenDiscardEffect:
+			intent.chosen_discard = e
+			intent.discards += e.count
+		elif e is DamageEffect:
 			if e.controller_mode:
 				intent.self_damage += e.amount
 			elif e.use_x:
@@ -760,7 +789,9 @@ const WHEEL_COUNTS := {
 ## Does this intent hurt what it targets? Mirrors the classification
 ## [method AiPlayer._is_harmful] has always used, from the summed reading.
 func is_harmful() -> bool:
-	if damage > 0 or damage_uses_x or removes or bounces or taps:
+	if damage > 0 or damage_uses_x or removes or bounces or taps \
+			or random_destroy != null or coin_damage != null \
+			or chosen_discard != null:
 		return true
 	if draws > 0 or draws_use_x or pumps or life_gain > 0 or untaps or regenerates:
 		return false
@@ -792,7 +823,8 @@ func kills(victim: CardInstance, x_value: int) -> bool:
 ## A creature-answering shape — what "removal" means to the response
 ## logic: kills a creature outright, or removes it from the board.
 func answers_creatures() -> bool:
-	return removes or bounces or damage > 0 or damage_uses_x
+	return removes or bounces or damage > 0 or damage_uses_x \
+		or coin_damage != null
 
 
 ## Is this effect's WHOLE job to tap (or untap) what it hits — Twiddle,

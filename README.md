@@ -46,10 +46,16 @@ engine, and the freedom to keep the game alive.
 for **Windows, Linux, macOS or web**. The release page has launch
 instructions, standalone and original-skin packages, and SHA-256 checksums.
 
-Play with an **897-card early-Magic pool**, historic decks, four computer
+Play with an **897-card early-Magic core**, historic decks, four computer
 opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
-sideboarding. The Deck Builder supports large cards, live filters and
-keyboard browsing. Adventure and online multiplayer are still to come.
+sideboarding. Optional `Pack-1-DotP-complete.zip` finishes the eight set
+checklists: its title-screen `1-tDotP` button can enable 373 additional set
+entries, for **1,270 set entries / 901 unique rules identities**. The Deck Builder
+supports large cards, live filters and keyboard browsing. Adventure and
+online multiplayer are still to come.
+
+Pack 1's ZIP is intentionally not a release download. Build it—and fetch its
+art—locally from this source tree with `tools/pack_1_dotp_complete.py`.
 
 ## Philosophy
 
@@ -114,15 +120,17 @@ on Windows. `--procs` and `--jobs` control parallel workers;
 `--no-elo` keeps experiments out of the ratings ledger.
 The [DeckLab manual](DeckLab/README.md) has examples and all options.
 
-## Future roadmap
+## Post-0.20.0 roadmap
 
-Planned features, not part of 0.20.0:
+Work completed or planned after the 0.20.0 release:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
 - [ ] **Manalink** — first, browse, host and join individual online duels;
   later, host complete tournaments, including booster opening and drafting.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
-- [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
+- [x] **Cardpacks foundation + Pack 1** — optional, toggleable packs separate
+  from the core pool; its [four-card mechanics/AI audit](docs/pack-1-mechanics.md)
+  is complete, and more numbered expansions remain planned.
 - [ ] **Community MElo (Magic Elo)** — a big long-term wish: a simple,
   elegant global player rating and ranking system for the community. :)
 
