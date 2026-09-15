@@ -23,6 +23,7 @@ var _object_serial: Array[int] = [0, 0]
 var _used_objects: Array = [{}, {}]
 var actions: SgDuelActions
 var deck_names: Array = ["Forest practice", "Forest practice"]
+var panel_colors: Array[String] = ["green", "green"]
 var _zones: Array = [{}, {}]
 var journal: SgJournal
 var state_generation := 0
@@ -40,6 +41,9 @@ func _init(seed_value := -1, decks: Array = [{}, {}], names: Array = ["Player 1"
 		if not decks[pid].is_empty() and SgDeckCatalog.validate(decks[pid].cards, decks[pid].sideboard).is_empty():
 			selected[pid] = decks[pid].cards
 			deck_names[pid] = decks[pid].name
+		# Cosmetic, public match metadata, computed once from the registered
+		# list just as local setup does; never infer it from a hidden hand.
+		panel_colors[pid] = DuelConfig.dominant_color(selected[pid])
 	game.setup(selected[0], selected[1], names[0], names[1], 20, 20, seed_value)
 	actions = SgDuelActions.new(game)
 	game.rules.mana_burn = true

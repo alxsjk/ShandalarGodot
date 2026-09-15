@@ -346,6 +346,18 @@ func ask(answers: Array) -> int:
 
 ## Shared button row for asynchronous network openings.
 func set_answers(answers: Array) -> void:
+	_pressed = -1
+	# Network snapshots can update only readiness while this exact question
+	# remains open. Keep its buttons (and focus) instead of recreating the row.
+	var same := _buttons.size() == answers.size()
+	if same:
+		for i in answers.size():
+			if _buttons[i].text != answers[i].label or _buttons[i].get_meta("answer", -1) != answers[i].answer:
+				same = false
+				break
+	if same:
+		for i in answers.size(): _buttons[i].disabled = bool(answers[i].get("disabled", false))
+		return
 	# Un-parent BEFORE queueing: a queue_free'd child is still in the tree
 	# for the rest of the frame, so the old row would lay out beside the
 	# new one for a frame (the same trap CardPreview documents).
@@ -353,12 +365,12 @@ func set_answers(answers: Array) -> void:
 		btn.get_parent().remove_child(btn)
 		btn.queue_free()
 	_buttons.clear()
-	_pressed = -1
 	for entry in answers:
 		var answer: int = entry["answer"]
 		var btn := _dialog.add_button(entry["label"])
 		btn.custom_minimum_size = BUTTON_SIZE
 		btn.disabled = bool(entry.get("disabled", false))
+		btn.set_meta("answer", answer)
 		btn.pressed.connect(func() -> void:
 			_pressed = answer
 			answered.emit(answer))

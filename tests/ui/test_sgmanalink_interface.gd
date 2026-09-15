@@ -47,7 +47,10 @@ func _screen() -> SgDuelView:
 
 func test_deck_selector_lists_shipped_decks_and_full_contents() -> void:
 	var lobby := _lobby()
-	lobby.client.state.room = {"deck": {}}
+	lobby.client.online = true
+	lobby.client.state.room = {"id":"r1", "name":"Friendly duel", "seat":0,
+		"names":["Azure Fox", "Amber Owl"], "revision":1, "ready":[false,false],
+		"connected":[true,true], "game":{}, "deck_names":["Knights","Raiders"], "deck":{}}
 	lobby._open_decks()
 	for i in 5: await get_tree().process_frame
 	var list := lobby._deck_picker.find_child("NetworkDeckList", true, false) as ItemList
@@ -132,3 +135,29 @@ func test_windows_are_separate_fit_and_do_not_open_sockets() -> void:
 	assert_true(lobby._advertise.button_pressed)
 	lobby._advertise.button_pressed = false
 	assert_false(lobby._advertise.button_pressed, "private hosting is explicit")
+
+
+func test_overview_gives_guidance_without_repeating_navigation() -> void:
+	var lobby := _lobby()
+	var home: Control = lobby._pages.home
+	assert_eq(home.find_children("*", "Button", true, false).size(), 0,
+		"Overview explains the visit; navigation belongs only in the top tabs")
+	assert_eq(lobby._navigation.size(), 4)
+	var explanation := ""
+	for label in home.find_children("*", "Label", true, false):
+		explanation += label.text + "\n"
+	for fact in ["same local network", "same game build", "private invitation", "Ready", "referee"]:
+		assert_string_contains(explanation, fact)
+	for dimensions in [Vector2i(1280,800), Vector2i(960,600), Vector2i(640,480)]:
+		(lobby.get_parent() as SubViewport).size = dimensions
+		for i in 5: await get_tree().process_frame
+		var window := lobby._window.get_global_rect()
+		assert_gte(window.position.x, 0.0)
+		assert_lte(window.end.x, float(dimensions.x))
+		assert_lte(window.end.y, float(dimensions.y))
+		for label in home.find_children("*", "Label", true, false):
+			assert_gte(label.get_global_rect().position.x, window.position.x)
+			assert_lte(label.get_global_rect().end.x, window.end.x)
+	assert_null(lobby.service)
+	assert_null(lobby._discovery)
+	assert_false(lobby.client._wanted)

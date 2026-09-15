@@ -359,8 +359,9 @@ static func presentation(value: Variant) -> bool:
 			or not SgProtocol.integer(event.serial, 1) or event.kind not in ["draw", "dies"] \
 			or not SgProtocol.short_text(event.card, 16) or not event.sacrificed is bool: return false
 	for player in value.players:
-		if not player is Dictionary or not SgProtocol.exact(player, ["poison", "lands", "hand_revealed"]) \
-			or not SgProtocol.integer(player.poison) or not SgProtocol.integer(player.lands) or not player.hand_revealed is bool: return false
+		if not player is Dictionary or not SgProtocol.exact(player, ["poison", "lands", "hand_revealed", "color"]) \
+			or not SgProtocol.integer(player.poison) or not SgProtocol.integer(player.lands) or not player.hand_revealed is bool \
+			or player.color not in ["white", "blue", "black", "red", "green"]: return false
 	for card in value.cards:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "flags", "abilities", "castable"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card.castable is bool or not card.flags is Dictionary \

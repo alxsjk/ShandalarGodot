@@ -52,7 +52,7 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 	for seat in 2:
 		var p := g.players[seat]
 		result.players.append({"poison": p.poison, "lands": p.lands_played_this_turn,
-			"hand_revealed": p.hand_revealed})
+			"hand_revealed": p.hand_revealed, "color": m.panel_colors[seat]})
 		var visible: Array = p.battlefield + p.graveyard + p.exile + p.ante
 		for card in p.hand:
 			if m._visible(pid, card): visible.append(card)

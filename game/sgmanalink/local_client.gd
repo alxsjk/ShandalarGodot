@@ -83,9 +83,11 @@ func _connect() -> Error:
 	if _unavailable_since == 0: _unavailable_since = Time.get_ticks_msec()
 	status = "Connecting..." if Time.get_ticks_msec() - _unavailable_since < 5000 \
 		else "Host unavailable. Check that it is running; reconnecting..."
-	changed.emit()
 	var scheme := "wss" if _tls_options != null else "ws"
-	return _socket.connect_to_url("%s://%s:%d" % [scheme, _address, _port], _tls_options)
+	var result := _socket.connect_to_url("%s://%s:%d" % [scheme, _address, _port], _tls_options)
+	# Publish a fully started attempt: a listener may immediately cancel it.
+	changed.emit()
+	return result
 
 
 func forget() -> void:
@@ -127,6 +129,10 @@ func busy() -> bool:
 
 func has_session() -> bool:
 	return not _resume.is_empty()
+
+
+func connecting() -> bool:
+	return _wanted and not online
 
 
 func reconnect() -> void:
@@ -186,6 +192,7 @@ func poll() -> void:
 	if not _wanted or _socket == null:
 		return
 	var now := Time.get_ticks_msec()
+	var polled_socket := _socket
 	_socket.poll()
 	var connection := _socket.get_ready_state()
 	if connection == WebSocketPeer.STATE_CLOSED:
@@ -200,6 +207,7 @@ func poll() -> void:
 			status = "Connection lost; reconnecting..."
 			_retry_at = now + _backoff
 			changed.emit()
+			if not _wanted or _socket != polled_socket: return
 		elif now - _opened > 5000:
 			status = "Host unavailable. Check that it is running; reconnecting..."
 		if now >= _retry_at:
@@ -259,7 +267,11 @@ func poll() -> void:
 					_pending.clear()
 					_pending_wire = ""
 					_pending_ack.clear()
-					if not acknowledgement.ok: refused.emit(acknowledgement.error)
+					if not acknowledgement.ok:
+						refused.emit(acknowledgement.error)
+						# A refusal listener may leave the visit or start another one.
+						# Never revive that forgotten state or continue on its socket.
+						if not _wanted or _socket != polled_socket: return
 				if not online:
 					# A welcome authenticates this connection, not the cached room
 					# revision. Enable input only after its first fresh snapshot.
@@ -280,6 +292,7 @@ func poll() -> void:
 				_socket.close(-1)
 			_: _socket.close(-1)
 		changed.emit()
+		if not _wanted or _socket != polled_socket: return
 	if online and busy():
 		if now - _pending_started >= COMMAND_TIMEOUT_MS:
 			_socket.close(-1)

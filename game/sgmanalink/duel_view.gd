@@ -23,6 +23,8 @@ var _last_visual_event := -1
 var _network_badge: Button
 var _network_opening: OpeningWindow
 var _network_dialog: OriginalDialog
+var _connection_status: Label
+var _opening_snapshot: Dictionary = {}
 var _opening_started := false
 var _shown_choice: Dictionary = {}
 var _result_seen := false
@@ -56,7 +58,7 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 			var pid := projection.local_seat(remote)
 			config.player_names[pid] = room.names[remote]
 			config.deck_names[pid] = room.deck_names[remote]
-		config.panel_colors = ["blue", "red"]
+			config.panel_colors[pid] = room.game.presentation.players[remote].color
 		config.decks[0] = room.deck.cards.duplicate() if not room.deck.is_empty() else []
 		_humans[0] = HumanAgent.new()
 		projection.action_requested.connect(_dispatch)
@@ -64,6 +66,8 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 		_build_ui()
 		_build_network_controls()
 		_built = true
+		# Rejoining a finished duel has no previous painted total to animate.
+		for pid in 2: _last_life[pid] = game.players[pid].life
 		_play_music()
 	if _shown_choice != room.game.choice:
 		_close_choice_overlay()
@@ -71,11 +75,13 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 		_shown_choice = room.game.choice.duplicate(true)
 	_present_visual_events()
 	if not projection.locked: _sync_announcement()
-	_refresh()
-	_present_cues()
 	if game.game_over and not _result_seen:
 		_result_seen = true
+		# The shared death countdown starts from the last PAINTED life.
+		# A refresh here would overwrite it with the final remote total.
 		_on_game_over(game.winner)
+	_refresh()
+	_present_cues()
 	if game.mulligan_open and not _opening_started:
 		_opening_started = true
 		_toss_active = true
@@ -128,10 +134,26 @@ func _refresh() -> void:
 		_damage_picks.clear()
 	super._refresh()
 	_pass_button.disabled = projection.locked or game.game_over
-	_network_badge.text = "Online" if _online else "Reconnect"
-	if not _room.connected[0] or not _room.connected[1]: _network_badge.text = "Suspended"
-	if projection.locked and not game.game_over and not game.mulligan_open:
-		_prompt_label.text = "Waiting for host…" if _online and _busy else "Waiting for connection…"
+	# Transport state belongs beside the table controls, never on top of a
+	# combat/target/payment instruction. Even a brief ACK wait used to flash
+	# over the phase message on every action.
+	_network_badge.text = "Online"
+	if not _online: _network_badge.text = "Reconnect"
+	elif not _room.connected[0] or not _room.connected[1]: _network_badge.text = "Suspended"
+	elif _busy or _awaiting_ack: _network_badge.text = "Sending…"
+	_network_badge.tooltip_text = _connection_message() + "\nClick for connection controls.\n" \
+		+ "Friendly, unrated player-hosted duel. Hidden opponent cards are not sent to this client; the host runs the referee."
+	if is_instance_valid(_connection_status): _connection_status.text = _connection_message()
+
+
+func _connection_message() -> String:
+	if not _online: return "Reconnecting to the host. Your last confirmed table is shown."
+	if not _room.connected[int(_room.seat)]:
+		return "Restoring your seat. The duel is suspended."
+	if not _room.connected[1 - int(_room.seat)]:
+		return "Waiting for %s to reconnect. The duel is suspended." % config.player_names[1]
+	if _busy or _awaiting_ack: return "Waiting for the host to confirm your action."
+	return "Connected to the host."
 
 
 func _drive_advance() -> void:
@@ -474,6 +496,7 @@ func _run_intro() -> void:
 
 
 func _run_opening_hand(_winner: int) -> void:
+	_opening_snapshot.clear()
 	_network_opening = OpeningWindow.new()
 	_network_opening.z_index = 230
 	add_child(_network_opening)
@@ -491,7 +514,10 @@ func _update_opening() -> void:
 		return
 	var deciding := projection.local_seat(int(projection.view.actor)) == 0
 	_network_opening.show_antes(game, 0)
-	_network_opening.show_hand(game, 0, config.panel_colors[0])
+	var hand_view := {"cards": projection.view.hand, "color": config.panel_colors[0]}
+	if hand_view != _opening_snapshot:
+		_network_opening.show_hand(game, 0, config.panel_colors[0])
+		_opening_snapshot = hand_view.duplicate(true)
 	var ordered: bool = projection.presentation.order
 	_network_opening.set_lead(("You will take the first turn" if projection.local_seat(int(projection.view.first)) == 0 else "%s will take the first turn" % config.player_names[1]) \
 		if ordered else ("You won the coin toss" if deciding else "%s won the coin toss" % config.player_names[1]))
@@ -528,11 +554,25 @@ func _present_visual_events() -> void:
 
 
 func _build_network_controls() -> void:
-	_network_badge = UiChrome.menu_button("Online", Vector2(105, 30), 13)
+	# A restored snapshot may already be in combat before containers have
+	# their first layout. Fit again when the board settles or resizes; a full
+	# refresh here would needlessly rebuild the live combat card widgets.
+	for rows in _half_rows:
+		rows.get_parent().resized.connect(_refit_network_combat, CONNECT_DEFERRED)
+	_network_badge = Button.new()
+	_network_badge.text = "Online"
+	_network_badge.custom_minimum_size = Vector2(105, 30)
+	OriginalDialog.dress_bar_button(_network_badge)
 	_network_badge.position = Vector2(4, 4)
 	_network_badge.tooltip_text = "Unrated player-hosted duel. Your opponent's hidden hand and library are not sent to this client. The host runs the referee."
 	_network_badge.pressed.connect(_show_connection)
 	_qol_reserve.add_child(_network_badge)
+
+
+func _refit_network_combat() -> void:
+	if not _built or not is_inside_tree(): return
+	if is_instance_valid(_combat_window) and _combat_window.visible:
+		_combat_window.fit(_board_area())
 
 
 func _show_connection() -> void:
@@ -540,7 +580,10 @@ func _show_connection() -> void:
 	var column := VBoxContainer.new()
 	column.position = Vector2(24, 54)
 	column.custom_minimum_size.x = 510
-	column.add_child(OriginalDialog.label("Connected to the host" if _online else "Reconnecting to the host…", 16))
+	_connection_status = OriginalDialog.label(_connection_message(), 16)
+	_connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_connection_status.custom_minimum_size.x = 510
+	column.add_child(_connection_status)
 	for entry in [["Revealed information", _show_information], ["Special actions", _show_specials],
 		["Reconnect", reconnect_requested.emit], ["Duel menu", _toggle_pause]]:
 		var button := OriginalDialog.choice_line(entry[0])

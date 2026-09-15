@@ -13401,6 +13401,62 @@ duels also finished under Fifth Edition and modern rules, with no error,
 warning or stall lines. All wrappers exited 0. Work remains local and
 uncommitted; no release export or push was performed in this pass.
 
+## 2026-09-15 — SGManalink visual parity
+
+Compared native rendered local and online duel fixtures with the original skin
+at 1280×800 and 960×600. The card geometry and shared table already matched;
+corrected hard-coded online deck colours, transport messages obscuring phase
+instructions, opening-hand control churn, main-menu styling on the Online
+button and skipped defeat countdowns. Restoring directly into combat now refits
+the window after board layout/resize so its title cannot hide behind the preview,
+without rebuilding its card widgets. Connection details update while open.
+
+The full gate passed 6,398 tests, including ten focused regressions and the
+reproduced first-combat layout failure; four offline demo/human-seat duels also
+completed under Fifth Edition and modern rules. All wrappers exited 0.
+Protocol 7 carries a fixed public cosmetic palette, never the opposing deck list;
+both players need the updated development build. Offline rules and computer-player
+logic are unchanged. Full verification, native capture scope and suggested next
+steps are in [the visual parity review](sgmanalink-visual-parity-2026-09-15.md).
+No commit, push, export or public release replacement was performed in this pass.
+
+## 2026-09-15 — SGManalink lobby polish
+
+Reworked the Overview, Identity, Host Game, Game Browser, waiting room and deck
+chooser with the existing stone/buttons/fonts, green globe and calm parchment
+sections. Clear primary actions, side-by-side player status, consistent fields
+and bounded scrolling retain the old-school presentation. Built-in fallback
+styling remains available without imported artwork.
+
+Fixed connection-callback lifecycle and identity locking, repeated waiting-room
+widget churn, stale deck choosers, chooser Escape handling and hidden search
+selections. Deck selection now waits for the host's confirming snapshot and
+keeps a refused selection available for correction. Identity Cancel restores
+the remember-name choice without saving. The native menu captures and focused
+regressions are documented in [the lobby polish review](sgmanalink-lobby-polish-2026-09-15.md).
+
+The final full gate passed **6,412 tests / 241,829 assertions / 377 scripts**,
+wrapper exit **0**, including fourteen new focused regressions and four complete
+network soak rounds with **1,244 commands**, delays, reconnects and duplicates.
+Native source-menu captures were inspected with the original skin at 1280×800
+and 960×600, plus built-in fallback examples. True logical viewport containment
+is tested down to 640×480. Staged captures and automated sockets do not replace
+a mixed-platform, two-physical-computer LAN playtest.
+
+Four offline demo/human-seat duels also completed under Fifth Edition and
+modern rules with seed 4242; both wrappers exited 0 with no error, warning or
+stall lines. Offline rules and computer-player decisions are unchanged.
+
+This remains friendly, unrated desktop LAN play: no new account service,
+ranking, Internet discovery or gameplay rule changes. Existing visual parity
+work is preserved. No commit, push, export or release replacement was performed.
+
+Overview follow-up: removed duplicated navigation cards in favour of general
+LAN information, concise host/join guidance and the Ready flow. Top tabs remain
+the sole navigation. The menu-only revision passed **48 focused tests / 516
+assertions** and fresh original-skin/fallback native capture checks; small-layout
+containment is tested down to 640×480. No networking or gameplay code changed.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

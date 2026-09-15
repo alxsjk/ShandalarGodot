@@ -30,7 +30,9 @@ builds do not contain this LAN milestone.
    discovery or manual IP/port entry. The invitation carries both.
 6. In the connected browser, choose **Join** beside the host's duel.
    Use **Choose / review deck** to search shipped and locally saved decks,
-   inspect the complete list, then **Use this deck**. Both choose **Ready**.
+   inspect the complete list, then **Use this deck**. The chooser stays open
+   until the host confirms the selection; a refusal keeps the selection and
+   shows an explanation. Both choose **Ready**.
    Changing either deck or replacing an opponent clears both Ready flags so
    both players can review again. Reconnecting the same seat preserves readiness.
 7. Play on the **same duel screen as an offline duel**. The coin-toss winner
@@ -42,6 +44,17 @@ builds do not contain this LAN milestone.
    clicking them; click a blocker then an attacker to block. Confirm with Done.
    Divide damage with the existing click-per-point combat controls and choose
    cleanup discards in your hand.
+
+Overview explains prerequisites, hosting versus joining and the Ready flow;
+it does not repeat the navigation buttons. Use the top tabs for Identity,
+Host Game and Game Browser.
+The waiting room shows both player names, deck titles and readiness side by side.
+Long pages scroll inside the window, leaving connection notices visible.
+**Escape** or **Back** in the deck chooser returns only to the room. Changing
+the search clears any previously selected result. The chooser closes if its
+room ends or the duel begins. Your identity is fixed while connecting or during
+a visit; use **Overview -> Disconnect** to end or cancel that visit before
+choosing another name.
 
 Auto-payment pauses for a mana source's colour/cost question and resumes after
 your answer. Automatic X respects **Don't auto tap** marks, coloured X costs,
@@ -63,7 +76,7 @@ The invitation is a secret, not a public room listing. Clipboard managers
 and the application used to send it may keep their own history. The game
 does not store invitations, private keys or seat credentials in settings or
 logs. Only a display name is saved, and only after explicit confirmation with
-**Remember** checked. Cancel discards identity edits; using a name with
+**Remember** checked. Cancel discards both name and remember-choice edits; using a name with
 Remember unchecked removes the saved preference. Stopping the host invalidates its invitations; starting
 again generates new credentials. Names are not globally reserved.
 
@@ -88,6 +101,16 @@ hand, portraits, phase/combat bars, Combat window, spell chain, target arrows,
 damage markers, spell flights, card sounds and music are used. Your seat always
 appears below your opponent's. Hand style, placement and other presentation
 preferences are shared with offline duels.
+
+Territory colours use the same deck-based palette as local setup. This is a
+single public cosmetic value fixed when the duel starts, not an opposing deck
+list or a colour inferred from hidden draws. The Online control uses the duel's
+stone button style. Sending, reconnecting and suspended states appear there;
+they do not overwrite combat, targeting or phase instructions. Open connection
+details update in place. Opening-hand buttons stay stable across network updates,
+and the normal defeat countdown uses the previous displayed life total.
+Restoring a duel already in combat also refits its window after layout or resize,
+keeping the title clear of the large-card sidebar without rebuilding its cards.
 
 Spells and live abilities use the referee's legal targets, modes, X and divided
 damage. The original choice window handles private searches and cost/resolution
@@ -155,7 +178,7 @@ an important playtest even after automated local-socket tests pass.
 For an isolated two-window check, **Host Game -> Same-computer testing ->
 Start local service** retains the original loopback path. Use **Host a duel**
 to create its room. Copy its access code and port into the other window's
-**Game Browser**, using the **Same-computer test port**, and Connect.
+**Game Browser -> Same-computer testing**, using the **Local test port**, and Connect.
 This path uses plain `ws://` only on `127.0.0.1`, does
 not advertise and cannot connect to another computer. LAN invitations
 always use encrypted `wss://`; they never fall back to plain WebSocket.
@@ -206,10 +229,10 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   dispatch. Duplicate/contradictory card locations, absent combat-card references
   and unknown keyword values are rejected before replacing the client view.
   Seat authorization comes from the connection, not a player
-  number submitted by the client. The data protocol is version 6 (both players
-  need this updated build for compact blocking tables and filtered history);
+  number submitted by the client. The data protocol is version 7 (both players
+  need this updated build, including the public cosmetic palette field);
   the invitation keeps the `sglan1:` envelope prefix and carries the same
-  version-6 compatibility check inside it. A handshake fingerprint additionally
+  protocol-7 compatibility check inside it. A handshake fingerprint additionally
   checks the release version, maintained rules revision and printed card catalogue.
   It detects incompatible builds, not modified-client cheating or player identity.
   Invalid invitations, expired seats, incompatible builds and full hosts report
@@ -276,6 +299,8 @@ engine payment costs.
 
 See the [second-pass record](sgmanalink-hardening-2026-09-14.md) for its
 reproductions, recovery checks and verification results.
+The [visual parity review](sgmanalink-visual-parity-2026-09-15.md) records the
+matched native-rendering checks and subsequent presentation corrections.
 
 Next: two-computer full-deck playtests; then
 Internet invitations and decentralized public discovery. Account providers,

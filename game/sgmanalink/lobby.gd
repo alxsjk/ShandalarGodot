@@ -42,6 +42,17 @@ var _browser_connection: VBoxContainer
 var _host_controls: VBoxContainer
 var _deck_picker: Control
 var _catalog: Array = []
+var _navigation: Dictionary = {}
+var _navigation_bar: HBoxContainer
+var _body_snapshot: Dictionary = {}
+var _deck_panel: PanelContainer
+var _deck_room_id := ""
+var _deck_use: Button
+var _identity_remember := false
+var _deck_selected: Dictionary = {}
+var _deck_submission: Dictionary = {}
+var _deck_status: Label
+var _content_scroll: ScrollContainer
 
 
 func _ready() -> void:
@@ -52,43 +63,55 @@ func _ready() -> void:
 	client.refused.connect(func(reason: String) -> void:
 		_host_pending = false
 		_notice.text = reason
-		if is_instance_valid(_duel):
-			_duel.show_notice(reason))
+		if is_instance_valid(_duel): _duel.show_notice(reason))
 	_shell = Control.new()
 	add_child(_shell)
 	_shell.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var dim := ColorRect.new()
-	dim.color = Color(0.025, 0.035, 0.025, 0.96)
+	dim.color = Color(0.025, 0.035, 0.025, 0.98)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_shell.add_child(dim)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
-	_window = UiChrome.panel_around(column, 20)
+	column.add_theme_constant_override("separation", 14)
+	_window = SgLobbyStyle.panel(column, false, 24)
+	_window.add_theme_stylebox_override("panel", OriginalDialog.panel_style("panel_dark_stone", 24))
 	_shell.add_child(_window)
 	_window.minimum_size_changed.connect(func() -> void: _layout_window.call_deferred())
-	var heading := HBoxContainer.new()
-	column.add_child(heading)
-	_title = _label("SGManalink", 28)
-	_title.autowrap_mode = TextServer.AUTOWRAP_OFF
-	heading.add_child(_title)
-	_close_button = _button("Close", _close, Vector2(130, 38))
+	var heading := SgLobbyStyle.row(column)
+	var globe := ManalinkGlobe.new()
+	globe.custom_minimum_size = Vector2(56, 56)
+	heading.add_child(globe)
+	var masthead := VBoxContainer.new()
+	masthead.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_child(masthead)
+	_title = SgLobbyStyle.label("SGManalink", 30, true)
+	masthead.add_child(_title)
+	masthead.add_child(SgLobbyStyle.label("A familiar table. A new opponent.", 16, true))
+	_close_button = _button("Close", _close, Vector2(120, 38))
+	_close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	heading.add_child(_close_button)
-	_status = _label("Not connected", 15)
+	var navigation := SgLobbyStyle.row(column)
+	_navigation_bar = navigation
+	for entry in [["Overview", "home"], ["Identity", "identity"], ["Host Game", "host"], ["Game Browser", "browser"]]:
+		var button := _button(entry[0], _show_page.bind(entry[1]), Vector2(100, 36))
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.toggle_mode = true
+		navigation.add_child(button)
+		_navigation[entry[1]] = button
+	_status = SgLobbyStyle.label("Not connected", 15, true)
 	column.add_child(_status)
-	_notice = _label("", 15)
-	column.add_child(_notice)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(scroll)
+	_content_scroll = ScrollContainer.new()
+	_content_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(_content_scroll)
 	_connection_controls = VBoxContainer.new()
 	_connection_controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_connection_controls.add_theme_constant_override("separation", 12)
-	scroll.add_child(_connection_controls)
+	_connection_controls.add_theme_constant_override("separation", 14)
+	_content_scroll.add_child(_connection_controls)
 	for key in ["home", "identity", "host", "browser"]:
 		var page := VBoxContainer.new()
 		page.name = key.capitalize() + "Window"
-		page.add_theme_constant_override("separation", 12)
+		page.add_theme_constant_override("separation", 14)
 		_connection_controls.add_child(page)
 		_pages[key] = page
 	_build_home(_pages.home)
@@ -98,6 +121,12 @@ func _ready() -> void:
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", 12)
 	_connection_controls.add_child(_body)
+	_notice = SgLobbyStyle.label("", 15, true)
+	_notice.custom_minimum_size.y = 20
+	column.add_child(_notice)
+	var footer := SgLobbyStyle.label("DESKTOP LAN  /  FRIENDLY DUELS  /  UNRATED", 13, true)
+	footer.add_theme_color_override("font_color", SgLobbyStyle.GOLD)
+	column.add_child(footer)
 	resized.connect(_layout_window)
 	_layout_window()
 	_refresh()
@@ -105,78 +134,94 @@ func _ready() -> void:
 	_close_button.grab_focus()
 	get_viewport().gui_focus_changed.connect(_keep_focus)
 
-
 func _layout_window() -> void:
-	if _window == null:
-		return
-	_window.size = Vector2(minf(820, maxf(0, size.x - 32)), maxf(0, size.y - 40))
+	if _window == null: return
+	_window.size = Vector2(minf(980, maxf(0, size.x - 40)), minf(740, maxf(0, size.y - 40)))
 	_window.position = (size - _window.size) * 0.5
-
+	if is_instance_valid(_deck_panel):
+		_deck_panel.size = Vector2(minf(920, maxf(0, size.x - 48)), maxf(0, size.y - 64))
+		_deck_panel.position = (size - _deck_panel.size) * 0.5
 
 func _build_home(page: VBoxContainer) -> void:
-	_introduction = _label("Welcome to SGManalink", 24)
-	page.add_child(_introduction)
-	page.add_child(_label("Meet across the table, wherever your LAN reaches.", 18))
-	_identity_summary = _label("", 18)
-	page.add_child(_identity_summary)
-	for entry in [["Identity", "identity"], ["Host Game", "host"], ["Game Browser", "browser"]]:
-		page.add_child(_button(entry[0], _show_page.bind(entry[1]), Vector2(280, 48)))
-	page.add_child(_label("Temporary names • Friendly, unrated games\n"
-		+ "Desktop LAN duels with shipped decks and your own saved decks. "
-		+ "Internet discovery, verified accounts and MElo are not available yet.", 16))
-
+	var welcome := SgLobbyStyle.column(page, "", false)
+	_introduction = SgLobbyStyle.label("Welcome to SGManalink", 28, true)
+	welcome.add_child(_introduction)
+	welcome.add_child(SgLobbyStyle.label("Friendly duels for Windows, Linux and macOS on the same local network.", 18, true))
+	_identity_summary = SgLobbyStyle.label("", 16, true)
+	_identity_summary.add_theme_color_override("font_color", SgLobbyStyle.GOLD)
+	welcome.add_child(_identity_summary)
+	var guide := SgLobbyStyle.column(page, "Getting started")
+	guide.add_child(_label("Use the same game build. Choose a name in Identity, or play as a guest.", 17))
+	var routes := SgLobbyStyle.row(guide)
+	routes.add_theme_constant_override("separation", 28)
+	for entry in [["You host", "Open Host Game, start a table and send your private invitation to your opponent."],
+		["You join", "Open Game Browser and paste the invitation. Connect, then join your friend's duel."]]:
+		var advice := VBoxContainer.new()
+		advice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		advice.add_theme_constant_override("separation", 6)
+		routes.add_child(advice)
+		var heading := _label(entry[0], 20)
+		heading.add_theme_color_override("font_color", UiChrome.ACCENT)
+		advice.add_child(heading)
+		advice.add_child(_label(entry[1], 17))
+	guide.add_child(_label("In the room, choose your decks and select Ready. Both players must be ready to begin.", 17))
+	var note := SgLobbyStyle.column(page, "", false)
+	note.add_child(SgLobbyStyle.label("Play with a host you trust. Their computer runs the referee and must stay open.", 15, true))
+	note.add_child(SgLobbyStyle.label("No account required. Temporary names are not reserved.\nInternet discovery and MElo are future features.", 15, true))
 
 func _build_identity(page: VBoxContainer) -> void:
-	page.add_child(_label("Choose your name at the table", 23))
-	page.add_child(_label("Create a temporary persona, or leave the name blank to play as a guest.", 16))
+	var body := SgLobbyStyle.column(page, "Your name at the table")
+	body.add_child(_label("Choose a temporary persona, or leave the name blank to play as a guest.", 17))
+	body.add_child(_label("PLAYER NAME", 13))
+	var row := SgLobbyStyle.row(body)
 	_nickname = LineEdit.new()
 	_nickname.name = "TemporaryName"
 	_nickname.max_length = SgProtocol.NICKNAME_LIMIT
 	_nickname.placeholder_text = "Your player name"
 	_nickname.text = SgIdentity.remembered_name()
 	_identity_name = _nickname.text
-	_nickname.custom_minimum_size.y = 40
-	page.add_child(_nickname)
-	page.add_child(_button("Generate name", func() -> void:
-		_nickname.text = SgIdentity.generate_name()))
+	SgLobbyStyle.field(_nickname)
+	row.add_child(_nickname)
+	row.add_child(_button("Generate name", func() -> void: _nickname.text = SgIdentity.generate_name()))
 	_remember = CheckBox.new()
 	_remember.text = "Remember this name on this device"
 	_remember.button_pressed = not _nickname.text.is_empty()
+	_identity_remember = _remember.button_pressed
 	UiChrome.shadowed_button(_remember)
-	page.add_child(_remember)
-	page.add_child(_label("A name is not a verified identity. Names are not reserved; the host adds "
-		+ "a guest number to distinguish players. No account, email or SSH key is needed.", 16))
-	page.add_child(_button("Use this identity", _save_identity))
-	page.add_child(_button("Cancel", _show_page.bind("home")))
-
+	body.add_child(_remember)
+	body.add_child(_label("Up to 20 letters, numbers, spaces, - or _. No email or SSH key needed.", 15))
+	var actions := SgLobbyStyle.row(body)
+	actions.add_child(SgLobbyStyle.button("Use this identity", _save_identity, true))
+	actions.add_child(_button("Cancel", _show_page.bind("home")))
+	var note := SgLobbyStyle.column(page, "A friendly introduction", false)
+	note.add_child(SgLobbyStyle.label("This is a display name, not a verified account. The host adds a guest number so players with the same name can be distinguished.", 16, true))
 
 func _build_host(page: VBoxContainer) -> void:
-	page.add_child(_label("Host a friendly duel", 23))
-	page.add_child(_label("The host runs the game. Keep this window open while your opponent plays.", 16))
+	var body := SgLobbyStyle.column(page, "Open your table")
+	body.add_child(_label("Host a friendly duel. Keep the game open while your opponent plays.", 17))
+	body.add_child(_label("DUEL NAME", 13))
 	_room_name = LineEdit.new()
 	_room_name.name = "RoomName"
 	_room_name.text = _room_draft
 	_room_name.max_length = 32
-	_room_name.custom_minimum_size.y = 40
 	_room_name.text_changed.connect(func(value: String) -> void: _room_draft = value)
-	page.add_child(_room_name)
+	SgLobbyStyle.field(_room_name)
+	body.add_child(_room_name)
 	_host_controls = VBoxContainer.new()
 	_host_controls.add_theme_constant_override("separation", 10)
-	page.add_child(_host_controls)
-	var row := HBoxContainer.new()
-	_host_controls.add_child(row)
-	row.add_child(_label("LAN address", 16))
+	body.add_child(_host_controls)
+	var row := SgLobbyStyle.row(_host_controls)
+	var address_label := _label("LAN address", 16)
+	address_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(address_label)
 	_interfaces = OptionButton.new()
 	_interfaces.name = "LanInterface"
 	_interfaces.custom_minimum_size = Vector2(220, 38)
-	for address in SgLanInvite.local_addresses():
-		_interfaces.add_item(address)
-	if _interfaces.item_count == 0:
-		_interfaces.add_item("No LAN IPv4 address")
+	for address in SgLanInvite.local_addresses(): _interfaces.add_item(address)
+	if _interfaces.item_count == 0: _interfaces.add_item("No LAN IPv4 address")
 	UiChrome.shadowed_button(_interfaces)
+	SgLobbyStyle.option(_interfaces)
 	row.add_child(_interfaces)
-	row = HBoxContainer.new()
-	_host_controls.add_child(row)
 	var port_label := _label("Port", 16)
 	port_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	row.add_child(port_label)
@@ -185,69 +230,71 @@ func _build_host(page: VBoxContainer) -> void:
 	_port.min_value = 1024
 	_port.max_value = 65535
 	_port.value = 17897
+	SgLobbyStyle.field(_port.get_line_edit())
 	row.add_child(_port)
 	_advertise = CheckButton.new()
 	_advertise.text = "Visible in the LAN game browser"
 	_advertise.button_pressed = true
 	UiChrome.shadowed_button(_advertise)
 	_host_controls.add_child(_advertise)
-	_host_controls.add_child(_label("Visible: nearby players can find your host. Private: invitation only.\n"
-		+ "Both require your private invitation to connect. Global listing is coming later.", 15))
-	page.add_child(_label("Full implemented card pool • 20 life • Mana burn on\n"
-		+ "Both players review the room and click Ready before the duel starts.", 16))
-	_lan_start = _button("Host on LAN", _host_game)
+	_host_controls.add_child(_label("Switch off for invitation-only hosting. In either mode, send your private invitation to the player you want to join.", 15))
+	var actions := SgLobbyStyle.row(body)
+	_lan_start = SgLobbyStyle.button("Host on LAN", _host_game, true)
 	_lan_start.name = "StartLan"
-	page.add_child(_lan_start)
-	var advanced := _button("Same-computer testing", func() -> void: _start.visible = not _start.visible)
-	page.add_child(advanced)
+	actions.add_child(_lan_start)
+	actions.add_child(_button("Back", _show_page.bind("home")))
+	var rules := SgLobbyStyle.column(page, "At this table", false)
+	rules.add_child(SgLobbyStyle.label("Full implemented card pool  •  20 life  •  Mana burn on\nBoth players choose a deck and confirm Ready before play begins.", 16, true))
+	var advanced := SgLobbyStyle.column(page)
+	advanced.add_child(_button("Same-computer testing", func() -> void: _start.visible = not _start.visible))
 	_start = _button("Start local service", _start_service)
 	_start.name = "StartService"
 	_start.hide()
-	page.add_child(_start)
-	page.add_child(_button("Back", _show_page.bind("home")))
-
+	advanced.add_child(_start)
 
 func _build_browser(page: VBoxContainer) -> void:
-	page.add_child(_label("Find a game", 23))
+	var body := SgLobbyStyle.column(page, "Find your next opponent")
 	_browser_connection = VBoxContainer.new()
-	_browser_connection.add_theme_constant_override("separation", 10)
-	page.add_child(_browser_connection)
-	_browser_connection.add_child(_label("Find nearby hosts, then paste the private invitation your opponent sends you. "
-		+ "You can also connect by invitation without searching.", 16))
+	_browser_connection.add_theme_constant_override("separation", 12)
+	body.add_child(_browser_connection)
+	_browser_connection.add_child(_label("Search nearby hosts, or connect directly with a friend's private invitation.", 17))
 	_scan = _button("Find LAN games", _scan_lan)
 	_browser_connection.add_child(_scan)
+	_browser_connection.add_child(_label("PRIVATE INVITATION", 13))
+	var join_row := SgLobbyStyle.row(_browser_connection)
 	_code = LineEdit.new()
 	_code.name = "AccessCode"
 	_code.placeholder_text = "Paste the host invitation"
 	_code.max_length = SgLanInvite.MAX_LENGTH
 	_code.secret = true
-	_code.custom_minimum_size.y = 40
 	_code.tooltip_text = "Private invitation. Never saved by the game."
-	_browser_connection.add_child(_code)
-	_connect_button = _button("Connect", _connect_local)
-	_browser_connection.add_child(_connect_button)
+	SgLobbyStyle.field(_code)
+	join_row.add_child(_code)
+	_connect_button = SgLobbyStyle.button("Connect", _connect_local, true, Vector2(130,40))
+	join_row.add_child(_connect_button)
 	var local_row := HBoxContainer.new()
+	local_row.hide()
+	_browser_connection.add_child(_button("Same-computer testing", func() -> void: local_row.visible = not local_row.visible))
 	_browser_connection.add_child(local_row)
-	local_row.add_child(_label("Same-computer test port (LAN invitations include their port)", 14))
+	local_row.add_child(_label("Local test port", 15))
 	var local_port := SpinBox.new()
 	local_port.min_value = 1024
 	local_port.max_value = 65535
 	local_port.value = _port.value
+	SgLobbyStyle.field(local_port.get_line_edit())
 	local_port.value_changed.connect(func(value: float) -> void: _port.value = value)
 	_port.value_changed.connect(func(value: float) -> void:
-		if value >= local_port.min_value:
-			local_port.value = value)
+		if value >= local_port.min_value: local_port.value = value)
 	local_row.add_child(local_port)
-	page.add_child(_button("Back", _show_page.bind("home")))
-	# Shown in the waiting room, never exposes the invitation text.
-	_copy = _button("Copy invitation", func() -> void:
+	# A private copy action, never a visible credential label.
+	_copy = SgLobbyStyle.button("Copy invitation", func() -> void:
 		DisplayServer.clipboard_set(_code.text)
-		_notice.text = "Invitation copied. Send it privately; clipboard history may retain it.")
+		_notice.text = "Invitation copied. Send it privately; clipboard history may retain it.", true)
+	_copy.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_connection_controls.add_child(_copy)
 
-
 func _save_identity() -> void:
-	if client.has_session() or client.online or service != null:
+	if client.has_session() or client.online or client.connecting() or service != null:
 		_notice.text = "Finish this visit before changing your identity."
 		return
 	var result := SgIdentity.save_name(_nickname.text, _remember.button_pressed)
@@ -256,6 +303,7 @@ func _save_identity() -> void:
 		return
 	_nickname.text = _nickname.text.strip_edges()
 	_identity_name = _nickname.text
+	_identity_remember = _remember.button_pressed
 	_show_page("home")
 	_notice.text = "Identity selected. " + ("Name remembered on this device."
 		if _remember.button_pressed and not _nickname.text.is_empty() else "Name used for this visit only.")
@@ -264,12 +312,14 @@ func _save_identity() -> void:
 func _show_page(page: String) -> void:
 	if page not in ["home", "identity", "host", "browser", "room"]:
 		return
-	if page == "identity" and (client.has_session() or client.online or service != null):
+	if page == "identity" and (client.has_session() or client.online or client.connecting() or service != null):
 		_notice.text = "Your current guest name stays fixed until you disconnect."
 		return
 	if _page == "identity" and page != "identity":
 		_nickname.text = _identity_name
+		_remember.button_pressed = _identity_remember
 	_page = page
+	_content_scroll.scroll_vertical = 0
 	_notice.text = ""
 	_confirm_close = false
 	_refresh()
@@ -292,7 +342,9 @@ func _restore_focus() -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if is_instance_valid(_duel):
+		if is_instance_valid(_deck_picker):
+			_close_decks()
+		elif is_instance_valid(_duel):
 			_duel.toggle_menu()
 		elif _page not in ["home", "room"]:
 			_show_page("home")
@@ -302,17 +354,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _button(text: String, callback: Callable, minimum := Vector2(180, 38)) -> Button:
-	var button := UiChrome.menu_button(text, minimum, 18)
-	button.pressed.connect(callback)
-	return button
+	return SgLobbyStyle.button(text, callback, false, minimum)
 
 
-func _label(text: String, font_size := 14) -> Label:
-	var label := UiChrome.body_label(text, font_size)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return label
-
+func _label(text: String, font_size := 16) -> Label:
+	return SgLobbyStyle.label(text, font_size)
 
 func _host_game() -> void:
 	if not SgProtocol.short_text(_room_draft.strip_edges()):
@@ -386,7 +432,7 @@ func _scan_lan() -> void:
 
 
 func _connect_local() -> void:
-	if client.online or client.busy():
+	if client.online or client.busy() or client.connecting():
 		return
 	if client.has_session():
 		client.reconnect()
@@ -448,6 +494,8 @@ func _refresh() -> void:
 		_page = "room"
 	elif not _room_id.is_empty():
 		_page = "browser"
+	if is_instance_valid(_deck_picker) and (String(room.get("id", "")) != _deck_room_id or not room.get("game", {}).is_empty()):
+		_close_decks()
 	_room_id = String(room.get("id", ""))
 	var playing: bool = not room.is_empty() and not room.game.is_empty()
 	if playing:
@@ -464,9 +512,10 @@ func _refresh() -> void:
 		_duel = null
 	_shell.visible = not playing
 	_connection_controls.visible = not playing
-	_status.text = client.status + (" - " + client.guest if client.online else "")
-	_identity_summary.text = "Playing as: " + (_nickname.text if not _nickname.text.is_empty() else "Guest")
-	var locked := client.online or client.has_session() or service != null
+	_status.text = client.status + ("  ·  " + client.guest if client.online else "")
+	_status.add_theme_color_override("font_color", SgLobbyStyle.PALE if client.online else SgLobbyStyle.MUTED)
+	_identity_summary.text = "Your name at the table  ·  " + (_identity_name if not _identity_name.is_empty() else "Guest")
+	var locked := client.online or client.has_session() or client.connecting() or service != null
 	_nickname.editable = not locked
 	_start.disabled = locked or OS.has_feature("web")
 	_lan_start.disabled = client.busy() or OS.has_feature("web") \
@@ -476,12 +525,12 @@ func _refresh() -> void:
 	_advertise.disabled = locked
 	_port.editable = not locked
 	_host_controls.visible = not client.online
-	_scan.disabled = client.online or client.has_session() or OS.has_feature("web")
+	_scan.disabled = client.online or client.has_session() or client.connecting() or OS.has_feature("web")
 	_scan.text = "Stop LAN search" if _discovery != null and _discovery.scanning else "Find LAN games"
 	if (_page != "browser" or client.online) and _discovery != null and _discovery.scanning:
 		_discovery.stop()
-	_connect_button.disabled = client.online or client.busy()
-	_connect_button.text = "Connected" if client.online else ("Reconnect" if client.has_session() else "Connect")
+	_connect_button.disabled = client.online or client.busy() or client.connecting()
+	_connect_button.text = "Connected" if client.online else ("Connecting…" if client.connecting() else ("Reconnect" if client.has_session() else "Connect"))
 	_code.editable = not locked
 	_browser_connection.visible = not client.online
 	_copy.visible = service != null and not playing
@@ -491,17 +540,44 @@ func _refresh() -> void:
 		"browser": "Game Browser", "room": "Duel room"}[_page]
 	for key in _pages:
 		_pages[key].visible = key == _page
+		_navigation[key].set_pressed_no_signal(key == _page)
+		_navigation[key].disabled = not room.is_empty() or (key == "identity" and locked)
+	_navigation_bar.visible = room.is_empty()
+	if is_instance_valid(_deck_picker):
+		if not _deck_submission.is_empty() and not client.busy():
+			if room.get("deck", {}) == _deck_submission:
+				_close_decks()
+			else:
+				_deck_submission.clear()
+				_deck_status.text = _notice.text if not _notice.text.is_empty() else "Deck choice not confirmed. Please try again."
+		if is_instance_valid(_deck_picker):
+			_deck_use.disabled = not client.online or client.busy() or _deck_selected.is_empty()
+			if not client.online: _deck_status.text = "Connection lost. Your selection is kept while you reconnect."
+	if playing: return
+	# Stable rows avoid focus/scroll churn on ACKs and repeated discoveries.
+	var adverts: Array = []
+	if _discovery != null:
+		var keys := _discovery.hosts.keys()
+		keys.sort()
+		for key in keys: adverts.append(_discovery.hosts[key].host)
+	var room_display := room.duplicate(true)
+	room_display.erase("revision")
+	var snapshot := {"page":_page, "room":room_display, "rooms":client.state.rooms,
+		"hosts":adverts, "selected":_selected_host, "online":client.online, "locked":locked}
+	if snapshot == _body_snapshot:
+		_update_lobby_actions()
+		return
+	_body_snapshot = snapshot.duplicate(true)
 	for child in _body.get_children():
 		_body.remove_child(child)
 		child.queue_free()
-	if playing:
-		return
 	if _page == "room":
 		_waiting_room(room)
 	elif _page == "browser":
 		_browser()
 	elif _page == "home" and locked:
 		_body.add_child(_button("Disconnect", _disconnect))
+	_update_lobby_actions()
 
 
 func _disconnect() -> void:
@@ -517,104 +593,136 @@ func _disconnect() -> void:
 
 
 func _waiting_room(room: Dictionary) -> void:
-	_body.add_child(_label(String(room.name), 24))
+	var header := SgLobbyStyle.column(_body, String(room.name), false)
+	header.add_child(SgLobbyStyle.label("Choose your deck. Confirm when you are ready to play.", 17, true))
+	var players := SgLobbyStyle.row(_body)
 	for seat in 2:
-		_body.add_child(_label("%s%s - %s\nDeck: %s" % [room.names[seat],
-			" (you)" if seat == int(room.seat) else "",
-			"Ready" if room.ready[seat] else ("Choosing" if room.connected[seat] else "Waiting for player"), room.deck_names[seat]], 18))
-	_body.add_child(_label("Unrestricted • 40-250 cards • 20 life • Mana burn on\n"
-		+ "Free combat damage assignment • Single friendly duel\n"
-		+ "Choose any implemented deck. Deck contents go only to the referee, not your opponent.\n"
-		+ "Both players must be ready to begin. Changing a deck or opponent clears both Ready marks.", 16))
-	var decks := _button("Choose / review deck", _open_decks)
-	decks.disabled = not client.online or client.busy()
-	_body.add_child(decks)
-	var ready := _button("Not ready" if room.ready[int(room.seat)] else "Ready", func() -> void:
-		_send({"op": "ready", "value": not room.ready[int(room.seat)]}))
-	ready.disabled = not client.online or client.busy()
-	_body.add_child(ready)
-	var leave := _button("Leave room", func() -> void: _send({"op": "leave"}))
-	leave.disabled = not client.online or client.busy()
-	_body.add_child(leave)
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 10)
+		var card := SgLobbyStyle.panel(column)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		players.add_child(card)
+		column.add_child(_label("YOUR SEAT" if seat == int(room.seat) else "OPPONENT", 13))
+		column.add_child(_label(room.names[seat], 21))
+		var status := "Waiting for player" if not room.connected[seat] else ("Ready" if room.ready[seat] else "Choosing a deck")
+		var state_label := _label(status, 16)
+		state_label.add_theme_color_override("font_color", Color8(44,82,38) if room.connected[seat] and room.ready[seat] else UiChrome.ACCENT)
+		column.add_child(state_label)
+		column.add_child(_label("Deck: " + String(room.deck_names[seat]), 17))
+	var rules := SgLobbyStyle.column(_body, "Duel rules")
+	rules.add_child(_label("Unrestricted  ·  40–250 cards  ·  20 life\nMana burn on  ·  Free combat damage assignment  ·  Single duel", 16))
+	var actions := SgLobbyStyle.row(rules)
+	actions.add_child(_network_button("Choose / review deck", _open_decks))
+	actions.add_child(_network_button("Not ready" if room.ready[int(room.seat)] else "Ready", func() -> void:
+		_send({"op":"ready", "value":not room.ready[int(room.seat)]}), true))
+	actions.add_child(_network_button("Leave room", func() -> void: _send({"op":"leave"})))
 	if int(room.seat) == 0 and not room.connected[1] and room.names[1] != "Empty seat":
-		var remove := _button("Remove disconnected guest", func() -> void: _send({"op": "remove_guest"}))
-		remove.disabled = not client.online or client.busy()
-		_body.add_child(remove)
-	_body.add_child(_label("Disconnected seats are held for 5 minutes. Leaving releases your seat.\n"
-		+ "Friendly, unrated game: trust your host, whose computer runs the referee.", 15))
-	if not client.online:
-		_body.add_child(_button("Reconnect", client.reconnect))
+		rules.add_child(_network_button("Remove disconnected guest", func() -> void: _send({"op":"remove_guest"})))
+	var note := SgLobbyStyle.column(_body, "", false)
+	note.add_child(SgLobbyStyle.label("Deck contents go to the referee, not your opponent. Changing a deck or opponent clears both Ready marks. Disconnected seats are held for 5 minutes.", 15, true))
+	note.add_child(SgLobbyStyle.label("Friendly and unrated. Play with a host you trust: their computer runs the referee.", 15, true))
+	if not client.online: note.add_child(_button("Reconnect", client.reconnect))
 
+
+func _network_button(text: String, callback: Callable, primary := false, available := true) -> Button:
+	var button := SgLobbyStyle.button(text, callback, primary)
+	button.set_meta("network_action", true)
+	button.set_meta("available", available)
+	return button
+
+
+func _update_lobby_actions() -> void:
+	for node in _body.find_children("*", "Button", true, false):
+		if node.has_meta("network_action"):
+			node.disabled = not client.online or client.busy() or not node.get_meta("available")
 
 func _close_decks() -> void:
 	if is_instance_valid(_deck_picker):
+		_deck_picker.get_parent().remove_child(_deck_picker)
 		_deck_picker.queue_free()
-		_deck_picker = null
+	_deck_picker = null
+	_deck_panel = null
+	_deck_use = null
+	_deck_status = null
+	_deck_room_id = ""
+	_deck_selected.clear()
+	_deck_submission.clear()
 
 
 func _open_decks() -> void:
 	_close_decks()
+	if client.state.room.is_empty() or not client.state.room.get("game", {}).is_empty(): return
+	_deck_room_id = String(client.state.room.get("id", ""))
 	if _catalog.is_empty(): _catalog = SgDeckCatalog.available()
 	var overlay := ColorRect.new()
-	overlay.color = Color(0, 0, 0, 0.85)
+	overlay.color = Color(0, 0, 0, 0.88)
 	add_child(overlay)
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_deck_picker = overlay
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 8)
-	var panel := UiChrome.panel_around(column, 16)
-	overlay.add_child(panel)
-	panel.size = Vector2(minf(780, size.x - 48), size.y - 64)
-	panel.position = (size - panel.size) * 0.5
-	column.add_child(_label("Choose your deck", 24))
+	column.add_theme_constant_override("separation", 12)
+	_deck_panel = SgLobbyStyle.panel(column, true, 20)
+	overlay.add_child(_deck_panel)
+	_layout_window()
+	var heading := SgLobbyStyle.row(column)
+	heading.add_child(_label("Choose your deck", 26))
+	heading.add_child(_button("Back", _close_decks, Vector2(100,38)))
+	column.add_child(_label("Browse shipped and saved decks. Only your own full list is shown here.", 16))
 	var search := LineEdit.new()
+	search.name = "NetworkDeckSearch"
 	search.placeholder_text = "Search shipped and saved decks"
+	SgLobbyStyle.field(search)
 	column.add_child(search)
-	var row := HBoxContainer.new()
+	var row := SgLobbyStyle.row(column)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(row)
 	var list := ItemList.new()
 	list.name = "NetworkDeckList"
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.custom_minimum_size.x = 240
+	list.custom_minimum_size.x = 220
+	SgLobbyStyle.deck_list(list)
 	row.add_child(list)
 	var details := RichTextLabel.new()
 	details.name = "NetworkDeckContents"
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.custom_minimum_size.x = 200
-	details.add_theme_color_override("default_color", UiChrome.INK)
-	details.add_theme_color_override("font_shadow_color", UiChrome.SEAT)
-	details.add_theme_constant_override("shadow_offset_x", 1)
-	details.add_theme_constant_override("shadow_offset_y", 1)
-	var font := GameSkin.font("font_body")
-	if font != null: details.add_theme_font_override("normal_font", font)
+	SgLobbyStyle.rich_text(details)
 	row.add_child(details)
-	var selected := {"deck": {}}
-	var use := _button("Use this deck", func() -> void:
-		if selected.deck.is_empty(): return
-		_send({"op": "deck", "name": selected.deck.name, "cards": selected.deck.cards, "sideboard": selected.deck.sideboard})
-		_close_decks())
-	use.disabled = true
-	column.add_child(use)
-	column.add_child(_button("Back", _close_decks))
+	_deck_status = _label("", 15)
+	column.add_child(_deck_status)
+	_deck_use = SgLobbyStyle.button("Use this deck", func() -> void:
+		if _deck_selected.is_empty() or not client.online or client.busy(): return
+		if String(client.state.room.get("id", "")) != _deck_room_id:
+			_close_decks()
+			return
+		var deck := _deck_selected.duplicate(true)
+		if _send({"op":"deck", "name":deck.name, "cards":deck.cards, "sideboard":deck.sideboard}):
+			_deck_submission = deck
+			_deck_status.text = "Waiting for the host to confirm your deck…"
+			_deck_use.disabled = true, true)
+	_deck_use.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_deck_use.disabled = true
+	column.add_child(_deck_use)
 	var show_deck := func(deck: Dictionary) -> void:
-		selected.deck = deck
+		_deck_selected = {"name":deck.name, "cards":deck.cards.duplicate(), "sideboard":deck.sideboard.duplicate()}
 		details.text = _deck_text(deck)
-		use.disabled = false
+		_deck_use.disabled = not client.online or client.busy()
 	list.item_selected.connect(func(index: int) -> void: show_deck.call(_catalog[int(list.get_item_metadata(index))]))
 	var refill := func(query: String) -> void:
 		list.clear()
+		_deck_selected.clear()
+		_deck_use.disabled = true
+		details.text = "Select a deck to review its complete list."
 		for index in _catalog.size():
 			var deck: Dictionary = _catalog[index]
 			if not query.is_empty() and not String(deck.name).to_lower().contains(query.to_lower()): continue
 			list.add_item("%s (%d)" % [deck.name, deck.cards.size()])
 			list.set_item_metadata(list.item_count - 1, index)
 			list.set_item_tooltip(list.item_count - 1, deck.group)
+		_deck_status.text = "%d decks available" % list.item_count if list.item_count > 0 else "No matching decks. Try a shorter name."
 	search.text_changed.connect(refill)
 	refill.call("")
 	if not client.state.room.deck.is_empty(): show_deck.call(client.state.room.deck)
 	search.grab_focus()
-
 
 static func _deck_text(deck: Dictionary) -> String:
 	var result := "%s\n%d cards · %d sideboard\n" % [deck.name, deck.cards.size(), deck.sideboard.size()]
@@ -630,42 +738,38 @@ static func _deck_text(deck: Dictionary) -> String:
 
 func _browser() -> void:
 	if not client.online:
-		_body.add_child(_label("Nearby hosts", 23))
+		var nearby := SgLobbyStyle.column(_body, "Nearby hosts")
 		if not _selected_host.is_empty():
-			_body.add_child(_label("Selected: %s - %s:%d" % [
-				_selected_host.name, _selected_host.address, int(_selected_host.port)], 16))
-			_body.add_child(_button("Clear selection", func() -> void:
+			var selected := SgLobbyStyle.row(nearby)
+			selected.add_child(_label("Selected: %s\n%s:%d" % [_selected_host.name, _selected_host.address, int(_selected_host.port)], 16))
+			selected.add_child(_button("Clear selection", func() -> void:
 				_selected_host = {}
-				_refresh()))
+				_refresh(), Vector2(150,38)))
 		if _discovery == null or _discovery.hosts.is_empty():
-			_body.add_child(_label("No hosts listed. Search the LAN or connect by invitation.", 16))
+			nearby.add_child(_label("No hosts listed yet", 21))
+			nearby.add_child(_label("Start a LAN search, or paste an invitation above. Your friend must keep their host open on the same network.", 16))
 		else:
 			var keys := _discovery.hosts.keys()
 			keys.sort()
 			for key in keys:
 				var advert: Dictionary = _discovery.hosts[key].host
-				var row := HBoxContainer.new()
-				_body.add_child(row)
-				row.add_child(_label("%s\n%s:%d - %d open room(s)" % [advert.name, advert.address,
-					int(advert.port), int(advert.rooms)], 16))
+				var row := SgLobbyStyle.row(nearby)
+				row.add_child(_label("%s\n%s:%d  ·  %d open room(s)" % [advert.name, advert.address, int(advert.port), int(advert.rooms)], 16))
 				row.add_child(_button("Select", func() -> void:
 					_selected_host = advert.duplicate(true)
-					_refresh(), Vector2(120, 38)))
+					_refresh(), Vector2(120,38)))
 		return
-	_body.add_child(_label("Available duels", 23))
+	var rooms := SgLobbyStyle.column(_body, "Available duels")
 	if client.state.rooms.is_empty():
-		_body.add_child(_label("No duels yet. Your host can create one in Host Game.", 16))
+		rooms.add_child(_label("No open tables yet", 21))
+		rooms.add_child(_label("Open Host Game to create a duel on this host.", 16))
 	for room: Dictionary in client.state.rooms:
-		var line := HBoxContainer.new()
-		_body.add_child(line)
+		var line := SgLobbyStyle.row(rooms)
 		line.add_child(_label("%s\nHost: %s" % [room.name, room.host], 18))
-		var join := _button("Join" if room.open else "In use", func() -> void:
-			_send({"op": "join", "room": room.id}), Vector2(120, 38))
-		join.disabled = client.busy() or not room.open
-		line.add_child(join)
+		line.add_child(_network_button("Join" if room.open else "In use", func() -> void:
+			_send({"op":"join", "room":room.id}), true, room.open))
 
-
-func _send(action: Dictionary) -> void:
+func _send(action: Dictionary) -> bool:
 	_confirm_close = false
 	_notice.text = ""
 	if not client.command(action):
@@ -673,3 +777,5 @@ func _send(action: Dictionary) -> void:
 		_notice.text = reason
 		if is_instance_valid(_duel):
 			_duel.show_notice(reason)
+		return false
+	return true
