@@ -45,6 +45,8 @@ var uses_tactical_effects := false
 ## Resolve visible damage consequences when pricing tactical effects.
 ## False retains the previous mass-effect scorer byte-for-byte. This is a
 ## correctness read, not extra hidden information or a new aggression weight.
+## Also guards Ice Age's divided-burn lethal sizing and damage retargeting;
+## off preserves their first-pass decisions for paired audit runs.
 var forecasts_tactics := false
 
 ## Probability in [0, 1] that an intended action degrades — a cast skipped,

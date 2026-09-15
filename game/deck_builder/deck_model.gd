@@ -999,7 +999,10 @@ func required_pack_ids() -> Array[String]:
 	var out: Array[String] = required_packs.duplicate()
 	var all_names := names()
 	all_names.append_array(side_names())
-	for pack_id in CardPacks.packs_required_by(all_names):
+	# Command-line SceneTree scripts compile their dependencies before
+	# autoload identifiers exist (Deck Lab's Pack 3 campaign reproduced it).
+	var packs := (Engine.get_main_loop() as SceneTree).root.get_node("CardPacks")
+	for pack_id in packs.packs_required_by(all_names):
 		if not out.has(pack_id):
 			out.append(pack_id)
 	out.sort()

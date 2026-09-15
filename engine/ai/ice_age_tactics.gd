@@ -263,6 +263,54 @@ static func option(g: MtgGame, pilot, s: CardInstance, index: int, window: Strin
 static func result(value: float, targets: Array = []) -> Dictionary:
 	return {"value": value, "targets": targets}
 
+## Public, pure lower bound for a single spell-damage packet. Read the
+## engine's applicable gates; do not spend shields, run replacement choices,
+## resolve arbitrary effects, look at hidden cards, or touch the RNG.
+## Unknown redirects/replacements conservatively promise no damage here.
+static func damage_through(g: MtgGame, source: CardInstance, ref: TargetRef, amount: int, unpreventable := false) -> int:
+	if amount <= 0: return 0
+	if g._damage_prevented_before_gates(source, ref, false, unpreventable): return 0
+	var packet := DamagePacket.new()
+	packet.source = source
+	packet.source_was_spell = true
+	packet.unpreventable_to_creatures = unpreventable
+	packet.target = ref
+	packet.amount = amount
+	var body := g.find_instance(ref.instance_id) if not ref.is_player else null
+	if not ref.is_player and body == null: return 0
+	var gates: Array = g._damage_gates(packet, g.players[ref.player_id], source) if ref.is_player else g._creature_damage_gates(packet, body, source)
+	var through := amount
+	for gate in gates:
+		match String(gate.kind):
+			"pool": through -= g.players[ref.player_id].damage_prevention if ref.is_player else body.prevention
+			"tracked_pool": through -= int(g.prevention_receipt(body, int(gate.receipt)).get("remaining", 0))
+			"floor": through = mini(through, maxi(0, g.players[ref.player_id].life - g.players[ref.player_id].min_life_from_damage))
+			_: return 0
+	return maxi(0, through)
+
+## forecasts_tactics owns the existing visible-damage correctness layer.
+## Its null retains the first-pass target ranking, including at resolution.
+static func retarget_value(g: MtgGame, pilot, spell: CardInstance, ref: TargetRef) -> float:
+	var old: float = load("res://cards/sets/ice/_patterns.gd").retarget_value(g, pilot.pid, spell, ref)
+	if not pilot.profile.forecasts_tactics: return old
+	var item := g.find_stack_item(spell)
+	if item == null or item.effects.size() != 1 or not item.effects[0] is DamageEffect: return old
+	var effect: DamageEffect = item.effects[0]
+	var damage := item.x_value + effect.x_bonus if effect.use_x else effect.amount
+	if effect.divided_amount(item.x_value) > 0: damage = ref.amount
+	var through := damage_through(g, spell, ref, damage, effect.unpreventable_to_creatures)
+	if through <= 0: return 0.0
+	var who := ref.player_id
+	var value := 0.0
+	if ref.is_player:
+		value = AiPlayer.LETHAL_WORTH if through >= g.players[who].life else pilot._face_damage_value(g, through, who)
+	else:
+		var body := g.find_instance(ref.instance_id)
+		who = body.controller_id
+		if not body.cur_indestructible and body.regeneration_shields == 0 and through >= body.cur_toughness - body.damage:
+			value = pilot._own_value(g, body) if who == pilot.pid else pilot._victim_value(g, body)
+	return -value if who == pilot.pid else value
+
 ## Public combat-only estimates, used to select a blocker exchange and
 ## to force profitable fights with Melee. No speculative state mutation.
 static func block_score(g: MtgGame, pilot, blocks: Dictionary) -> float:
@@ -312,6 +360,14 @@ static func melee_blocks(g: MtgGame, pilot) -> Dictionary:
 
 static func respond(g: MtgGame, pilot) -> String:
 	var pid: int = pilot.pid
+	if pilot.profile.forecasts_tactics and g.stack.is_empty():
+		for card in g.playable_cards(pid):
+			if card.data.card_name not in ["Venomous Breath", "Battle Cry"]: continue
+			var choice: Dictionary = combat_spell_choice(g, pilot, card)
+			if choice.is_empty() or g.cast_refusal(pid, card, choice.targets) != "": continue
+			var payment := g.spell_payment(pid, card.data, 0, choice.targets.size(), card)
+			if not pilot._plan_and_pay(g, payment.cost, int(payment.extra), payment.usage): continue
+			if g.cast_spell(pid, card, choice.targets) == "": return "cast " + card.data.card_name
 	if g.current_step() == Mtg.Step.DECLARE_ATTACKERS and g.active_player == pid and g.stack.is_empty() and g.block_chooser_override < 0:
 		for card in g.playable_cards(pid):
 			if card.data.card_name != "Melee": continue
@@ -331,10 +387,9 @@ static func respond(g: MtgGame, pilot) -> String:
 	if g.stack.is_empty(): return ""
 	var top: StackItem = g.stack.back()
 	if top.kind != Mtg.StackKind.SPELL or top.controller == pid or top.targets.size() != 1: return ""
-	var helper = load("res://cards/sets/ice/_patterns.gd")
-	var current: float = helper.retarget_value(g, pid, top.card, top.targets[0])
+	var current := retarget_value(g, pilot, top.card, top.targets[0])
 	var best := current
-	for ref in g.single_spell_retargets(top.card): best = maxf(best, helper.retarget_value(g, pid, top.card, ref))
+	for ref in g.single_spell_retargets(top.card): best = maxf(best, retarget_value(g, pilot, top.card, ref))
 	if best <= current + 2.0: return ""
 	for card in g.playable_cards(pid):
 		if card.data.card_name != "Deflection" or pilot._cast_gate(g, card) != "": continue
@@ -348,6 +403,8 @@ static func spell_choice(g: MtgGame, pilot, s: CardInstance, max_x: int, mode: i
 	if s.data.set_code != "ice": return null
 	var pid: int = pilot.pid
 	var name := s.data.card_name
+	if pilot.profile.forecasts_tactics and name in ["Venomous Breath", "Battle Cry"]:
+		return combat_spell_choice(g, pilot, s)
 	if name == "Hecatomb":
 		return {"x": 0, "targets": [], "value": 8.0} if load("res://cards/sets/ice/_patterns.gd").hecatomb_worthwhile(g, pid) else {}
 	if name == "Melee":
@@ -452,9 +509,74 @@ static func spell_choice(g: MtgGame, pilot, s: CardInstance, max_x: int, mode: i
 		spent += int(row.need)
 		value += float(row.worth)
 	if not life_paid and g.players[1 - pid].life <= budget:
-		return {"x": maxi(0, g.players[1 - pid].life - 1), "targets": [TargetRef.player(1 - pid)], "value": 1000.0}
+		var face := TargetRef.player(1 - pid)
+		for amount in range(maxi(1, g.players[1 - pid].life), budget + 1):
+			if pilot.profile.forecasts_tactics and damage_through(g, s, face, amount) < g.players[1 - pid].life: continue
+			face.amount = amount
+			return {"x": amount - 1, "targets": [face], "value": AiPlayer.LETHAL_WORTH}
 	if targets.is_empty(): return {}
 	return {"x": spent if life_paid else maxi(0, spent - 1), "targets": targets, "value": value + 1.0}
+
+## Do not cast the words "this turn" before there is a useful combat.
+## Both policies price declared, public combat, not a guessed future attack.
+static func combat_spell_choice(g: MtgGame, pilot, source: CardInstance) -> Dictionary:
+	var pid: int = pilot.pid
+	if g.combat.attackers.is_empty(): return {}
+	if source.data.card_name == "Venomous Breath":
+		if g.awaiting_blockers or g.current_step() not in [Mtg.Step.DECLARE_BLOCKERS, Mtg.Step.FIRST_STRIKE_DAMAGE, Mtg.Step.COMBAT_DAMAGE]: return {}
+		var future := g.forecast_damage(true)
+		var covered := {}
+		for entry in g.delayed_triggers:
+			if int(entry.get("expires_turn", -1)) != g.turn_number or not entry.has("combat_destruction"): continue
+			var marked: Dictionary = entry.combat_destruction
+			covered.merge(g.combat_opponents_this_turn(int(marked.id), int(marked.stamp)), true)
+		var best := {}
+		for ref in source.data.spell_effects[0].target_spec.legal_targets(g, source):
+			var body := g.find_instance(ref.instance_id)
+			var history := g.combat_opponents_this_turn(body.id, body.layer_timestamp)
+			var value := 0.0
+			for id in history:
+				var other := g.find_instance(id)
+				if other == null or other.layer_timestamp != int(history[id]) or not future.alive.has(id): continue
+				if int(covered.get(id, -1)) == other.layer_timestamp: continue
+				if other.cur_indestructible or other.regeneration_shields > 0: continue
+				value += pilot._victim_value(g, other) if other.controller_id != pid else -pilot._own_value(g, other)
+			if value > 0.0 and (best.is_empty() or value > float(best.value)):
+				best = {"x": 0, "targets": [ref], "value": value}
+		return best
+	if source.data.card_name != "Battle Cry" or g.active_player == pid or g.current_step() != Mtg.Step.DECLARE_ATTACKERS or g.combat_damage_prevented: return {}
+	var attackers: Array[CardInstance] = []
+	for id in g.combat.attackers: attackers.append(g.find_instance(id))
+	var blockers: Array[CardInstance] = []
+	for body in g.players[pid].battlefield:
+		if body.is_creature(): blockers.append(body)
+	var pending_bonus := 0
+	for entry in g.delayed_triggers:
+		if int(entry.get("expires_turn", -1)) == g.turn_number:
+			pending_bonus += int(entry.get("blocking_toughness_bonus", 0))
+	# Counterfactual characteristics only: do not untap through the action
+	# API, trigger abilities, consume answers or inspect any hidden card.
+	var nested := g.undo_log != null
+	var mark := g.make_mark()
+	for body in blockers:
+		g._rec(body, &"cur_toughness")
+		body.cur_toughness += pending_bonus
+	var before: int = pilot._damage_after_value_blocks(g, attackers, blockers)
+	var desperate := before >= g.players[pid].life
+	if desperate: before = pilot._damage_after_value_blocks(g, attackers, blockers, {}, true)
+	for body in blockers:
+		if (body.cur_colors & Mtg.ManaColor.W) != 0:
+			g._rec(body, &"tapped")
+			body.tapped = false
+		g._rec(body, &"cur_toughness")
+		body.cur_toughness += 1
+	var after: int = pilot._damage_after_value_blocks(g, attackers, blockers, {}, desperate)
+	g.unmake_to(mark)
+	if not nested: g.end_search()
+	if after >= before: return {}
+	var value: float = pilot._face_damage_value(g, before - after, pid)
+	if before >= g.players[pid].life and after < g.players[pid].life: value = AiPlayer.LETHAL_WORTH
+	return {"x": 0, "targets": [], "value": value}
 
 static func _targeted_danger(g: MtgGame, pilot, body: CardInstance) -> bool:
 	for item in g.stack:

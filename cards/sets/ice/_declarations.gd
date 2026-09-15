@@ -152,5 +152,8 @@ static func _jarkeld(g: MtgGame, _s: CardInstance, _pid: int, _t: TargetRef, _x:
 		if targets_now.size() > 1: g.combat.extra_blocks[id] = targets_now.slice(1)
 		var blocker := g.find_instance(id)
 		g._rec(blocker, &"blocked_ids_this_turn")
-		for target in targets_now: blocker.blocked_ids_this_turn[target] = g.find_instance(target).controller_id
+		for target in targets_now:
+			var attacker := g.find_instance(target)
+			blocker.blocked_ids_this_turn[target] = attacker.controller_id
+			g.record_combat_pair(attacker, blocker)
 	g.recalculate()

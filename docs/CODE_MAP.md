@@ -14,7 +14,7 @@ needed); card files have NO class_name (they register by name instead);
   deck-requirement tracking, and registry configuration.
 - `game/card_packs_screen.gd`: Options → Card Packs management, including
   Open Folder, Rescan, versions, enabled state and readable rejection reasons.
-- `game/card_pack_badges.gd`: the compact `1-tDotP` and `2-FEM` status buttons beside the
+- `game/card_pack_badges.gd`: the compact `1-tDotP`, `2-FEM`, and `3-ICE` status buttons beside the
   title-screen set badges.
 - `cards/optional/pack_1/*.gd`: four trusted dormant digital adaptations;
   pack archives never provide executable code.
@@ -35,7 +35,7 @@ needed); card files have NO class_name (they register by name instead);
   `tests/ui/test_card_pack_badges.gd`: tool, loader, rules, and UI contracts.
 - `game/fallen_empires_pack.gd`: Pack 2's exact trusted 102-name/187-printing
   catalog, script allowlist and ZIP checksum validation; no archive code runs.
-- `game/skin_pack.gd`: boot-time ordinary-art mounting skips both numbered
+- `game/skin_pack.gd`: boot-time ordinary-art mounting skips all numbered
   gameplay ZIPs, leaving their validation and enablement to `CardPacks`.
 - `cards/sets/fem/*.gd`: 102 dormant Fallen Empires card scripts; `_rules.gd`
   shares the set's tribal, counter, upkeep, combat and activated-cost patterns.
@@ -72,12 +72,37 @@ needed); card files have NO class_name (they register by name instead);
   mechanics/AI audit, and distribution policy.
 - `docs/pack-2-mechanics-audit.md`: reviewed rule families, specific AI policies,
   verification scope and remaining strategic limitations.
+- `game/ice_age_pack.gd`: trusted Pack 3 catalogue, script allowlist and strict
+  metadata/artwork validation; 373 names, 346 new identities and 27 reprints.
+- `cards/sets/ice/*.gd`: trusted dormant Ice Age scripts; `_*.gd` share the
+  snow, upkeep, damage, library, control, storage, Aura and combat patterns.
+- `engine/abilities/cumulative_upkeep.gd`: age counters and all-or-nothing
+  optional mana/life/sacrifice payments, including restricted upkeep mana.
+- `engine/core/black_symbol_cost.gd`, `control_layers.gd`,
+  `combat_declaration.gd`: Drought's additional costs, timestamp-ordered
+  control effects, and whole-army attack/block restrictions respectively.
+- `engine/ai/ice_age_tactics.gd`: public Ice Age decisions. The
+  `forecasts_tactics` null switch controls damage retargeting, Meteor Shower's
+  shield-aware lethal sizing, and Venomous Breath/Battle Cry combat timing.
+- `packaging/card_packs/pack_3_ice_age/`: construction manifest, full printing
+  metadata, reprint identities and player README. Generated art/ZIP stay local.
+- `tools/pack_3_ice_age.py`, `tools/test_pack_3_ice_age.py`: dedicated fetch,
+  art download, deterministic construction, verification and offline tests.
+- `tools/pack_3_duel_audit.gd`: nine themed 60-card decks, rotating opponents,
+  deterministic seeds/rounds, both rules modes and actual cast/activation counts.
+- `tools/pack_3_deck_lab.gd`: isolated, unrated Ice Age entry point to Deck Lab's
+  candidate/null/control sweeps; threaded single-process execution.
+- `tests/cards/test_pack_3_*.gd`, `tests/ui/test_pack_3_actions.gd`: catalogue,
+  mechanics, AI and player-action regressions. `test_pack_3_campaign.gd` adds
+  incarnation, undo, hidden-information substitution and tactical timing cases.
+- `docs/pack-3-mechanics-audit.md`, `docs/pack-3-gameplay-campaign.md`: initial
+  integration and the subsequent reproduce-first engine/AI campaign.
 
 The Deck Builder keeps its original eight-medallion strip. Extras sits just
-left of the compact Stats button and opens three centered source rows;
+left of the compact Stats button and opens four centered source rows;
 the wider emerald Done button takes the command row's remaining space.
-1997, tDotP Pack 1 and Fallen E. Pack 2 each have independent On/Off stone
-radio medallions: square bevelled tiles with gold rings, dark 97/card-fan/crown
+1997, tDotP Pack 1, Fallen E. Pack 2 and Ice Age Pack 3 have independent On/Off stone
+radio medallions: square bevelled tiles with gold rings, dark 97/card-fan/crown/ice
 emblems and On/Off captions below. Close is the only footer action. `original_cards_on` and
 `completion_pack_on` filter source membership without unloading packs or
 editing a deck. With 1997 hidden, Pack 1 still admits its added reprint pairs

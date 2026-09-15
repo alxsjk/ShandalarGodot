@@ -9841,9 +9841,11 @@ func _reinforcement_price(game: MtgGame, attacker: CardInstance,
 ## which reads the swing as more dangerous than it is — the safe way to
 ## be wrong about a body that is about to die anyway.
 func _damage_after_value_blocks(game: MtgGame, attackers: Array[CardInstance],
-		free: Array[CardInstance], shares: Dictionary = {}) -> int:
+		free: Array[CardInstance], shares: Dictionary = {}, desperate := false) -> int:
 	var trial_used: Array[int] = []
-	var trial := _plan_blocks(game, attackers, free, false, trial_used, false,
+	# The default is unchanged. A declared-combat rescue can explicitly
+	# include the chumps the same pilot would use to avoid lethal damage.
+	var trial := _plan_blocks(game, attackers, free, desperate, trial_used, desperate,
 		shares)
 	var through := 0
 	for attacker in attackers:
@@ -11245,6 +11247,24 @@ func cumulative_upkeep_hint(game: MtgGame, p_pid: int, source: CardInstance,
 	var value := _own_value(game, source)
 	var price := cost.mana_value() * 0.75 + life * _life_price(me.life) + lands * Evaluator.W_LANDS
 	return value >= price
+
+func answer_option(game: MtgGame, p_pid: int, prompt: String, options: Array[String], hint: int) -> int:
+	if p_pid == pid and profile.forecasts_tactics and game.current_resolution_source() == "Deflection" \
+			and prompt == "Deflection: choose the spell's new target":
+		var refs := game.current_targets()
+		if refs.size() == 1:
+			var spell := game.find_instance(refs[0].instance_id)
+			var candidates := game.single_spell_retargets(spell)
+			var best := hint
+			var value := -INF
+			for n in candidates.size():
+				var worth := ICE_AGE_TACTICS.retarget_value(game, self, spell, candidates[n])
+				if worth > value:
+					best = n
+					value = worth
+			if candidates.size() == options.size(): return best
+	return super(game, p_pid, prompt, options, hint)
+
 
 func answer_yes_no(game: MtgGame, p_pid: int, prompt: String, hint: bool) -> bool:
 	if not hint or not profile.prices_offers or p_pid != pid:

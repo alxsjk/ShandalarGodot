@@ -151,37 +151,29 @@ static func _battle_cry(g: MtgGame, s: CardInstance, pid: int, _t: TargetRef, _x
 	for i in g.players[pid].battlefield:
 		if i.is_creature() and (i.cur_colors & Mtg.ManaColor.W) != 0: g.untap_permanent(i)
 	var entry := g.schedule_delayed_trigger(TriggeredAbility.new(Mtg.EventType.BLOCKED, _cry_block,
-		"Blocking creature gets +0/+1.", _first_block), pid, s, true)
+		"Blocking creature gets +0/+1.", _first_block).capturing(_cry_context), pid, s, true)
 	entry["expires_turn"] = g.turn_number
+	entry["blocking_toughness_bonus"] = 1
 static func _first_block(g: MtgGame, _s: CardInstance, e: GameEvent) -> bool:
 	return g.combat.attackers_blocked_by(e.data.blocker.id).front() == e.data.attacker.id
-static func _cry_block(g: MtgGame, _s: CardInstance, e: GameEvent) -> void:
+static func _cry_context(_g: MtgGame, _s: CardInstance, e: GameEvent) -> Dictionary:
+	return {"blocker_stamp": e.data.blocker.layer_timestamp}
+static func _cry_block(g: MtgGame, s: CardInstance, e: GameEvent) -> void:
 	var i: CardInstance = e.data.blocker
-	if i.zone == Mtg.Zone.BATTLEFIELD:
+	if i.zone == Mtg.Zone.BATTLEFIELD and i.layer_timestamp == int(g.trigger_context(s).blocker_stamp):
 		g.continuous.add_until_eot_pump(i.id, 0, 1)
 		g.recalculate()
 static func _venom(g: MtgGame, s: CardInstance, pid: int, t: TargetRef, _x: int) -> void:
 	var body := g.find_instance(t.instance_id)
-	var others: Dictionary = body.blocked_ids_this_turn.duplicate()
-	for i in g.all_battlefield():
-		if i.blocked_ids_this_turn.has(body.id): others[i.id] = i.layer_timestamp
-	var pairs: Array = []
-	for id in others:
-		var i := g.find_instance(id)
-		if i != null and i.zone == Mtg.Zone.BATTLEFIELD: pairs.append([i.id, i.layer_timestamp])
 	var entry := g.schedule_delayed_trigger(TriggeredAbility.new(Mtg.EventType.END_OF_COMBAT,
-		_venom_end.bind(body.id, body.layer_timestamp, pairs), "Destroy creatures that fought the marked creature."), pid, s)
+		_venom_end.bind(body.id, body.layer_timestamp), "Destroy creatures that fought the marked creature."), pid, s)
 	entry["expires_turn"] = g.turn_number
-static func _venom_end(g: MtgGame, _s: CardInstance, _e: GameEvent, id: int, stamp: int, pairs: Array) -> void:
-	var body := g.find_instance(id)
-	# Bound arguments are immutable context, not journal-owned state.
-	var marked: Dictionary = {}
-	for pair in pairs: marked[pair[0]] = pair[1]
-	# Include blocks declared after the spell resolved, without following a
-	# returned/new incarnation of the chosen creature.
-	if body != null and body.zone == Mtg.Zone.BATTLEFIELD and body.layer_timestamp == stamp:
-		for i in g.all_battlefield():
-			if body.blocked_ids_this_turn.has(i.id) or i.blocked_ids_this_turn.has(id): marked[i.id] = i.layer_timestamp
+	entry["combat_destruction"] = {"id": body.id, "stamp": body.layer_timestamp}
+static func _venom_end(g: MtgGame, _s: CardInstance, _e: GameEvent, id: int, stamp: int) -> void:
+	# Reproduced: pre-combat Breath missed a survivor after its marked Bear
+	# died; old blocker history also killed a blinked attacker. The turn
+	# ledger preserves both incarnations, even after either has departed.
+	var marked := g.combat_opponents_this_turn(id, stamp)
 	g.begin_simultaneous()
 	for other in marked:
 		var i := g.find_instance(other)

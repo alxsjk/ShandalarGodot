@@ -14,6 +14,9 @@ var amount: int
 ## and [member amount] is ignored.
 var use_x: bool = false
 var x_bonus: int = 0
+## Lava Burst: prevention/redirection is bypassed only for creature damage.
+## A structural reading lets AI use the same rule without naming the card.
+var unpreventable_to_creatures := false
 
 
 func _init(p_amount: int) -> void:
@@ -78,7 +81,8 @@ func resolve(game: MtgGame, source: CardInstance, controller: int, target: Targe
 		x_value: int = 0) -> void:
 	if controller_mode:
 		target = TargetRef.player(controller)
-	game.deal_damage(source, target, x_value + x_bonus if use_x else amount)
+	game.deal_damage(source, target, x_value + x_bonus if use_x else amount,
+		false, Callable(), unpreventable_to_creatures)
 
 
 ## Divided damage hands each target its own share (locked in at cast time,
@@ -89,7 +93,7 @@ func resolve_multi(game: MtgGame, source: CardInstance, controller: int,
 		super(game, source, controller, targets, x_value)
 		return
 	for ref in targets:
-		game.deal_damage(source, ref, ref.amount)
+		game.deal_damage(source, ref, ref.amount, false, Callable(), unpreventable_to_creatures)
 
 
 ## One-line log/UI text.

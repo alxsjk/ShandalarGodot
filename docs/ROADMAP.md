@@ -13103,3 +13103,25 @@ made in this turn.
 - `./run_tests.sh` green on every commit; new code ships with tests.
 - Every file's header doc comment explains its role; CODE_MAP.md stays exact.
 - Engine stays Node-free and headless-runnable — no exceptions.
+
+## 2026-09-15 — Ice Age second-pass gameplay campaign
+
+The [gameplay campaign](pack-3-gameplay-campaign.md) follows the completed
+Pack 3 integration with reproduced combat-history and delayed-trigger repairs,
+prevention-aware damage/retarget decisions, useful Venomous Breath/Battle Cry
+timing, and avoidance of redundant delayed effects. No new simplifications or
+AI difficulty settings were added. The campaign tools use isolated settings
+and never write Deck Lab ratings.
+
+Final full GUT: **6,691 tests / 258,995 assertions / 393 scripts**, all passing.
+Python tools: **244 tests**, one platform skip. **180 full Ice Age duels**
+completed in modern/Fifth Edition rules; another **5,400 matched Deck Lab
+games** completed with no stalls or draws and byte-identical controls. The
+combat win-rate deltas were positive but not statistically conclusive.
+A fresh local macOS export loaded every Ice Age script and artwork image and
+executed the restricted-mana probe. All **12 stock-deck UI soak duels** also
+passed in renderer-free demo/human modes across both rulesets, without errors,
+warnings or stalls. See the campaign report for exact seeds,
+counts, commands, limitations and final UI checks. The owner subsequently
+requested a source commit and push; no release, pack ZIP or downloaded art
+is published by this campaign.

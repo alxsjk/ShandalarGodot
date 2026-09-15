@@ -111,6 +111,10 @@ scores. A separate deterministic audit runs ten complete Wizard-versus-Wizard
 duels using five Ice Age decks in both modern and Fifth Edition rules modes.
 This is a regression sample, not a claim of optimal AI play with every card.
 
+The subsequent [gameplay campaign](pack-3-gameplay-campaign.md) adds
+reproduce-first engine fixes, shield-aware damage choices, useful combat-spell
+timing and a larger nine-deck rotating duel audit with actual usage counts.
+
 ```sh
 # From the project root, after building the real local ZIP:
 . tools/runtime.sh

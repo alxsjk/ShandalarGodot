@@ -69,6 +69,9 @@ var stack: Array[StackItem] = []
 var agents: Array[DecisionAgent] = []
 var continuous := ContinuousEffects.new()
 var combat := CombatState.new()
+## Turn-long, incarnation-bound pairs, including reassigned blockers. Unlike
+## combat.blocks this survives deaths and combat ending (Venomous Breath).
+var combat_pair_history: Array[Dictionary] = []
 
 ## THE RULES FORKS — where the 1997 ruleset (which the original enforced,
 ## manual p.108) and modern Magic disagree. Each is a switch, defaulting
@@ -8236,8 +8239,30 @@ func set_block(blocker: CardInstance, attacker: CardInstance) -> void:
 	combat.blocked_attackers[attacker.id] = true
 	blocker.blocked_this_turn = true
 	blocker.blocked_ids_this_turn[attacker.id] = attacker.controller_id
+	record_combat_pair(attacker, blocker)
 	log_line("%s now blocks %s" % [blocker.data.card_name, attacker.data.card_name])
 	recalculate()
+
+
+## Record without redispatching a "blocks" trigger. General Jarkeld changes
+## the pair, not whether a creature became a blocker. Integer-only history
+## also works after tokens disappear and never retains departed objects.
+func record_combat_pair(attacker: CardInstance, blocker: CardInstance) -> void:
+	var pair := {"attacker": attacker.id, "attacker_stamp": attacker.layer_timestamp,
+		"blocker": blocker.id, "blocker_stamp": blocker.layer_timestamp}
+	if combat_pair_history.has(pair): return
+	_rec(self, &"combat_pair_history")
+	combat_pair_history.append(pair)
+
+
+func combat_opponents_this_turn(id: int, stamp: int) -> Dictionary:
+	var result := {}
+	for pair in combat_pair_history:
+		if int(pair.attacker) == id and int(pair.attacker_stamp) == stamp:
+			result[int(pair.blocker)] = int(pair.blocker_stamp)
+		elif int(pair.blocker) == id and int(pair.blocker_stamp) == stamp:
+			result[int(pair.attacker)] = int(pair.attacker_stamp)
+	return result
 
 
 ## "Gain control of that creature until end of turn" (Disharmony). The
@@ -8913,6 +8938,7 @@ func _lose(pid: int, reason: String) -> void:
 ## this spell", Mana Vortex), which listens with its controller's seat.
 func dispatch_event(type: int, data: Dictionary, also_listen: CardInstance = null) -> void:
 	if type == Mtg.EventType.BLOCKED:
+		record_combat_pair(data.attacker, data.blocker)
 		for body in [data.attacker, data.blocker]:
 			_rec(body, &"block_history_sequence")
 			body.block_history_sequence += 1
@@ -10746,6 +10772,8 @@ func discard_to_hand_size(pid: int, cards: Array) -> String:
 ## Everything cleanup does AFTER the discard: damage wears off, the
 ## until-end-of-turn ledgers empty, and the turn passes (CR 514.2).
 func _finish_cleanup() -> void:
+	_rec(self, &"combat_pair_history")
+	combat_pair_history.clear()
 	if undo_log != null:
 		# CLEANUP writes twenty-six fields per permanent, so the whole
 		# object goes down rather than a list that would rot the next time

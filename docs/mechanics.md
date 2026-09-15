@@ -214,6 +214,15 @@ in `target_plan.gd`, ROADMAP.
 
 ### Declaration and legality
 
+Ice Age's turn-long combat history is separate from the active block map.
+`MtgGame.record_combat_pair` records both battlefield timestamps, including
+mid-combat reassignment without dispatching a fresh "blocks" event. The history
+survives deaths and ends at cleanup; search undo restores it. Venomous Breath
+can therefore find a blocker after its marked attacker dies, without following
+either creature through a zone change. Battle Cry likewise captures the
+blocker's timestamp when its delayed ability triggers. See the
+[second-pass campaign](pack-3-gameplay-campaign.md).
+
 | Mechanic | What it does | CR | Engine | Example |
 |---|---|---|---|---|
 | Attack legality | Must be an untapped creature without defender, not summoning-sick (or hasty), not under an attack ban, and satisfying "can't attack unless the defender controls a `<land type>`". | 508.1 | `CombatState.attack_illegality`, `CardData.attack_needs_defender_land` | Sea Serpent (`2ed/sea_serpent.gd`) |

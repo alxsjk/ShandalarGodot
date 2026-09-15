@@ -16,6 +16,14 @@ AI seat, Wizard by default), the Gauntlet's *Enemy Level*, and the Deck
 Lab's `--profile-a` / `--profile-b` (`apprentice`, `magician`, `sorcerer`,
 `wizard`). All three build the same four presets from `AiProfile`.
 
+Ice Age's [second-pass gameplay campaign](pack-3-gameplay-campaign.md) extends
+the existing `forecasts_tactics` correctness layer: visible damage prevention
+and lethal retargets, declared-combat removal, and defensive untap/toughness
+rescues. All four presets already enable that layer; their mistake rates and
+reaction gates are unchanged. The campaign records hidden-information controls,
+the old/off policy, and matched Deck Lab measurements rather than introducing
+a separate Ice Age difficulty setting.
+
 ## 1. The rule of the ladder
 
 **Every standard opponent plays fair.** Difficulty changes analysis and mistakes,

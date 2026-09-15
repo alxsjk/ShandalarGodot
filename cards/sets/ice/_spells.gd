@@ -184,8 +184,7 @@ class LavaBurst extends DamageEffect:
 	func _init() -> void:
 		super(0)
 		any_target().x_damage()
-	func resolve(g: MtgGame, s: CardInstance, _pid: int, t: TargetRef, x := 0) -> void:
-		g.deal_damage(s, t, x, false, Callable(), true)
+		unpreventable_to_creatures = true
 
 class ConditionalCounter extends CounterEffect:
 	var color: int
