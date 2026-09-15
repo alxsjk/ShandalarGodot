@@ -148,6 +148,9 @@ var cost_modifier: Dictionary = {}
 ## controller's control and attaches; when the aura leaves, the creature
 ## is destroyed (the modern oracle's behavior). Engine-side in MtgGame.
 var aura_reanimates: bool = false
+## An Aura initially enchanting a graveyard card, with a real ETB
+## reanimation trigger (Dance of the Dead), not immediate resurrection.
+var aura_graveyard_entry := false
 
 ## For protection-granting auras (the Wards): the colors THIS aura grants
 ## its host protection from. The aura-vs-protection state-based action
@@ -262,6 +265,9 @@ var sacrifice_if_no_land_type: String = ""
 ## so it never plans a cast the engine will bounce. Unset = the ordinary
 ## instant/sorcery timing rules only. Set it with [method castable_only_when].
 var cast_condition: Callable = Callable()
+## Pure post-announcement check: func(game, pid, card, x, targets).
+## Unlike cast_condition this is called only after X has been chosen.
+var announcement_condition: Callable = Callable()
 
 ## Fluent: attach a "Cast this spell only ..." rider.
 func castable_only_when(cb: Callable) -> CardData:
@@ -678,6 +684,20 @@ func enters_only_if(cb: Callable) -> CardData:
 ## stack (CR 601.2h) — recording its mana value in the spell's own memory so
 ## the resolving effect can read it.
 var additional_sacrifice: Dictionary = {}
+
+## A spell's additional life payment is a COST, not damage or life loss
+## on resolution. X may be chosen even when no {X} appears in the mana cost.
+var additional_life: int = 0
+var additional_life_is_x: bool = false
+
+func with_additional_life(amount: int, uses_x := false) -> CardData:
+	additional_life = amount
+	additional_life_is_x = uses_x
+	if uses_x: cost.has_x = true
+	return self
+
+func life_payment(x_value: int) -> int:
+	return x_value if additional_life_is_x else additional_life
 
 ## Add an "as an additional cost, sacrifice a <desc>" clause.
 func with_additional_sacrifice(desc: String, filter: Callable) -> CardData:

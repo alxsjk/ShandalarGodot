@@ -231,6 +231,12 @@ const MULLIGAN_FLOOR := 4
 func answer_yes_no(_game: MtgGame, _pid: int, _prompt: String, hint: bool) -> bool:
 	return hint
 
+## Structured advice for the cumulative-upkeep offer. The actual decision
+## still goes through choose_yes_no, so humans retain the complete choice.
+func cumulative_upkeep_hint(game: MtgGame, pid: int, _source: CardInstance,
+		_cost: ManaCost, life: int, _lands: int) -> bool:
+	return game.players[pid].life > life
+
 
 ## Pick one card from [param candidates] (library search — Demonic Tutor).
 ## Returning null means "fail to find"/decline, legal where searches are.

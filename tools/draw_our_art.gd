@@ -116,12 +116,14 @@ const OUT_DIR := "res://game/art"
 func _init() -> void:
 	var dir := ProjectSettings.globalize_path(OUT_DIR)
 	DirAccess.make_dir_recursive_absolute(dir)
-	for code in ["atq", "arn", "past", "drk", "4ed", "leg", "fem"]:
+	for code in ["atq", "arn", "past", "drk", "4ed", "leg", "fem", "ice"]:
 		var img := _render(Vector2i(GLYPH_SIZE, GLYPH_SIZE),
 			[[_glyph(code), GOLD_LIT, GOLD_DARK]], RIM)
 		_write(img, dir, "set_icon_%s.png" % code)
 	_write(_crown_medallion(true), dir, "filter_fem_on.png")
 	_write(_crown_medallion(false), dir, "filter_fem_off.png")
+	_write(_stone_medallion(true, _snowflake()), dir, "filter_ice_on.png")
+	_write(_stone_medallion(false, _snowflake()), dir, "filter_ice_off.png")
 	_write(_stone_medallion(true, []), dir, "filter_source_on.png")
 	_write(_stone_medallion(false, []), dir, "filter_source_off.png")
 	_write(_stone_medallion(true, _completed_cards()), dir, "filter_pack1_on.png")
@@ -176,7 +178,28 @@ func _glyph(code: String) -> Array:
 			return _column()
 		"fem":
 			return _crown()
+		"ice":
+			return _snowflake()
 	return []
+
+
+## ICE AGE — six crystal arms, each with two broad branches. The same
+## authored geometry drives the carved stone medallion and gold card mark.
+func _snowflake() -> Array:
+	var out: Array = []
+	for i in 6:
+		var angle := TAU * float(i) / 6.0
+		var arm := PackedVector2Array([
+			Vector2(-0.040, 0.015), Vector2(-0.040, -0.20),
+			Vector2(-0.15, -0.265), Vector2(-0.15, -0.345),
+			Vector2(-0.040, -0.275), Vector2(-0.040, -0.46),
+			Vector2(0.040, -0.46), Vector2(0.040, -0.275),
+			Vector2(0.15, -0.345), Vector2(0.15, -0.265),
+			Vector2(0.040, -0.20), Vector2(0.040, 0.015)])
+		for j in arm.size():
+			arm[j] = Vector2(0.5, 0.5) + arm[j].rotated(angle)
+		out.append({"op": "add", "poly": arm})
+	return out
 
 
 ## FALLEN EMPIRES — three points, an oval opening and a detached lower

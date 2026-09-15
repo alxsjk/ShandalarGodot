@@ -26,9 +26,19 @@ extends RefCounted
 
 ## Mana part of the cost (empty ManaCost = free).
 var cost: ManaCost
+## Opt-in, generic-cost storage artifacts: the player chooses the actual
+## mana types spent before payment. Each activation captures its own record.
+var capture_mana_spent := false
 
 ## Whether the cost includes tapping the source ({T}).
 var tap_cost: bool = false
+## Only this zone grants activation permission. Putting an activated
+## ability in a card definition does not make it usable from every zone.
+var activation_zone: int = Mtg.Zone.BATTLEFIELD
+
+func from_graveyard() -> ActivatedAbility:
+	activation_zone = Mtg.Zone.GRAVEYARD
+	return self
 
 ## "Sacrifice this permanent" as part of the cost (Strip Mine). Paid after
 ## mana/tap — the source is in the graveyard while the ability resolves.
@@ -293,6 +303,8 @@ func any_number() -> ActivatedAbility:
 ## until 2026-09-02, one slot per permanent, so two stacked activations
 ## read each other's record.)
 var discard_cost: int = 0
+var discard_filter: Callable = Callable()
+var discard_filter_desc := "card"
 
 ## Fluent: add a "Discard N cards" cost (chooser = the paying player).
 func with_discard_cost(n: int) -> ActivatedAbility:

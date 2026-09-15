@@ -12442,15 +12442,27 @@ local branch; no online push.
 
 ## Major features for the future
 
-Updated at the owner's request, 2026-09-14. Work completed or planned after
+Updated at the owner's request, 2026-09-15. Work completed or planned after
 the 0.20.0 duel and Deck Builder release:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
 - [ ] **Manalink** — online multiplayer duels.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
 - [x] **Cardpacks foundation + Pack 1** — exact-name discovery, validation,
-  live enable/disable control and the first numbered pack; further expansions
-  remain future work.
+  live enable/disable control and the first numbered pack.
+- [x] **Pack 2 — Fallen Empires** — 102 new identities, dedicated construction
+  tool, independent Extras filtering, engine/AI integration and Help glossary.
+  See [the Fallen Empires audit](pack-2-fallen-empires.md).
+- [x] **Pack 3 — Ice Age** — 373 names / 383 printings, including 346 new
+  identities and 27 reprints. Dedicated local construction/art tooling,
+  independent Extras filtering, engine/AI integration and expanded Help.
+  See [the Ice Age audit and acceptance record](pack-3-mechanics-audit.md).
+
+With all three optional packs enabled: **1,745 named set entries / 1,349 unique
+cards**. The 897-card original pool remains the default. Numbered ZIPs and
+downloaded card artwork are local-only; construction tools and metadata are
+the distributable artifacts. Balduvian Shaman and Game of Chaos add two explicit
+Ice Age adaptations to the [simplified-card ledger](simplified-cards.md).
 
 The finite 897-card early-Magic core remains the default. The first pack,
 `Pack-1-DotP-complete.zip`, adds 373 named set entries (369 cross-set reprints

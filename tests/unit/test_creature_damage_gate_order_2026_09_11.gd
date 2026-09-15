@@ -333,7 +333,8 @@ func test_the_pool_has_one_counter_eater_and_one_point_redirect() -> void:
 		"a second metered redirect: re-take the CR 616.1 survey")
 	var pools := _cards_containing("PreventDamageEffect")
 	# Eleven original files plus Fallen Empires' shared rules (Balm and Medic).
-	assert_eq(pools.size(), 12, "the prevention-pool family: %s" % [pools])
+	# Ice Age adds the shared Aura, creature and common-card modules.
+	assert_eq(pools.size(), 16, "the prevention-pool family including Sacred Boon: %s" % [pools])
 	assert_has(pools, "_rules.gd")
 
 
@@ -352,12 +353,12 @@ func test_the_pool_has_the_seven_creature_side_gate_writers() -> void:
 	assert_eq(_cards_containing("cur_prevent_damage_from_creatures"),
 		["uncle_istvan.gd"], "a second blanket creature-damage prevention")
 	var immunities := _cards_containing("cur_damage_immunity")
-	assert_eq(immunities.size(), 12,
+	assert_eq(immunities.size(), 14,
 		"the source-filtered immunities: %s" % [immunities])
 	var combat_shields := _cards_containing("add_until_eot_combat_prevention")
 	# Elvish Scout and Heroism share the new Fallen Empires writer.
-	assert_eq(combat_shields.size(), 10,
-		"the floating combat-damage preventions: %s" % [combat_shields])
+	assert_eq(combat_shields.size(), 12,
+		"the floating combat-damage preventions including Winter's Chill: %s" % [combat_shields])
 	assert_has(combat_shields, "_rules.gd")
 
 

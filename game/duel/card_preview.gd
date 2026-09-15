@@ -918,7 +918,11 @@ func show_card(inst: CardInstance, printing_set := "") -> void:
 			icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		_cost_holder.add_child(row)
 	# Art, or the quiet identity-colored placeholder.
-	var art := CardPacks.art_texture(d.card_name, shown_set)
+	# Standalone SceneTree tools can compile this class before autoload
+	# identifiers are registered. Resolve the service at render time.
+	var tree := Engine.get_main_loop() as SceneTree
+	var packs := tree.root.get_node_or_null("CardPacks")
+	var art: Texture2D = packs.art_texture(d.card_name, shown_set) if packs != null else null
 	if art == null:
 		art = GameSkin.card_art(d.card_name)
 	_art.texture = art

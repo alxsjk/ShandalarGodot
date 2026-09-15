@@ -314,10 +314,10 @@ func test_the_pool_has_five_damage_replacement_writers() -> void:
 func test_the_pool_has_nine_player_side_prevention_writers() -> void:
 	var circles := _cards_containing("PreventDamageShieldEffect")
 	var direct := _cards_containing("prevention_shield_filters.append")
-	assert_eq(circles.size(), 7, "the Circle family: %s" % [circles])
+	assert_eq(circles.size(), 9, "the Circle family plus Ice Age's Pentagram and Balduvian Shaman: %s" % [circles])
 	direct.sort()
-	assert_eq(direct, ["al_abara_s_carpet.gd", "scarecrow.gd"],
-		"and the two all-turn class shields")
+	assert_eq(direct, ["_choices.gd", "al_abara_s_carpet.gd", "scarecrow.gd"],
+		"the all-turn class shields and Mercenaries' one-source shield")
 
 
 ## Card FILES under cards/sets/ whose source contains [param needle].

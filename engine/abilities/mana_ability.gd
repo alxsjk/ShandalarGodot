@@ -17,6 +17,22 @@ extends RefCounted
 ## [member dynamic_color] rewrite; later pairs are always literal.
 var produces: Array = []
 
+## A replacement of the type produced, not a change to the ability's cost
+## or amount. Separate variants let a player choose which of several
+## applicable "instead of any other type" replacements applies last.
+var forced_output_color: int = 0
+
+func forcing_color(color: int) -> ManaAbility:
+	var copy := ManaAbility.new(0, 0)
+	for prop in get_property_list():
+		if int(prop.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE: copy.set(prop.name, get(prop.name))
+	copy.forced_output_color = color
+	copy.dynamic_color = Callable()
+	copy.color_options = Callable()
+	copy.produces = []
+	for pair in produces: copy.produces.append([color, pair[1]])
+	return copy
+
 ## When true the cost also includes sacrificing the source (Black Lotus's
 ## "{T}, Sacrifice Black Lotus: Add three mana of any one color" — modeled
 ## as five sacrifice ManaAbilities, one per color, chosen by ability index).
@@ -33,6 +49,9 @@ var cost: ManaCost = null
 ## outputs with no hidden choices or other unmodelled costs qualify. The
 ## planner simulates ManaPool payments, never this ability's callbacks.
 var planner_conversion: bool = false
+## A tap-and-remove-counter source with a fixed public output. One tap
+## spends one row, so it cannot reuse the counter (Amulet/Cauldron).
+var planner_counter_cost := false
 
 func with_plannable_conversion() -> ManaAbility:
 	planner_conversion = true

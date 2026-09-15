@@ -129,6 +129,12 @@ var layer_timestamp: int = 0
 ## Distinguish successive graveyard objects of the same physical card
 ## (CR 400.7). A delayed exile must not follow a Regrowth and rediscard.
 var graveyard_entry: int = 0
+## Each real entry to exile creates a new object, including re-exiling a
+## card after it returned to a hand or graveyard.
+var exile_entry: int = 0
+var exile_playable_by: int = -1
+## -1 = no time limit; otherwise expire as that player's next upkeep begins.
+var exile_play_until_upkeep_of: int = -1
 
 ## Counters on this permanent, kind -> count ("+1/+1", "-1/-1", ...).
 ## The continuous pipeline applies any counter whose NAME parses as a P/T
@@ -152,6 +158,9 @@ var damaged_by_this_turn: Array[int] = []
 ## rather than replacing it because the two are asked separately and the
 ## list is the cheap one. Cleared and snapshotted with it.
 var damage_from_this_turn: Dictionary = {}
+## Source id AND battlefield incarnation; a returned Vampire is a new
+## object and must not claim damage dealt by its previous incarnation.
+var damage_origins_this_turn: Dictionary = {}
 
 ## Regeneration shields built up this turn (CR 701.15): each one replaces
 ## the next destruction with tap + clear damage + leave combat. Created by
@@ -172,6 +181,18 @@ var regeneration_banned_this_turn: bool = false
 ## declaration it has to refuse leaves nothing spent. Set by statics each
 ## recalculation, exactly like cur_cant_attack.
 var cur_attack_costs: Array[Dictionary] = []
+## Declaration-wide restrictions/costs. These are live derived values,
+## not card-name checks: copies and removed abilities use the same rules.
+var cur_attacks_alone := false
+var cur_min_attack_group := 1
+var cur_min_block_group := 1
+var cur_attack_land_sacrifices := 0
+var cur_block_power_tax_threshold := 0
+var cur_block_power_tax := 0
+
+## Derived land-mana replacement choices, collected by continuous effects.
+var cur_land_mana_replacements: Array[int] = []
+var cur_wind_untap_replacement := false
 
 ## "For each 1 damage that would be dealt to this creature, if it has a
 ## <kind> counter on it, remove one and prevent that 1 damage" (Rock
@@ -210,6 +231,9 @@ var damage_unpreventable_this_turn: bool = false
 ## Damage-prevention pool for THIS TURN (Healing Salve, Samite Healer):
 ## incoming damage consumes it point for point. Cleared at cleanup.
 var prevention: int = 0
+## Individually metered shields whose actual prevention has a later
+## consequence (Sacred Boon). Receipts survive cleanup until collected.
+var tracked_prevention: Array[Dictionary] = []
 
 ## THE CARD THE SHIELD CAME FROM — the definition of whatever last filled
 ## [member prevention]: the Healing Salve, the Samite Healer, the creature
@@ -286,6 +310,10 @@ var face_down: bool = false
 ## cleared at cleanup). Lurker's "unless it attacked or blocked this
 ## turn" reads it alongside attacked_this_turn.
 var blocked_this_turn: bool = false
+
+## Increments whenever this object blocks or becomes blocked. Unlike the
+## per-turn flag it survives cleanup (Wiitigo's "since your last upkeep").
+var block_history_sequence: int = 0
 
 ## Whether this creature attacked this turn (set in declare_attackers,
 ## cleared at its controller's untap). Erg Raiders-style punishments and
@@ -411,6 +439,12 @@ var last_toughness: int = 0
 var last_types: int = 0
 var last_colors: int = 0
 var last_subtypes: Array[String] = []
+## Effects that may deal damage after this incarnation leaves opt in to
+## retaining an immutable source snapshot. Old records survive a blink;
+## ordinary permanents do not allocate them. Never register these copies
+## as live game objects or mutate them after construction.
+var capture_departure_source := false
+var departed_sources: Dictionary = {}
 
 var cur_keywords: Array[int] = []
 ## Live COLOURS as an Mtg.ManaColor bitmask (CR 105.2 / 613 layer 5).
@@ -422,6 +456,9 @@ var cur_colors: int = 0
 ## add to these until end of turn. Rules code asks the INSTANCE
 ## (is_creature()/has_subtype()), never data, for battlefield objects.
 var cur_types: int = 0
+## Live supertypes: snow can be granted/removed without changing land types
+## or BASIC status. Snow-Covered basics remain unlimited in decks.
+var cur_supertypes: int = 0
 var cur_subtypes: Array[String] = []
 ## Live ACTIVATED ABILITIES. Reset to the printed list every
 ## recalculation; statics may APPEND granted abilities (Zombie Master
@@ -495,6 +532,7 @@ var extra_blocks_this_turn: int = 0
 ## "Doesn't untap during its controller's untap step" — set by statics
 ## (Meekstone) each recalculation; the untap step honors it.
 var cur_skips_untap: bool = false
+var cur_exile_on_leaving := false
 ## "Can't attack" — set by statics (Moat bans non-flyers) each
 ## recalculation; checked in CombatState.attack_illegality.
 var cur_cant_attack: bool = false
@@ -635,11 +673,14 @@ func _init(p_data: CardData, p_id: int, p_owner: int) -> void:
 ## duplicates. Nothing may hold on to one of these arrays expecting a
 ## snapshot — they are live views by contract (see the class doc).
 func reset_characteristics() -> void:
+	cur_land_mana_replacements.clear()
+	cur_wind_untap_replacement = false
 	cur_statics_suspended = false
 	cur_power = data.power
 	cur_toughness = data.toughness
 	cur_protection = data.protection_from | added_protection
 	cur_types = data.types | added_types   # permanent grants (Transmogrant)
+	cur_supertypes = data.supertypes
 	cur_colors = data.color_mask() if color_override < 0 else color_override
 	cur_keywords.assign(data.keywords)
 	cur_landwalk.assign(data.landwalk)
@@ -662,8 +703,15 @@ func reset_characteristics() -> void:
 	cur_target_bans.clear()
 	cur_immune_to_wall_only = false
 	cur_skips_untap = false
+	cur_exile_on_leaving = false
 	cur_cant_attack = false
 	cur_attack_costs = []
+	cur_attacks_alone = false
+	cur_min_attack_group = 1
+	cur_min_block_group = 1
+	cur_attack_land_sacrifices = 0
+	cur_block_power_tax_threshold = 0
+	cur_block_power_tax = 0
 	cur_attacks_as_if_hasty = false
 	cur_abilities_silenced = false
 	cur_prevent_damage_from_creatures = false
@@ -696,6 +744,7 @@ func reset_characteristics() -> void:
 		cur_power = 2
 		cur_toughness = 2
 		cur_types = Mtg.CardType.CREATURE
+		cur_supertypes = 0
 		cur_colors = 0
 		cur_subtypes.clear()
 		cur_keywords.clear()
@@ -864,6 +913,18 @@ func is_aura() -> bool:
 ## graveyard remembers nothing (CR 400.7) — but first snapshot the live
 ## power/toughness into [member last_power] / [member last_toughness].
 func clear_battlefield_state() -> void:
+	if capture_departure_source:
+		var departed := CardInstance.new(data, id, owner_id)
+		departed.controller_id = controller_id
+		departed.layer_timestamp = layer_timestamp
+		departed.zone = Mtg.Zone.GRAVEYARD # explicitly not a live permanent
+		for property in get_property_list():
+			var key := String(property.name)
+			if not key.begins_with("cur_"): continue
+			var value = get(key)
+			departed.set(key, value.duplicate() if value is Array or value is Dictionary else value)
+		departed_sources[layer_timestamp] = departed
+	capture_departure_source = false
 	# LAST KNOWN INFORMATION (CR 608.2h) must be captured BEFORE the wipe.
 	last_power = cur_power
 	last_toughness = cur_toughness
@@ -882,6 +943,8 @@ func clear_battlefield_state() -> void:
 	counters.clear()
 	damaged_by_this_turn.clear()
 	damage_from_this_turn.clear()
+	damage_origins_this_turn.clear()
+	tracked_prevention.clear()
 	damaged_players_this_turn.clear()
 	regeneration_shields = 0
 	destruction_shields = 0
@@ -894,6 +957,7 @@ func clear_battlefield_state() -> void:
 	attacked_this_turn = false
 	could_attack_this_turn = false
 	blocked_this_turn = false
+	block_history_sequence = 0
 	blocked_ids_this_turn.clear()
 	must_block_this_turn = false
 	extra_blocks_this_turn = 0

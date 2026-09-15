@@ -152,10 +152,19 @@ python3 tools/test_pack_2_fallen_empires.py >/dev/null
 PACK_TWO_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-2-Fallen-Empires.zip"
 python3 tools/pack_2_fallen_empires.py build "$PACK_TWO_PATH" --metadata-only >/dev/null
 export SHANDALAR_PACK_2="$PACK_TWO_PATH"
+python3 tools/test_pack_3_ice_age.py >/dev/null
+PACK_THREE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-3-Ice_Age.zip"
+python3 tools/pack_3_ice_age.py build "$PACK_THREE_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_3="$PACK_THREE_PATH"
 
 # Import step (quick no-op when the .godot cache is warm; a cold import
 # of the card art is minutes, not hours, so 600 s is generous).
 "$SHANDALAR_TIMEOUT" -k 5 600 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
+
+# A killed test cannot run after_each; do not inherit its enabled packs.
+# The helper refuses to touch a non-test profile, and changes no player data.
+"$SHANDALAR_TIMEOUT" -k 5 60 "$GODOT" --headless --path . \
+	-s tools/reset_test_packs.gd >"$SHANDALAR_TEST_DATA_HOME/reset-packs.log" 2>&1 </dev/null
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT

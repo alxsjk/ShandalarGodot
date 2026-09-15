@@ -22,12 +22,14 @@ static func capture(game: MtgGame, seat: int, ignore_own: Array = [],
 			if own and ignore_own.has(card.id):
 				record["hand_count"] -= 1
 				continue
-			if own or card.revealed_in_hand:
+			if own or card.revealed_in_hand or player.hand_revealed:
 				record["known_hand"].append(_card(card, true))
 		for zone in ["battlefield", "graveyard", "exile", "ante"]:
 			for card in player.get(zone):
 				if own and zone == "battlefield" and ignore_own.has(card.id): continue
-				var entry := _card(card, own or not card.face_down)
+				# Face-down exile is not automatically visible to its owner
+				# (Necropotence grants neither player permission to look).
+				var entry := _card(card, (own and zone != "exile") or not card.face_down)
 				if own and ignore_own_resources and zone == "battlefield" \
 						and not card.cur_mana_abilities.is_empty():
 					entry.erase("tapped")

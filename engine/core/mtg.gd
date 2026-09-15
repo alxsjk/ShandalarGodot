@@ -48,7 +48,7 @@ enum CardType {
 ## rule; WORLD for the world rule (CR 704.5k — when two or more world
 ## permanents are on the battlefield, all but the NEWEST are put into
 ## their owners' graveyards). Legends is where world enchantments live.
-enum Supertype { BASIC = 1, LEGENDARY = 2, WORLD = 4 }
+enum Supertype { BASIC = 1, LEGENDARY = 2, WORLD = 4, SNOW = 8 }
 
 ## The zones a card can occupy. ANTE is Shandalar-specific (the 1997 game
 ## plays for ante); it is defined now so zone plumbing never needs a rework.
@@ -167,6 +167,7 @@ enum EventType {
 	                      ## attacking/blocking status still stands
 	                      ## (Clockwork Beast winds down, The Wretched)
 	BLOCKERS_DECLARED,    ## data: {} — after ALL blocks are declared;
+	UNBLOCKED_ATTACKER,  ## data: {instance, controller}, once per unblocked attacker
 	                      ## "attacks and isn't blocked" reads combat state
 	                      ## (Murk Dwellers)
 	COMBAT_START,         ## data: {player} — the beginning-of-combat step
@@ -219,6 +220,8 @@ enum EventType {
 	                      ## unspent mana. Both seats' losses and pool clears
 	                      ## are complete before announcement; not DAMAGE_DEALT.
 	STATE_CHECK,          ## Engine-only state-trigger polling (CR 603.8).
+	LIFE_LOST,            ## data: {player, amount}; damage, costs and other loss.
+	CONTROL_CHANGED,     ## data: {instance, from_controller, to_controller}.
 }
 
 ## What kind of object a StackItem is.

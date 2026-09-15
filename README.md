@@ -135,6 +135,14 @@ Work completed or planned after the 0.20.0 release:
   a separate [Python construction tool and mechanics audit](docs/pack-2-fallen-empires.md),
   and live **Extras** filters in the Deck Builder. Build packs locally;
   generated ZIPs and card artwork are not distributed.
+- [x] **Pack 3 — Ice Age** — 373 names (383 printings), including
+  346 new identities and 27 reprints. The separate
+  [construction script](tools/pack_3_ice_age.py), local artwork ZIP, Extras
+  filter and [engine/AI integration audit](docs/pack-3-mechanics-audit.md)
+  are implemented. All new identities have handlers; two digital adaptations
+  are documented in Help and the simplified-card ledger. Build locally:
+  `python3 tools/pack_3_ice_age.py fetch-art`, then
+  `python3 tools/pack_3_ice_age.py`. ZIPs and downloaded artwork stay local.
 - [ ] **Community MElo (Magic Elo)** — a big long-term wish: a simple,
   elegant global player rating and ranking system for the community. :)
 

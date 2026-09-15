@@ -60,10 +60,12 @@ func discover() -> void:
 	_available.clear()
 	_rejections.clear()
 	_art_cache.clear()
-	for path in candidate_paths() + candidate_paths(FallenEmpiresPack.ID):
+	for path in candidate_paths() + candidate_paths(FallenEmpiresPack.ID) + candidate_paths(IceAgePack.ID):
 		if not FileAccess.file_exists(path):
 			continue
 		var id := FallenEmpiresPack.ID if path.get_file() == FallenEmpiresPack.FILE_NAME else ID
+		if path.get_file() == IceAgePack.FILE_NAME:
+			id = IceAgePack.ID
 		if _available.has(id):
 			continue
 		var report := inspect(path)
@@ -94,7 +96,7 @@ func rescan() -> void:
 static func candidate_paths(id := ID) -> Array[String]:
 	var out: Array[String] = []
 	var file_name := file_name_for(id)
-	var explicit := OS.get_environment("SHANDALAR_PACK_2" if id == FallenEmpiresPack.ID else "SHANDALAR_PACK_1").strip_edges()
+	var explicit := OS.get_environment("SHANDALAR_PACK_" + id.trim_prefix("pack-")).strip_edges()
 	if explicit != "":
 		out.append(explicit)
 	var card_folder := GamePaths.cardpacks_folder().path_join(file_name)
@@ -119,6 +121,8 @@ static func candidate_paths(id := ID) -> Array[String]:
 ## metadata-only build is accepted only by the isolated test profile; a pack a
 ## player can enable carries the exact 754 expected image paths and still no code.
 static func inspect(path: String) -> Dictionary:
+	if path.get_file() == IceAgePack.FILE_NAME:
+		return IceAgePack.inspect(path)
 	if path.get_file() == FallenEmpiresPack.FILE_NAME:
 		return FallenEmpiresPack.inspect(path)
 	if path.get_file() != FILE_NAME:
@@ -422,6 +426,8 @@ func open_folder() -> void:
 ## which mounted crop or full-card scan represents that name on screen.
 func art_path(card_name: String, set_code: String, full_card := false) -> String:
 	var id := FallenEmpiresPack.ID if set_code == "fem" else ID
+	if set_code == "ice":
+		id = IceAgePack.ID
 	if not is_enabled(id) or set_code == "":
 		return ""
 	var report: Dictionary = _available[id]
@@ -430,6 +436,8 @@ func art_path(card_name: String, set_code: String, full_card := false) -> String
 		return ""
 	var suffix := "_card.jpg" if full_card else ".jpg"
 	var prefix := FallenEmpiresPack.PREFIX if id == FallenEmpiresPack.ID else PREFIX
+	if id == IceAgePack.ID:
+		prefix = IceAgePack.PREFIX
 	var path := "res://%sart/%s/%s%s" % [prefix, set_code,
 		_snake(card_name), suffix]
 	return path if FileAccess.file_exists(path) else ""
@@ -462,6 +470,8 @@ func set_current_deck_names(names: Array[String]) -> void:
 func current_deck_conflicts(id: String) -> Array[String]:
 	var found: Array[String] = []
 	var names: Array = FallenEmpiresPack.names() if id == FallenEmpiresPack.ID else ADDED_NAMES
+	if id == IceAgePack.ID:
+		names = IceAgePack.new_names()
 	for name in names:
 		if _current_deck_names.has(name):
 			found.append(name)
@@ -480,21 +490,26 @@ func disable_warning(id: String) -> String:
 func packs_required_by(names: Array[String]) -> Array[String]:
 	var ids: Array[String] = []
 	var second := FallenEmpiresPack.names()
+	var third := IceAgePack.new_names()
 	for name in names:
 		if ADDED_NAMES.has(name) and not ids.has(ID):
 			ids.append(ID)
 		if second.has(name) and not ids.has(FallenEmpiresPack.ID):
 			ids.append(FallenEmpiresPack.ID)
+		if third.has(name) and not ids.has(IceAgePack.ID):
+			ids.append(IceAgePack.ID)
 	ids.sort()
 	return ids
 
 
 static func file_name_for(id: String) -> String:
+	if id == IceAgePack.ID:
+		return IceAgePack.FILE_NAME
 	return FallenEmpiresPack.FILE_NAME if id == FallenEmpiresPack.ID else FILE_NAME
 
 
 static func label_for(id: String) -> String:
-	return "Pack 2" if id == FallenEmpiresPack.ID else "Pack 1"
+	return "Pack " + id.trim_prefix("pack-")
 
 
 func missing_requirements(ids: Array[String]) -> Array[String]:
@@ -513,9 +528,13 @@ func _configure_registry() -> void:
 		var catalog: Dictionary = report["catalog"]
 		CardRegistry.configure_optional_pack(true, catalog.get("sets", {}),
 			CARD_SCRIPTS, report.get("cards", []), catalog.get("counts", {}))
-	if is_enabled(FallenEmpiresPack.ID):
-		var report: Dictionary = _available[FallenEmpiresPack.ID]
-		CardRegistry.configure_expansion_packs(report.catalog.sets,
-			FallenEmpiresPack.scripts(), report.cards)
-	else:
-		CardRegistry.configure_expansion_packs({}, [], [])
+	var sets := {}
+	var scripts: Array = []
+	var records: Array = []
+	for contract in [FallenEmpiresPack, IceAgePack]:
+		if is_enabled(contract.ID):
+			var report: Dictionary = _available[contract.ID]
+			sets.merge(report.catalog.sets)
+			scripts.append_array(contract.scripts())
+			records.append_array(report.cards)
+	CardRegistry.configure_expansion_packs(sets, scripts, records)

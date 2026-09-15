@@ -13,6 +13,11 @@ extends EffectBase
 func _init(desc: String = "", filter: Callable = Callable()) -> void:
 	target_spec = TargetSpec.spell(desc, filter)
 
+## Some counters may legally target a spell without affecting it
+## (Hydroblast/Pyroblast). The AI must distinguish that from legality.
+func affects_spell(_inst: CardInstance) -> bool:
+	return true
+
 
 ## Removes the target's StackItem and moves the card to its owner's
 ## graveyard, both through MtgGame.counter_spell. The null guard is for a

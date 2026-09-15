@@ -1,0 +1,13 @@
+{
+  "pack_format": 1,
+  "id": "pack-3",
+  "number": 3,
+  "name": "Ice Age",
+  "badge": "3-ICE",
+  "file_name": "Pack-3-Ice_Age.zip",
+  "version": "1.0.0",
+  "minimum_game_version": "0.20.0",
+  "set_order": ["ice"],
+  "description": "Adds Ice Age as an independently enabled expansion. Its stone medallion lives under Deck Builder Extras, leaving the original set strip unchanged. Reprints remain the same name-based playable cards.",
+  "rules_note": "No other numbered pack is required. The game ships the executable card rules; this ZIP supplies checked metadata and artwork only. Digital adaptations: Balduvian Shaman changes colors only on the five colored Circles of Protection, and Game of Chaos stops after 30 flips per resolution. See the cards' rules text and Help."
+}

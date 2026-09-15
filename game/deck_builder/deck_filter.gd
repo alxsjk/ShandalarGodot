@@ -180,6 +180,7 @@ const TYPE_LABELS := {
 ## the order the sets were printed in.
 const SET_LABELS := {
 	"fem": "Fallen Empires",
+	"ice": "Ice Age",
 	"2ed": "Unlimited",
 	"arn": "Arabian nights",
 	"atq": "Antiquities",

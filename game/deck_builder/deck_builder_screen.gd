@@ -883,7 +883,7 @@ static func _style_emerald_done(button: Button) -> void:
 func _open_extra_sets() -> void:
 	if _dialog_busy():
 		return
-	var dialog := OriginalDialog.create("Extras", Vector2(390, 340))
+	var dialog := OriginalDialog.create("Extras", Vector2(390, 420))
 	dialog.set_meta("extra_sets", true)
 	var body := dialog.body()
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -899,6 +899,11 @@ func _open_extra_sets() -> void:
 			if filter.set_on("fem") != on:
 				filter.toggle_set("fem"),
 		"Fallen Empires: 102 unique cards.\nOther set, colour, type and search filters still apply.")
+	_extra_source_row(body, "Pack3", "Ice Age Pack 3", CardRegistry.extra_set_order().has("ice"),
+		filter.set_on("ice"), func(on: bool) -> void:
+			if filter.set_on("ice") != on:
+				filter.toggle_set("ice"),
+		"Ice Age: 373 names — 346 new cards and 27 reprints.\nSelecting only Ice Age uses its artwork; decks remain name-based.")
 	dialog.add_button("Close").pressed.connect(dialog.dismiss)
 	_show_dialog(dialog)
 

@@ -152,7 +152,8 @@ func test_the_readme_names_at_least_the_seven_we_promised() -> void:
 			"set_icon_drk.png", "set_icon_4ed.png", "set_icon_past.png",
 			"damage_marker.png", "set_icon_fem.png", "filter_fem_on.png",
 			"filter_fem_off.png", "filter_source_on.png", "filter_source_off.png",
-			"filter_pack1_on.png", "filter_pack1_off.png"]:
+			"filter_pack1_on.png", "filter_pack1_off.png", "set_icon_ice.png",
+			"filter_ice_on.png", "filter_ice_off.png"]:
 		assert_true(named.has(name), "game/art/README.md names %s" % name)
 
 

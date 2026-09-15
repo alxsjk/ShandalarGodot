@@ -183,6 +183,12 @@ var prevention_shields: Array[int] = []
 ## way, with the colour shields.
 var prevention_shield_filters: Array[Dictionary] = []
 
+## Continuous prevention rebuilt each recalculation, not consumed/cleared
+## with temporary shields. Each filter accepts the live damage SOURCE.
+var static_prevention_shields: Array[Dictionary] = []
+## Derived, public permission (Enduring Renewal / Zur's Weirding).
+var hand_revealed := false
+
 ## Amount-based damage prevention for THIS TURN (Healing Salve aimed at a
 ## player): consumed point for point before life is lost. Cleanup clears.
 var damage_prevention: int = 0
@@ -195,6 +201,8 @@ var damage_prevention: int = 0
 ## means the last turn THEY took, not the last turn anybody took.
 var acted_this_turn: bool = false
 var acted_last_turn: bool = false
+## Completed turns only, including extra turns but excluding skipped ones.
+var last_turn_number := 0
 
 ## ONE-SHOT (or all-turn) REPLACEMENTS for damage aimed at THIS PLAYER —
 ## the "the next time a source of your choice would deal damage to you this

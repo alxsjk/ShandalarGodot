@@ -13,6 +13,9 @@ var _warning: Control
 var _second_status: Label
 var _second_enable: Button
 var _second_disable: Button
+var _third_status: Label
+var _third_enable: Button
+var _third_disable: Button
 
 
 func _ready() -> void:
@@ -90,9 +93,27 @@ func _ready() -> void:
 	second_actions.add_child(_second_disable)
 	content.add_child(second_actions)
 
+	content.add_child(UiChrome.body_label("3-ICE — Pack 3: Ice Age", 18))
+	_third_status = UiChrome.body_label("", 14)
+	_third_status.name = "Pack3Status"
+	_third_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(_third_status)
+	var third_actions := HBoxContainer.new()
+	third_actions.add_theme_constant_override("separation", 10)
+	_third_enable = UiChrome.menu_button("Enable", Vector2(120, 34), 13)
+	_third_enable.name = "EnablePack3"
+	_third_enable.pressed.connect(CardPacks.set_enabled.bind(IceAgePack.ID, true))
+	third_actions.add_child(_third_enable)
+	_third_disable = UiChrome.menu_button("Disable", Vector2(120, 34), 13)
+	_third_disable.name = "DisablePack3"
+	_third_disable.pressed.connect(_request_disable.bind(IceAgePack.ID))
+	third_actions.add_child(_third_disable)
+	content.add_child(third_actions)
+
 	var local_only := UiChrome.body_label(
 		"Packs are not distributed with the game. Build them locally with "
-		+ "tools/pack_1_dotp_complete.py or tools/pack_2_fallen_empires.py, "
+		+ "tools/pack_1_dotp_complete.py, tools/pack_2_fallen_empires.py, "
+		+ "or tools/pack_3_ice_age.py, "
 		+ "place the exact ZIP here, then Rescan.", 13)
 	local_only.name = "LocalOnly"
 	local_only.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -105,9 +126,19 @@ func _ready() -> void:
 	var back_row := HBoxContainer.new()
 	back_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	back_row.add_child(back)
-	content.add_child(back_row)
 
-	var panel := UiChrome.panel_around(content, 20.0)
+	# Keep every pack reachable at the game's minimum window height.
+	var scroll := ScrollContainer.new()
+	scroll.name = "PackListScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(PANEL_WIDTH - 40, 560)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 12)
+	page.add_child(scroll)
+	page.add_child(back_row)
+	var panel := UiChrome.panel_around(page, 20.0)
 	panel.custom_minimum_size.x = PANEL_WIDTH
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -120,6 +151,16 @@ func _ready() -> void:
 
 
 func _refresh() -> void:
+	var third := CardPacks.status(IceAgePack.ID)
+	_third_enable.disabled = not third.available or third.enabled
+	_third_disable.disabled = not third.available or not third.enabled
+	if third.available:
+		_third_status.text = "Status: %s — Version: %s — Minimum game: %s\n" % [
+			"Enabled" if third.enabled else "Disabled", third.version, third.minimum_game_version]
+		_third_status.text += "373 names · 383 printings · 346 new identities\nDeck Builder filter: Extras > Ice Age"
+	else:
+		_third_status.text = "Status: Not available\nExpected: %s\nReason: %s" % [
+			IceAgePack.FILE_NAME, third.rejection]
 	var second := CardPacks.status(FallenEmpiresPack.ID)
 	_second_enable.disabled = not second.available or second.enabled
 	_second_disable.disabled = not second.available or not second.enabled

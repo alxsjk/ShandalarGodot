@@ -1,0 +1,9 @@
+{
+  "all_printings": 383,
+  "code": "ice",
+  "name": "Ice Age",
+  "released_at": "1995-06-03",
+  "source_url": "https://api.scryfall.com/cards/search?include_extras=true&include_variations=true&order=set&q=e%3Aice&unique=prints",
+  "standard_printings": 383,
+  "unique_names": 373
+}

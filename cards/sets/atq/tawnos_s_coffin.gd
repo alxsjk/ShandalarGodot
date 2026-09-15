@@ -131,10 +131,6 @@ static func _release(game: MtgGame, buried_id: int, counters: Dictionary,
 			continue
 		# "under their owner's control attached to that permanent"
 		game.attach_aura_from_anywhere(aura, buried, aura.owner_id)
-		if aura.data.aura_steals:
-			# Control Magic takes the creature again as it re-attaches
-			# (the aura's own effect applies afresh, CR 613/303.4).
-			game.change_control(buried, aura.controller_id)
 
 
 class EntombEffect extends EffectBase:

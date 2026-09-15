@@ -272,9 +272,9 @@ WORK_DIR="$(cd "$(dirname "$OUT")" && pwd)/tmp"
 # fails rather than ship it.
 guard_stage() {  # guard_stage STAGE_DIR
 	local hit pack_zip
-	pack_zip="$(find "$1" -type f -name 'Pack-1-DotP-complete.zip' -print -quit)"
+	pack_zip="$(find "$1" -type f -name 'Pack-[0-9]*.zip' -print -quit)"
 	if [ -n "$pack_zip" ]; then
-		echo "BUILD FAILED: Pack-1-DotP-complete.zip is a local build artifact, not a release file:" >&2
+		echo "BUILD FAILED: numbered card-pack ZIPs are local artifacts, not release files:" >&2
 		echo "$pack_zip" >&2
 		exit 1
 	fi

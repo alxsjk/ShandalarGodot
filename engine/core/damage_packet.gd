@@ -35,6 +35,19 @@ extends RefCounted
 ## class note for why this one is not an id.
 var source: CardInstance = null
 
+## Origin is captured before a resolving spell leaves the stack. Energy
+## Storm still recognizes spell damage waiting in a classic window.
+var source_was_spell: bool = false
+var source_timestamp := 0
+## Lava Burst: applies only to this damage, not every source damaging the
+## same creature later in the turn. Redirection into a creature also counts.
+var unpreventable_to_creatures: bool = false
+## Prevention belonging to this damage event only (Errant Minion). A
+## redirected/split event shares the budget instead of multiplying it.
+class PreventionBudget extends RefCounted:
+	var remaining := 0
+var local_prevention: PreventionBudget = null
+
 ## Who or what is being dealt to. A player ref or a card ref; never a
 ## damage ref (damage does not damage damage).
 var target: TargetRef = null
@@ -118,10 +131,14 @@ func divert(n: int) -> int:
 ## ruling); everything else stays separate so a Circle targets exactly one
 ## of them.
 func matches(other: DamagePacket) -> bool:
+	if local_prevention != null or (other != null and other.local_prevention != null): return false
 	if other == null or source_id() != other.source_id():
 		return false
+	if source_timestamp != other.source_timestamp: return false
 	if is_combat != other.is_combat:
 		return false   # first-strike damage is not the normal wave's packet
+	if source_was_spell != other.source_was_spell or unpreventable_to_creatures != other.unpreventable_to_creatures:
+		return false
 	if target == null or other.target == null:
 		return false
 	if target.is_player != other.target.is_player:

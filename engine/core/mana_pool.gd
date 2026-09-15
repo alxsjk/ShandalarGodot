@@ -105,9 +105,10 @@ func can_pay(cost: ManaCost, x_value: int = 0, usage_keys: Array = [],
 	var pool_total := 0
 	for c in avail:
 		pool_total += int(avail[c])
-	if any_color:
+	if any_color and cost.restricted_x_amount == 0:
 		return pool_total >= cost.mana_value() + x_value
 	for c in cost.colored:
+		if any_color: break
 		var need: int = int(cost.colored[c])
 		var take: int = mini(int(avail.get(c, 0)), need)
 		avail[c] = int(avail.get(c, 0)) - take
@@ -124,24 +125,34 @@ func can_pay(cost: ManaCost, x_value: int = 0, usage_keys: Array = [],
 					break
 		if need > 0:
 			return false
+	var restricted_need := cost.restricted_x_due(x_value)
+	for c in avail:
+		if (int(c) & cost.restricted_x_mask) == 0: continue
+		var take := mini(int(avail[c]), restricted_need)
+		avail[c] = int(avail[c]) - take
+		restricted_need -= take
+	if restricted_need > 0: return false
 	var leftover := 0
 	for c in avail:
 		leftover += int(avail[c])
-	return leftover >= cost.generic + x_value
+	var ordinary := maxi(0, cost.generic + x_value)
+	if any_color:
+		for c in cost.colored: ordinary += int(cost.colored[c])
+	return leftover >= ordinary
 
 
 ## Pay [param cost] from the pool. Callers must check [method can_pay]
 ## first; paying an unpayable cost is a programming error and asserts.
 ## See [method can_pay] for the optional arguments.
 func pay(cost: ManaCost, x_value: int = 0, usage_keys: Array = [],
-		substitutions: Array = [], any_color: bool = false) -> void:
+		substitutions: Array = [], any_color: bool = false) -> Dictionary:
 	assert(can_pay(cost, x_value, usage_keys, substitutions, any_color),
 		"ManaPool.pay called without can_pay check")
-	var generic_due: int = cost.generic + x_value
+	var generic_due: int = maxi(0, cost.generic + x_value)
 	if any_color:
 		# North Star: every pip is payable with anything, so the whole cost
 		# behaves like generic mana.
-		generic_due = cost.mana_value() + x_value
+		for c in cost.colored: generic_due += int(cost.colored[c])
 	else:
 		for c in cost.colored:
 			var need: int = _take(c, int(cost.colored[c]), usage_keys)
@@ -151,6 +162,15 @@ func pay(cost: ManaCost, x_value: int = 0, usage_keys: Array = [],
 				if int(sub["to"]) == c:
 					need = _take(int(sub["from"]), need, usage_keys)
 			assert(need == 0, "ManaPool.pay could not cover a colored pip")
+	var restricted_spent := {}
+	var remaining := cost.restricted_x_due(x_value)
+	# Auto-payment favors black for Soul Burn's life gain. The player can
+	# float a different legal mixture; only actual mana spent is recorded.
+	for c in [Mtg.ManaColor.B, Mtg.ManaColor.R, Mtg.ManaColor.W, Mtg.ManaColor.U, Mtg.ManaColor.G, Mtg.ManaColor.C]:
+		if (c & cost.restricted_x_mask) == 0: continue
+		var next := _take(c, remaining, usage_keys)
+		if next < remaining: restricted_spent[c] = remaining - next
+		remaining = next
 	# Generic: restricted mana first (it would be wasted otherwise), then
 	# colorless, then the most abundant color.
 	for key in usage_keys:
@@ -177,6 +197,7 @@ func pay(cost: ManaCost, x_value: int = 0, usage_keys: Array = [],
 			push_error("ManaPool.pay ran out of mana mid-payment")
 			break
 		generic_due = _take(best, generic_due, usage_keys)
+	return restricted_spent
 
 
 ## Empty the pool (end of step, CR 500.4).

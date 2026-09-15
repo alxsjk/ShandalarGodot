@@ -46,6 +46,16 @@ extends RefCounted
 
 ## Which Mtg.EventType wakes this ability up.
 var event_type: int
+## A single delayed trigger may watch "leaves OR becomes untapped".
+## It is consumed on the first matching event, not once per event type.
+var extra_event_types: Array[int] = []
+
+func also_when(type: int) -> TriggeredAbility:
+	extra_event_types.append(type)
+	return self
+
+func listens(type: int) -> bool:
+	return type == event_type or extra_event_types.has(type)
 
 ## Optional extra condition: func(game: MtgGame, source: CardInstance,
 ## event: GameEvent) -> bool. Unset = always fires on a type match.
@@ -72,6 +82,8 @@ var forecast_safe := false
 var mana_bonus_subtype := ""
 var mana_bonus_color := 0
 var mana_bonus_amount := 0
+var mana_bonus_restriction := ""
+var mana_bonus_snow_extra := 0
 ## Optional per-occurrence context captured WHEN the ability triggers,
 ## before costs finish or players respond. Never stored on the permanent.
 ## func(game, source, event) -> Dictionary; read via game.trigger_context().
@@ -176,7 +188,7 @@ func _init(p_event_type: int, p_on_resolve: Callable, p_text: String = "",
 
 ## Does this ability trigger on [param event] from [param source]?
 func matches(game: MtgGame, source: CardInstance, event: GameEvent) -> bool:
-	if event.type != event_type:
+	if not listens(event.type):
 		return false
 	if condition.is_valid():
 		return condition.call(game, source, event)

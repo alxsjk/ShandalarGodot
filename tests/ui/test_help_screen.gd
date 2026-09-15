@@ -128,13 +128,16 @@ func test_the_reference_never_promises_a_rule_the_engine_lacks() -> void:
 
 func test_abilities_glossary_is_the_final_help_chapter() -> void:
 	var pages := HelpPages.pages()
-	for page in pages.slice(-5):
+	for page in pages.slice(-8):
 		assert_true(String(page.title).begins_with("Abilities — "))
-	var text := "\n".join(pages.slice(-5).map(func(page: Dictionary) -> String: return _page_text(page)))
+	var text := "\n".join(pages.slice(-8).map(func(page: Dictionary) -> String: return _page_text(page)))
 	for ability in ["First strike", "Flying", "reach", "Banding", "Trample", "Protection",
 			"Shroud", "Regeneration", "Vigilance", "haste", "defender", "menace",
 			"Spore counters", "Storage lands", "Merseine", "Tourach's Gate", "Goblin Kites",
-			"Mana conversion", "High Tide", "Night Soil", "Unblocked-attack"]:
+			"Mana conversion", "High Tide", "Night Soil", "Unblocked-attack",
+			"Snow lands", "Cumulative upkeep", "Restricted mana", "Delayed card draws", "Wind counters",
+			"Abilities in the graveyard", "Playing cards from exile", "Storing mana", "Borrowing and holding", "Claims on dead creatures",
+			"Melee", "Gaze of Pain", "Drought", "Soul Burn", "digital adaptations", "30 flips"]:
 		assert_true(text.contains(ability), ability)
 	assert_true(text.contains("after blockers are chosen does not remove an existing block"))
 	assert_true(text.contains("cannot stop sacrifice, exile, zero toughness"))
@@ -144,7 +147,7 @@ func test_ability_chapter_renders_with_packs_disabled() -> void:
 	var before := Settings.enabled_card_packs()
 	Settings.set_value("enabled_card_packs", [], false)
 	CardPacks._configure_registry()
-	for i in range(screen.page_count() - 5, screen.page_count()):
+	for i in range(screen.page_count() - 8, screen.page_count()):
 		screen.go_to(i)
 		await get_tree().process_frame
 		assert_gt(_labels_of(screen).size(), 8)

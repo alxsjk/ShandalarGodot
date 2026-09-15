@@ -602,6 +602,7 @@ static func read(effects: Array, card_name: String = "") -> EffectIntent:
 				intent.self_damage += e.amount
 			elif e.use_x:
 				intent.damage_uses_x = true
+				intent.damage += e.x_bonus
 			else:
 				intent.damage += e.amount
 		elif e is DestroyEffect or e is ExileEffect:
@@ -616,6 +617,8 @@ static func read(effects: Array, card_name: String = "") -> EffectIntent:
 			intent.taps = true
 		elif e is UntapEffect:
 			intent.untaps = true
+		elif e is DelayedDrawEffect:
+			intent.draws += e.amount
 		elif e is DrawEffect:
 			if e.use_x:
 				intent.draws_use_x = true
@@ -906,6 +909,12 @@ enum Aim {
 ##    theirs the worst case is a bigger, more fragile enemy creature. The
 ##    downside is not symmetric, so it points across the table.
 const AURA_HOSTILE := {
+	"Errant Minion": true,        # damages the enchanted creature's controller
+	"Maddening Wind": true,
+	"Mind Whip": true,
+	"Seizures": true,
+	"Brand of Ill Omen": true,    # prevents the host's controller casting creatures
+	"Snowblind": true,           # reduces the host's power
 	"Artifact Possession": true,   # 2 damage to the artifact's controller
 	"Backfire": true,              # their creature's damage rebounds on them
 	"Blight": true,                # destroys the land it enchants
@@ -947,7 +956,7 @@ static func aura_aim(data: CardData) -> int:
 	# never needs a row in the table.
 	if data.aura_steals:
 		return Aim.HOSTILE          # Control Magic, Steal Artifact
-	if data.aura_reanimates:
+	if data.aura_reanimates or data.aura_graveyard_entry:
 		return Aim.FRIENDLY         # Animate Dead — the host is in a graveyard
 	if data.aura_grants_protection != 0:
 		return Aim.FRIENDLY         # the ward cycle
@@ -960,7 +969,7 @@ static func aura_aim(data: CardData) -> int:
 static func aura_is_classified(data: CardData) -> bool:
 	if data == null or not data.is_aura():
 		return false
-	return data.aura_steals or data.aura_reanimates \
+	return data.aura_steals or data.aura_reanimates or data.aura_graveyard_entry \
 		or data.aura_grants_protection != 0 or AURA_HOSTILE.has(data.card_name)
 
 

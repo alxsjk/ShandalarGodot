@@ -80,10 +80,13 @@ produces exactly these bytes.
 | `filter_source_off.png` | 1997 — dim square stone tile, 48x48 | `tools/draw_our_art.gd` (`_stone_medallion`) | GPL-3.0 | `fd1493ca4c561fe70e8ebf61880b1cc136766b3eee164ad61e1a67096b08f21f` |
 | `filter_pack1_on.png` | Pack 1 — fanned cards and a glint in a gold ring on bevelled stone, 48x48 | `tools/draw_our_art.gd` (`_completed_cards`, `_stone_medallion`) | GPL-3.0 | `e1aa3902bba5dca5b2208f533ad308acac8708150d3049bbc20053f42bd6e5e7` |
 | `filter_pack1_off.png` | Pack 1 — dim fanned-card tile, 48x48 | `tools/draw_our_art.gd` (`_completed_cards`, `_stone_medallion`) | GPL-3.0 | `db1332b0fdf37398780ceb032c1d47388630fd07566d10ebe929d594899fe36b` |
+| `set_icon_ice.png` | Ice Age — six-armed gold snow crystal, 48x48 | `tools/draw_our_art.gd` (`_snowflake`) | GPL-3.0 | `265d6e37fc8f8c87dae371a614c4b39e5458bf90f30d4b7f38527eef06b7b2af` |
+| `filter_ice_on.png` | Ice Age — carved snow crystal on bright stone and gold ring, 48x48 | `tools/draw_our_art.gd` (`_snowflake`, `_stone_medallion`) | GPL-3.0 | `0366a6227e85f407f801f5309336e3816133588b083b1c2247c07020fbda2dd2` |
+| `filter_ice_off.png` | Ice Age — dim snow crystal tile, 48x48 | `tools/draw_our_art.gd` (`_snowflake`, `_stone_medallion`) | GPL-3.0 | `2e6688b9b7439fe5b91de83c4ed692bf92b3c20a92b11bf730d978b7efd20372` |
 | `damage_marker.png` | the dagger on a wounded creature, 64x40 | `tools/draw_our_art.gd` (`_dagger_blade`, `_dagger_hilt`) | GPL-3.0 | `771a24e7139e7df3757728350e0acf5e2fffb553e1a78bc48e1b04c20c52d489` |
 
-The seven set glyphs are the sets' own marks — an anvil, a scimitar, a
-comet, a crescent, a numeral, a column, a crown. What is drawn here is this
+The eight set glyphs are the sets' own marks — an anvil, a scimitar, a
+comet, a crescent, a numeral, a column, a crown and a snow crystal. What is drawn here is this
 project's own drawing of each; the shapes themselves belong to nobody's
 file.
 
@@ -95,7 +98,8 @@ incised into procedurally textured blue-grey stone with an antique-gold ring
 and square bevel, following the owner's set-strip reference. Pack 1 uses
 fanned cards with a glint; the original pool has live 97 numerals. On/Off
 captions sit below each tile, leaving the emblems unobscured. The faces
-retain the original strip's 2:1 brightness convention. All seven textures
+retain the original strip's 2:1 brightness convention. The Ice Age snow
+crystal uses the same gold, stone, ring and bevel treatment. These textures
 ship with the game independently of a skin or external artwork ZIP.
 
 TWO WERE REVISED ON 2026-09-09, both to the owner's brief, and the two

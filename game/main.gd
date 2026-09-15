@@ -40,6 +40,7 @@ const DECK_LAB_FLAG := "--deck-lab"
 ## its dormant trusted scripts, checks every set-specific art pair, then exits.
 const VERIFY_PACK_1_FLAG := "--verify-pack-1"
 const VERIFY_PACK_2_FLAG := "--verify-pack-2"
+const VERIFY_PACK_3_FLAG := "--verify-pack-3"
 
 ## The corner line that reports a skin zip on its way (web builds).
 var _fetching: Label
@@ -61,6 +62,9 @@ func _ready() -> void:
 		return
 	if OS.get_cmdline_user_args().has(VERIFY_PACK_2_FLAG):
 		_verify_exported_pack_2()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_3_FLAG):
+		_verify_exported_pack_3()
 		return
 	CardRegistry.ensure_loaded()
 	var title_bg := GameSkin.texture("title_background")
@@ -514,6 +518,65 @@ func _verify_exported_pack_2() -> void:
 	else:
 		for why in failures:
 			printerr("PACK 2 EXPORT VERIFY FAILED: " + why)
+		get_tree().quit(2)
+
+
+## Packaging integration, not a claim that all card interactions passed.
+## Pending rules are counted explicitly so a resource-only pass cannot hide
+## an unfinished card. Never saves the temporary enabled-pack selection.
+func _verify_exported_pack_3() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	var pending := 0
+	var art_count := 0
+	if not CardPacks.has_pack(IceAgePack.ID):
+		failures.append("the exact Pack 3 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [IceAgePack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 1243 or CardRegistry.names_in_set("ice").size() != 373:
+			failures.append("expected 1,243 identities including 373 Ice Age names")
+		for name in IceAgePack.names():
+			if not CardRegistry.has_card(name):
+				failures.append("missing card: " + name)
+				continue
+			var card := CardRegistry.get_card(name)
+			if card.cast_condition.is_valid() and card.cast_condition.get_method() == "_pending": pending += 1
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "ice", full)
+				var picture := Image.load_from_file(path) if path != "" else null
+				if picture == null or picture.is_empty(): failures.append("missing or unreadable Ice Age artwork: " + name)
+				else: art_count += 1
+		for row in IceAgePack.scripts():
+			if not ResourceLoader.exists(String(row.path)) or load(String(row.path)) == null:
+				failures.append("missing dormant script: " + String(row.name))
+		if pending > 0: failures.append("unfinished Ice Age rules: %d" % pending)
+		for key in ["set_icon_ice", "filter_ice_on", "filter_ice_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty(): failures.append("missing Ice Age UI texture: " + key)
+		var ghoul := CardRegistry.get_card("Ashen Ghoul")
+		if ghoul == null or ghoul.activated_abilities.is_empty() or ghoul.activated_abilities[0].activation_zone != Mtg.Zone.GRAVEYARD:
+			failures.append("exported graveyard ability did not load")
+		var probe := MtgGame.new()
+		probe.setup(["Forest", "Forest"], ["Forest", "Forest"])
+		probe.start(0)
+		var elf := CardInstance.new(CardRegistry.get_card("Adarkar Unicorn"), probe._next_instance_id, 0)
+		probe._next_instance_id += 1
+		probe._instances[elf.id] = elf
+		probe._put_on_battlefield(elf, 0)
+		elf.summoning_sick = false
+		if probe.tap_for_mana(0, elf, 1) != "" or not probe.players[0].mana_pool.can_pay(ManaCost.parse("{1}{U}"), 0, ["cumulative_upkeep"]):
+			failures.append("exported coupled restricted-mana ability failed")
+		if probe.players[0].mana_pool.can_pay(ManaCost.parse("{1}{U}")):
+			failures.append("exported restriction incorrectly paid an unrestricted cost")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 3 EXPORT RESOURCES OK — 1,243 identities, 373 Ice Age names, 346 dormant scripts, %d decoded artwork files, 3 UI textures; %d rules still pending" % [art_count, pending])
+		get_tree().quit(0)
+	else:
+		for why in failures: printerr("PACK 3 EXPORT VERIFY FAILED: " + why)
 		get_tree().quit(2)
 
 

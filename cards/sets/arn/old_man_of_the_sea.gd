@@ -55,7 +55,7 @@ class HoldEffect extends EffectBase:
 			target: TargetRef, _x_value: int = 0) -> void:
 		var prize := game.find_instance(target.instance_id)
 		if prize != null and source.zone == Mtg.Zone.BATTLEFIELD:
-			game.gain_control_leashed(prize, source, true, true)
+			game.gain_control_leashed(prize, source, true, true, false)
 
 	func describe() -> String:
 		return "gain control of %s while this stays tapped" % target_spec.description
