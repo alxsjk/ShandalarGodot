@@ -150,7 +150,9 @@ func test_the_readme_names_at_least_the_seven_we_promised() -> void:
 	var named := _named_files()
 	for name in ["set_icon_arn.png", "set_icon_atq.png", "set_icon_leg.png",
 			"set_icon_drk.png", "set_icon_4ed.png", "set_icon_past.png",
-			"damage_marker.png"]:
+			"damage_marker.png", "set_icon_fem.png", "filter_fem_on.png",
+			"filter_fem_off.png", "filter_source_on.png", "filter_source_off.png",
+			"filter_pack1_on.png", "filter_pack1_off.png"]:
 		assert_true(named.has(name), "game/art/README.md names %s" % name)
 
 
@@ -183,6 +185,51 @@ func test_every_picture_here_loads_as_a_texture_through_the_loader() -> void:
 	for name in _named_pictures():
 		var key := String(name).trim_suffix(".png")
 		assert_not_null(GameSkin.our_art(key), key)
+
+
+func test_fallen_empires_crown_is_gold_with_an_open_center() -> void:
+	var texture := GameSkin.set_icon("fem")
+	assert_not_null(texture)
+	if texture == null:
+		return
+	var img := texture.get_image()
+	assert_eq(img.get_size(), Vector2i(48, 48))
+	assert_lt(img.get_pixel(24, 24).a, 0.05, "oval is an opening, not a jewel")
+	assert_lt(img.get_pixel(0, 0).a, 0.05, "card glyph has no stone background")
+	assert_gt(img.get_pixel(24, 8).a, 0.8, "tall central point")
+	assert_gt(img.get_pixel(24, 41).a, 0.8, "separate base band")
+	assert_lt(img.get_pixel(24, 35).a, 0.5, "gap above the lower band")
+	var gold := img.get_pixel(17, 27)
+	assert_gt(gold.r, gold.b * 1.5, "same warm gold family as existing symbols")
+
+
+func test_pack_medallions_are_bevelled_square_tiles_with_darker_off_faces() -> void:
+	for key in ["fem", "source", "pack1"]:
+		var on_tex := GameSkin.our_art("filter_" + key + "_on")
+		var off_tex := GameSkin.our_art("filter_" + key + "_off")
+		assert_not_null(on_tex)
+		assert_not_null(off_tex)
+		if on_tex == null or off_tex == null:
+			return
+		var on := on_tex.get_image()
+		var off := off_tex.get_image()
+		assert_eq(on.get_size(), Vector2i(48, 48))
+		assert_eq(off.get_size(), on.get_size())
+		assert_gt(on.get_pixel(0, 0).a, 0.95, "square tile, not a floating disc")
+		assert_gt(on.get_pixel(2, 2).get_luminance(), on.get_pixel(45, 45).get_luminance() + 0.2,
+			"raised bevel catches light on the upper-left edge")
+		var ring := on.get_pixel(24, 4)
+		assert_gt(ring.r, ring.b * 1.3, "antique-gold ring")
+		var on_light := 0.0
+		var off_light := 0.0
+		for y in 48:
+			for x in 48:
+				var lit := on.get_pixel(x, y)
+				var dim := off.get_pixel(x, y)
+				on_light += lit.get_luminance() * lit.a
+				off_light += dim.get_luminance() * dim.a
+		assert_gt(on_light, 100.0, "the stone face is not blank")
+		assert_almost_eq(off_light / on_light, 0.5, 0.02)
 
 
 # ------------------------------------------------- 2. the bytes are ours --

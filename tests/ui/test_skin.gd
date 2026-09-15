@@ -306,6 +306,13 @@ const OURS := {
 	"set_icon_drk": Vector2i(48, 48),
 	"set_icon_4ed": Vector2i(48, 48),
 	"set_icon_leg": Vector2i(48, 48),
+	"set_icon_fem": Vector2i(48, 48),
+	"filter_fem_on": Vector2i(48, 48),
+	"filter_fem_off": Vector2i(48, 48),
+	"filter_source_on": Vector2i(48, 48),
+	"filter_source_off": Vector2i(48, 48),
+	"filter_pack1_on": Vector2i(48, 48),
+	"filter_pack1_off": Vector2i(48, 48),
 	"damage_marker": Vector2i(64, 40),
 }
 

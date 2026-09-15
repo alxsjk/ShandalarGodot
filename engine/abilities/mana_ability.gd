@@ -29,6 +29,15 @@ var sacrifice_source: bool = false
 ## free.
 var cost: ManaCost = null
 
+## Opt in to cost-first automatic mana planning. Only fixed single-colour
+## outputs with no hidden choices or other unmodelled costs qualify. The
+## planner simulates ManaPool payments, never this ability's callbacks.
+var planner_conversion: bool = false
+
+func with_plannable_conversion() -> ManaAbility:
+	planner_conversion = true
+	return self
+
 ## Fluent: add a mana cost to this mana ability.
 func with_mana_cost(cost_text: String) -> ManaAbility:
 	cost = ManaCost.parse(cost_text)

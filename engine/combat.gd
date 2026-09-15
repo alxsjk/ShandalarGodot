@@ -294,7 +294,7 @@ static func attack_illegality(game: MtgGame, inst: CardInstance, defender_pid: i
 	if inst.summoning_sick and not inst.has_keyword(Mtg.Keyword.HASTE) \
 			and not inst.cur_attacks_as_if_hasty:
 		return "summoning sickness"
-	if inst.has_keyword(Mtg.Keyword.DEFENDER):
+	if inst.has_keyword(Mtg.Keyword.DEFENDER) and not inst.cur_can_attack_with_defender:
 		return "has defender"
 	if inst.cur_cant_attack:
 		return "can't attack"
@@ -406,6 +406,8 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 		return "%s is no longer on the battlefield" % attacker.data.card_name
 	if blocker.tapped:
 		return "tapped creatures can't block"
+	if blocker.cur_cant_block_filter.is_valid() and blocker.cur_cant_block_filter.call(attacker):
+		return "this creature cannot block that attacker"
 	if attacker.has_keyword(Mtg.Keyword.UNBLOCKABLE):
 		return "can't be blocked"
 	if attacker.has_keyword(Mtg.Keyword.FLYING) \

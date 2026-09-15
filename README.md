@@ -130,7 +130,11 @@ Work completed or planned after the 0.20.0 release:
 - [ ] **Commander mode** — dedicated rules and deck-building support.
 - [x] **Cardpacks foundation + Pack 1** — optional, toggleable packs separate
   from the core pool; its [four-card mechanics/AI audit](docs/pack-1-mechanics.md)
-  is complete, and more numbered expansions remain planned.
+  is complete.
+- [x] **Pack 2 — Fallen Empires** — 102 additional card names (187 printings),
+  a separate [Python construction tool and mechanics audit](docs/pack-2-fallen-empires.md),
+  and live **Extras** filters in the Deck Builder. Build packs locally;
+  generated ZIPs and card artwork are not distributed.
 - [ ] **Community MElo (Magic Elo)** — a big long-term wish: a simple,
   elegant global player rating and ranking system for the community. :)
 

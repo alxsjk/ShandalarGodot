@@ -10,6 +10,9 @@ var _status: Label
 var _enable: Button
 var _disable: Button
 var _warning: Control
+var _second_status: Label
+var _second_enable: Button
+var _second_disable: Button
 
 
 func _ready() -> void:
@@ -70,9 +73,27 @@ func _ready() -> void:
 	actions.add_child(_disable)
 	content.add_child(actions)
 
+	content.add_child(UiChrome.body_label("2-FEM — Pack 2: Fallen Empires", 18))
+	_second_status = UiChrome.body_label("", 14)
+	_second_status.name = "Pack2Status"
+	_second_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(_second_status)
+	var second_actions := HBoxContainer.new()
+	second_actions.add_theme_constant_override("separation", 10)
+	_second_enable = UiChrome.menu_button("Enable", Vector2(120, 34), 13)
+	_second_enable.name = "EnablePack2"
+	_second_enable.pressed.connect(CardPacks.set_enabled.bind(FallenEmpiresPack.ID, true))
+	second_actions.add_child(_second_enable)
+	_second_disable = UiChrome.menu_button("Disable", Vector2(120, 34), 13)
+	_second_disable.name = "DisablePack2"
+	_second_disable.pressed.connect(_request_disable.bind(FallenEmpiresPack.ID))
+	second_actions.add_child(_second_disable)
+	content.add_child(second_actions)
+
 	var local_only := UiChrome.body_label(
-		"Pack 1 is not distributed with the game. Build it locally with "
-		+ "tools/pack_1_dotp_complete.py, place the exact ZIP here, then Rescan.", 13)
+		"Packs are not distributed with the game. Build them locally with "
+		+ "tools/pack_1_dotp_complete.py or tools/pack_2_fallen_empires.py, "
+		+ "place the exact ZIP here, then Rescan.", 13)
 	local_only.name = "LocalOnly"
 	local_only.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(local_only)
@@ -99,6 +120,16 @@ func _ready() -> void:
 
 
 func _refresh() -> void:
+	var second := CardPacks.status(FallenEmpiresPack.ID)
+	_second_enable.disabled = not second.available or second.enabled
+	_second_disable.disabled = not second.available or not second.enabled
+	if second.available:
+		_second_status.text = "Status: %s — Version: %s — Minimum game: %s\n" % [
+			"Enabled" if second.enabled else "Disabled", second.version, second.minimum_game_version]
+		_second_status.text += "102 unique cards · 187 printings\nDeck Builder filter: Extras > Fallen Empires"
+	else:
+		_second_status.text = "Status: Not available\nExpected: %s\nReason: %s" % [
+			FallenEmpiresPack.FILE_NAME, second.rejection]
 	var state := CardPacks.status(CardPacks.ID)
 	var available := bool(state.get("available", false))
 	var enabled := bool(state.get("enabled", false))
@@ -124,17 +155,17 @@ func _on_pack_changed(_id: String, _enabled: bool) -> void:
 	_refresh()
 
 
-func _request_disable() -> void:
-	var warning := CardPacks.disable_warning(CardPacks.ID)
+func _request_disable(id := CardPacks.ID) -> void:
+	var warning := CardPacks.disable_warning(id)
 	if warning == "":
-		CardPacks.set_enabled(CardPacks.ID, false)
+		CardPacks.set_enabled(id, false)
 		return
 	if is_instance_valid(_warning):
 		return
-	_warning = UiChrome.action_popup(self, "Current deck uses Pack 1", warning, [
+	_warning = UiChrome.action_popup(self, "Current deck uses " + CardPacks.label_for(id), warning, [
 		{"label": "Keep enabled", "name": "KeepEnabled"},
 		{"label": "Disable anyway", "name": "DisableAnyway",
-			"callable": CardPacks.set_enabled.bind(CardPacks.ID, false)},
+			"callable": CardPacks.set_enabled.bind(id, false)},
 	], 570.0)
 	_warning.tree_exited.connect(func() -> void: _warning = null)
 

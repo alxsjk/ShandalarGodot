@@ -86,7 +86,7 @@ Environment:
                             the player's own profile (default
                             $TMPDIR/shandalar-test-data)
 
-On macOS, user:// is the separate "Shandalar Tests" profile in Library/
+On macOS, user:// is the separate "Shandalar Pack Tests" profile in Library/
 Application Support/Godot/app_userdata; SHANDALAR_TEST_DATA_HOME controls
 the tool log directory, since Godot ignores XDG_DATA_HOME on macOS.
 
@@ -148,6 +148,10 @@ python3 tools/test_pack_1_dotp_complete.py >/dev/null
 PACK_ONE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-1-DotP-complete.zip"
 python3 tools/pack_1_dotp_complete.py build "$PACK_ONE_PATH" --metadata-only >/dev/null
 export SHANDALAR_PACK_1="$PACK_ONE_PATH"
+python3 tools/test_pack_2_fallen_empires.py >/dev/null
+PACK_TWO_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-2-Fallen-Empires.zip"
+python3 tools/pack_2_fallen_empires.py build "$PACK_TWO_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_2="$PACK_TWO_PATH"
 
 # Import step (quick no-op when the .godot cache is warm; a cold import
 # of the card art is minutes, not hours, so 600 s is generous).

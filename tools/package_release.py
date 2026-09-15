@@ -87,7 +87,7 @@ def payload(folder: Path, platform: str) -> dict[str, Path]:
     result = {}
     for path in files:
         name = path.relative_to(folder).as_posix()
-        if path.name == LOCAL_PACK:
+        if re.fullmatch(r"Pack-[0-9]+-.+\.zip", path.name):
             raise ValueError(f"Local card-pack artifact must not be released: {name}")
         if path.is_symlink() or any(part.startswith(".") for part in Path(name).parts):
             raise ValueError(f"Unexpected link or hidden export file: {name}")

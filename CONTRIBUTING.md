@@ -22,7 +22,7 @@ macOS setup and the local baseline record: `docs/macos-baseline-2026-09-12.md`.
 The shared `tools/runtime.sh` discovers the sibling macOS Godot app and
 GNU `timeout`/`gtimeout`. `./build_release.sh --macos` exports a native app;
 the Linux and web commands below retain their behavior. Test/soak profile
-isolation uses XDG on Linux and a distinct `Shandalar Tests` profile on Mac
+isolation uses XDG on Linux and a distinct `Shandalar Pack Tests` profile on Mac
 (Godot ignores XDG there). Manual Mac probes must use that runtime feature
 or their own named project; changing XDG alone does not protect player data.
 

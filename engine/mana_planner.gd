@@ -45,7 +45,9 @@ extends RefCounted
 ## The untapped mana sources [param pid] has right now, sorted the way the
 ## planner wants them:
 ## `[inst, ability_index, color, amount, sacrifice, restriction_key, pain,
-## holds]`.
+## holds]`. Opted-in mana converters add a ninth Dictionary with their
+## activation cost, repeatability and floating-pool snapshot. They are never
+## counted as free sources; `mana_conversion_planner.gd` orders their costs.
 ## `restriction_key` is "" for ordinary mana and the
 ## [member ManaAbility.restriction_key] of mana that may pay only for one
 ## kind of spell (Mishra's Workshop's "artifact") — a source a plan may use
@@ -80,9 +82,7 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 		for unit in pool.amount_of(color):
 			out.append([null, unit, color, 1, false, "", 0, 0])   # one unit per entry
 	for inst in game.players[pid].battlefield:
-		if inst.tapped or inst.cur_mana_abilities.is_empty():
-			continue
-		if inst.is_creature() and inst.summoning_sick:
+		if inst.cur_mana_abilities.is_empty():
 			continue
 		if excluded.has(inst.id):
 			continue          # `Don't auto tap this card`
@@ -91,18 +91,26 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 		var holds := holds_untapped(inst)
 		for index in inst.cur_mana_abilities.size():
 			var ability: ManaAbility = inst.cur_mana_abilities[index]
+			if ability.taps_source and (inst.tapped or (inst.is_creature() and inst.summoning_sick)):
+				continue
 			# Only abilities the planner can actually pay for: a rider it
 			# does not model (mana, life, a sacrifice, counters to remove)
 			# makes tap_for_mana refuse mid-plan, and the turn's lands are
 			# spent for nothing. Rasputin Dreamweaver's "remove a dream
 			# counter" is why counter costs are on this list.
-			if ability.cost != null or ability.life_cost > 0 \
+			if (ability.cost != null and not ability.planner_conversion) or ability.life_cost > 0 \
 					or ability.counter_cost_kind != "" \
 					or ability.sacrifice_filter.is_valid():
 				continue
 			var amount: int = ability.produces[0][1]
 			if ability.dynamic_amount.is_valid():
 				amount = int(ability.dynamic_amount.call(game, inst))
+			# Storage lands have no guaranteed base output; the announced
+			# counter choice (whose default is all available fuel) supplies it.
+			if amount == 0 and ability.any_number_counter_kind != "":
+				amount = int(inst.counters.get(ability.any_number_counter_kind, 0)) * ability.bonus_per_counter
+			if amount <= 0:
+				continue
 			# A dynamic-colour source (Gem Bazaar) makes the colour it is
 			# SHOWING, not the seed colour it was built with; a CHOICE
 			# source (Fellwar Stone) makes whichever of the colours on
@@ -116,9 +124,25 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 					else Mtg.ManaColor.C
 			elif ability.dynamic_color.is_valid():
 				color = int(ability.dynamic_color.call(game, inst))
-			out.append([inst, index, color,
+			# High Tide and future described delayed mana triggers. Never
+			# execute a trigger speculatively or advance the random stream.
+			if ability.taps_source:
+				for entry in game.delayed_triggers:
+					var trigger: TriggeredAbility = entry["trigger"]
+					if trigger.is_mana_trigger and trigger.mana_bonus_color == color \
+							and trigger.mana_bonus_amount > 0 \
+							and inst.cur_subtypes.has(trigger.mana_bonus_subtype):
+						amount += trigger.mana_bonus_amount
+			var row: Array = [inst, index, color,
 				amount, ability.sacrifice_source, ability.restriction_key,
-				ability.pain if mind_pain else 0, holds])
+				ability.pain if mind_pain else 0, holds]
+			if ability.planner_conversion:
+				if ability.produces.size() != 1 or ability.color_options.is_valid() \
+						or ability.dynamic_amount.is_valid() or ability.dynamic_color.is_valid():
+					continue
+				row.append({"cost": ability.cost, "repeatable": not ability.taps_source and not ability.sacrifice_source,
+					"floating": pool._mana.duplicate(), "restricted": pool._restricted.duplicate(true)})
+			out.append(row)
 	# Fewer options first; painful sources after painless; sacrifices last;
 	# and last of all, the source that is holding something back.
 	out.sort_custom(cheapest_source_first)
@@ -143,12 +167,32 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 ## already tapped.
 static func plan_from(src: Array, cost: ManaCost, x_value: int,
 		usage_keys: Array = []) -> Array:
+	var converts := false
+	for row in src:
+		if row.size() > 8:
+			converts = true
+			break
+	if not converts:
+		return _plan_free_sources(src, cost, x_value, usage_keys)
+	var ordinary: Array = []
+	for row in src:
+		if row.size() <= 8: ordinary.append(row)
+	var simple := _plan_free_sources(ordinary, cost, x_value, usage_keys)
+	if not simple.is_empty() or (cost.mana_value() + x_value == 0):
+		return simple
+	return preload("res://engine/mana_conversion_planner.gd").plan(src, cost, x_value, usage_keys)
+
+
+static func _plan_free_sources(src: Array, cost: ManaCost, x_value: int,
+		usage_keys: Array) -> Array:
 	var out: Array = []
 	var used_instances: Dictionary = {}   # source key -> true (O(1) probes)
 	var pool_check := ManaPool.new()
 	# Colored requirements first.
 	for color in cost.colored:
 		for _n in cost.colored[color]:
+			if pool_check.amount_of(color) >= int(cost.colored[color]):
+				break   # one charged source can cover several coloured pips
 			var found := false
 			for s in src:
 				if used_instances.has(source_key(s)) or s[2] != color \

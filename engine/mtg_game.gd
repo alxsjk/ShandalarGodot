@@ -1956,7 +1956,7 @@ func _cast_checks(pid: int, inst: CardInstance, targets: Array,
 			if want["filter"].call(perm):
 				extra_bodies.append(perm)
 		if extra_bodies.is_empty():
-			out["error"] = "no %s to sacrifice" % String(want["desc"])
+			out["error"] = "no %s to %s" % [String(want["desc"]), "exile" if want.get("exile", false) else "sacrifice"]
 			return out
 		out["bodies"] = extra_bodies
 	return out
@@ -2034,6 +2034,8 @@ func cast_spell(pid: int, inst: CardInstance, targets: Array = [], x_value := 0,
 		var want2: Dictionary = inst.data.additional_sacrifice
 		var body_q := _cost_question(pid, inst, PlayerChoice.Kind.CARD,
 			PlayerChoice.sacrifice_prompt(String(want2["desc"])))
+		if want2.get("exile", false):
+			body_q.prompt = "Exile a " + String(want2["desc"])
 		body_q.candidates = extra_bodies
 		# Nothing below refuses and nothing above mutated, so the question
 		# can HOLD THE WHOLE CAST OPEN on a record of this call
@@ -2062,7 +2064,11 @@ func cast_spell(pid: int, inst: CardInstance, targets: Array = [], x_value := 0,
 		# The spell remembers what it ate — Metamorphosis' X reads it.
 		_rec(inst, &"memory")
 		inst.memory["sacrificed_mv"] = extra_sacrifice.data.cost.mana_value()
-		sacrifice_permanent(extra_sacrifice)
+		inst.memory["paid_creature_subtypes"] = extra_sacrifice.cur_subtypes.duplicate()
+		if inst.data.additional_sacrifice.get("exile", false):
+			exile_permanent(extra_sacrifice)
+		else:
+			sacrifice_permanent(extra_sacrifice)
 	if undo_log != null:
 		_rec(players[pid], &"hand")
 		_rec(inst, &"zone")
@@ -2161,6 +2167,10 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 			return "only your opponents may activate that ability"
 	elif inst.controller_id != pid:
 		return "you don't control that permanent"
+	if ability.activator_condition.is_valid():
+		var activator_why: String = ability.activator_condition.call(self, inst, pid)
+		if activator_why != "":
+			return activator_why
 	var ability_window_why := _damage_window_refusal(ability.effects)
 	if ability_window_why != "":
 		return ability_window_why
@@ -2203,7 +2213,7 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 				and sacrifice_bodies.has(inst):
 			sacrifice_bodies.erase(inst)
 			sacrifice_bodies.append(inst)
-		if sacrifice_bodies.is_empty() and not ability.sacrifice_any_number:
+		if sacrifice_bodies.size() < ability.sacrifice_count and not ability.sacrifice_any_number:
 			return "no %s to sacrifice" % ability.sacrifice_filter_desc
 	# "Exile a <something> you control" — same split (City of Shadows).
 	var exile_bodies: Array[CardInstance] = []
@@ -2218,12 +2228,27 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 	# legality now, WHICH card once nothing can refuse (Necropolis).
 	var grave_bodies: Array[CardInstance] = []
 	var grave_pick: CardInstance = null
+	var grave_picks: Array[CardInstance] = []
 	if ability.graveyard_exile_filter.is_valid():
-		for buried in players[pid].graveyard:
-			if ability.graveyard_exile_filter.call(buried):
-				grave_bodies.append(buried)
+		for owner in players.size():
+			if owner != pid and not ability.graveyard_exile_any_player:
+				continue
+			var same_grave: Array[CardInstance] = []
+			for buried in players[owner].graveyard:
+				if ability.graveyard_exile_filter.call(buried):
+					same_grave.append(buried)
+			if same_grave.size() >= ability.graveyard_exile_count:
+				grave_bodies.append_array(same_grave)
 		if grave_bodies.is_empty():
 			return "no %s in your graveyard to exile" % ability.graveyard_exile_desc
+	var tap_bodies: Array[CardInstance] = []
+	var tap_picks: Array[CardInstance] = []
+	if ability.tap_permanent_filter.is_valid():
+		for perm in players[pid].battlefield:
+			if not perm.tapped and (perm != inst or not ability.tap_cost) and ability.tap_permanent_filter.call(perm):
+				tap_bodies.append(perm)
+		if tap_bodies.size() < ability.tap_permanent_count:
+			return "not enough untapped permanents to pay this ability's tap cost"
 	if ability.tap_cost:
 		if inst.tapped:
 			return "%s is already tapped" % inst.data.card_name
@@ -2287,23 +2312,24 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 			"x": x_value}):
 		return ""
 	var sacrifice_picks: Array[CardInstance] = []
-	if ability.sacrifice_any_number:
+	if ability.sacrifice_any_number or ability.sacrifice_count > 1:
 		# "Sacrifice any number of <desc>" (Sword of the Ages): one optional
 		# question per body, until the payer declines or runs out. Each is
 		# its own cost question, so a human seat is held on every one and
 		# the replay serves each answer in turn (see [member _cost_values]).
 		var left: Array[CardInstance] = sacrifice_bodies.duplicate()
-		while not left.is_empty():
+		while not left.is_empty() and (ability.sacrifice_any_number or sacrifice_picks.size() < ability.sacrifice_count):
 			var more_q := _cost_question(pid, inst, PlayerChoice.Kind.CARD,
 				"Sacrifice a %s? (%d chosen so far)" % [
 					ability.sacrifice_filter_desc, sacrifice_picks.size()])
 			more_q.candidates = left
-			more_q.optional = true
+			more_q.optional = ability.sacrifice_any_number
 			if _hold_cost_choice(more_q, {"kind": "activate", "pid": pid,
 					"inst": inst, "index": index, "targets": targets,
 					"x": x_value}):
 				return ""
-			var one := _ask_cost_card_optional(pid, inst, left, more_q.prompt)
+			var one := _ask_cost_card_optional(pid, inst, left, more_q.prompt) if ability.sacrifice_any_number \
+				else _ask_cost_card(pid, inst, left, more_q.prompt)
 			if one == null:
 				break
 			sacrifice_picks.append(one)
@@ -2330,15 +2356,31 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 				"x": x_value}):
 			return ""
 		exile_pick = _ask_cost_card(pid, inst, exile_bodies, exile_q.prompt)
-	if not grave_bodies.is_empty():
+	while grave_picks.size() < ability.graveyard_exile_count and not grave_bodies.is_empty():
 		var grave_q := _cost_question(pid, inst, PlayerChoice.Kind.CARD,
-			"Exile a %s from your graveyard" % ability.graveyard_exile_desc)
+			"Exile a %s from %s graveyard (%d/%d)" % [ability.graveyard_exile_desc,
+				"one" if ability.graveyard_exile_any_player else "your", grave_picks.size() + 1, ability.graveyard_exile_count])
 		grave_q.candidates = grave_bodies
 		if _hold_cost_choice(grave_q, {"kind": "activate", "pid": pid,
 				"inst": inst, "index": index, "targets": targets,
 				"x": x_value}):
 			return ""
 		grave_pick = _ask_cost_card(pid, inst, grave_bodies, grave_q.prompt)
+		grave_picks.append(grave_pick)
+		grave_bodies.erase(grave_pick)
+		for other in grave_bodies.duplicate():
+			if other.owner_id != grave_pick.owner_id:
+				grave_bodies.erase(other)
+	while tap_picks.size() < ability.tap_permanent_count and not tap_bodies.is_empty():
+		var tap_q := _cost_question(pid, inst, PlayerChoice.Kind.CARD,
+			"Tap a permanent for %s (%d/%d)" % [inst.data.card_name, tap_picks.size() + 1, ability.tap_permanent_count])
+		tap_q.candidates = tap_bodies
+		if _hold_cost_choice(tap_q, {"kind": "activate", "pid": pid,
+				"inst": inst, "index": index, "targets": targets, "x": x_value}):
+			return ""
+		var picked := _ask_cost_card(pid, inst, tap_bodies, tap_q.prompt)
+		tap_picks.append(picked)
+		tap_bodies.erase(picked)
 	# Every question is answered and nothing can refuse: the game rolls
 	# the targets that are its to roll (CR 601.2c — so the Polka Band's
 	# own untapped body is a candidate, its {T} not yet paid) — once.
@@ -2387,7 +2429,9 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 	# StackItem below — never written onto the permanent, which has one
 	# slot and would let two stacked activations read each other's record.
 	# See [member StackItem.cost_paid] for the bug that taught us.
-	var cost_record := {}
+	var cost_record := {"_source_timestamp": inst.layer_timestamp,
+		"_source_untap_sequence": inst.untap_sequence,
+		"_source_control_sequence": inst.control_sequence}
 	if ability.discard_cost > 0:
 		# The chooser is the PAYING player, and what went is recorded for
 		# the ability's effects to read (Land's Edge).
@@ -2412,6 +2456,8 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 		# still on the battlefield.
 		cost_record["_sacrificed_power"] = sacrifice_pick.cur_power
 		cost_record["_sacrificed_toughness"] = sacrifice_pick.cur_toughness
+		cost_record["_sacrificed_mana_value"] = sacrifice_pick.data.cost.mana_value()
+		cost_record["_sacrificed_subtypes"] = sacrifice_pick.cur_subtypes.duplicate()
 		sacrifice_permanent(sacrifice_pick)
 	if not sacrifice_picks.is_empty():
 		# "Any number of" — the whole set, with its total power snapshotted
@@ -2432,17 +2478,29 @@ func activate_ability(pid: int, inst: CardInstance, index: int, targets: Array =
 		cost_record["_exiled_mana_value"] = exile_pick.data.cost.mana_value()
 		cost_record["_exiled_name"] = exile_pick.data.card_name
 		exile_permanent(exile_pick)
-	if grave_pick != null:
+	if not tap_picks.is_empty():
+		var tapped_ids: Array[int] = []
+		for body in tap_picks:
+			tapped_ids.append(body.id)
+			tap_permanent(body)
+		cost_record["_tapped_instances"] = tapped_ids
+	for grave_body in grave_picks:
 		# The ability's own effects read what the cost ate, the same way
 		# they read a sacrifice cost's body (CR 608.2h last known
 		# information, snapshotted before the card leaves the graveyard).
-		cost_record["_exiled_mana_value"] = grave_pick.data.cost.mana_value()
-		cost_record["_exiled_name"] = grave_pick.data.card_name
-		exile_from_graveyard(grave_pick)
+		cost_record["_exiled_mana_value"] = grave_body.data.cost.mana_value()
+		cost_record["_exiled_name"] = grave_body.data.card_name
+		exile_from_graveyard(grave_body)
 	if ability.sacrifice_cost:
+		cost_record["_source_counters"] = inst.counters.duplicate()
+		cost_record["_source_attached_to"] = inst.attached_to
+		var attached := find_instance(inst.attached_to)
+		cost_record["_source_attached_timestamp"] = attached.layer_timestamp if attached != null else -1
 		sacrifice_permanent(inst)
 	if ability.exile_cost:
 		exile_permanent(inst)
+	if ability.on_cost_paid.is_valid():
+		ability.on_cost_paid.call(self, inst, cost_record)
 	var item := StackItem.new()
 	item.kind = Mtg.StackKind.ABILITY
 	item.card = inst
@@ -2730,6 +2788,16 @@ func declare_blockers(pid: int, block_map: Dictionary) -> String:
 	# that blocks two attackers still counts once.
 	if max_blockers > 0 and declared_blocks.size() > max_blockers:
 		return "no more than %d creatures can block each combat" % max_blockers
+	for attacker_id in combat.attackers:
+		var attacker := find_instance(attacker_id)
+		if attacker == null or attacker.cur_min_blockers <= 1:
+			continue
+		var assigned := 0
+		for against in declared_blocks.values():
+			if against.has(attacker_id):
+				assigned += 1
+		if assigned > 0 and assigned < attacker.cur_min_blockers:
+			return "%s must be blocked by at least %d creatures" % [attacker.data.card_name, attacker.cur_min_blockers]
 	# "All creatures able to block it do so" (Lure): every untapped
 	# creature the defender controls that COULD legally block a lured
 	# attacker must be declared against one of them (CR 509.1c).
@@ -2738,6 +2806,8 @@ func declare_blockers(pid: int, block_map: Dictionary) -> String:
 	for attacker_id in combat.attackers:
 		var lured := find_instance(attacker_id)
 		if lured == null or not lured.cur_must_be_blocked or camouflage_this_turn:
+			continue
+		if not can_meet_minimum_blockers(lured, pid):
 			continue
 		for candidate in players[pid].battlefield:
 			if not candidate.is_creature() or candidate.tapped:
@@ -2778,7 +2848,7 @@ func declare_blockers(pid: int, block_map: Dictionary) -> String:
 			if allowed >= 0 and declared.size() >= allowed:
 				break
 			var target := find_instance(attacker_id)
-			if target != null \
+			if target != null and can_meet_minimum_blockers(target, pid) \
 					and CombatState.block_illegality(self, candidate, target, pid) == "":
 				return "%s must block %s if able" % [
 					candidate.data.card_name, target.data.card_name]
@@ -5052,6 +5122,8 @@ func tap_permanent(inst: CardInstance) -> void:
 func untap_permanent(inst: CardInstance) -> void:
 	if inst.zone == Mtg.Zone.BATTLEFIELD and inst.tapped:
 		if undo_log != null: _rec(inst, &"tapped")
+		_rec(inst, &"untap_sequence")
+		inst.untap_sequence += 1
 		inst.tapped = false
 		log_line("%s becomes untapped" % inst.data.card_name)
 		_recalculate_for_tap_change()
@@ -6174,14 +6246,15 @@ static func _mana_ability_asks(inst: CardInstance, index: int) -> bool:
 ## can be cast for. Payability ONLY: timing, priority and legal targets
 ## remain the caller's business.
 func can_afford(pid: int, data: CardData) -> bool:
+	var cost := spell_cost_for(pid, data)
 	var surcharge: int = maxi(spell_surcharge(pid, data), -data.cost.generic)
 	var usage := mana_usage_keys(data)
 	var subs: Array = players[pid].mana_substitutions
 	var pool: ManaPool = players[pid].mana_pool
-	if pool.can_pay(data.cost, surcharge, usage, subs):
+	if pool.can_pay(cost, surcharge, usage, subs):
 		return true
 	return players[pid].any_color_spells > 0 \
-		and pool.can_pay(data.cost, surcharge, usage, subs, true)
+		and pool.can_pay(cost, surcharge, usage, subs, true)
 
 
 ## THE POTENTIAL-MANA COMPANION of [method can_afford]: could [param pid]
@@ -6211,7 +6284,7 @@ func could_afford(pid: int, data: CardData, excluded: Dictionary = {}) -> bool:
 	if can_afford(pid, data):
 		return true
 	var surcharge: int = maxi(spell_surcharge(pid, data), -data.cost.generic)
-	return not ManaPlanner.plan(self, pid, data.cost, surcharge,
+	return not ManaPlanner.plan(self, pid, spell_cost_for(pid, data), surcharge,
 		mana_usage_keys(data), excluded).is_empty()
 
 
@@ -6255,7 +6328,7 @@ func spell_payment(pid: int, data: CardData, x_value := 0,
 	if data.extra_cost_per_target > 0:
 		surcharge += data.extra_cost_per_target * maxi(target_count - 1, 0)
 	return {
-		"cost": data.cost_for(x_value),
+		"cost": spell_cost_for(pid, data, x_value),
 		"extra": x_paid + surcharge,
 		"surcharge": surcharge,
 		"usage": mana_usage_keys(data),
@@ -6284,6 +6357,33 @@ func ability_payment(pid: int, inst: CardInstance, index: int,
 ## PERFORMANCE: the AI asks this once per castable card per decision, so it
 ## walks only the permanents that actually carry a cost modifier (usually
 ## none) instead of the whole battlefield.
+func spell_cost_for(pid: int, data: CardData, x_value := 0) -> ManaCost:
+	var cost := data.cost_for(x_value)
+	all_battlefield()
+	for inst in _battlefield_cost_modifiers:
+		var cb: Callable = inst.data.cost_modifier.get("spell_colored", Callable())
+		if cb.is_valid():
+			var extra: Dictionary = cb.call(self, pid, data, inst)
+			for color in extra:
+				var changed := cost.plus_colored(int(color), int(extra[color]))
+				changed.has_x = cost.has_x
+				changed.x_count = cost.x_count
+				cost = changed
+	return cost
+
+
+func can_meet_minimum_blockers(attacker: CardInstance, defender: int) -> bool:
+	if attacker.cur_min_blockers <= 1:
+		return true
+	if max_blockers > 0 and max_blockers < attacker.cur_min_blockers:
+		return false
+	var possible := 0
+	for inst in players[defender].battlefield:
+		if CombatState.block_illegality(self, inst, attacker, defender) == "":
+			possible += 1
+	return possible >= attacker.cur_min_blockers
+
+
 func spell_surcharge(pid: int, data: CardData) -> int:
 	all_battlefield()   # refresh the index if the battlefield moved
 	if _battlefield_cost_modifiers.is_empty():
@@ -7673,6 +7773,11 @@ func _dispatch_delayed(pid: int, event: GameEvent) -> void:
 				_rec(self, &"delayed_triggers")
 				delayed_triggers.remove_at(at)
 		var source: CardInstance = entry["source"]
+		var triggered: TriggeredAbility = entry["trigger"]
+		if triggered.is_mana_trigger:
+			# A delayed mana trigger still resolves immediately (High Tide).
+			triggered.on_resolve.call(self, source, event)
+			continue
 		var item := StackItem.new()
 		item.kind = Mtg.StackKind.TRIGGER
 		item.card = source
@@ -7813,6 +7918,8 @@ func change_control(inst: CardInstance, new_pid: int) -> void:
 		_rec(inst, &"summoning_sick")
 		undo_log.record_object(combat)
 	players[inst.controller_id].battlefield.erase(inst)
+	_rec(inst, &"control_sequence")
+	inst.control_sequence += 1
 	inst.controller_id = new_pid
 	players[new_pid].battlefield.append(inst)
 	inst.summoning_sick = true
@@ -8209,6 +8316,43 @@ func check_state_based_actions() -> void:
 					break
 
 
+	_check_state_triggers()
+
+
+## CR 603.8: a state trigger waits on the stack, and cannot trigger again
+## until that occurrence resolves or leaves the stack. Ordinary pools pay
+## only the listener-index lookup; no extra battlefield scan.
+func _check_state_triggers() -> void:
+	if not _trigger_index.has(Mtg.EventType.STATE_CHECK):
+		return
+	var event := GameEvent.new(Mtg.EventType.STATE_CHECK, {})
+	for pid in [active_player, opponent_of(active_player)]:
+		for inst in players[pid].battlefield:
+			if inst.phased_out or inst.cur_abilities_silenced:
+				continue
+			for trig in inst.cur_triggered_abilities:
+				if not trig.matches(self, inst, event):
+					continue
+				var pending := false
+				var queued: Array = stack + _waiting_triggers
+				if _resolving_item != null:
+					queued.append(_resolving_item)
+				for item in queued:
+					if item.card == inst and item.trigger == trig:
+						pending = true
+						break
+				if pending:
+					continue
+				var item := StackItem.new()
+				item.kind = Mtg.StackKind.TRIGGER
+				item.card = inst
+				item.controller = pid
+				item.trigger = trig
+				item.event = event
+				item.description = "%s — %s" % [inst.data.card_name, trig.text]
+				_push_trigger(item)
+
+
 ## World-rule helper (CR 704.5k): if 2+ WORLD permanents are on the
 ## battlefield, return the OLDEST one (the one that loses); else null.
 ## Repeated SBA passes bury them one at a time until only the newest is
@@ -8228,6 +8372,14 @@ func _superseded_world_permanent() -> CardInstance:
 ## effect it remembers? Used by the untap step for permanents that say
 ## "you may choose not to untap this".
 func _is_sustaining(inst: CardInstance) -> bool:
+	# Fallen Empires' shield/sword bonuses last only while the artifact
+	# stays tapped, and only for the original battlefield incarnation.
+	var fem_held: Array = inst.memory.get("fem_held", [])
+	if fem_held.size() == 4:
+		var held := find_instance(int(fem_held[0]))
+		if held != null and held.zone == Mtg.Zone.BATTLEFIELD \
+				and held.layer_timestamp == int(fem_held[3]):
+			return true
 	if inst.memory.has("holding"):
 		var held := find_instance(int(inst.memory["holding"]))
 		if held != null and held.zone == Mtg.Zone.BATTLEFIELD:
@@ -8530,6 +8682,8 @@ func _unfreeze_stack() -> void:
 ## stack, and a modal trigger's controller announces the mode first (CR
 ## 603.3c) — see [method _arm_trigger_targets].
 func _push_trigger(item: StackItem) -> void:
+	if item.trigger.capture_context.is_valid() and not item.cost_paid.has("_trigger_context"):
+		item.cost_paid["_trigger_context"] = item.trigger.capture_context.call(self, item.card, item.event)
 	if _stack_frozen:
 		# A cost is being paid: nobody receives priority until the object
 		# being paid for is on the stack, so this waits (CR 603.3) — and
@@ -8993,6 +9147,14 @@ func cost_paid(key: String, fallback: Variant = 0) -> Variant:
 	return _resolving_cost.get(key, fallback)
 
 
+## Context of THIS triggered occurrence, not the source's later state.
+func trigger_context(source: CardInstance = null) -> Dictionary:
+	if _resolving_item == null or _resolving_item.kind != Mtg.StackKind.TRIGGER \
+			or (source != null and _resolving_item.card != source):
+		return {}
+	return _resolving_item.cost_paid.get("_trigger_context", {})
+
+
 ## Is the question being asked right now part of a COST (CR 601.2h) rather
 ## than part of a resolution (CR 608)? Stamped on every [PlayerChoice] by the
 ## funnel: the two are held open by different machinery and wear different
@@ -9306,6 +9468,10 @@ func _untap_step() -> bool:
 		var name := inst.data.card_name
 		var labels: Array[String] = ["Untap %s." % name, "Don't untap."]
 		var hint := 0 if not _is_sustaining(inst) else 1
+		for ability in inst.cur_mana_abilities:
+			if int(ability.produces[0][1]) == 0 and ability.any_number_counter_kind != "" \
+					and int(inst.counters.get(ability.any_number_counter_kind, 0)) < 2:
+				hint = 1   # bank storage fuel; the player may always choose otherwise
 		var q := _turn_question(pid, name, PlayerChoice.Kind.OPTION,
 			"Untap %s?" % name)
 		q.options = labels
@@ -9374,6 +9540,8 @@ func _untap_step() -> bool:
 		if untapping.has(inst):
 			if inst.tapped:
 				just_untapped.append(inst)
+				_rec(inst, &"untap_sequence")
+				inst.untap_sequence += 1
 			if undo_log != null: _rec(inst, &"tapped")
 			inst.tapped = false
 		inst.summoning_sick = false
@@ -9782,6 +9950,8 @@ func _collect_damage_requests(first_strike_wave: bool) -> Array:
 
 		# --- attacker side ---
 		for member in members:
+			if member.cur_assigns_no_combat_damage:
+				continue
 			if _first_strike_ids.has(member.id) != first_strike_wave:
 				continue
 			out.append({
@@ -9802,6 +9972,8 @@ func _collect_damage_requests(first_strike_wave: bool) -> Array:
 		# which can be two different bands). Emitting inside this loop gave
 		# it one request per band and had it deal its full power twice.
 		for blocker in blockers:
+			if blocker.cur_assigns_no_combat_damage:
+				continue
 			if _first_strike_ids.has(blocker.id) != first_strike_wave:
 				continue
 			if not blocker_targets.has(blocker.id):

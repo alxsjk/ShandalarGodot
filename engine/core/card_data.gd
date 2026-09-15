@@ -134,6 +134,8 @@ var ai_mode_picker: Callable = Callable()
 ##   "ability": Callable(game, caster_pid, source: CardInstance,
 ##                       modifier: CardInstance) -> int
 ## Each returns extra GENERIC mana added to the cost (negative reduces it).
+## "spell_colored": same arguments as "spell", returning a dictionary
+## of ManaColor -> additional pips (Derelor). Applied before substitutions.
 ## MtgGame sums across every battlefield permanent that carries one at
 ## cast/activation time, passing each callback ITS OWN source as
 ## [code]modifier[/code] — that is how "spells YOU cast cost less" knows

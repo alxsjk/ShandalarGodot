@@ -23,12 +23,14 @@ func rebuild() -> void:
 
 
 func _badge(id: String) -> Button:
-	var button := UiChrome.menu_button("1-tDotP", SIZE, 14, 0.04)
-	button.name = "Pack1"
+	var second := id == FallenEmpiresPack.ID
+	var button := UiChrome.menu_button("2-FEM" if second else "1-tDotP", SIZE, 14, 0.04)
+	button.name = "Pack2" if second else "Pack1"
 	button.custom_minimum_size = SIZE
 	button.size = SIZE
-	button.tooltip_text = "Pack 1 — DotP Complete (%s)" % (
-		"enabled" if CardPacks.is_enabled(id) else "disabled")
+	button.tooltip_text = "%s — %s (%s)" % [CardPacks.label_for(id),
+		"Fallen Empires" if second else "DotP Complete",
+		"enabled" if CardPacks.is_enabled(id) else "disabled"]
 	button.pressed.connect(pack_clicked.emit.bind(id))
 
 	var dot := ColorRect.new()

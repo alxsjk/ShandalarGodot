@@ -607,6 +607,9 @@ func refusal_reason(game: MtgGame, ref: TargetRef, source: CardInstance,
 		if inst.zone != Mtg.Zone.STACK and inst.zone != Mtg.Zone.BATTLEFIELD:
 			return WHY["where"]
 		if inst.zone == Mtg.Zone.BATTLEFIELD:
+			for ban in inst.cur_target_bans:
+				if source != null and bool(ban["filter"].call(game, source, self)):
+					return WHY["abilities"]
 			if inst.phased_out:
 				# Treated as though it doesn't exist (702.25a) — and
 				# `can't target this` is the original's word for exactly

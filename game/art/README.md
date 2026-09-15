@@ -73,12 +73,30 @@ produces exactly these bytes.
 | `set_icon_drk.png` | The Dark — a crescent moon, 48x48 | `tools/draw_our_art.gd` (`_crescent`) | GPL-3.0 | `34c59d84623f7cab65e6a094721008caf7322af53bba892806a821e2788eacbe` |
 | `set_icon_4ed.png` | Fourth Edition — a Roman `IV`, 48x48 | `tools/draw_our_art.gd` (`_roman_four`) | GPL-3.0 | `5f96fd74203791f0dd19b873eae13f38b6c2f120831915a7654fabf19a7b5654` |
 | `set_icon_past.png` | Astral — a comet trailing sparks, 48x48 | `tools/draw_our_art.gd` (`_comet`) | GPL-3.0 | `c2df70e8fad0f9d4512fe0218d2643f0bf7c9c21f0e3abbbc4fb8049bc8c7ec0` |
+| `set_icon_fem.png` | Fallen Empires — gold three-point crown, oval opening and detached base, 48x48 | `tools/draw_our_art.gd` (`_crown`) | GPL-3.0 | `c0530b7529fa800099b3f1903103b0aef2f006bf1d810954d50af8d6bdbb1970` |
+| `filter_fem_on.png` | Fallen Empires — dark crown in a gold ring on a square bevelled stone tile, 48x48 | `tools/draw_our_art.gd` (`_crown_medallion`) | GPL-3.0 | `c8ba81d5128eb8067788480991df9ef7572e792924bea96bc1f248f708acefcf` |
+| `filter_fem_off.png` | Fallen Empires — dim crown tile, 48x48 | `tools/draw_our_art.gd` (`_crown_medallion`) | GPL-3.0 | `5a60af350d1eca1441a655331dc557acc0f20d31556937b4612e0a8f06e89491` |
+| `filter_source_on.png` | 1997 — bright square stone and gold ring beneath live 97 lettering, 48x48 | `tools/draw_our_art.gd` (`_stone_medallion`) | GPL-3.0 | `1440cdce66ed47d31be21e0b1f96f28e46f9322853d04d7be18aa86ac62cc14d` |
+| `filter_source_off.png` | 1997 — dim square stone tile, 48x48 | `tools/draw_our_art.gd` (`_stone_medallion`) | GPL-3.0 | `fd1493ca4c561fe70e8ebf61880b1cc136766b3eee164ad61e1a67096b08f21f` |
+| `filter_pack1_on.png` | Pack 1 — fanned cards and a glint in a gold ring on bevelled stone, 48x48 | `tools/draw_our_art.gd` (`_completed_cards`, `_stone_medallion`) | GPL-3.0 | `e1aa3902bba5dca5b2208f533ad308acac8708150d3049bbc20053f42bd6e5e7` |
+| `filter_pack1_off.png` | Pack 1 — dim fanned-card tile, 48x48 | `tools/draw_our_art.gd` (`_completed_cards`, `_stone_medallion`) | GPL-3.0 | `db1332b0fdf37398780ceb032c1d47388630fd07566d10ebe929d594899fe36b` |
 | `damage_marker.png` | the dagger on a wounded creature, 64x40 | `tools/draw_our_art.gd` (`_dagger_blade`, `_dagger_hilt`) | GPL-3.0 | `771a24e7139e7df3757728350e0acf5e2fffb553e1a78bc48e1b04c20c52d489` |
 
-The six set glyphs are the sets' own marks — an anvil, a scimitar, a
-comet, a crescent, a numeral, a column. What is drawn here is this
+The seven set glyphs are the sets' own marks — an anvil, a scimitar, a
+comet, a crescent, a numeral, a column, a crown. What is drawn here is this
 project's own drawing of each; the shapes themselves belong to nobody's
 file.
+
+The Fallen Empires crown follows the owner's supplied silhouette: three
+points, a central oval opening and a separate lower band. It is redrawn
+as polygons by the same renderer as the other gold symbols; the reference
+JPG is not embedded or required. The Extras filter uses that same crown
+incised into procedurally textured blue-grey stone with an antique-gold ring
+and square bevel, following the owner's set-strip reference. Pack 1 uses
+fanned cards with a glint; the original pool has live 97 numerals. On/Off
+captions sit below each tile, leaving the emblems unobscured. The faces
+retain the original strip's 2:1 brightness convention. All seven textures
+ship with the game independently of a skin or external artwork ZIP.
 
 TWO WERE REVISED ON 2026-09-09, both to the owner's brief, and the two
 hashes above moved with them.

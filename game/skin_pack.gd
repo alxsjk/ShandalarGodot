@@ -227,11 +227,7 @@ func _ready() -> void:
 	var folder_instead := GamePaths.use_skin_folder()
 	if not folder_instead:
 		_mount_if_present(own_skin_zip(), false)
-	for path in cardpacks():
-		# Numbered gameplay packs share the player's card folder but are
-		# consumed by CardPacks, not mounted as artwork under res://skin.
-		if path.get_file() != CardPacks.FILE_NAME:
-			_mount_if_present(path, false)
+	_mount_art_cardpacks()
 	if not folder_instead:
 		_mount_if_present(portable_zip("skin"), false)
 	_mount_if_present(portable_zip("cardart"), false)
@@ -338,6 +334,14 @@ static func cardpacks() -> Array[String]:
 	return _zips_in(GamePaths.cardpacks_folder())
 
 
+func _mount_art_cardpacks() -> void:
+	for path in cardpacks():
+		# Numbered gameplay archives have their own metadata prefix. Only
+		# CardPacks validates/mounts them, even when they are disabled.
+		if not [CardPacks.FILE_NAME, FallenEmpiresPack.FILE_NAME].has(path.get_file()):
+			_mount_if_present(path, false)
+
+
 ## The instructions the game writes into the card folder, the way
 ## [PortraitLibrary] and [MusicLibrary] explain theirs.
 const CARD_README_NAME := "README.txt"
@@ -358,6 +362,13 @@ named set entries (369 reprints and four digitally adapted cards), so the
 title count changes from 897 cards to 1,270 set entries / 901 unique cards.
 The exact ZIP is not distributed: build it locally from the source repository
 with tools/pack_1_dotp_complete.py. Its manifest and artwork are checksummed.
+
+Pack-2-Fallen-Empires.zip independently adds 102 unique Fallen Empires cards
+(187 published printings), with badge 2-FEM. Build it with
+tools/pack_2_fallen_empires.py, then enable it in Options > Card Packs.
+Deck Builder > Extras holds its FE filter medallion, separate from the
+original eight sets. Both enabled packs give 1,372 set entries / 1,003
+unique cards. Pack 2's ZIP and downloaded artwork also stay local-only.
 
 To build an ordinary art zip: fetch_card_art.py beside the game downloads the pictures,
 then mtg_assets.py --from-cardart <folder> --out cardart.zip packs them.

@@ -60,21 +60,24 @@ func discover() -> void:
 	_available.clear()
 	_rejections.clear()
 	_art_cache.clear()
-	for path in candidate_paths():
+	for path in candidate_paths() + candidate_paths(FallenEmpiresPack.ID):
 		if not FileAccess.file_exists(path):
+			continue
+		var id := FallenEmpiresPack.ID if path.get_file() == FallenEmpiresPack.FILE_NAME else ID
+		if _available.has(id):
 			continue
 		var report := inspect(path)
 		if bool(report.get("ok", false)):
 			if bool(report.get("has_art", false)) \
 					and not ProjectSettings.load_resource_pack(path, false):
 				var why := "its metadata is valid but its artwork could not be mounted"
-				_rejections.append({"path": path, "why": why})
+				_rejections.append({"id": id, "path": path, "why": why})
 				push_warning("card pack: %s refused — %s" % [path, why])
 				continue
-			_available[ID] = report
+			_available[id] = report
 			print("card pack: found %s" % path)
-			return
-		_rejections.append({"path": path, "why": report.get("why", "invalid")})
+			continue
+		_rejections.append({"id": id, "path": path, "why": report.get("why", "invalid")})
 		push_warning("card pack: %s refused — %s" % [path, report.get("why", "invalid")])
 
 
@@ -88,24 +91,25 @@ func rescan() -> void:
 	rescanned.emit()
 
 
-static func candidate_paths() -> Array[String]:
+static func candidate_paths(id := ID) -> Array[String]:
 	var out: Array[String] = []
-	var explicit := OS.get_environment("SHANDALAR_PACK_1").strip_edges()
+	var file_name := file_name_for(id)
+	var explicit := OS.get_environment("SHANDALAR_PACK_2" if id == FallenEmpiresPack.ID else "SHANDALAR_PACK_1").strip_edges()
 	if explicit != "":
 		out.append(explicit)
-	var card_folder := GamePaths.cardpacks_folder().path_join(FILE_NAME)
+	var card_folder := GamePaths.cardpacks_folder().path_join(file_name)
 	if not out.has(card_folder):
 		out.append(card_folder)
 	var beside := GamePaths.executable_dir(OS.get_executable_path(),
 		OS.has_feature("macos"))
-	for path in [beside.path_join(FILE_NAME),
-			beside.path_join("cardpacks").path_join(FILE_NAME)]:
+	for path in [beside.path_join(file_name),
+			beside.path_join("cardpacks").path_join(file_name)]:
 		if not out.has(path):
 			out.append(path)
 	if not OS.has_feature("standalone"):
 		var checkout := ProjectSettings.globalize_path("res://").trim_suffix("/")
 		var development := checkout.get_base_dir().path_join(
-			"shandalar-packs").path_join(FILE_NAME)
+			"shandalar-packs").path_join(file_name)
 		if not out.has(development):
 			out.append(development)
 	return out
@@ -115,6 +119,8 @@ static func candidate_paths() -> Array[String]:
 ## metadata-only build is accepted only by the isolated test profile; a pack a
 ## player can enable carries the exact 754 expected image paths and still no code.
 static func inspect(path: String) -> Dictionary:
+	if path.get_file() == FallenEmpiresPack.FILE_NAME:
+		return FallenEmpiresPack.inspect(path)
 	if path.get_file() != FILE_NAME:
 		return _refusal("must be named exactly " + FILE_NAME)
 	var reader := ZIPReader.new()
@@ -366,15 +372,19 @@ func status(id: String) -> Dictionary:
 		accepted["available"] = true
 		accepted["rejection"] = ""
 		return accepted
-	var rejected := _rejections[0] if not _rejections.is_empty() else {}
+	var rejected := {}
+	for one in _rejections:
+		if one.get("id", ID) == id:
+			rejected = one
+			break
 	return {
 		"id": id,
-		"file_name": FILE_NAME,
+		"file_name": file_name_for(id),
 		"version": PACK_VERSION,
 		"minimum_game_version": MINIMUM_GAME_VERSION,
 		"available": false,
 		"enabled": false,
-		"path": rejected.get("path", candidate_paths()[0]),
+		"path": rejected.get("path", candidate_paths(id)[0]),
 		"rejection": rejected.get("why", "not found"),
 	}
 
@@ -411,14 +421,16 @@ func open_folder() -> void:
 ## and saved decks remain keyed by card name; the selected set merely chooses
 ## which mounted crop or full-card scan represents that name on screen.
 func art_path(card_name: String, set_code: String, full_card := false) -> String:
-	if not is_enabled(ID) or set_code == "":
+	var id := FallenEmpiresPack.ID if set_code == "fem" else ID
+	if not is_enabled(id) or set_code == "":
 		return ""
-	var report: Dictionary = _available[ID]
+	var report: Dictionary = _available[id]
 	if not bool(report.get("has_art", false)) \
 			or not CardRegistry.card_in_set(card_name, set_code):
 		return ""
 	var suffix := "_card.jpg" if full_card else ".jpg"
-	var path := "res://%sart/%s/%s%s" % [PREFIX, set_code,
+	var prefix := FallenEmpiresPack.PREFIX if id == FallenEmpiresPack.ID else PREFIX
+	var path := "res://%sart/%s/%s%s" % [prefix, set_code,
 		_snake(card_name), suffix]
 	return path if FileAccess.file_exists(path) else ""
 
@@ -449,9 +461,8 @@ func set_current_deck_names(names: Array[String]) -> void:
 
 func current_deck_conflicts(id: String) -> Array[String]:
 	var found: Array[String] = []
-	if id != ID:
-		return found
-	for name in ADDED_NAMES:
+	var names: Array = FallenEmpiresPack.names() if id == FallenEmpiresPack.ID else ADDED_NAMES
+	for name in names:
 		if _current_deck_names.has(name):
 			found.append(name)
 	return found
@@ -461,16 +472,29 @@ func disable_warning(id: String) -> String:
 	var names := current_deck_conflicts(id)
 	if names.is_empty():
 		return ""
-	return ("The current deck requires Pack 1 because it contains %s. " \
+	return ("The current deck requires %s because it contains %s. " \
 		+ "Disabling the pack will keep the names in the deck, but they cannot " \
-		+ "be played until Pack 1 is enabled again.") % ", ".join(names)
+		+ "be played until %s is enabled again.") % [label_for(id), ", ".join(names), label_for(id)]
 
 
 func packs_required_by(names: Array[String]) -> Array[String]:
+	var ids: Array[String] = []
+	var second := FallenEmpiresPack.names()
 	for name in names:
-		if ADDED_NAMES.has(name):
-			return [ID]
-	return []
+		if ADDED_NAMES.has(name) and not ids.has(ID):
+			ids.append(ID)
+		if second.has(name) and not ids.has(FallenEmpiresPack.ID):
+			ids.append(FallenEmpiresPack.ID)
+	ids.sort()
+	return ids
+
+
+static func file_name_for(id: String) -> String:
+	return FallenEmpiresPack.FILE_NAME if id == FallenEmpiresPack.ID else FILE_NAME
+
+
+static func label_for(id: String) -> String:
+	return "Pack 2" if id == FallenEmpiresPack.ID else "Pack 1"
 
 
 func missing_requirements(ids: Array[String]) -> Array[String]:
@@ -484,8 +508,14 @@ func missing_requirements(ids: Array[String]) -> Array[String]:
 func _configure_registry() -> void:
 	if not is_enabled(ID):
 		CardRegistry.configure_optional_pack(false, {}, [], [], {})
-		return
-	var report: Dictionary = _available[ID]
-	var catalog: Dictionary = report["catalog"]
-	CardRegistry.configure_optional_pack(true, catalog.get("sets", {}),
-		CARD_SCRIPTS, report.get("cards", []), catalog.get("counts", {}))
+	else:
+		var report: Dictionary = _available[ID]
+		var catalog: Dictionary = report["catalog"]
+		CardRegistry.configure_optional_pack(true, catalog.get("sets", {}),
+			CARD_SCRIPTS, report.get("cards", []), catalog.get("counts", {}))
+	if is_enabled(FallenEmpiresPack.ID):
+		var report: Dictionary = _available[FallenEmpiresPack.ID]
+		CardRegistry.configure_expansion_packs(report.catalog.sets,
+			FallenEmpiresPack.scripts(), report.cards)
+	else:
+		CardRegistry.configure_expansion_packs({}, [], [])

@@ -39,6 +39,7 @@ const DECK_LAB_FLAG := "--deck-lab"
 ## Release-only integration probe: validates a real external ZIP, activates
 ## its dormant trusted scripts, checks every set-specific art pair, then exits.
 const VERIFY_PACK_1_FLAG := "--verify-pack-1"
+const VERIFY_PACK_2_FLAG := "--verify-pack-2"
 
 ## The corner line that reports a skin zip on its way (web builds).
 var _fetching: Label
@@ -57,6 +58,9 @@ func _ready() -> void:
 		return
 	if OS.get_cmdline_user_args().has(VERIFY_PACK_1_FLAG):
 		_verify_exported_pack_1()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_2_FLAG):
+		_verify_exported_pack_2()
 		return
 	CardRegistry.ensure_loaded()
 	var title_bg := GameSkin.texture("title_background")
@@ -336,10 +340,11 @@ func _open_pack_notice(id: String) -> void:
 	var counts: Dictionary = info.get("counts", {})
 	var body := "%s\n\n" % String(info.get("description", ""))
 	body += "Status: %s\n\n" % ("Enabled" if enabled else "Disabled")
-	body += "Pack 1 adds %s named set entries: %s cross-set reprints and " % [
+	body += "%s adds %s named set entries: %s cross-set reprints and " % [
+		CardPacks.label_for(id),
 		_grouped(int(counts.get("pack_card_entries", 0))),
 		_grouped(int(counts.get("reprint_entries", 0)))]
-	body += "%d new rules identities. Enabled, the eight checklists contain " % \
+	body += "%d new rules identities. This pack's checklists contain " % \
 		int(counts.get("new_rules_identities", 0))
 	body += "%s set entries representing %d unique cards. The catalog " % [
 		_grouped(int(counts.get("named_set_entries", 0))),
@@ -347,10 +352,12 @@ func _open_pack_notice(id: String) -> void:
 	]
 	body += "preserves %s published collector slots.\n\n" % \
 		_grouped(int(counts.get("published_printings", 0)))
-	body += "The four new identities are Chaos Orb, Word of Command, "
-	body += "Shahrazad, and Falling Star. "
+	if id == CardPacks.ID:
+		body += "The four new identities are Chaos Orb, Word of Command, "
+		body += "Shahrazad, and Falling Star. "
 	body += String(info.get("rules_note", ""))
-	_pack_notice = UiChrome.action_popup(self, "Pack 1 — DotP Complete", body, [
+	_pack_notice = UiChrome.action_popup(self, "%s — %s" % [
+		CardPacks.label_for(id), info.get("name", "Card pack")], body, [
 		{"label": "Enable", "name": "Enable", "disabled": enabled,
 			"callable": CardPacks.set_enabled.bind(id, true)},
 		{"label": "Disable", "name": "Disable", "disabled": not enabled,
@@ -367,7 +374,7 @@ func _request_disable_pack(id: String) -> void:
 		return
 	if is_instance_valid(_pack_warning):
 		return
-	_pack_warning = UiChrome.action_popup(self, "Current deck uses Pack 1",
+	_pack_warning = UiChrome.action_popup(self, "Current deck uses " + CardPacks.label_for(id),
 		warning, [
 			{"label": "Keep enabled", "name": "KeepEnabled"},
 			{"label": "Disable anyway", "name": "DisableAnyway",
@@ -450,6 +457,63 @@ func _verify_exported_pack_1() -> void:
 	else:
 		for failure in failures:
 			printerr("PACK 1 EXPORT VERIFY FAILED: " + failure)
+		get_tree().quit(2)
+
+
+## Export probe changes enablement in memory only, never player settings.
+func _verify_exported_pack_2() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	if not CardPacks.has_pack(FallenEmpiresPack.ID):
+		failures.append("the exact Pack 2 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [FallenEmpiresPack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 999 or CardRegistry.names_in_set("fem").size() != 102:
+			failures.append("expected 999 identities including 102 Fallen Empires cards")
+		for name in FallenEmpiresPack.names():
+			if not CardRegistry.has_card(name):
+				failures.append("missing dormant implementation: " + name)
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "fem", full)
+				if path == "" or Image.load_from_file(path) == null:
+					failures.append("missing or unreadable artwork: " + name)
+		var thallid := CardRegistry.get_card("Thallid") if CardRegistry.has_card("Thallid") else null
+		if thallid == null or not thallid.activated_abilities[0].effects[0] is CreateTokenEffect:
+			failures.append("the exported shared token effect did not load")
+		for key in ["set_icon_fem", "filter_fem_on", "filter_fem_off",
+				"filter_source_on", "filter_source_off", "filter_pack1_on", "filter_pack1_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty():
+				failures.append("missing exported crown/medallion artwork: " + key)
+		# Exercise the shipped cost-first planner, not just metadata loading.
+		var probe := MtgGame.new()
+		probe.setup(["Forest", "Forest"], ["Forest", "Forest"])
+		probe.start(0)
+		for name in ["Forest", "Implements of Sacrifice"]:
+			var inst := CardInstance.new(CardRegistry.get_card(name), probe._next_instance_id, 0)
+			probe._next_instance_id += 1
+			probe._instances[inst.id] = inst
+			probe._put_on_battlefield(inst, 0)
+		var cost := ManaCost.parse("{B}{B}")
+		var plan := ManaPlanner.plan(probe, 0, cost, 0)
+		if plan.is_empty():
+			failures.append("exported cost-first conversion planner returned no plan")
+		else:
+			for step in plan:
+				if step[0] != null and probe.tap_for_mana(0, step[0], step[1]) != "":
+					failures.append("exported mana conversion activation failed")
+			if not probe.players[0].mana_pool.can_pay(cost):
+				failures.append("exported conversion did not produce two black mana")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 2 EXPORT VERIFY OK — 999 identities, 102 Fallen Empires scripts, 204 decoded art files, 7 crown/medallion textures, executable mana conversion")
+		get_tree().quit(0)
+	else:
+		for why in failures:
+			printerr("PACK 2 EXPORT VERIFY FAILED: " + why)
 		get_tree().quit(2)
 
 

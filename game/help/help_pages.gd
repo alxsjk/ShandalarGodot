@@ -124,7 +124,7 @@ static func pages() -> Array:
 		_page_icons_builder_colors(),
 		_page_icons_builder_sets(),
 		_page_icons_builder_types(),
-	]
+	] + preload("res://game/help/ability_glossary.gd").pages()
 
 
 # ---------------------------------------------------------- the primer --

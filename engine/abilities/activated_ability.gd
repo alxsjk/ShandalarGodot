@@ -274,6 +274,8 @@ func may_sacrifice_itself() -> ActivatedAbility:
 ## on the stack item under `_sacrificed_names`, `_sacrificed_total_power`
 ## and `_sacrificed_instances` (see [member StackItem.cost_paid]).
 var sacrifice_any_number: bool = false
+## Fixed multi-permanent costs (Goblin Warrens). Still paid before resolving.
+var sacrifice_count: int = 1
 
 ## Fluent: make the sacrifice cost "any number of" (see
 ## [member sacrifice_any_number]).
@@ -335,6 +337,20 @@ func with_exile_of(desc: String, filter: Callable) -> ActivatedAbility:
 ## under `_exiled_mana_value` for the ability's own effects to read.
 var graveyard_exile_filter: Callable = Callable()
 var graveyard_exile_desc: String = ""
+var graveyard_exile_count := 1
+var graveyard_exile_any_player := false
+
+## Additional non-{T} taps can include summoning-sick creatures.
+var tap_permanent_filter: Callable = Callable()
+var tap_permanent_count := 0
+
+## Optional activator restriction: Callable(game, source, pid) -> String.
+## Merseine belongs to the Aura but only its host's controller may pay.
+var activator_condition: Callable = Callable()
+
+## Bookkeeping at cost payment, before the ability can be countered.
+## Callable(game, source, paid_costs). May not ask additional questions.
+var on_cost_paid: Callable = Callable()
 
 ## Fluent: add an "Exile a <desc> from your graveyard" cost.
 func with_exile_from_graveyard(desc: String, filter: Callable) -> ActivatedAbility:

@@ -385,6 +385,82 @@ func _set_group() -> Control:
 	return strip
 
 
+## Expansion medallions belong to Extras, never to the original set strip.
+func extra_set_button(code: String) -> Button:
+	var button := _toggle(DeckFilter.SET_LABELS.get(code, code.to_upper()),
+		func() -> bool: return filter.set_on(code),
+		func() -> void: filter.toggle_set(code))
+	button.name = "ExtraSet_" + code
+	button.set_meta("set_code", code)
+	button.custom_minimum_size = ICON_SIZE
+	_paint_extra_medallion(button, code)
+	button.tree_exiting.connect(func() -> void: _buttons.erase(button))
+	refresh()
+	return button
+
+
+## A square stone tile with a ringed medallion for expansions without a
+## 1997 atlas cell. The faces retain the strip's bright/dark convention.
+static func _paint_extra_medallion(button: Button, code: String) -> void:
+	var on_art := GameSkin.our_art("filter_%s_on" % code)
+	var off_art := GameSkin.our_art("filter_%s_off" % code)
+	if on_art != null and off_art != null:
+		button.text = ""
+		button.add_theme_stylebox_override("normal", _box_for(off_art))
+		button.add_theme_stylebox_override("pressed", _box_for(on_art))
+		button.add_theme_stylebox_override("hover", _box_for(off_art, HOVER_LIFT))
+		button.add_theme_stylebox_override("hover_pressed", _box_for(on_art, HOVER_LIFT))
+		_focus_ring(button)
+		return
+	button.text = code.to_upper().left(2)
+	var face := GameSkin.font("font_body")
+	if face != null:
+		button.add_theme_font_override("font", face)
+	button.add_theme_font_size_override("font_size", 13)
+	for state in ["normal", "hover", "pressed", "hover_pressed"]:
+		var on: bool = state.contains("pressed")
+		var box := StyleBoxFlat.new()
+		box.bg_color = Color("c1b38f") if on else Color("514b3c")
+		if state.begins_with("hover"):
+			box.bg_color = box.bg_color.lightened(0.12)
+		box.border_color = Color("75654a") if on else Color("27251e")
+		box.set_border_width_all(2)
+		box.set_corner_radius_all(18)
+		button.add_theme_stylebox_override(state, box)
+	for state in ["font_color", "font_hover_color"]:
+		button.add_theme_color_override(state, Color("d4c9a8"))
+	for state in ["font_pressed_color", "font_hover_pressed_color"]:
+		button.add_theme_color_override(state, Color("25241f"))
+	_focus_ring(button)
+
+
+## Square, bevelled pack tiles follow the original set strip. Emblems stay
+## clear of the On/Off captions; 1997 uses numerals like Unlimited/promos.
+static func dress_source_medallion(button: Button, source: String) -> void:
+	button.custom_minimum_size = Vector2(48, 48)
+	button.focus_mode = Control.FOCUS_ALL
+	button.text = "97" if source == "Original" else ""
+	button.add_theme_font_size_override("font_size", 23)
+	var face := GameSkin.font("font_body")
+	if face != null:
+		button.add_theme_font_override("font", face)
+	var key: String = {"Original": "source", "Pack1": "pack1", "Pack2": "fem"}[source]
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var selected: bool = state.contains("pressed")
+		var art := GameSkin.our_art("filter_" + key + ("_on" if selected else "_off"))
+		button.add_theme_stylebox_override(state,
+			_box_for(art, HOVER_LIFT if state.begins_with("hover") else 1.0))
+		var ink := Color("101419") if selected else Color("15181d")
+		if state == "disabled":
+			ink = Color("282c33")
+		button.add_theme_color_override("font_" + ("color" if state == "normal" else state + "_color"), ink)
+	button.add_theme_color_override("font_focus_color", Color("101419"))
+	button.add_theme_color_override("font_shadow_color", Color(0.75, 0.79, 0.82, 0.45))
+	button.add_theme_constant_override("shadow_offset_x", 1)
+	button.add_theme_constant_override("shadow_offset_y", 1)
+	_focus_ring(button)
+
+
 func _type_group() -> Control:
 	var strip := _group(GROUPS[2])
 	for type_flag in DeckFilter.TYPE_ORDER:

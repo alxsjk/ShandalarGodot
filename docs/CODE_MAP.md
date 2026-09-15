@@ -9,12 +9,12 @@ needed); card files have NO class_name (they register by name instead);
 
 ## Numbered gameplay packs
 
-- `game/card_packs.gd`: exact Pack 1 discovery, version/compatibility and
+- `game/card_packs.gd`: independent numbered-pack discovery, version/compatibility and
   SHA-256 ZIP validation, safe art mounting, persistent enable/disable,
   deck-requirement tracking, and registry configuration.
 - `game/card_packs_screen.gd`: Options → Card Packs management, including
   Open Folder, Rescan, versions, enabled state and readable rejection reasons.
-- `game/card_pack_badges.gd`: the compact `1-tDotP` status button beside the
+- `game/card_pack_badges.gd`: the compact `1-tDotP` and `2-FEM` status buttons beside the
   title-screen set badges.
 - `cards/optional/pack_1/*.gd`: four trusted dormant digital adaptations;
   pack archives never provide executable code.
@@ -33,6 +33,57 @@ needed); card files have NO class_name (they register by name instead);
 - `tools/test_pack_1_dotp_complete.py`, `tests/unit/test_card_packs.gd`,
   `tests/cards/test_pack_1_dotp_complete.gd`, and
   `tests/ui/test_card_pack_badges.gd`: tool, loader, rules, and UI contracts.
+- `game/fallen_empires_pack.gd`: Pack 2's exact trusted 102-name/187-printing
+  catalog, script allowlist and ZIP checksum validation; no archive code runs.
+- `game/skin_pack.gd`: boot-time ordinary-art mounting skips both numbered
+  gameplay ZIPs, leaving their validation and enablement to `CardPacks`.
+- `cards/sets/fem/*.gd`: 102 dormant Fallen Empires card scripts; `_rules.gd`
+  shares the set's tribal, counter, upkeep, combat and activated-cost patterns.
+- `engine/ai/fallen_empires_tactics.gd`: public-board activation policies for
+  Pack 2's bespoke effects, plus High Tide payoff and divided Catapult sizing.
+  `AiPlayer` owns legality, mana payment and sacrifice/discard/tap pricing.
+  Described delayed mana bonuses in `TriggeredAbility` feed `ManaPlanner`.
+  Per-occurrence `capture_context` is held on the trigger's stack item and
+  exposed by `MtgGame.trigger_context`, keeping attachment/source identity
+  separate from what that permanent looks like after a response.
+- `engine/mana_conversion_planner.gd`: bounded, pure cost-first fallback for
+  `ManaAbility.planner_conversion`; simulates real pool payments and restrictions
+  for Initiates, Farrelite Priest and Implements. Ordinary plans retain the
+  fast path. Shared by the human auto-tapper and AI, with no speculative RNG.
+- `tests/cards/test_pack_2_integration.gd`: second-pass rules/AI regressions:
+  responseable delayed effects, source-incarnation and continuity checks,
+  trigger-controller ownership, banding, executable mana conversion, Hymn
+  targeting and Goblin Kites' expected-risk combat policy.
+- `tools/draw_our_art.gd`: also draws Fallen Empires' gold card crown and
+  the matching on/off stone Extras medallions in `game/art/`; shape shared,
+  no skin or downloaded pack artwork required for these UI symbols.
+- `engine/effects/create_token_effect.gd`, `random_hand_discard_effect.gd`,
+  `counter_marker_effect.gd`: shared token, seeded random discard, and permanent
+  named-counter effects, with structural AI intent readings.
+- `tools/pack_2_fallen_empires.py`: dedicated Scryfall data/art fetcher, atomic
+  deterministic ZIP builder, and strict verifier. Only its construction source
+  and metadata ship in this repository, never the generated ZIP or artwork.
+- `packaging/card_packs/pack_2_fallen_empires/`: manifest, player README, full
+  Scryfall printing snapshot (`cards.json`) and census/provenance (`set.json`).
+- `tests/cards/test_pack_2_fallen_empires.gd`, `tests/cards/test_pack_2_ai.gd`,
+  `tools/test_pack_2_fallen_empires.py`: independent-pack, rules, AI, live Extras
+  filter and offline archive regression tests.
+- `docs/pack-2-fallen-empires.md`: construction instructions, counts, native
+  mechanics/AI audit, and distribution policy.
+- `docs/pack-2-mechanics-audit.md`: reviewed rule families, specific AI policies,
+  verification scope and remaining strategic limitations.
+
+The Deck Builder keeps its original eight-medallion strip. Extras sits just
+left of the compact Stats button and opens three centered source rows;
+the wider emerald Done button takes the command row's remaining space.
+1997, tDotP Pack 1 and Fallen E. Pack 2 each have independent On/Off stone
+radio medallions: square bevelled tiles with gold rings, dark 97/card-fan/crown
+emblems and On/Off captions below. Close is the only footer action. `original_cards_on` and
+`completion_pack_on` filter source membership without unloading packs or
+editing a deck. With 1997 hidden, Pack 1 still admits its added reprint pairs
+and chooses their artwork. `original_1997()` restores shipped memberships.
+Registry membership/printing APIs include enabled extras without changing the
+base `SET_ORDER`. Saved decks remain name-based and record required pack ids.
 
 ## Release packaging (0.20.0)
 

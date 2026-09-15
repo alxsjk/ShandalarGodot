@@ -11,8 +11,8 @@ user://
 # OS noise
 .DS_Store
 Thumbs.db
-assets/original/
-assets/cardart/
+assets/original
+assets/cardart
 
 # Card packs (tools/build_card_packs.py --out packs): Scryfall art, never
 # committed. The default output is the sibling ../shandalar-packs/.

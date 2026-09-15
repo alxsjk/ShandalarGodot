@@ -1,6 +1,6 @@
 extends SceneTree
-## DRAWS THE ART THIS PROJECT SHIPS AS ITS OWN — the six set glyphs and the
-## damage dagger — and writes them to `game/art/`.
+## DRAWS THE ART THIS PROJECT SHIPS AS ITS OWN — set glyphs, expansion
+## medallions and the damage dagger — and writes them to `game/art/`.
 ##
 ##     ../tools/godot --headless --path . -s res://tools/draw_our_art.gd
 ##
@@ -12,9 +12,10 @@ extends SceneTree
 ## from scratch, by this file: an anvil, a scimitar, a comet, a crescent,
 ## a Roman IV, a broken column and a dagger, described as polygons and
 ## arcs in unit coordinates and rasterised by the little signed-distance
-## renderer in this script. Nothing is traced, sampled or copied from any
-## file: run this on a machine with no 1997 game and no Manalink install
-## and it produces exactly the same pictures.
+## renderer in this script. Fallen Empires follows the owner's supplied
+## crown silhouette, redrawn here as geometry. No reference image is read
+## or embedded: run without any 1997 game or Manalink install and this
+## produces exactly the same pictures.
 ##
 ## They are the FLOOR, not the ceiling. A player who imports their own
 ## 1997 art still gets the 1997 art — `GameSkin` checks the imported skin
@@ -115,10 +116,16 @@ const OUT_DIR := "res://game/art"
 func _init() -> void:
 	var dir := ProjectSettings.globalize_path(OUT_DIR)
 	DirAccess.make_dir_recursive_absolute(dir)
-	for code in ["atq", "arn", "past", "drk", "4ed", "leg"]:
+	for code in ["atq", "arn", "past", "drk", "4ed", "leg", "fem"]:
 		var img := _render(Vector2i(GLYPH_SIZE, GLYPH_SIZE),
 			[[_glyph(code), GOLD_LIT, GOLD_DARK]], RIM)
 		_write(img, dir, "set_icon_%s.png" % code)
+	_write(_crown_medallion(true), dir, "filter_fem_on.png")
+	_write(_crown_medallion(false), dir, "filter_fem_off.png")
+	_write(_stone_medallion(true, []), dir, "filter_source_on.png")
+	_write(_stone_medallion(false, []), dir, "filter_source_off.png")
+	_write(_stone_medallion(true, _completed_cards()), dir, "filter_pack1_on.png")
+	_write(_stone_medallion(false, _completed_cards()), dir, "filter_pack1_off.png")
 	# The blade and the furniture are two GROUPS, each with its own metal
 	# and its own rim — which is what puts a dark seam between the guard
 	# and the blade instead of one gold-into-red smear.
@@ -167,7 +174,107 @@ func _glyph(code: String) -> Array:
 			return _roman_four()
 		"leg":
 			return _column()
+		"fem":
+			return _crown()
 	return []
+
+
+## FALLEN EMPIRES — three points, an oval opening and a detached lower
+## band. One shape drives both the gold card symbol and the stone filter.
+func _crown() -> Array:
+	var opening := PackedVector2Array()
+	for i in 48:
+		var angle := TAU * float(i) / 48.0
+		opening.append(Vector2(0.5 + cos(angle) * 0.064,
+			0.516 + sin(angle) * 0.122))
+	return [
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.04, 0.29), Vector2(0.345, 0.38),
+			Vector2(0.50, 0.11), Vector2(0.655, 0.38),
+			Vector2(0.96, 0.29), Vector2(0.82, 0.71),
+			Vector2(0.18, 0.71)])},
+		{"op": "sub", "poly": opening},
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.20, 0.78), Vector2(0.80, 0.78),
+			Vector2(0.75, 0.92), Vector2(0.25, 0.92)])},
+	]
+
+
+## Pack 1 completes a collection: three fanned card frames, with a small
+## four-point glint in the front card. Broad silhouettes survive at 34px.
+func _completed_cards() -> Array:
+	return [
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.08, 0.29), Vector2(0.37, 0.18), Vector2(0.60, 0.76), Vector2(0.31, 0.88)])},
+		{"op": "sub", "poly": PackedVector2Array([
+			Vector2(0.16, 0.33), Vector2(0.33, 0.27), Vector2(0.51, 0.72), Vector2(0.34, 0.79)])},
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.63, 0.18), Vector2(0.92, 0.29), Vector2(0.69, 0.88), Vector2(0.40, 0.76)])},
+		{"op": "sub", "poly": PackedVector2Array([
+			Vector2(0.67, 0.27), Vector2(0.84, 0.33), Vector2(0.66, 0.79), Vector2(0.49, 0.72)])},
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.31, 0.12), Vector2(0.69, 0.12), Vector2(0.69, 0.85), Vector2(0.31, 0.85)])},
+		{"op": "sub", "poly": PackedVector2Array([
+			Vector2(0.38, 0.20), Vector2(0.62, 0.20), Vector2(0.62, 0.77), Vector2(0.38, 0.77)])},
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.50, 0.30), Vector2(0.54, 0.43), Vector2(0.61, 0.49), Vector2(0.54, 0.54),
+			Vector2(0.50, 0.68), Vector2(0.46, 0.54), Vector2(0.39, 0.49), Vector2(0.46, 0.43)])},
+	]
+
+
+## Blue-grey square stone with a bevel, gold ring and dark carved emblem:
+## the same construction as the owner's set-strip reference. The grain is
+## deterministic and wholly procedural; no original skin is redistributed.
+func _crown_medallion(on: bool) -> Image:
+	return _stone_medallion(on, _crown())
+
+
+## A blank version takes live 97 lettering; pack versions carry an emblem.
+func _stone_medallion(on: bool, glyph: Array) -> Image:
+	var size := Vector2i(GLYPH_SIZE, GLYPH_SIZE)
+	var img := Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
+	for y in size.y:
+		for x in size.x:
+			var grain := float((x * 73 + y * 151 + x * y * 19) % 31) / 30.0 - 0.5
+			var vein := sin(float(x) * 0.43 + sin(float(y) * 0.31) * 2.0) * 0.018
+			var edge := mini(mini(x, y), mini(size.x - 1 - x, size.y - 1 - y))
+			var light := 0.62 + grain * 0.10 + vein - float(y) * 0.0007
+			if edge == 0:
+				light = 0.26 + grain * 0.04
+			elif edge < 4:
+				var top_left := mini(x, y) < mini(size.x - 1 - x, size.y - 1 - y)
+				light += (0.22 if top_left else -0.25) * (1.0 - float(edge - 1) / 4.0)
+			img.set_pixel(x, y, Color(light * 0.87, light * 0.96, light * 1.08, 1.0))
+	_draw_group(img, size, [
+		{"op": "add", "ellipse": [0.5, 0.5, 0.426]},
+		{"op": "sub", "ellipse": [0.5, 0.5, 0.387]},
+	], Color("e2c873"), Color("9c782c"), 0.45)
+	var inset: Array = []
+	for op in glyph:
+		var poly := PackedVector2Array()
+		for point in op.poly:
+			poly.append((point - Vector2(0.5, 0.5)) * 0.72 + Vector2(0.5, 0.5))
+		inset.append({"op": op.op, "poly": poly})
+	var field := _signed_field(size, inset)
+	for y in size.y:
+		for x in size.x:
+			var sd: float = field[y * size.x + x]
+			if sd < -1.0:
+				continue
+			var coverage := clampf(sd + 0.5, 0.0, 1.0)
+			var under := img.get_pixel(x, y)
+			var slope := Vector2(_at(field, size, x + 1, y) - _at(field, size, x - 1, y),
+				_at(field, size, x, y + 1) - _at(field, size, x, y - 1))
+			# Recessed edges catch light on the lower-right lip.
+			if sd < 0.5:
+				under = under.lightened(maxf(0.0, slope.normalized().dot(LIGHT)) * 0.28)
+			img.set_pixel(x, y, under.lerp(Color("101419"), coverage))
+	if not on:
+		for y in size.y:
+			for x in size.x:
+				var pixel := img.get_pixel(x, y)
+				img.set_pixel(x, y, Color(pixel.r * 0.50, pixel.g * 0.50, pixel.b * 0.50, pixel.a))
+	return img
 
 
 ## ANTIQUITIES — an anvil: a long pointed HORN on the left, a top slab

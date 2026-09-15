@@ -139,6 +139,15 @@ func _write_probe() -> void:
 
 # ---------------------------------------------------------- the contract --
 
+func test_art_mount_skips_both_numbered_gameplay_archives() -> void:
+	for filename in [CardPacks.FILE_NAME, FallenEmpiresPack.FILE_NAME]:
+		_zip(PACKS.path_join(filename), {"card_packs/not_a_skin.json": "{}"})
+	_zip(PACKS.path_join("ordinary.zip"), {"skin/cardart/zz_gameplay_routing.png": _png()})
+	SkinPack._mount_art_cardpacks()
+	assert_true(FileAccess.file_exists("res://skin/cardart/zz_gameplay_routing.png"))
+	assert_false(FileAccess.file_exists("res://card_packs/not_a_skin.json"))
+	assert_string_contains(SkinPack.CARD_README, "Pack-2-Fallen-Empires.zip")
+
 func test_a_zip_with_everything_under_skin_is_a_skin() -> void:
 	var report := SkinPack.inspect(GOOD)
 	assert_true(report["ok"], String(report["why"]))

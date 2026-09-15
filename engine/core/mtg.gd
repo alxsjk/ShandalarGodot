@@ -218,6 +218,7 @@ enum EventType {
 	MANA_BURN,            ## data: {player, amount} — positive life loss from
 	                      ## unspent mana. Both seats' losses and pool clears
 	                      ## are complete before announcement; not DAMAGE_DEALT.
+	STATE_CHECK,          ## Engine-only state-trigger polling (CR 603.8).
 }
 
 ## What kind of object a StackItem is.

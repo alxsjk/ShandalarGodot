@@ -577,7 +577,18 @@ static func read(effects: Array, card_name: String = "") -> EffectIntent:
 	for e in effects:
 		if intent.target_spec == null and e.target_spec != null:
 			intent.target_spec = e.target_spec
-		if e is RandomDestroyEffect:
+		if e is CreateTokenEffect:
+			intent.makes_token = {"power": e.token.power * e.count,
+				"toughness": e.token.toughness * e.count}
+		elif e is RandomHandDiscardEffect:
+			if not e.controller_mode:
+				intent.discards += e.count
+		elif e is CounterMarkerEffect:
+			var delta := ContinuousEffects.parse_pt_counter(e.kind)
+			intent.pumps = true
+			intent.pump_power += delta.x * e.count
+			intent.pump_toughness += delta.y * e.count
+		elif e is RandomDestroyEffect:
 			intent.random_destroy = e
 		elif e is CoinFlipDamageEffect:
 			intent.coin_damage = e
@@ -791,7 +802,7 @@ const WHEEL_COUNTS := {
 func is_harmful() -> bool:
 	if damage > 0 or damage_uses_x or removes or bounces or taps \
 			or random_destroy != null or coin_damage != null \
-			or chosen_discard != null:
+			or chosen_discard != null or discards != 0:
 		return true
 	if draws > 0 or draws_use_x or pumps or life_gain > 0 or untaps or regenerates:
 		return false

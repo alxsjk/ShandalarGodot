@@ -552,7 +552,7 @@ func _planned_cast(game: MtgGame, proposals: Array, sources: Array,
 		for i in cards.size():
 			var card: CardInstance = cards[i]["card"]
 			var x: int = cards[i]["x"]
-			cost = _combined_cost(cost, card.data.cost_for(x))
+			cost = _combined_cost(cost, game.spell_cost_for(pid, card.data, x))
 			extra += _generic_x(card.data, x) + game.spell_surcharge(pid, card.data)
 			var card_keys: Array = game.mana_usage_keys(card.data)
 			if i == 0: keys = card_keys.duplicate()
@@ -633,6 +633,8 @@ func _try_cast_best(game: MtgGame) -> String:
 				and not _finishes_damaged(game, inst, intent):
 			continue
 		# Dark Ritual is worth exactly what it lets us cast this turn.
+		if inst.data.card_name == "High Tide" and not FALLEN_EMPIRES_TACTICS.high_tide_enables(game, self, inst, sources):
+			continue
 		if intent.adds_mana and not _mana_spell_enables(game, inst, sources):
 			continue
 		# ...and CHANNEL is worth exactly the game it ends (2026-09-10,
@@ -667,7 +669,7 @@ func _try_cast_best(game: MtgGame) -> String:
 		# 1 R is two mana it does not have.
 		if not reserve.is_empty() and int(reserve.get("for", -1)) != inst.id \
 				and value < float(reserve["value"]) * 1.5 \
-				and _plan_taps_from(sources, _combined_cost(inst.data.cost_for(x), reserve["cost"]),
+				and _plan_taps_from(sources, _combined_cost(game.spell_cost_for(pid, inst.data, x), reserve["cost"]),
 					_generic_x(inst.data, x) + surcharge).is_empty():
 			continue
 		# Phase 2: hold counterspell mana open. A marginal main-phase cast
@@ -713,12 +715,12 @@ func _try_cast_best(game: MtgGame) -> String:
 		best_x = picked["x"]
 		best_mode = picked["mode"]
 		best_targets = picked["targets"]
-	var plan := _plan_taps(game, best.data.cost_for(best_x),
+	var plan := _plan_taps(game, game.spell_cost_for(pid, best.data, best_x),
 		_generic_x(best.data, best_x) + game.spell_surcharge(pid, best.data),
 		game.mana_usage_keys(best.data))
 	# Revalidate the entire selected choice before spending any source.
 	if game.cast_refusal(pid, best, best_targets, best_x, best_mode) != "" \
-			or (plan.is_empty() and not (_cost_is_free(best.data.cost_for(best_x)) \
+			or (plan.is_empty() and not (_cost_is_free(game.spell_cost_for(pid, best.data, best_x)) \
 				and _generic_x(best.data, best_x) + game.spell_surcharge(pid, best.data) == 0)):
 		_action_line.clear()
 		return ""
@@ -1282,14 +1284,15 @@ const ABILITY_BAR_SINK := 0.5
 ## COMBAT is THEIR combat with the attackers declared and the damage not
 ## yet dealt (2026-09-08, [member AiProfile.times_sweeps]): the one
 ## moment at which only a sweeper is offered, at the upkeep's bar.
-enum Moment { MAIN, UPKEEP, SINK, COMBAT }
+enum Moment { MAIN, UPKEEP, SINK, COMBAT, RESPONSE }
+const FALLEN_EMPIRES_TACTICS := preload("res://engine/ai/fallen_empires_tactics.gd")
 
 
 ## Activate the best-scoring ability that clears the bar for [param moment],
 ## or "" when nothing does. One activation per call, like every other action.
 func _try_activate(game: MtgGame, moment: int = Moment.MAIN) -> String:
 	var bar: float = ABILITY_BAR_MAIN
-	if moment == Moment.UPKEEP or moment == Moment.COMBAT:
+	if moment == Moment.UPKEEP or moment == Moment.COMBAT or moment == Moment.RESPONSE:
 		bar = ABILITY_BAR_UPKEEP
 	elif moment == Moment.SINK:
 		bar = ABILITY_BAR_SINK
@@ -1300,7 +1303,7 @@ func _try_activate(game: MtgGame, moment: int = Moment.MAIN) -> String:
 	# the mana sink the instant has had its moment, and every open point
 	# is about to be lost anyway.
 	var reserve: Dictionary = {} if moment == Moment.SINK else _held_reserve(game)
-	for inst in game.players[pid].battlefield:
+	for inst in _activation_sources(game):
 		for index in inst.cur_activated_abilities.size():
 			var ability: ActivatedAbility = inst.cur_activated_abilities[index]
 			if not _ability_available(game, inst, index, true):
@@ -1365,6 +1368,15 @@ func _try_activate(game: MtgGame, moment: int = Moment.MAIN) -> String:
 	return "activated %s" % source.data.card_name
 
 
+## Merseine's escape belongs to its HOST'S controller, including when
+## the Aura belongs to the opponent. Never borrow other hostile abilities.
+func _activation_sources(game: MtgGame) -> Array[CardInstance]:
+	var out: Array[CardInstance] = game.players[pid].battlefield.duplicate()
+	for inst in game.players[game.opponent_of(pid)].battlefield:
+		if inst.data.card_name == "Merseine": out.append(inst)
+	return out
+
+
 ## The cheap half of [method MtgGame.activate_ability]'s legality check —
 ## everything that can be known without paying. Mirrors the engine's order
 ## so a refusal never costs a tapped land.
@@ -1384,6 +1396,8 @@ func _ability_available(game: MtgGame, inst: CardInstance, index: int,
 		return false
 	if ability.only_owner_may_activate and inst.owner_id != pid:
 		return false   # Personal Incarnation answers to its OWNER (a stolen one refuses)
+	if ability.activator_condition.is_valid() and ability.activator_condition.call(game, inst, pid) != "":
+		return false
 	if _refused.has("%d:%d" % [inst.id, index]):
 		return false   # refused this step already — do not pay for it twice
 	if ability.cost.has_x:
@@ -1405,11 +1419,45 @@ func _ability_available(game: MtgGame, inst: CardInstance, index: int,
 		if ability.sacrifice_filter.is_valid() \
 				and _sacrifice_fodder(game, inst, ability) == null:
 			return false   # the engine would refuse it AFTER the mana was paid
+		if ability.sacrifice_count > 1:
+			var legal := 0
+			for body in game.players[pid].battlefield:
+				if (body != inst or ability.sacrifice_may_be_source) and ability.sacrifice_filter.call(body):
+					legal += 1
+			if legal < ability.sacrifice_count:
+				return false
+	if ability.tap_permanent_count > 0:
+		var legal := 0
+		for body in game.players[pid].battlefield:
+			if not body.tapped and (body != inst or not ability.tap_cost) and ability.tap_permanent_filter.call(body):
+				legal += 1
+		if legal < ability.tap_permanent_count:
+			return false
+		# The tap consumes another creature's combat participation. Only
+		# the price-aware main scorer may spend it, never a free pump probe.
+		if not priced_sacrifice:
+			return false
 	# Cost riders the mana planner does not model.
-	if ability.exile_cost or ability.exile_filter.is_valid() \
-			or ability.graveyard_exile_filter.is_valid() \
-			or ability.random_discard_cost or ability.discard_cost > 0:
+	if ability.exile_cost or ability.exile_filter.is_valid():
 		return false
+	if ability.random_discard_cost > 0 or ability.discard_cost > 0:
+		if inst.data.set_code != "fem" or not priced_sacrifice or not profile.plays_engines \
+				or game.players[pid].hand.size() < ability.random_discard_cost + ability.discard_cost:
+			return false
+	if ability.graveyard_exile_filter.is_valid():
+		if not priced_sacrifice or not profile.plays_engines:
+			return false
+		var enough := false
+		for owner in game.players.size():
+			if owner != pid and not ability.graveyard_exile_any_player:
+				continue
+			var count := 0
+			for buried in game.players[owner].graveyard:
+				if ability.graveyard_exile_filter.call(buried):
+					count += 1
+			enough = enough or count >= ability.graveyard_exile_count
+		if not enough:
+			return false
 	# A COUNTER IS A PRICE TOO (2026-09-09, [member
 	# AiProfile.spends_counters]) — it used to sit on the line above and
 	# no counter had ever been removed as a cost in this AI's life.
@@ -1431,7 +1479,8 @@ func _ability_available(game: MtgGame, inst: CardInstance, index: int,
 	if not ability.tap_cost and ability.cost.mana_value() == 0 \
 			and ability.life_cost <= 0 and ability.max_per_turn <= 0 \
 			and not sacrifices \
-			and ability.counter_cost_kind == "":
+			and ability.counter_cost_kind == "" and ability.tap_permanent_count == 0 \
+			and not (inst.data.card_name == "Merseine" and int(inst.counters.get("net", 0)) > 0):
 		# A body is a thing the turn runs out of, and since 2026-09-09 so
 		# is a counter: Osai Vultures' `+1/+1 for two carrion` is free of
 		# mana, free of the tap and capped by nothing but the birds it has
@@ -1538,7 +1587,10 @@ func _ability_option(game: MtgGame, inst: CardInstance, index: int, moment: int)
 	var ability: ActivatedAbility = inst.cur_activated_abilities[index]
 	var intent := EffectIntent.read(ability.effects, inst.data.card_name)
 	var tactical := EffectIntent.tactical_effect(ability.effects) if profile.uses_tactical_effects else null
-	if moment == Moment.COMBAT and intent.sweeper == null and tactical == null:
+	var expansion: Variant = FALLEN_EMPIRES_TACTICS.option(game, self, inst, index, Moment.keys()[moment])
+	if moment == Moment.RESPONSE and expansion == null:
+		return {}
+	if moment == Moment.COMBAT and intent.sweeper == null and tactical == null and expansion == null:
 		return {}   # their combat is a sweeper's moment and nobody else's
 	var me := game.players[pid]
 	var opponent := game.opponent_of(pid)
@@ -1557,7 +1609,11 @@ func _ability_option(game: MtgGame, inst: CardInstance, index: int, moment: int)
 		if intent.self_damage >= me.life:
 			return {}
 		price += intent.self_damage * _life_price(me.life)
-	if tactical != null:
+	if expansion != null:
+		if expansion.is_empty(): return {}
+		targets = expansion["targets"]
+		value = float(expansion["value"])
+	elif tactical != null:
 		var option := _tactical_option(game, inst, tactical)
 		if option.is_empty():
 			return {}
@@ -1746,6 +1802,7 @@ func _ability_option(game: MtgGame, inst: CardInstance, index: int, moment: int)
 		# not turn "trade my Mine for their fourth Plains" into a bargain.
 		own_bar = maxf(own_bar, ABILITY_BAR_MAIN)
 	price += sacrifice
+	price += _discard_price(game, ability)
 	value -= price
 	var out := {"inst": inst, "index": index, "targets": targets, "value": value}
 	if own_bar >= 0.0:
@@ -1753,6 +1810,22 @@ func _ability_option(game: MtgGame, inst: CardInstance, index: int, moment: int)
 	if keep_source_untapped:
 		out["keep_source_untapped"] = true
 	return out
+
+
+## Costs consume cards, not just mana. Random discard uses the average
+## visible own-hand value, never a peek at the future random selection.
+func _discard_price(game: MtgGame, ability: ActivatedAbility) -> float:
+	if ability.discard_cost == 0 and ability.random_discard_cost == 0: return 0.0
+	var values: Array[float] = []
+	for card in game.players[pid].hand:
+		values.append(Evaluator.card_value(card.data))
+	if values.is_empty(): return INF
+	values.sort()
+	var total := 0.0
+	for i in mini(ability.discard_cost, values.size()): total += values[i]
+	var average := 0.0
+	for value in values: average += value
+	return total + average / values.size() * ability.random_discard_cost
 
 
 ## WHAT A TOKEN IS WORTH ON THE BOARD (2026-09-10, [member
@@ -2711,10 +2784,17 @@ func _sacrifice_price(game: MtgGame, inst: CardInstance,
 	if ability.sacrifice_cost:
 		price += _own_value(game, inst, true)
 	if ability.sacrifice_filter.is_valid():
-		var fodder := _sacrifice_fodder(game, inst, ability)
-		if fodder == null:
+		var prices: Array[float] = []
+		for body in game.players[pid].battlefield:
+			if (body != inst or ability.sacrifice_may_be_source) and ability.sacrifice_filter.call(body):
+				prices.append(_own_value(game, body))
+		prices.sort()
+		if prices.size() < ability.sacrifice_count:
 			return INF
-		price += _own_value(game, fodder)
+		for i in ability.sacrifice_count:
+			price += prices[i]
+	if ability.tap_permanent_count > 0:
+		price += ability.tap_permanent_count * 0.75
 	return price
 
 
@@ -3694,6 +3774,8 @@ const SWEEP_BAR := 3.0
 func _size_and_aim(game: MtgGame, inst: CardInstance, intent: EffectIntent,
 		max_x: int, mode: int) -> Dictionary:
 	var data := inst.data
+	if data.card_name == "Dwarven Catapult":
+		return FALLEN_EMPIRES_TACTICS.catapult_choice(game, self, inst, max_x)
 	if profile.uses_tactical_effects and not data.is_modal():
 		var tactical := EffectIntent.tactical_effect(data.spell_effects)
 		if tactical != null:
@@ -3791,6 +3873,15 @@ func _size_and_aim(game: MtgGame, inst: CardInstance, intent: EffectIntent,
 	# THE COUNT (2026-09-07, AiProfile.counts_cards): an X that draws or
 	# discards is sized to the cards it acts on, not to the mana at hand.
 	if profile.counts_cards and not data.is_modal():
+		if intent.discards > 0 and intent.target_spec != null \
+				and intent.target_spec.kind == TargetSpec.Kind.PLAYER:
+			var count := mini(intent.discards, game.players[game.opponent_of(pid)].hand.size())
+			if count <= 0:
+				return {}
+			var discard_targets = _choose_targets(game, inst, 0, mode)
+			if discard_targets == null:
+				return {}
+			return {"x": 0, "targets": discard_targets, "value": float(count) * profile.w_hand}
 		if intent.draws_use_x:
 			var win_x := _decking_draw(game, inst, intent, max_x, max_x)
 			if win_x >= 0:
@@ -4192,7 +4283,7 @@ func _burn_chain(game: MtgGame, inst: CardInstance, intent: EffectIntent,
 			if not game.target_legal_at(intent.target_spec, ref, inst, share):
 				continue
 			if _plan_taps_from(sources,
-					_combined_cost(inst.data.cost_for(share), partner.data.cost),
+					_combined_cost(game.spell_cost_for(pid, inst.data, share), game.spell_cost_for(pid, partner.data)),
 					_generic_x(inst.data, share) + surcharge
 					+ game.spell_surcharge(pid, partner.data)).is_empty():
 				continue
@@ -4743,7 +4834,7 @@ func _lethal_life_mana(game: MtgGame) -> String:
 		return ""
 	if game.pay_life_for_mana(pid, life) != "":
 		return ""
-	if not _plan_and_pay(game, inst.data.cost_for(x),
+	if not _plan_and_pay(game, game.spell_cost_for(pid, inst.data, x),
 			_generic_x(inst.data, x) + game.spell_surcharge(pid, inst.data),
 			game.mana_usage_keys(inst.data)):
 		return ""
@@ -4837,6 +4928,8 @@ func _respond_action(game: MtgGame) -> String:
 	var counter := _try_counter(game)
 	if counter != "":
 		return counter
+	var expansion := _try_activate(game, Moment.RESPONSE)
+	if expansion != "": return expansion
 	if profile.uses_tactical_effects:
 		var tactical := _tactical_response(game)
 		if tactical != "":
@@ -6426,9 +6519,11 @@ func _shield(game: MtgGame, victim: CardInstance) -> String:
 			var ability: ActivatedAbility = inst.cur_activated_abilities[index]
 			if not _effects_regenerate(game, ability.effects, victim, inst):
 				continue
-			if not _ability_available(game, inst, index):
+			if not _ability_available(game, inst, index, true):
 				continue
-			var price: float = ability.cost.mana_value()
+			var rider := _sacrifice_price(game, inst, ability) + _discard_price(game, ability)
+			if rider > 0.0 and rider >= _own_value(game, victim): continue
+			var price: float = ability.cost.mana_value() + rider
 			if not best.is_empty() and float(best["price"]) <= price:
 				continue
 			best = {"price": price, "inst": inst, "index": index}
@@ -7087,7 +7182,7 @@ func _defensive_combat_response(game: MtgGame) -> String:
 				unblocked += attacker.cur_power
 		if unblocked >= mini(me.life, 7):
 			for inst in me.hand:
-				if inst.data.card_name == "Fog":
+				if EffectIntent.read(inst.data.spell_effects, inst.data.card_name).fogs:
 					return _cast_response(game, inst, [])
 	# THE SWEEP THAT ANSWERS AN ATTACK (2026-09-08, AiProfile.times_sweeps):
 	# a wipe we can activate, offered once the attackers are declared and
@@ -7684,7 +7779,7 @@ func _cast_response(game: MtgGame, inst: CardInstance, targets: Array,
 	if game.cast_refusal(pid, inst, targets, x_value, mode) != "":
 		_refused[str(inst.id)] = true
 		return ""
-	if not _plan_and_pay(game, inst.data.cost_for(x_value),
+	if not _plan_and_pay(game, game.spell_cost_for(pid, inst.data, x_value),
 			_generic_x(inst.data, x_value) + game.spell_surcharge(pid, inst.data)):
 		return ""
 	var err := game.cast_spell(pid, inst, targets, x_value, mode)
@@ -9286,6 +9381,7 @@ func _declare_blocks(game: MtgGame) -> String:
 	# 2026-09-02 sweep a refusal fell back to NO blocks, which the same
 	# requirement refused again: the declare-blockers step never ended.
 	block_map = _conscript_blocks(game, block_map, free)
+	block_map = _minimum_blockers(game, block_map, free)
 	# THE DECLARATION LADDER (see _declare_attacks): the plan, then the
 	# requirements alone, then nothing, then — an AI/engine mismatch, a
 	# bug worth hearing about — leave the game rather than freeze it.
@@ -9293,6 +9389,7 @@ func _declare_blocks(game: MtgGame) -> String:
 	if err != "":
 		game.log_line("(AI block declaration refused: %s)" % err)
 		block_map = _conscript_blocks(game, {}, free)
+		block_map = _minimum_blockers(game, block_map, free)
 		err = game.declare_blockers(pid, block_map)
 	if err != "":
 		block_map = {}
@@ -9303,6 +9400,40 @@ func _declare_blocks(game: MtgGame) -> String:
 		game.concede(pid)
 		return ""
 	return "declared %d block(s)" % block_map.size()
+
+
+## Repair a public-board plan for menace. Never submit an orphan blocker:
+## add an unused legal partner where possible, otherwise leave it unblocked.
+func _minimum_blockers(game: MtgGame, original: Dictionary, free: Array[CardInstance]) -> Dictionary:
+	var out := original.duplicate(true)
+	for id in game.combat.attackers:
+		var attacker := game.find_instance(id)
+		if attacker == null or attacker.cur_min_blockers <= 1:
+			continue
+		var assigned: Array[int] = []
+		for blocker_id in out:
+			var reach: Array = out[blocker_id] if out[blocker_id] is Array else [out[blocker_id]]
+			if reach.has(id):
+				assigned.append(blocker_id)
+		if assigned.is_empty():
+			continue
+		for blocker in free:
+			if assigned.size() >= attacker.cur_min_blockers:
+				break
+			if out.has(blocker.id) or (game.max_blockers > 0 and out.size() >= game.max_blockers):
+				continue
+			if CombatState.block_illegality(game, blocker, attacker, pid) == "":
+				out[blocker.id] = [id]
+				assigned.append(blocker.id)
+		if assigned.size() < attacker.cur_min_blockers:
+			for blocker_id in assigned:
+				var reach: Array = out[blocker_id] if out[blocker_id] is Array else [out[blocker_id]]
+				reach.erase(id)
+				if reach.is_empty():
+					out.erase(blocker_id)
+				else:
+					out[blocker_id] = reach
+	return out
 
 
 ## THE BLOCK IS DECLARED AT PRINTED SIZE TOO (2026-09-09,
@@ -10090,7 +10221,9 @@ func _is_reactive(data: CardData) -> bool:
 		for e in m["effects"]:
 			if e is CounterEffect:
 				return true
-	return data.card_name == "Fog"
+	for effect in data.spell_effects:
+		if effect is PreventCombatDamageEffect: return true
+	return false
 
 
 ## The mode this AI would cast a modal card with right now: the card's own
@@ -10124,8 +10257,8 @@ func _plan_spell_choice(game: MtgGame, inst: CardInstance, max_x: int) -> Dictio
 		var x: int = choice["x"]
 		if game.cast_refusal(pid, inst, choice["targets"], x, int(mode)) != "": continue
 		var extra := _generic_x(inst.data, x) + game.spell_surcharge(pid, inst.data)
-		if not (_cost_is_free(inst.data.cost_for(x)) and extra == 0) \
-				and _plan_taps(game, inst.data.cost_for(x), extra,
+		if not (_cost_is_free(game.spell_cost_for(pid, inst.data, x)) and extra == 0) \
+				and _plan_taps(game, game.spell_cost_for(pid, inst.data, x), extra,
 					game.mana_usage_keys(inst.data)).is_empty(): continue
 		if profile.plans_modes and inst.data.is_modal() and not intent.unknown:
 			if intent.life_gain > 0:
@@ -10750,7 +10883,7 @@ func _spend_on_packet(game: MtgGame, packet: DamagePacket, worth: float) -> Stri
 	# this file (the class-4 fix of 2026-09-05).
 	if game.cast_refusal(pid, source, targets, 0, int(best["mode"])) != "":
 		return ""
-	if not _plan_and_pay(game, source.data.cost, game.spell_surcharge(pid, source.data)):
+	if not _plan_and_pay(game, game.spell_cost_for(pid, source.data), game.spell_surcharge(pid, source.data)):
 		return ""
 	if game.cast_spell(pid, source, targets, 0, int(best["mode"])) != "":
 		return ""
@@ -10904,7 +11037,10 @@ func _regenerate(game: MtgGame, victim: CardInstance) -> String:
 			var ability: ActivatedAbility = inst.cur_activated_abilities[index]
 			if not _effects_regenerate(game, ability.effects, victim, inst):
 				continue
-			var price: float = ability.cost.mana_value()
+			if not _ability_available(game, inst, index, true): continue
+			var rider := _sacrifice_price(game, inst, ability) + _discard_price(game, ability)
+			if rider > 0.0 and rider >= _own_value(game, victim): continue
+			var price: float = ability.cost.mana_value() + rider
 			if not best.is_empty() and float(best["price"]) <= price:
 				continue
 			best = {"price": price, "inst": inst, "index": index,
@@ -10940,7 +11076,7 @@ func _regenerate(game: MtgGame, victim: CardInstance) -> String:
 	else:
 		if game.cast_refusal(pid, source, targets) != "":
 			return ""
-		if not _plan_and_pay(game, source.data.cost, game.spell_surcharge(pid, source.data)):
+		if not _plan_and_pay(game, game.spell_cost_for(pid, source.data), game.spell_surcharge(pid, source.data)):
 			return ""
 		if game.cast_spell(pid, source, targets) != "":
 			return ""
@@ -10957,6 +11093,8 @@ func _effects_regenerate(game: MtgGame, effects: Array, victim: CardInstance,
 	if not e.is_regeneration:
 		return false
 	if e.target_spec == null:
+		if source.data.card_name == "Thrull Retainer":
+			return source.attached_to == victim.id
 		return source == victim
 	return e.target_spec.is_legal(game, TargetRef.card(victim), source)
 
@@ -11252,6 +11390,15 @@ func answer_discard(game: MtgGame, p_pid: int, count: int) -> Array[CardInstance
 func answer_card(game: MtgGame, p_pid: int, candidates: Array[CardInstance],
 		prompt: String) -> CardInstance:
 	var asked := current_choice()
+	if prompt == "Choose a Plains to save":
+		for land in candidates:
+			if land.controller_id == p_pid: return land
+		return null
+	if prompt == "Tap a white creature to save up to two Plains?":
+		var owns_plains := false
+		for land in game.players[p_pid].battlefield:
+			owns_plains = owns_plains or land.cur_subtypes.has("plains")
+		if not owns_plains: return null
 	if asked != null and (asked.adverse or asked.ordered) \
 			and not candidates.is_empty():
 		return candidates[0]

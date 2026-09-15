@@ -66,6 +66,20 @@ var is_mana_trigger: bool = false
 ## Reviewed deterministic public damage/death aftermath only. Never enable
 ## for draws, searches, randomness, optional costs or hidden-zone choices.
 var forecast_safe := false
+## Optional public mana-planning description for a delayed mana trigger.
+## Resolution still belongs to on_resolve. The planner may count this
+## only for a matching land subtype producing the same color.
+var mana_bonus_subtype := ""
+var mana_bonus_color := 0
+var mana_bonus_amount := 0
+## Optional per-occurrence context captured WHEN the ability triggers,
+## before costs finish or players respond. Never stored on the permanent.
+## func(game, source, event) -> Dictionary; read via game.trigger_context().
+var capture_context: Callable = Callable()
+
+func capturing(callback: Callable) -> TriggeredAbility:
+	capture_context = callback
+	return self
 
 
 func public_aftermath() -> TriggeredAbility:

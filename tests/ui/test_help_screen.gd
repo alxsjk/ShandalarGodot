@@ -126,6 +126,31 @@ func test_the_reference_never_promises_a_rule_the_engine_lacks() -> void:
 
 # ============================================================ the icons ==
 
+func test_abilities_glossary_is_the_final_help_chapter() -> void:
+	var pages := HelpPages.pages()
+	for page in pages.slice(-5):
+		assert_true(String(page.title).begins_with("Abilities — "))
+	var text := "\n".join(pages.slice(-5).map(func(page: Dictionary) -> String: return _page_text(page)))
+	for ability in ["First strike", "Flying", "reach", "Banding", "Trample", "Protection",
+			"Shroud", "Regeneration", "Vigilance", "haste", "defender", "menace",
+			"Spore counters", "Storage lands", "Merseine", "Tourach's Gate", "Goblin Kites",
+			"Mana conversion", "High Tide", "Night Soil", "Unblocked-attack"]:
+		assert_true(text.contains(ability), ability)
+	assert_true(text.contains("after blockers are chosen does not remove an existing block"))
+	assert_true(text.contains("cannot stop sacrifice, exile, zero toughness"))
+	assert_true(text.contains("do not share flying, trample"))
+
+func test_ability_chapter_renders_with_packs_disabled() -> void:
+	var before := Settings.enabled_card_packs()
+	Settings.set_value("enabled_card_packs", [], false)
+	CardPacks._configure_registry()
+	for i in range(screen.page_count() - 5, screen.page_count()):
+		screen.go_to(i)
+		await get_tree().process_frame
+		assert_gt(_labels_of(screen).size(), 8)
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+
 func test_the_screen_does_not_teach_a_mark_the_card_no_longer_wears() -> void:
 	# **THE HELP SCREEN IS WHERE A PLAYER GOES TO LEARN THIS VOCABULARY**,
 	# so a mark it names had better exist. `MiniCard._refresh_status`

@@ -391,6 +391,7 @@ func _ready() -> void:
 	refresh()
 	_refresh_inventory()
 	_start_music()
+	CardPacks.changed.connect(_on_card_packs_changed)
 	set_process(true)
 
 
@@ -777,8 +778,13 @@ func _build_command_bar() -> void:
 	_dice_button.pressed.connect(_on_dice_pressed)
 	add_child(_dice_button)
 
-	_stats_button = OriginalDialog.button("", Vector2(120, COMMAND_BAR_H))
-	_stats_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var extras := OriginalDialog.button("Extras", Vector2(72, COMMAND_BAR_H))
+	extras.name = "ExtrasButton"
+	extras.tooltip_text = "Live set filters for enabled expansion packs"
+	extras.pressed.connect(_open_extra_sets)
+	_command_row.add_child(extras)
+
+	_stats_button = OriginalDialog.button("", Vector2(128, COMMAND_BAR_H))
 	_stats_button.pressed.connect(_run_command.bind("Stats"))
 	_stats_button.name = "StatsButton"
 	_command_row.add_child(_stats_button)
@@ -833,8 +839,11 @@ func _build_command_bar() -> void:
 		_slot_buttons.append(slot)
 
 	# `@DIALOGBUTTONS`' third word, and the screenshot's last button.
-	var done := OriginalDialog.button("Done", Vector2(120, COMMAND_BAR_H))
+	# Stats stays compact; the primary exit action takes the spare width.
+	var done := OriginalDialog.button("Done", Vector2(140, COMMAND_BAR_H))
+	done.name = "DoneButton"
 	done.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_emerald_done(done)
 	done.pressed.connect(_run_command.bind("Exit deck builder"))
 	_command_row.add_child(done)
 	add_child(_command_row)
@@ -847,6 +856,105 @@ func _build_command_bar() -> void:
 	_clear_button.visible = false
 	_clear_button.pressed.connect(_run_command.bind("Clear deck"))
 	add_child(_clear_button)
+
+
+## Tint only this button's faces, preserving the original stone texture,
+## bevel, keyboard focus ring and distinct hover/pressed states.
+static func _style_emerald_done(button: Button) -> void:
+	var colors := {"normal": Color("32c987"), "hover": Color("43e2a0"),
+		"pressed": Color("249965"), "hover_pressed": Color("2bae77"),
+		"disabled": Color("5b8070")}
+	for state in colors:
+		var box := button.get_theme_stylebox(state).duplicate() as StyleBox
+		if box is StyleBoxTexture:
+			box.modulate_color = colors[state]
+		elif box is StyleBoxFlat:
+			box.bg_color = (colors[state] as Color).darkened(0.30)
+		button.add_theme_stylebox_override(state, box)
+	for state in ["font_color", "font_hover_color", "font_pressed_color",
+		"font_hover_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(state, Color("effff6"))
+	button.add_theme_color_override("font_disabled_color", Color("afc4b9"))
+	button.add_theme_color_override("font_shadow_color", Color("082c20"))
+	button.add_theme_constant_override("shadow_offset_x", 1)
+	button.add_theme_constant_override("shadow_offset_y", 1)
+
+
+func _open_extra_sets() -> void:
+	if _dialog_busy():
+		return
+	var dialog := OriginalDialog.create("Extras", Vector2(390, 340))
+	dialog.set_meta("extra_sets", true)
+	var body := dialog.body()
+	body.alignment = BoxContainer.ALIGNMENT_CENTER
+	body.add_theme_constant_override("separation", 12)
+	_extra_source_row(body, "Original", "1997", true, filter.original_cards_on,
+		func(on: bool) -> void: filter.original_cards_on = on,
+		"The 897 original cards. Off hides their original printings;\nPack 1 reprints can still show the same names. Decks stay unchanged.")
+	_extra_source_row(body, "Pack1", "tDotP Pack 1", CardRegistry.optional_pack_enabled(),
+		filter.completion_pack_on, func(on: bool) -> void: filter.completion_pack_on = on,
+		"Complete the original sets: four new names and 369 reprint entries.\nThese switches filter the browser, not your saved deck or installed packs.")
+	_extra_source_row(body, "Pack2", "Fallen E. Pack 2", CardRegistry.extra_set_order().has("fem"),
+		filter.set_on("fem"), func(on: bool) -> void:
+			if filter.set_on("fem") != on:
+				filter.toggle_set("fem"),
+		"Fallen Empires: 102 unique cards.\nOther set, colour, type and search filters still apply.")
+	dialog.add_button("Close").pressed.connect(dialog.dismiss)
+	_show_dialog(dialog)
+
+
+## Matching radio pairs: one lit medallion per source. Always show every
+## row, even without its ZIP, so the layout does not jump between profiles.
+func _extra_source_row(body: VBoxContainer, id: String, title: String,
+		available: bool, on: bool, pick: Callable, cue: String) -> void:
+	var row := HBoxContainer.new()
+	row.name = "ExtraSourceRow_" + id
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	var label := OriginalDialog.label(title, 17)
+	label.custom_minimum_size.x = 170
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(label)
+	var group := ButtonGroup.new()
+	group.allow_unpress = false
+	for state in [true, false]:
+		var choice := VBoxContainer.new()
+		choice.add_theme_constant_override("separation", 2)
+		var button := Button.new()
+		button.name = "Extra" + id + ("On" if state else "Off")
+		button.toggle_mode = true
+		button.button_group = group
+		button.set_pressed_no_signal(state == (available and on))
+		button.disabled = state and not available
+		button.tooltip_text = ("On" if state else "Off") + " — " + title + "\n" \
+			+ (cue if available else "Enable this locally built pack in Options > Card Packs first.")
+		FilterBar.dress_source_medallion(button, id)
+		button.pressed.connect(func() -> void:
+			# Explicit assignment also makes an already-selected click harmless.
+			if not available:
+				return
+			pick.call(state)
+			for peer in group.get_buttons():
+				peer.set_pressed_no_signal(peer == button)
+			_refresh_inventory())
+		choice.add_child(button)
+		var caption := OriginalDialog.label("On" if state else "Off", 14)
+		caption.name = "Caption"
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		choice.add_child(caption)
+		row.add_child(choice)
+	body.add_child(row)
+
+
+func _on_card_packs_changed(_id: String, _enabled: bool) -> void:
+	_pool.clear()
+	for name in CardRegistry.all_names():
+		_pool.append(CardRegistry.get_card(name))
+	for code in CardRegistry.active_set_order():
+		if not filter.sets.has(code):
+			filter.sets[code] = true
+	_drawn_revision = -1
+	_refresh_inventory()
 
 
 ## [QoL] One deck-slot button. LETTERED, not glyphed: `Dekbtn1-3` is the
@@ -3690,16 +3798,17 @@ func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
 	if is_instance_valid(_pack_requirement_notice):
 		return
 	var available := CardPacks.has_pack(pack_id)
-	var body := "%s requires Pack 1, which is disabled." % loaded.deck_name
+	var pack_label := CardPacks.label_for(pack_id)
+	var body := "%s requires %s, which is disabled." % [loaded.deck_name, pack_label]
 	if not available:
 		body += (" The exact %s file is not available; place a locally built " \
 			+ "copy in the Card Packs folder and Rescan from Options.") % \
-			CardPacks.FILE_NAME
+			CardPacks.file_name_for(pack_id)
 	else:
 		body += " Enable it now and reload this deck?"
 	_pack_requirement_notice = UiChrome.action_popup(self,
-		"This deck requires Pack 1", body, [
-			{"label": "Enable Pack 1", "name": "EnablePack1",
+		"This deck requires " + pack_label, body, [
+			{"label": "Enable " + pack_label, "name": "Enable" + pack_label.replace(" ", ""),
 				"disabled": not available,
 				"callable": _enable_pack_and_reload.bind(pack_id, path)},
 			{"label": "Load as proxies", "name": "LoadAsProxies",

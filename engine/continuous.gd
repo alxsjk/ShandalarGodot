@@ -394,10 +394,10 @@ func add_until_eot_keywords(instance_id: int, keywords: Array,
 ## which is the duration the pool's only user prints.
 func add_floating_static(source: CardInstance, ability: StaticAbility,
 		lasts := Duration.END_OF_TURN, lasts_pid := -1,
-		until_end_of_combat := false) -> void:
+		until_end_of_combat := false, bound_instance_id := -1) -> void:
 	_rec(&"_floating_statics")
 	_floating_statics.append({
-		"instance_id": -1, "source": source, "ability": ability,
+		"instance_id": bound_instance_id, "source": source, "ability": ability,
 		"until_combat": until_end_of_combat,
 		"lasts": lasts, "lasts_pid": lasts_pid,
 		# A floating static is created by its source LEAVING, which is later

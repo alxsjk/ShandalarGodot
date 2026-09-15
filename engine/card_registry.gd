@@ -29,6 +29,9 @@ static var _optional_membership: Dictionary = {}
 static var _optional_scripts: Array = []
 static var _optional_records: Array = []
 static var _optional_counts: Dictionary = {}
+static var _expansion_sets: Dictionary = {}
+static var _expansion_scripts: Array = []
+static var _expansion_records: Array = []
 
 ## Root folder scanned for set subfolders.
 const SETS_ROOT := "res://cards/sets"
@@ -53,6 +56,8 @@ static func ensure_loaded() -> void:
 	if _optional_enabled:
 		for spec in _optional_scripts:
 			_load_optional_script(spec)
+	for spec in _expansion_scripts:
+		_load_optional_script(spec)
 
 
 ## DROP EVERY CARD BEFORE THE PROCESS ENDS — and the reason is a crash.
@@ -181,15 +186,15 @@ static func _load_optional_script(spec: Dictionary) -> void:
 	var expected := String(spec.get("name", ""))
 	var loaded: Variant = load(path)
 	if not (loaded is GDScript):
-		push_error("CardRegistry: Pack 1 card script cannot load: %s" % path)
+		push_error("CardRegistry: optional card script cannot load: %s" % path)
 		return
 	var card_script: CardScript = loaded.new()
 	var data: CardData = card_script.build()
 	if data == null:
-		push_error("CardRegistry: Pack 1 card built null: %s" % path)
+		push_error("CardRegistry: optional card built null: %s" % path)
 		return
 	if data.card_name != expected:
-		push_error("CardRegistry: Pack 1 expected '%s', script built '%s'" % [
+		push_error("CardRegistry: optional card expected '%s', script built '%s'" % [
 			expected, data.card_name])
 		return
 	data.set_code = set_code
@@ -266,20 +271,71 @@ static func optional_pack_enabled() -> bool:
 	return _optional_enabled
 
 
+## New expansions are independent of Pack 1's completion of the base sets.
+## All paths come from trusted game code, never from a user-supplied ZIP.
+static func configure_expansion_packs(sets: Dictionary, scripts: Array,
+		records: Array) -> void:
+	if _loaded:
+		unload()
+	_expansion_sets = sets.duplicate(true)
+	_expansion_scripts = scripts.duplicate(true)
+	_expansion_records = records.duplicate(true)
+
+
+static func extra_set_order() -> Array[String]:
+	var codes: Array[String] = []
+	for code in _expansion_sets:
+		codes.append(String(code))
+	return codes
+
+
+static func active_set_order() -> Array[String]:
+	var codes := SET_ORDER.duplicate()
+	codes.append_array(extra_set_order())
+	return codes
+
+
 ## Whether a named rules identity belongs to this displayed set. With no
 ## pack, the historical one-script/one-set assignment remains unchanged;
 ## Pack 1 expands it to every published set that printed the name.
-static func card_in_set(card_name: String, set_code: String) -> bool:
+static func card_in_set(card_name: String, set_code: String, include_completion := true,
+		include_original := true) -> bool:
 	ensure_loaded()
-	if _optional_enabled:
-		return bool(_optional_membership.get(card_name, {}).get(set_code, false))
+	if _expansion_sets.has(set_code):
+		return _cards.has(card_name) and _expansion_sets[set_code].get("names", []).has(card_name)
 	var data: CardData = _cards.get(card_name)
+	if _optional_enabled and include_completion:
+		if not bool(_optional_membership.get(card_name, {}).get(set_code, false)):
+			return false
+		# Pack 1 adds the set/name pairs missing from the shipped assignment.
+		# In a pack-only browser, retain those reprints as well as its four
+		# new identities, but do not attribute the original printing to it.
+		return include_original or is_completion_card(card_name) \
+			or (data != null and data.set_code != set_code)
+	if not include_original:
+		return false
+	if not include_completion and is_completion_card(card_name):
+		return false
 	return data != null and data.set_code == set_code
+
+
+## Newly playable names from Pack 1, not its reprints of existing cards.
+## Browser visibility can exclude these without unloading the game registry.
+static func is_completion_card(card_name: String) -> bool:
+	for spec in _optional_scripts:
+		if spec.get("name", "") == card_name:
+			return true
+	return false
 
 
 static func names_in_set(set_code: String) -> Array[String]:
 	ensure_loaded()
 	var out: Array[String] = []
+	if _expansion_sets.has(set_code):
+		for name in _expansion_sets[set_code].get("names", []):
+			if _cards.has(name):
+				out.append(String(name))
+		return out
 	if _optional_enabled:
 		var one: Variant = _optional_sets.get(set_code, {})
 		if one is Dictionary:
@@ -300,15 +356,28 @@ static func names_in_set(set_code: String) -> Array[String]:
 ## counts one playable rules identity per name.
 static func named_set_entry_count() -> int:
 	ensure_loaded()
-	return int(_optional_counts.get("named_set_entries", _cards.size()))
+	var total := int(_optional_counts.get("named_set_entries", _base_identity_count()))
+	for code in _expansion_sets:
+		total += names_in_set(code).size()
+	return total
 
 
 static func published_printing_count() -> int:
 	ensure_loaded()
-	return int(_optional_counts.get("published_printings", _cards.size()))
+	var total := int(_optional_counts.get("published_printings", _base_identity_count()))
+	for one in _expansion_sets.values():
+		total += int(one.get("published_printings", 0))
+	return total
 
 
 # ------------------------------------------------- original printings (CR 201) --
+static func _base_identity_count() -> int:
+	var total := 0
+	for data: CardData in _cards.values():
+		if not _expansion_sets.has(data.set_code):
+			total += 1
+	return total
+
 # "A name originally printed in the Antiquities expansion" (Golgothian
 # Sylex) / "in the Arabian Nights expansion" (City in a Bottle) is a
 # statement about the CARD NAME's first printing, not about which folder our
@@ -414,8 +483,8 @@ static func _ensure_printings() -> void:
 	# The base snapshots intentionally omit the four physical/manual cards.
 	# A validated enabled pack provides their printing metadata here, before
 	# its dormant implementations ask [method artist_of] during loading.
-	if _optional_enabled:
-		for entry in _optional_records:
+	if _optional_enabled or not _expansion_records.is_empty():
+		for entry in _optional_records + _expansion_records:
 			if not (entry is Dictionary):
 				continue
 			var name := String(entry.get("name", ""))

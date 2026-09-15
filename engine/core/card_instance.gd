@@ -79,6 +79,12 @@ var revealed_in_hand: bool = false
 ## Tapped/untapped.
 var tapped: bool = false
 
+## Monotonic continuity markers for "for as long as" effects. An untap or
+## control change breaks a duration even if the old state is restored before
+## resolution. Updated and journaled by MtgGame, never reset on a new turn.
+var untap_sequence: int = 0
+var control_sequence: int = 0
+
 ## Damage marked this turn (cleared at cleanup, CR 514.2).
 var damage: int = 0
 
@@ -464,6 +470,8 @@ var cur_rampage: int = 0
 ## and cleared with everything else by the face-down branch below.
 var cur_cant_be_blocked_by: Array[String] = []
 var cur_cant_block_power_ge: int = 0
+var cur_min_blockers: int = 1
+var cur_cant_block_filter: Callable = Callable()
 var cur_cant_be_blocked_by_power_ge: int = 0
 
 ## HOW MANY ADDITIONAL ATTACKERS THIS CREATURE MAY BLOCK, beyond the one
@@ -565,6 +573,10 @@ var cur_cant_be_spell_target: bool = false
 ## for damage flagged as combat damage, so the creature's own ping
 ## abilities still work.
 var cur_prevent_combat_damage_dealt: bool = false
+## Delif/Farrel replacements suppress assignment, not damage prevention.
+var cur_assigns_no_combat_damage: bool = false
+## Vodalian War Machine retains defender but may ignore it while attacking.
+var cur_can_attack_with_defender: bool = false
 ## "Prevent all COMBAT damage that would be dealt TO this creature"
 ## (Gaseous Form) — same combat-only gate.
 var cur_prevent_combat_damage_taken: bool = false
@@ -643,6 +655,8 @@ func reset_characteristics() -> void:
 	cur_activated_abilities.assign(data.activated_abilities)
 	cur_triggered_abilities.assign(data.triggered_abilities)
 	cur_block_restrictions.clear()
+	cur_min_blockers = 1
+	cur_cant_block_filter = Callable()
 	cur_bands_with.clear()
 	cur_damage_immunity.clear()
 	cur_target_bans.clear()
@@ -660,6 +674,8 @@ func reset_characteristics() -> void:
 	cur_must_be_blocked = false
 	cur_must_be_blocked_filter = Callable()
 	cur_prevent_combat_damage_dealt = false
+	cur_assigns_no_combat_damage = false
+	cur_can_attack_with_defender = false
 	cur_prevent_combat_damage_taken = false
 	cur_prevent_all_damage_taken = false
 	cur_indestructible = false
