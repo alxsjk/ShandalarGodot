@@ -14,6 +14,14 @@ needed); card files have NO class_name (they register by name instead);
   player MElo; phased work on `sgmanalink`, no public online service.
 - `docs/sgmanalink-local-playtest.md`: desktop LAN/loopback instructions,
   pinned invitations, discovery/firewall help, full-pool deck selection and test gates.
+- `docs/sgmanalink-network-campaign.md`: fair-information network self-play
+  design, reproducible fault campaign, evidence and two-machine limitations.
+- `tests/support/sg_network_pilot.gd`: DTO-only coverage pilot and normalized
+  public-table oracle; deliberately separate from gameplay AI difficulties.
+- `tests/ui/test_sgmanalink_campaign.gd`: seeded paired TLS games with real
+  clients, projection checks, JSONL traces, lost acknowledgements and duplicates.
+- `tests/unit/test_sgmanalink_pilot.gd`: campaign-instrument checks for DTO-only
+  decisions, gang blocks, damage division, targetless cancels and oracle sensitivity.
 - `docs/sgmanalink-stability-2026-09-14.md`: LAN review fixes, recovery
   semantics, regression/soak coverage and before/after performance measurements.
 - `docs/sgmanalink-hardening-2026-09-14.md`: second LAN robustness pass,

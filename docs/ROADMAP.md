@@ -13457,6 +13457,29 @@ the sole navigation. The menu-only revision passed **48 focused tests / 516
 assertions** and fresh original-skin/fallback native capture checks; small-layout
 containment is tested down to 640×480. No networking or gameplay code changed.
 
+## 2026-09-15 — Reproducible SGManalink network self-play
+
+The interface/Overview work was committed and pushed to `sgmanalink` as
+`222d34f` after a clean **6,413-test** full gate. A separate
+[network campaign](sgmanalink-network-campaign.md) now plays two DTO-only
+coverage pilots through actual TLS clients. This is not the offline Wizard AI
+and never hands the host referee to a player decision maker.
+
+Twelve full games across seeds 4242–4247 passed **65,174 assertions**, wrapper
+exit **0**: **6,484 commands, 252 spell submissions, 36 blockers, 74 duplicate
+sends and 37 lost-acknowledgement reconnects**. Every stressed public-table
+transcript matched its unstressed baseline. No new transport/rules bug was
+reproduced. Added explicit gang-block/division coverage and instrument checks;
+guaranteed TLS damage/search scenarios complement the full games. A protected
+match factory keeps deterministic seeds exclusively in the test referee, with
+no new wire capability or change to gameplay AI policies. Two-machine LAN and
+mixed-platform testing remain a separate verification step.
+
+Final full gate: **6,421 tests / 250,340 assertions / 379 scripts**, wrapper exit
+**0**. Both guaranteed TLS scenarios passed, including a private search that
+remains hidden from the opposing client after reconnect. No release replacement
+or binary export was performed.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

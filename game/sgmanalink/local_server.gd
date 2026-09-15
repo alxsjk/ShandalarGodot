@@ -426,7 +426,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 			return "The duel has started."
 		room.ready[seat] = action.value
 		if room.ready == [true, true] and _connected(room.seats[0]) and _connected(room.seats[1]):
-			room.match = SgPracticeMatch.new(-1, room.decks, [_guest_name(room.seats[0]), _guest_name(room.seats[1])])
+			room.match = _create_match(room.decks, [_guest_name(room.seats[0]), _guest_name(room.seats[1])])
 		room.revision += 1
 		return ""
 	if room.match == null:
@@ -441,6 +441,12 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 	if error.is_empty() or generation != room.match.state_generation or draft != room.match.actions.draft:
 		room.revision += 1
 	return error
+
+
+func _create_match(decks: Array, names: Array) -> SgPracticeMatch:
+	# The referee chooses its seed. Tests may override this factory on their
+	# own server; no wire command can choose or retrieve a live game's seed.
+	return SgPracticeMatch.new(-1, decks, names)
 
 
 func _guest_name(sid: int) -> String:

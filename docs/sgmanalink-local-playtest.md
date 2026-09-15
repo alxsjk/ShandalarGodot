@@ -5,6 +5,11 @@ public Internet release. No Nakama, account service, central directory or
 MElo is required. Offline duels, hotseat, demonstration and Deck Builder
 retain their existing code paths.
 
+For repeatable automated network play, see the
+[network campaign](sgmanalink-network-campaign.md). It runs two fair-information
+coverage pilots over real TLS, including duplicate commands and reconnects.
+The offline AI-versus-AI demo by itself does not test LAN networking.
+
 ## Two computers on the same network
 
 Use the same current development build on both computers. Old release
