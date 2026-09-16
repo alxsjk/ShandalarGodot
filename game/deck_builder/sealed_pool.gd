@@ -92,6 +92,8 @@ var seed := 0
 var packs: Array[Dictionary] = []
 ## `name -> copies held`, over every pack — the master library.
 var counts: Dictionary = {}
+## Timed drafts carry a self-contained replay record. Legacy dice deals do not.
+var draft_recipe: Dictionary = {}
 
 
 ## How many cards the settings deal — the number the window shows before
@@ -127,6 +129,7 @@ static func sheets(library: Array) -> Dictionary:
 ## Open the packs. [param library] is the whole card pool, [param roll]
 ## the seed; the pool is the same for the same two. Clears the last deal.
 func deal(library: Array, roll: int) -> void:
+	draft_recipe = {}
 	seed = roll
 	packs = []
 	counts = {}

@@ -28,7 +28,8 @@ const SHIPPED_DIR := "res://decks"
 const USER_DIR := "user://decks"
 const EXTENSION := ".deck"
 
-## Every extension `DeckList` can read.
+## Saved-deck formats indexed automatically. Plain .txt is explicitly imported:
+## the decks folder also contains non-deck text such as ratings.txt.
 const READABLE := [".deck", ".dec", ".dck"]
 
 # The 1997 messages, verbatim but with `.dck` replaced by the actual file
@@ -447,6 +448,7 @@ static func load_deck(path: String, out_report: Array) -> DeckModel:
 	var model := _fold(lenient, out_report)
 	var text := read_text(path)
 	model.notes = DeckModel.notes_from_text(text)
+	model.draft_comments = DeckModel.draft_comments_from_text(text)
 	# CARRIED, NOT JUDGED. [method DeckGroups.raw_in] returns whatever the
 	# file wrote; the builder never offers a way to type one, and
 	# [method DeckGroups.of] still derives `User-created` from the PATH —
@@ -506,7 +508,7 @@ const PROXIED := "%d card%s became a proxy: %s"
 ## What Import can read. Every format [DeckList] parses, which is every
 ## format this project writes.
 const IMPORT_FILTERS := ["*.deck ; Shandalar deck", "*.dec ; Decklist",
-	"*.dck ; MicroProse 1997 deck"]
+	"*.dck ; MicroProse 1997 deck", "*.txt ; Plain-text decklist"]
 
 
 ## IMPORT A DECK FILE FROM ANYWHERE ON DISK. Returns the model, or null
@@ -525,6 +527,7 @@ static func import_file(path: String, out_report: Array) -> DeckModel:
 	# ours unless it came FROM us, and reading them costs one file read.
 	var text := read_text(path)
 	model.notes = DeckModel.notes_from_text(text)
+	model.draft_comments = DeckModel.draft_comments_from_text(text)
 	model.group = DeckGroups.raw_in(text)
 	return model
 
@@ -543,13 +546,14 @@ static func import_text(text: String, fallback_name: String,
 	if looks_like_dck(text):
 		lenient.parse_dck(text, fallback_name, false)
 	else:
-		lenient.parse(text, fallback_name, false)
+		lenient.parse(text, fallback_name, false, true)
 	if not lenient.errors.is_empty():
 		out_report.append(PASTE_ERROR)
 		out_report.append_array(lenient.errors)
 		return null
 	var model := _fold(lenient, out_report)
 	model.notes = DeckModel.notes_from_text(text)
+	model.draft_comments = DeckModel.draft_comments_from_text(text)
 	return model
 
 

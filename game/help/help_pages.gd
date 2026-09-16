@@ -1072,6 +1072,11 @@ static func _page_builder() -> Dictionary:
 			+ "external copies. Verify saved deck compares main deck and sideboard "
 			+ "with a saved pool. For fair play, the organiser should keep the original "
 			+ "pool before building; local files can be edited."),
+		_text("New draft decks also save a seed, pack counts and a complete replay "
+			+ "recipe as comments. In Verify saved deck, choose the deck and Reconstruct "
+			+ "deck to recreate every pack. A judge can paste the fingerprint retained "
+			+ "before building. Without that independent reference, reconstruction "
+			+ "checks consistency, not whether the player changed the deal."),
 		_text("Big cards switches the Showcase to the dueling "
 			+ "table's full card size and widens the left column. Its "
 			+ "checkmark is remembered for the next startup; untick it to "

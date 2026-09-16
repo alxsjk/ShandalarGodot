@@ -61,13 +61,4 @@ static func validate(options: Dictionary, names: Array[String]) -> String:
 
 
 static func deal(options: Dictionary, names: Array[String]) -> SealedPool:
-	if validate(options, names) != "":
-		return null
-	var entropy := Crypto.new().generate_random_bytes(8)
-	if entropy.size() != 8:
-		return null
-	var pool := SealedPool.new()
-	for key in ["boosters", "starters", "free_lands", "extras"]:
-		pool.set(key, int(options[key]))
-	pool.deal(library(names), entropy.decode_s64(0))
-	return pool
+	return DraftRecipe.deal(options, names)

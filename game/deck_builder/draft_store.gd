@@ -9,6 +9,13 @@ var _last_text := ""
 
 
 func prepare(folder: String, pool: SealedPool, options: Dictionary) -> String:
+	if not pool.draft_recipe.is_empty():
+		var replay := DraftRecipe.reconstruct(pool.draft_recipe)
+		if not replay.ok: return replay.message
+		if replay.pool.counts != pool.counts or replay.pool.packs != pool.packs:
+			return "The draft recipe does not match the dealt pool."
+		for key in DraftRecipe.OPTION_KEYS:
+			if options.get(key) != pool.draft_recipe.options[key]: return "Draft options do not match the dealt recipe."
 	var refusal := GamePaths.draft_folder_refusal(folder)
 	if refusal != "": return refusal
 	folder = ProjectSettings.globalize_path(GamePaths.expand(folder.strip_edges())).simplify_path()
@@ -28,6 +35,9 @@ func prepare(folder: String, pool: SealedPool, options: Dictionary) -> String:
 		"collation": "printed-rarity-v1", "pack_shapes": {"booster": SealedPool.BOOSTER, "starter": SealedPool.STARTER},
 		"options": options.duplicate(), "counts": pool.counts.duplicate(),
 		"packs": pool.packs.duplicate(true), "state": "building"}
+	if not pool.draft_recipe.is_empty():
+		receipt["recipe"] = pool.draft_recipe.duplicate(true)
+		receipt["collation"] = DraftRecipe.ALGORITHM
 	return _write(pool_path, JSON.stringify(receipt, "\t") + "\n")
 
 
@@ -37,7 +47,7 @@ func checkpoint(deck: DeckModel, reason := "building") -> String:
 	for card_name in deck.names() + deck.side_names():
 		if deck.copies_of(card_name) > int(receipt.counts.get(card_name, 0)):
 			return "The deck contains cards outside the dealt pool; it has not been saved."
-	var text := deck.to_text()
+	var text := deck_text(deck)
 	if text != _last_text or reason != "building" or not FileAccess.file_exists(deck_path):
 		var refusal := _write(deck_path, text)
 		if refusal != "": return refusal
@@ -52,6 +62,14 @@ func checkpoint(deck: DeckModel, reason := "building") -> String:
 			receipt.state = "building"
 			return refusal
 	return ""
+
+
+## Both native checkpoints and web downloads must carry identical metadata.
+func deck_text(deck: DeckModel) -> String:
+	if not receipt.has("recipe"): return deck.to_text()
+	var copy := deck.duplicate_model()
+	copy.draft_comments = DraftRecipe.comments(receipt.recipe)
+	return copy.to_text()
 
 
 static func _write(path: String, text: String) -> String:

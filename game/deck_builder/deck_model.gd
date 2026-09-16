@@ -166,6 +166,9 @@ var counts: Dictionary = {}
 ## deck WITHOUT notes reads back as "" rather than as an error.
 ## [method notes_from_text] is the reader.
 var notes := ""
+## [QoL] Draft replay comments survive native loading, copying and saving.
+## Carried verbatim, never treated as authenticated tournament evidence.
+var draft_comments := ""
 ## [QoL] THE SIDEBOARD, `name -> count` like [member counts]. The `SB:`
 ## lines of the deck file; see the class doc for whose rules govern it.
 var sideboard: Dictionary = {}
@@ -397,6 +400,7 @@ func clear() -> void:
 	counts.clear()
 	sideboard.clear()
 	group = ""
+	draft_comments = ""
 	deck_name = DEFAULT_NAME
 
 
@@ -965,6 +969,7 @@ static func _sort_rank(card_name: String) -> int:
 func to_text() -> String:
 	var lines := PackedStringArray()
 	lines.append("# Built in the Deck Builder.")
+	if not draft_comments.is_empty(): lines.append(draft_comments)
 	# Carried, never authored — see [member group]. It goes above `name:`
 	# because that is where the shipped decks put it and because
 	# [method DeckGroups.declared_in] takes the FIRST declaration it finds.
@@ -992,6 +997,14 @@ static func notes_from_text(text: String) -> String:
 		var line := raw_line.strip_edges()
 		if line.begins_with("# note:"):
 			found.append(line.substr(7).strip_edges())
+	return "\n".join(found)
+
+
+static func draft_comments_from_text(text: String) -> String:
+	var found := PackedStringArray()
+	for raw_line in text.split("\n"):
+		var line := raw_line.strip_edges()
+		if line.begins_with("# draft-"): found.append(line)
 	return "\n".join(found)
 
 
@@ -1078,6 +1091,7 @@ func duplicate_model() -> DeckModel:
 	copy.counts = counts.duplicate()
 	copy.sideboard = sideboard.duplicate()
 	copy.notes = notes
+	copy.draft_comments = draft_comments
 	copy.group = group
 	return copy
 

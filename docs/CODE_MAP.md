@@ -7,12 +7,19 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
+## Plain-text deck imports (2026-09-16)
+
+- `tests/ui/test_text_deck_import.gd`: 60+15 NecroDeck regression, file/paste
+  parity, CRLF/BOM, blank and explicit sideboard boundaries, proxies, saved
+  format round trips and safe file discovery. Live builder import/load routes
+  and the file picker are also pinned in `tests/ui/test_deck_builder.gd`.
+
 ## In-game Booster Draft (2026-09-15)
 
 - `docs/booster-draft.md`: in-game workflow, pool/pack semantics, countdown,
   native/browser saves and recovery; no standalone CLI.
 - `game/deck_builder/draft_pool_config.gd` (`DraftPoolConfig`): remembered
-  eligibility, exact-sheet validation and machine-entropy `SealedPool` deals.
+  eligibility, exact-sheet validation and machine-entropy `DraftRecipe` deals.
 - `game/deck_builder/draft_pool_dialog.gd` (`DraftPoolDialog`): set/card check tree,
   name search, explicit save/cancel and rarity summary.
 - `game/deck_builder/draft_setup.gd` (`DraftSetup`): launch controls, remembered
@@ -23,6 +30,12 @@ needed); card files have NO class_name (they register by name instead);
   atomic exact-deck checkpoints, final pool-invariant guard and write refusals.
 - `game/deck_builder/draft_audit.gd` (`DraftAudit`): bounded read-only receipt and
   deck-file validation, combined main/sideboard membership and copy-count checks.
+- `game/deck_builder/draft_recipe.gd` (`DraftRecipe`): frozen SHA-256 counter
+  dealer, self-contained eligible sheets, canonical commitments and deck comments.
+- `docs/draft-replay-v1.md`: portable recipe schema, dealing/hash specification,
+  independent reference vector and explicit pre-build trust boundary.
+- `tests/ui/test_draft_recipe.gd`: deterministic and JSON replay, reference vector,
+  tampering/substitution, native metadata retention, recovery and judge controls.
 - `game/deck_builder/draft_verifier.gd` (`DraftVerifier`): in-game pool/deck file
   selectors, verification report and explicit organiser-copy trust boundary.
 - `game/deck_builder/draft_session.gd` (`DraftSession`, `PackArt`): animated pack
@@ -1227,7 +1240,7 @@ shandalar/
 │   │                          opposing_attackers() rather than comparing
 │   │                          a `blocks` value; damage math lives in
 │   │                          MtgGame
-│   ├── deck_list.gd         class DeckList — .deck/.dec/.dck parser and
+│   ├── deck_list.gd         class DeckList — .txt/.deck/.dec/.dck parser and
 │   │                          validator, maindeck + `SB:` sideboard (the
 │   │                          Deck Lab, the setup screen and the Deck
 │   │                          Builder all read it). `strict` carries the
@@ -1239,6 +1252,9 @@ shandalar/
 │   │                          mode; DEC titles require an exact NAME field
 │   │                          (2026-09-13 regression cases in
 │   │                          tests/tools/test_deck_lab.gd)
+│   │                          Plain .txt and opted-in pasted lists use a
+│   │                          blank-line sideboard boundary unless explicit
+│   │                          SB: lines occur; native/DEC/DCK stay unchanged.
 │   ├── proxy_card.gd        class ProxyCard — **[QoL]** THE PROXY, a paper
 │   │                          stand-in for a card this game does not
 │   │                          implement. Definition: a card NAME the

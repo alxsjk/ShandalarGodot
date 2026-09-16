@@ -64,6 +64,8 @@ moved or deleted.
 Each launch uses a fresh timestamp/random filename:
 
 - `draft-….deck`: the exact main deck and selected sideboard, in native text format.
+  New timed drafts include comment lines for the seed, pack counts, extras,
+  time limit, SHA-256 fingerprint and a complete machine-readable replay recipe.
 - `draft-….pool.json`: all dealt cards, pack contents, event settings and completion
   state, with the collation rule and pack shapes. This file is saved **before
   building starts**. Unused cards remain here; they are not silently added to
@@ -93,4 +95,40 @@ For fair play, the organiser should retain the original pool file **before
 deck building**, then compare the final submission against that retained copy.
 A player can edit both local files or restart a draft; storing multiple copies
 on the same player's machine does not prevent that. This is an audit aid, not
-cryptographic proof, authenticated dealing, or enforcement of the time limit.
+proof of honest random dealing, authenticated identity, or enforcement of the
+time limit.
+
+## Reconstruct a draft from its deck
+
+New timed drafts embed everything needed to reproduce the deal: a 256-bit seed
+stored as hexadecimal text, the exact eligible card names grouped by rarity,
+pack counts, extra lands/cards, time limit, the versioned dealing algorithm and
+fingerprints of both the deal and the recipe. A seed alone would not suffice:
+different eligible-card settings would produce different packs.
+
+In **Verify saved deck…**, choose the `.deck` and select **Reconstruct deck**.
+No separate pool file is required. The report regenerates every pack, lists
+all dealt cards and checks the submitted main deck plus sideboard. Paste the
+judge's **pre-draft fingerprint** to also detect a substituted recipe. Without
+that independent reference, the report explicitly says **Unanchored replay**.
+Alternatively, **Check deck** compares against the judge's retained pool file
+and requires its fingerprint to match the embedded recipe.
+
+The original `.pool.json` contains the same recipe/fingerprint before building
+starts. Retain it, or record its `recipe.fingerprint`, independently at that
+point. Receiving a fingerprint only with the finished deck proves consistency,
+not that the player accepted the first random deal. This does not prevent seed
+searching, prove identity, enforce elapsed building time or authenticate a
+player-run executable; an organised event still needs a trusted deal/commitment.
+
+Native draft checkpoints, final saves and web downloads use identical metadata.
+Ordinary native deck loading, saving, copying and Undo preserve the comments;
+clearing to a new unrelated deck drops them. Keep the native `.deck` for judging:
+conversion/export to another program's format may discard its comments. Older
+drafts have no saved seed/eligible-sheet recipe and cannot acquire one
+retroactively; use their original `.pool.json` for membership checks.
+
+The replay algorithm is independent of Godot's random-generator implementation
+and current card-pool settings. Its frozen specification and reference vector
+are in [Draft replay v1](draft-replay-v1.md). Replay of card names is data-only;
+the in-game membership parser still needs the corresponding card packs enabled.

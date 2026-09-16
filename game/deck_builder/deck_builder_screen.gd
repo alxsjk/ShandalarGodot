@@ -2554,9 +2554,10 @@ func _show_import_dialog() -> void:
 		return
 	var dialog := OriginalDialog.create("Import deck", Vector2(520, 300))
 	var how := OriginalDialog.label(
-		"Import a .deck, .dec or .dck file. An unavailable card becomes a"
+		"Import a .txt, .deck, .dec or .dck file. An unavailable card becomes a"
 		+ " proxy: you can see the deck and build with it, but not duel"
-		+ " with it.", 13)
+		+ " with it. For plain text, a blank line after the main deck starts"
+		+ " the sideboard. Explicit SB: markers take precedence.", 13)
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	how.custom_minimum_size.x = 460
 	dialog.body().add_child(how)
@@ -2632,9 +2633,10 @@ func _open_paste_dialog() -> void:
 		return
 	var dialog := OriginalDialog.create("Paste a decklist", Vector2(560, 460))
 	var how := OriginalDialog.label(
-		"Paste a decklist — `4 Lightning Bolt` lines, with `SB:` for the"
-		+ " sideboard and `// NAME :` or `name:` for the title. The 1997"
-		+ " .dck format is read too.", 13)
+		"Use lines like 4 Lightning Bolt. A blank line after the main deck"
+		+ " starts the sideboard. If any SB: markers are present, only marked"
+		+ " lines are sideboard. Use name: for a title. The 1997 .dck format"
+		+ " is read too.", 13)
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	how.custom_minimum_size.x = 500
 	dialog.body().add_child(how)

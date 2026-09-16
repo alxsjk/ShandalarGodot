@@ -13741,6 +13741,80 @@ Linux-only check skipped on macOS. The temporary visual helper was removed;
 captures and logs are outside the repository. No release assets were rebuilt
 or replaced in this pass.
 
+## 2026-09-16 — Self-contained draft reconstruction
+
+New timed draft decks carry human-readable seed/pack/fingerprint comments and
+a complete machine-readable recipe. The receipt saved before construction
+contains the same record: a 256-bit hexadecimal entropy seed, frozen eligible
+rarity sheets, pack/extra counts, stated time limit, algorithm identifier,
+dealt-pack hash and canonical recipe fingerprint. The seed stays text through
+JSON, avoiding integer-precision loss. Completion and recovery do not change
+the commitment. Native checkpoints and web downloads use one serializer;
+ordinary native load/save/import/copy/Undo preserves the comments, while Clear
+drops an unrelated deck's old record. Legacy dice deals remain unchanged.
+
+The new timed-draft dealer uses a frozen SHA-256 counter stream, unbiased
+rejection sampling and partial Fisher–Yates. It does not depend on Godot's RNG
+implementation or the judge's current eligible-card settings. The v1 protocol
+and independently calculated reference vector are documented in
+[Draft replay v1](draft-replay-v1.md); changing v1 silently is prohibited.
+
+**Verify saved deck → Reconstruct deck** regenerates every pack from the deck
+alone, displays all dealt cards and checks main deck plus sideboard quantities.
+An optional judge-held pre-build fingerprint rejects substituted valid recipes.
+Checking against the original pool receipt also requires matching recipes and
+reconstructed pack contents. Missing, duplicated, malformed, oversized and
+unsupported records are refused; older drafts retain receipt-only membership
+checks. The malformed-input regression caught and corrected a bool/string
+comparison error in the recipe's algorithm field.
+
+Hashes establish consistency, not identity or honest randomness. Without an
+independently retained pre-build commitment the report says **Unanchored replay**.
+No claim is made to prevent seed searching, enforce time limits, sign files or
+authenticate a modified player-run executable. This remains local practice,
+not tournament-integrated trusted dealing.
+
+Native source-scene visual QA used the locked-Mac viewport capture at 960×600
+with a staged deterministic recipe. The expanded controls and scrolling pack
+report fit; the capture exited cleanly without warnings, errors or leaks.
+
+Final acceptance: **6,536 tests / 280,326 assertions / 388 scripts**, wrapper
+exit **0**, in **458.737 seconds**; this includes all sixteen replay-specific
+tests and the existing timed-draft, native deck-model and network campaigns.
+Python tooling: **227 tests**, with one Linux-only check skipped on macOS.
+The temporary capture helper was removed; diagnostics remain outside the
+repository. No commit, push, binary export or release replacement was performed
+for this addition.
+
+## 2026-09-16 — Plain-text deck imports and sideboard separation
+
+The supplied NecroDeck text list was reproduced before the fix: the new test
+reported `[75] expected to equal [60]` and `[0] expected to equal [15]`.
+The first run had seven failing tests; its other failures covered pasted lists,
+Windows text, strict sideboard validation and the absent text-file filter.
+
+Deck Builder now offers `.txt` in both **Import deck → From a file…** and
+**Load → From disk…**. Plain-text files and pasted lists use the first blank
+line after a main-deck card as the sideboard boundary. Leading/header blanks
+do not create a sideboard; repeated blanks never switch back. CRLF, whitespace
+lines and UTF-8 BOMs are supported. Explicit `SB:` lines take precedence for
+the whole list, preserving grouped lists that already mark their sideboard.
+Existing `.deck`, `.dec` and MicroProse `.dck` file semantics are unchanged.
+
+The example now imports as 60 main-deck cards and 15 sideboard cards, preserving
+unimplemented cards as visible, unplayable proxies. Native saving writes explicit
+markers and preserves both piles. Text files remain explicitly opened rather
+than automatically indexed, so `decks/ratings.txt` and arbitrary notes cannot
+pollute the saved-deck list. Import/paste help and player-file documentation
+explain the boundary convention.
+
+Final acceptance: **6,550 tests / 280,120 assertions / 389 scripts**, wrapper
+exit **0**, in **455.144 seconds**, including twelve focused import cases and
+two live-builder route regressions. Python tooling: **227 tests**, exit **0**,
+with one Linux-only check skipped on macOS. The regression fixture matches the
+supplied file after line-ending normalisation. No commit, push, binary export
+or release replacement was performed for this addition.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

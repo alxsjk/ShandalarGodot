@@ -5,18 +5,42 @@ extends RefCounted
 
 const MAX_CARDS := 1110 # 12 boosters + 12 starters + 150 lands + 60 extras.
 const POOL_BYTES := 1048576
-const DECK_BYTES := 65536
-const TRUST_NOTE := "Checks pool membership, not deck-format legality or file authenticity. For fair play, the organiser must retain the original pool before building; a player can edit local files."
+const DECK_BYTES := DraftRecipe.MAX_BYTES
+const TRUST_NOTE := "Checks pool membership, not deck-format legality or identity. The organiser must retain the original pool or fingerprint before building. A recipe or hash supplied afterwards can be replaced by the player."
 
 
-static func check_files(pool_path: String, deck_path: String) -> Dictionary:
+static func check_files(pool_path: String, deck_path: String, expected_fingerprint := "") -> Dictionary:
 	var pool := _read(pool_path, POOL_BYTES)
 	if not pool.ok: return pool
 	var deck := _read(deck_path, DECK_BYTES)
 	if not deck.ok: return deck
 	var json := JSON.new()
 	if json.parse(pool.text) != OK: return _failure("Invalid JSON in draft pool file.")
-	return check(json.data, deck.text)
+	return check(json.data, deck.text, expected_fingerprint)
+
+
+static func reconstruct_file(deck_path: String, expected_fingerprint := "") -> Dictionary:
+	var deck := _read(deck_path, DECK_BYTES)
+	if not deck.ok: return deck
+	return reconstruct_text(deck.text, expected_fingerprint)
+
+
+static func reconstruct_text(text: String, expected_fingerprint := "") -> Dictionary:
+	var embedded := DraftRecipe.from_text(text)
+	if not embedded.ok: return embedded
+	var replay := DraftRecipe.reconstruct(embedded.recipe)
+	if not replay.ok: return replay
+	var receipt := {"schema": 1, "counts": replay.pool.counts, "packs": replay.pool.packs, "recipe": embedded.recipe}
+	var result := check(receipt, text, expected_fingerprint)
+	if not result.ok: return result
+	result["receipt"] = receipt
+	var options: Dictionary = embedded.recipe.options
+	result.message += "\n\nReconstructed from seed: %s\n%d boosters · %d starters · %d extra lands per type · %d random extras · %d minutes\nFingerprint: %s" % [
+		embedded.recipe.seed, int(options.boosters), int(options.starters), int(options.free_lands), int(options.extras), int(options.minutes), embedded.recipe.fingerprint]
+	result.message += "\nMatches the judge's retained fingerprint." if expected_fingerprint != "" else "\nUnanchored replay: no pre-draft fingerprint was supplied."
+	for pack in replay.pool.packs:
+		result.message += "\n\n%s (%d cards)\n%s" % [pack.title, pack.cards.size(), ", ".join(pack.cards)]
+	return result
 
 
 static func _read(path: String, limit: int) -> Dictionary:
@@ -33,11 +57,25 @@ static func _read(path: String, limit: int) -> Dictionary:
 	return {"ok": true, "text": text}
 
 
-static func check(receipt: Variant, deck_text: String) -> Dictionary:
+static func check(receipt: Variant, deck_text: String, expected_fingerprint := "") -> Dictionary:
 	var refusal := pool_refusal(receipt)
 	if refusal != "": return _failure(refusal)
 	if deck_text.to_utf8_buffer().size() > DECK_BYTES:
 		return _failure("Deck file is too large for a draft check.")
+	if receipt.has("recipe"):
+		var replay := DraftRecipe.reconstruct(receipt.recipe)
+		if not replay.ok: return replay
+		if DraftRecipe.pack_hash(receipt.packs) != receipt.recipe.pool_sha256:
+			return _failure("Saved pack contents do not match the reconstructed recipe.")
+		var embedded := DraftRecipe.from_text(deck_text)
+		if not embedded.ok: return embedded
+		if DraftRecipe.fingerprint(embedded.recipe) != receipt.recipe.fingerprint \
+				or embedded.recipe.fingerprint != receipt.recipe.fingerprint:
+			return _failure("Deck recipe does not match the original pool's fingerprint.")
+		if expected_fingerprint != "" and (not DraftRecipe.digest(expected_fingerprint) or expected_fingerprint != receipt.recipe.fingerprint):
+			return _failure("Draft fingerprint does not match the judge's retained fingerprint.")
+	elif expected_fingerprint != "":
+		return _failure("This older pool has no reconstruction fingerprint.")
 	# Bound expanded counts BEFORE invoking the shared text-deck parser.
 	var total := 0
 	for raw in deck_text.split("\n"):

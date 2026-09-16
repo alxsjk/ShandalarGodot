@@ -216,7 +216,7 @@ func _show_result() -> void:
 	else:
 		if OS.has_feature("web"):
 			_result.add_button("Download deck").pressed.connect(func() -> void:
-				JavaScriptBridge.download_buffer(builder.deck.to_text().to_utf8_buffer(), store.deck_path.get_file(), "text/plain"))
+				JavaScriptBridge.download_buffer(store.deck_text(builder.deck).to_utf8_buffer(), store.deck_path.get_file(), "text/plain"))
 			_result.add_button("Download pool").pressed.connect(func() -> void:
 				JavaScriptBridge.download_buffer(JSON.stringify(store.receipt, "\t").to_utf8_buffer(), store.pool_path.get_file(), "application/json"))
 		else:

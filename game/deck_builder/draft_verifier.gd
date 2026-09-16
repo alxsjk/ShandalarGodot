@@ -7,13 +7,14 @@ var pool_path := ""
 var deck_path := ""
 var paths: Dictionary = {}
 var report: Label
+var fingerprint: LineEdit
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	window = OriginalDialog.create("Verify draft deck", Vector2(700, 520).min(get_viewport_rect().size - Vector2(24, 24)))
 	add_child(window)
-	var intro := OriginalDialog.label("Compare a deck with the original dealt pool. Main deck and sideboard are counted together.", 17, true)
+	var intro := OriginalDialog.label("Compare with the original pool, or reconstruct from the recipe saved in the deck. Main deck and sideboard count together.", 17, true)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	window.body().add_child(intro)
 	for kind in ["pool", "deck"]:
@@ -27,11 +28,16 @@ func _ready() -> void:
 		row.add_child(path)
 		paths[kind] = path
 		window.body().add_child(row)
+	fingerprint = OriginalDialog.text_field()
+	fingerprint.placeholder_text = "Judge's pre-draft SHA-256 fingerprint (optional)"
+	fingerprint.tooltip_text = "Paste the fingerprint retained before deck building, not one newly supplied by the player."
+	fingerprint.max_length = 64
+	window.body().add_child(fingerprint)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	window.body().add_child(scroll)
-	report = OriginalDialog.label("Choose the saved .pool.json and .deck files, then Check deck.", 16)
+	report = OriginalDialog.label("Check deck uses both files. Reconstruct deck needs only the .deck and its embedded recipe.", 16)
 	report.name = "DraftAuditReport"
 	report.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	report.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -40,6 +46,7 @@ func _ready() -> void:
 	trust.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	window.body().add_child(trust)
 	window.add_button("Check deck").pressed.connect(verify)
+	window.add_button("Reconstruct deck").pressed.connect(reconstruct)
 	window.add_button("Back").pressed.connect(queue_free)
 
 
@@ -70,6 +77,14 @@ func select_file(kind: String, path: String) -> void:
 
 
 func verify() -> void:
-	var result := DraftAudit.check_files(pool_path, deck_path)
+	var result := DraftAudit.check_files(pool_path, deck_path, fingerprint.text.strip_edges())
+	_show_report(result)
+
+
+func reconstruct() -> void:
+	_show_report(DraftAudit.reconstruct_file(deck_path, fingerprint.text.strip_edges()))
+
+
+func _show_report(result: Dictionary) -> void:
 	report.text = result.message
 	report.modulate = Color("a9df9b") if result.ok else Color("ffba91")
