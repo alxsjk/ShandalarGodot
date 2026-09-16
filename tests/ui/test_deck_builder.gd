@@ -2007,6 +2007,27 @@ func test_import_reads_a_pasted_decklist() -> void:
 	assert_string_contains(screen._status_label.text, "imported")
 
 
+func test_import_plain_text_blank_line_populates_the_sideboard_strip() -> void:
+	screen._import_pasted("4 Lightning Bolt\n20 Mountain\n\n2 Shatter\n")
+	assert_eq(screen.deck.total(), 24)
+	assert_eq(screen.deck.side_total(), 2)
+	assert_eq(screen.deck.side_count_of("Shatter"), 2)
+	assert_string_contains(screen._sideboard_area.title, "2")
+	assert_true(screen._dirty)
+
+
+func test_txt_opens_through_both_file_import_and_load_from_disk() -> void:
+	var path := _write_file("plain.txt", "4 Mountain\n\n2 Shatter\n")
+	screen._import_file(path)
+	assert_eq(screen.deck.total(), 4)
+	assert_eq(screen.deck.side_total(), 2)
+	screen._load_from_disk(path)
+	assert_eq(screen.deck.total(), 4)
+	assert_eq(screen.deck.side_total(), 2)
+	assert_true(screen._dirty)
+	_drop_file(path)
+
+
 func test_import_turns_an_unknown_card_into_a_proxy_and_says_so() -> void:
 	screen._import_pasted("name: Foreign\n4 Mountain\n2 %s\n" % NOT_A_CARD)
 	assert_eq(screen.deck.count_of(NOT_A_CARD), 2, "kept, not dropped")
@@ -2502,7 +2523,8 @@ func test_the_load_list_offers_a_file_from_anywhere_on_disk() -> void:
 		"the WHOLE filesystem — res:// and user:// are what the list above is")
 	assert_eq(picker.file_mode, FileDialog.FILE_MODE_OPEN_FILE)
 	assert_eq(picker.filters.size(), DeckStore.IMPORT_FILTERS.size(),
-		"every format DeckList reads: .deck, .dec and the 1997 .dck")
+		"every import format: .txt, .deck, .dec and the 1997 .dck")
+	assert_string_contains("\n".join(picker.filters), "*.txt")
 	picker.queue_free()
 
 

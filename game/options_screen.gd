@@ -91,6 +91,12 @@ func _ready() -> void:
 
 	_add_sound_section(content)
 
+	content.add_child(UiChrome.body_label("Booster Draft:"))
+	var draft := UiChrome.menu_button("Card pool / Launch draft", Vector2(320, 36))
+	draft.name = "LaunchDraftSetup"
+	draft.pressed.connect(func() -> void: DraftSetup.open_on(self))
+	content.add_child(draft)
+
 	content.add_child(UiChrome.body_label("Hand display:"))
 	var hand_style := OptionButton.new()
 	hand_style.add_item("Fan of cards", 0)

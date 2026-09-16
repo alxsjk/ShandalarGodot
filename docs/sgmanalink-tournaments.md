@@ -1,0 +1,239 @@
+# LAN tournaments
+
+Development implementation on `sgmanalink`. Internet play, permanent accounts,
+MElo and tournament-integrated drafting are parked. A separate
+[timed draft builder](booster-draft.md) is available for local practice.
+Windows, Linux and macOS use the existing LAN
+transport; this does not add web multiplayer.
+
+## Format and deck policy
+
+One organiser hosts 2–20 entrants, with up to five rounds. Each pairing is first to 1, 2 or 3 wins
+(normally one game, best of three or best of five; drawn games do not count
+towards the win target). Random fresh pairings are drawn for each round;
+first-round byes fill the next power of two. The organiser cannot reroll a
+published draw. All tables in a round may play concurrently.
+If later withdrawals leave an uneven field, the next draw can include a bye.
+For twenty entrants, the first draw has four played pairings and twelve byes;
+the next round has eight parallel matches. A full event has nineteen played
+series. Byes are shown explicitly, never counted as played wins.
+
+Choose one fixed deck for everyone, a host-approved list of decks, or let
+each entrant bring a shipped/saved deck. Registration validates the complete
+implemented card pool and locks each deck for the whole tournament. No ante,
+sideboarding or deck changes between games. Current LAN duel rules apply.
+
+The organiser may [fill a chosen number of seats with computer players](sgmanalink-computer-players.md)
+during registration. All four local difficulties are available, plus the separate
+Unfair challenge. Add batches to mix decks/levels; bots count toward the same
+limit, follow the same deck policy and ready automatically for each game.
+
+## Organiser and players
+
+A graphical Master Panel shows registration, pairings, series scores, table
+progress and connections. Its organiser may enter or remain outside the draw,
+close registration, draw the next round, withdraw an entrant with confirmation,
+cancel the event and recover saved progress. It does not offer a "declare
+winner" control: the referee determines game results. Withdrawal awards the
+opponent the series, visibly marked as a withdrawal rather than a played win.
+An already eliminated entrant cannot be withdrawn afterwards to rewrite results.
+
+The hall has five sections:
+
+- **Overview:** organiser controls, current tables, scores, turns and life totals.
+- **Advancement:** a connected round diagram. Arrows follow actual published
+  winners, not guessed future opponents. Scroll, zoom, fit the width or choose
+  **Whole draw**; select a player to highlight their route through the event.
+- **Standings:** all entrants, played series W–L, games W–L–D, byes, forfeit
+  awards/losses and status. Completion opens the final table automatically.
+- **Players:** connection/readiness status, deck titles and organiser withdrawals.
+- **My entry:** deck review, readiness, recovery code and return to the hall.
+
+Final places reflect elimination round, not an invented tiebreaker. With no
+third-place game, the semifinalists share third; other same-round eliminations
+also share a place. For an uninterrupted twenty-player event, places are 1, 2,
+two at 3, four at 5, eight at 9 and four at 17. Alphabetical display within a
+shared place is not a competitive advantage. Cancellation or completion without
+a champion does not assign final ranks. These are event results, not MElo points.
+
+Discoverable tournaments appear by name in the normal **Game Browser**.
+Selecting a discovery result is not authentication: guests still paste the
+host's private invitation and connect, then the Tournament Hall opens.
+Invitation-only hosts remain absent from discovery and can be joined directly.
+
+The organiser chooses the tournament name and an optional **280-character
+welcome message** before opening registration. The greeting appears as plain
+text in every visitor's hall, before and after joining, and stays available
+without interrupting duels. It is saved with the event and restored on reload;
+it is not broadcast in discovery packets.
+
+Players join through the ordinary invitation, register and choose a deck,
+then confirm readiness. A finished duel returns to the Tournament Hall rather
+than closing the hosting application. Human players confirm before another game
+in a series starts. The organiser can open the Master Panel during their duel.
+Different players may join or ready simultaneously without conflicting. Each
+ready action is tied to the current round and game attempt, so an old delayed
+click cannot ready a later match. Host controls still require the current ledger.
+
+## Recovery contract
+
+The host remains trusted and must keep running. Each human entrant receives a separate
+private recovery code; copying/saving it is explicit. Nicknames never reclaim
+an entry. The checkpoint contains decklists and recovery-code hashes, not live
+hands, library order, random seeds, transport credentials or plaintext codes.
+It is private organiser data, not a public replay.
+
+Completed game scores and pairings are saved. After an explicit restore the
+host issues a fresh invitation; entrants reclaim their entries with their
+codes. An interrupted game starts again from opening hands with both players
+ready; previously recorded wins remain. There is no seamless host migration.
+Save failure suspends tournament advancement and is shown to the organiser.
+Recovery requires a matching build. Earlier protocol-8/9/10 development checkpoints remain
+untouched but are not migrated to the current protocol-11 tournament format.
+Computer entries retain their settings and are recreated without recovery codes.
+
+**Tournament setup → Save folder** offers a typed path, **Browse…** and
+**Default**. The choice is remembered on this host and refreshes the saved-event
+list immediately. New events save there; existing checkpoints are never moved.
+The default is `user://tournaments`. Relative paths, resource-pack paths and
+existing files are refused. The host reports an unwritable folder when saving.
+Folder paths never enter the public tournament configuration or LAN packets.
+
+An ordinary duel has a five-minute reconnect grace. Tournament entrants are
+instead reserved until the organiser explicitly withdraws them or ends the
+event. Losing a connection is not an automatic series loss, and a host outage
+never silently selects a winner. Without the saved recovery code, a new
+application cannot reclaim an entry by matching its nickname.
+
+## Play on a LAN
+
+1. Use matching protocol-11 development builds. Open the globe, choose a
+   temporary name, and select the appropriate LAN address/port in **Host Game**.
+2. Open **Tournament**. Name the event, optionally write a welcome message,
+   choose the save folder, 2–20 maximum entrants, a
+   first-to-1/2/3 win target, and one of the three deck policies. For fixed or
+   approved decks, search, review and add the required list(s), then **Open
+   registration**. Up to sixteen approved decks may be offered.
+3. Share **Copy invitation** privately. Guests find the host in **Game Browser**
+   or paste the invitation directly; its tournament name is shown in discovery.
+   Both routes require the invitation. Connecting opens the hall and its welcome.
+4. Each entrant chooses **Join tournament**, selects/reviews a deck, copies
+   their private recovery code, and selects **Ready for tournament**. The
+   organiser can join too, or keep all twenty places for guests.
+5. In the **Master Panel**, choose **Start tournament**. Each paired player
+   chooses **Ready for next game**. Both must be ready before their normal
+   duel screen opens. The introduction shows the round, game and series score.
+6. Dismiss the result to return to the hall. If the series needs another game,
+   both confirm readiness again; otherwise wait for the next draw. The
+   organiser chooses **Draw next round** after all pairings finish. No draw
+   can be rerolled and no client can report an arbitrary winner.
+
+**Expand Master Panel** opens a full-window overview. During the organiser's
+own duel, the **Tournament** button opens the same panel without disconnecting
+the host. It shows pairings, scores, drawn games, life totals, turns and entrant
+connections. Withdrawals and cancellation require a second confirmation click.
+**Return finished tables to hall** releases completed result screens without
+affecting live games. **Finish hosting this tournament** returns the service to
+ordinary duel hosting after completion/cancellation and all tables are released.
+
+To recover after a host restart, choose the saved event under **Tournament**,
+share its fresh invitation, then have entrants **Recover my entry** with their
+codes. New names are display-only and do not replace the registered entry.
+Checkpoint files are described in [the player-file guide](player-files.md).
+
+## Twenty-player verification
+
+The later [eight-player varied-deck campaign](sgmanalink-eight-player-campaign-2026-09-15.md)
+adds duplicate/reconnect stress, per-game results and a mana-trigger regression
+for the network test bot. Its findings are distinguished from gameplay defects.
+
+A real-TLS campaign completed all nineteen full engine games of a twenty-player
+knockout, with a separate organiser and up to eight live tables. Both permitted
+seat views agreed on the public state after every accepted command. The pilots
+receive only their own allowed view, not the host engine or another player's
+hidden cards. Seed 4242 completed **9,766 commands** and passed **29,693 assertions**, wrapper exit **0**, in
+387.499 seconds. This is network-interface coverage, not a measurement of the
+ordinary gameplay AI's strategic strength.
+
+Run the extended campaign from the project root:
+
+```sh
+SG_TOURNAMENT_CAMPAIGN_PLAYERS=20 SUITE_TIMEOUT=900 ./run_tests.sh \
+  -gselect=test_sgmanalink_tournament_network.gd \
+  -gunit_test_name=test_full_games_through_parallel_tables_and_final_use_only_seat_views
+```
+
+The normal suite keeps a shorter four-entrant, three-full-game campaign, plus
+a twenty-entrant complete knockout using concessions and a simultaneous
+twenty-entrant registration/readiness check. These are sockets on one Mac;
+physical LAN and mixed-platform play remain manual acceptance checks.
+
+All **31 tournament tests / 15,229 assertions** passed together, wrapper exit
+**0**, in 79.064 seconds. This includes exact schema and recovery checks for
+every entrant count from two to twenty across four seeds, full-capacity
+simultaneous joins/readiness, stale next-game readiness, reserved organiser
+sessions, omitted entrants, phantom tables, twenty-row standings and graph
+geometry/state preservation.
+
+Fresh native Godot source-scene previews were inspected at 1280×800 and
+960×600. They use staged names/scores, not a physical LAN event. The diagram,
+zoom controls, setup and parchment standings header render correctly; long
+names are clipped with full tooltips, and long lists/draws scroll. All capture
+wrappers exited 0 with fresh capture markers and no runtime warnings or errors.
+
+Final whole-project acceptance passed **6,459 tests / 266,328 assertions /
+383 scripts**, wrapper exit **0**, in 451.407 seconds. No failing, skipped or
+risky tests, runtime errors or exit-time leaks were accepted; the existing
+harness warning and two deprecations are unchanged. The run includes the
+ordinary baseline/fault network campaign and all thirty-one tournament tests.
+Offline engine/card behavior and normal computer-player policies are unchanged.
+This verification is of the source tree; no new binary export, commit, push
+or public release replacement was performed in this twenty-player pass.
+
+## Earlier eight-player milestone verification
+
+The automated tournament checks exercise nine real TLS clients (eight entrants
+and a separate organiser), every roster size from two to eight, random byes,
+all three win targets and deck policies, duplicate results, draws, withdrawals,
+private entry recovery, host restart and failed/corrupt checkpoint recovery.
+Three full engine games play through concurrent first-round tables and a final
+using only each client's permitted view: seed 4242, 1,542 accepted commands.
+The ordinary twelve-game baseline/fault campaign also produced identical public
+transcripts across delays, duplicate sends and lost-acknowledgement reconnects.
+
+Real Godot source-scene previews were inspected with the original skin at
+1280×800 and 960×600, including configuration and the expanded Master Panel.
+The preview uses staged entrant names/scores; it is not a photograph of remote
+players. Final captures exited cleanly. An earlier capture-only Dummy-audio
+teardown warning was removed by stopping the preview's soundtrack before exit.
+
+The first full run passed 6,446 of 6,447 tests; the sole failure was an obsolete
+menu-text assertion. The assertion now checks the LAN-only scope, and a separate
+failing-before/passing-after regression covers closing an expanded Master Panel
+when its event ends. Final whole-project acceptance passed **6,447 tests /
+257,413 assertions / 382 scripts**, wrapper exit **0**, in 428.865 seconds.
+That final run uses the standard two-game network campaign; the extended
+twelve-game campaign above had already matched all baseline/fault transcripts.
+All nineteen tournament tests passed in the full run. No runtime errors,
+skipped/risky scripts or exit-time leaks were accepted; the existing harness
+warning and two deprecations are unchanged.
+
+Four offline interface-logic duels also finished under the isolated headless
+runner, seed 4242: Fifth Edition demo/human seats took 19/12 turns; modern
+took 17/13. Both wrappers exited 0 without errors, warnings or stalls, matching
+the prior offline baseline. Native rendering is covered separately by the
+source-scene previews above.
+
+The earlier protocol-8 local Linux x86-64 and universal macOS builds use the existing verified
+desktop-template policy. The Mac app passed isolated startup and strict ad-hoc
+signature checks. The Linux game pack booted under the Mac editor runtime from
+its export folder; native Linux execution still requires a Linux playtest.
+Those ZIPs contain only the app or executable/game pack and LAN instructions,
+with separate checksums. Existing skin and card art can be reused. No old build,
+public release, branch history or player profile was overwritten. Those older
+builds do not include the twenty-player changes; rebuild all peers together.
+
+These are automated sockets on one Mac, not a completed physical LAN playtest.
+Test on two or more computers using matching builds, including both host roles,
+concurrent tables, disconnect/reconnect and explicit host restart. No public
+release announcement or replacement is implied by this development work.

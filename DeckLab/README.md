@@ -36,8 +36,8 @@ manual behind it.
 
 ## Deck formats
 
-Three formats load interchangeably (by extension), and
-`./deck_convert.sh IN OUT` translates between them:
+Deck files load by extension. `./deck_convert.sh IN OUT` reads the formats
+below and writes `.deck`, `.dec` or `.dck`:
 
 **.deck / .dec — the community standard** (The Dojo era's plain-text
 lists, standardized by Apprentice and still what Arena/Moxfield exports
@@ -53,6 +53,13 @@ SB: 3 Shatter              (sideboard — parsed, validated, and SWAPPED by
                             the AI between the duels of a match: see
                             --best-of / --sideboard below)
 ```
+
+**.txt — plain-text lists** use the same count/name lines. The first blank
+line after main-deck cards starts the sideboard; subsequent blank lines never
+switch back. Leading blanks and comments are ignored. If the list contains
+explicit `SB:` lines, those take precedence and only marked lines are sideboard.
+Existing `.deck`/`.dec` files keep ignoring blanks. The Deck Builder also offers
+`.txt` in its import browser and applies this convention to pasted lists.
 
 **.dck — the ORIGINAL MicroProse 1997 format**, as shipped in the game's
 Decks folder: a header line (`Lord of Fate (Bl/Wh, 4th Edition)`), then

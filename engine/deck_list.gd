@@ -12,6 +12,8 @@ extends RefCounted
 ##   4 Lightning Bolt           (count, space, exact printed name)
 ##   4x Lightning Bolt          (Dojo-post style count)
 ##   SB: 3 Pyroblast            (.dec sideboard line -> [member sideboard])
+## Plain .txt files additionally use the first blank line after a main-deck
+## card as the sideboard boundary, unless explicit SB: lines are present.
 ##
 ## Card names must match the registry EXACTLY. Loading validates every
 ## line (main AND sideboard) and collects ALL problems instead of stopping
@@ -60,7 +62,7 @@ static func load_file(path: String, strict := true) -> DeckList:
 	if path.get_extension().to_lower() == "dck":
 		deck.parse_dck(file.get_as_text(), base, strict)
 	else:
-		deck.parse(file.get_as_text(), base, strict)
+		deck.parse(file.get_as_text(), base, strict, path.get_extension().to_lower() == "txt")
 	return deck
 
 
@@ -135,15 +137,31 @@ func parse_dck(text: String, fallback_name := "deck", strict := true) -> void:
 ## than stopping, so one pass reports the whole file.
 ## [param fallback_name] names the deck when no header line does;
 ## [param strict] validates card names against the CardRegistry.
-func parse(text: String, fallback_name := "deck", strict := true) -> void:
+## [param blank_sideboard] enables plain-text blank-line sections. Explicit
+## SB: lines take precedence for the entire list; .deck/.dec keep their
+## existing meaning of blank lines as formatting, not a section boundary.
+func parse(text: String, fallback_name := "deck", strict := true, blank_sideboard := false) -> void:
 	deck_name = fallback_name
 	if strict:
 		CardRegistry.ensure_loaded()
+	# [QoL] A UTF-8 BOM from a Windows text editor is not part of a card name.
+	var lines := text.trim_prefix("\ufeff").split("\n")
+	var infer_sideboard := blank_sideboard
+	if infer_sideboard:
+		for raw in lines:
+			if raw.strip_edges().to_upper().begins_with("SB:"):
+				infer_sideboard = false
+				break
+	var saw_main_card := false
+	var in_sideboard := false
 	var line_number := 0
-	for raw_line in text.split("\n"):
+	for raw_line in lines:
 		line_number += 1
 		var line := raw_line.strip_edges()
-		if line.is_empty() or line.begins_with("#"):
+		if line.is_empty():
+			if infer_sideboard and saw_main_card: in_sideboard = true
+			continue
+		if line.begins_with("#"):
 			continue
 		if line.begins_with("//"):
 			# .dec headers: "// NAME : Deck Name" names the deck.
@@ -157,7 +175,7 @@ func parse(text: String, fallback_name := "deck", strict := true) -> void:
 		if line.begins_with("name:"):
 			deck_name = line.trim_prefix("name:").strip_edges()
 			continue
-		var into_sideboard := false
+		var into_sideboard := in_sideboard
 		if line.to_upper().begins_with("SB:"):
 			into_sideboard = true
 			line = line.substr(3).strip_edges()
@@ -176,6 +194,7 @@ func parse(text: String, fallback_name := "deck", strict := true) -> void:
 		if count < 1:
 			errors.append("line %d: count must be positive" % line_number)
 			continue
+		if not into_sideboard: saw_main_card = true
 		if not CardRegistry.has_card(card_name):
 			if strict:
 				errors.append("line %d: unknown/unimplemented card '%s'" % [

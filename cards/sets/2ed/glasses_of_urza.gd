@@ -20,11 +20,12 @@ class PeekEffect extends EffectBase:
 	func _init() -> void:
 		target_spec = TargetSpec.player()
 
-	func resolve(game: MtgGame, _source: CardInstance, _controller: int,
+	func resolve(game: MtgGame, _source: CardInstance, controller: int,
 			target: TargetRef, _x_value: int = 0) -> void:
 		var names := PackedStringArray()
 		for inst in game.players[target.player_id].hand:
 			names.append(inst.data.card_name)
+		game.reveal_information(controller, "Glasses of Urza — hand", Array(names))
 		game.log_line("Glasses of Urza reveals %s's hand: %s" % [
 			game.players[target.player_id].player_name,
 			", ".join(names) if names.size() > 0 else "(empty)"])

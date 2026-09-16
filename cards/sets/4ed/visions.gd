@@ -25,6 +25,7 @@ class VisionsEffect extends EffectBase:
 		var names := PackedStringArray()
 		for i in range(library.size() - 1, maxi(library.size() - 6, -1), -1):
 			names.append(library[i].data.card_name)
+		game.reveal_information(controller, "Visions — top cards, top first", Array(names))
 		game.log_line("Visions reveals the top of %s's library: %s" % [
 			game.players[target.player_id].player_name,
 			", ".join(names) if names.size() > 0 else "(empty)"])

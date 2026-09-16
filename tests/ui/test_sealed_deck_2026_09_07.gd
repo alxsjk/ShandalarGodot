@@ -89,7 +89,7 @@ func test_the_four_sheets_split_the_library_by_slot() -> void:
 	for land in SealedPool.LAND_NAMES:
 		assert_true(sheet["land"].has(land), land)
 		assert_false(sheet["common"].has(land), "%s is no common" % land)
-	assert_true(sheet["rare"].has("Tetsuo Umezawa"), "a legend is dealt in the rare slot")
+	assert_true(sheet["rare"].has("Tetsuo Umezawa"), "a printed rare legend is dealt in the rare slot")
 	assert_true(sheet["rare"].has("Shivan Dragon"))
 	assert_true(sheet["uncommon"].has("Serra Angel"))
 	assert_true(sheet["common"].has("Lightning Bolt"))
@@ -107,7 +107,7 @@ func test_a_booster_and_a_starter_hold_what_the_owner_said() -> void:
 	var booster := _pack(pool, "Booster Pack 1")
 	assert_eq(booster.size(), 15)
 	assert_eq(_slots(booster), {"rare": 1, "uncommon": 3, "common": 10, "land": 1},
-		"1 rare or legend, 3 uncommons, 1 land, 10 commons")
+		"1 rare, 3 uncommons, 1 land, 10 commons")
 	var starter := _pack(pool, "Starter Pack 1")
 	assert_eq(starter.size(), 60)
 	assert_eq(_slots(starter), {"rare": 3, "uncommon": 9, "common": 26, "land": 22},

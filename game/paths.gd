@@ -44,11 +44,15 @@ const KEY_SKIN_FOLDER := "skin_folder"
 const KEY_CARDPACKS := "cardpacks_folder"
 const KEY_PORTRAITS := "portraits_folder"
 const KEY_MUSIC := "music_folder"
+const KEY_TOURNAMENTS := "tournaments_folder"
+const KEY_DRAFTS := "drafts_folder"
 
 const DEFAULT_SKIN_FOLDER := "user://original_skin"
 const DEFAULT_CARDPACKS := "user://cardpacks"
 const DEFAULT_PORTRAITS := "user://portraits"
 const DEFAULT_MUSIC := "user://music"
+const DEFAULT_TOURNAMENTS := "user://tournaments"
+const DEFAULT_DRAFTS := "user://decks"
 
 ## The keys a player may set by hand, in the order the Options note
 ## names them.
@@ -97,6 +101,59 @@ static func portraits_folder() -> String:
 ## The player's own music ([MusicLibrary]).
 static func music_folder() -> String:
 	return _place(KEY_MUSIC, DEFAULT_MUSIC)
+
+
+## Private LAN organiser checkpoints; no transport keys or live hidden zones.
+static func tournaments_folder() -> String:
+	return _place(KEY_TOURNAMENTS, DEFAULT_TOURNAMENTS)
+
+
+## Draft decks default to the ordinary deck collection. Explicit choices only.
+static func drafts_folder() -> String:
+	return _place(KEY_DRAFTS, DEFAULT_DRAFTS)
+
+
+static func draft_folder_refusal(value: String) -> String:
+	var path := expand(value.strip_edges()).replace("\\", "/")
+	if path.is_empty() or path.length() > 4096 or not path.is_absolute_path() \
+			or (path.contains("://") and not path.begins_with("user://")):
+		return "Choose an absolute save folder, or use the default deck folder."
+	for character in path:
+		if character.unicode_at(0) < 32 or character.unicode_at(0) == 127:
+			return "The save folder cannot contain control characters."
+	if FileAccess.file_exists(path):
+		return "Choose a folder, not a file."
+	return ""
+
+
+static func set_drafts_folder(value: String) -> String:
+	var refusal := draft_folder_refusal(value)
+	if refusal != "": return refusal
+	var path := expand(value.strip_edges()).replace("\\", "/").simplify_path()
+	if path == DEFAULT_DRAFTS:
+		Settings.clear_value(KEY_DRAFTS)
+	elif path != drafts_folder():
+		Settings.set_value(KEY_DRAFTS, path)
+	return ""
+
+
+## Explicit organiser choice only. Reading a default never writes settings,
+## choosing a folder never moves existing checkpoints or sends a path to peers.
+static func set_tournaments_folder(value: String) -> String:
+	var path := expand(value.strip_edges()).replace("\\", "/")
+	if path.is_empty(): path = DEFAULT_TOURNAMENTS
+	if path.length() > 4096 or not path.is_absolute_path() \
+		or (path.contains("://") and not path.begins_with("user://")):
+		return "Choose an absolute folder path, or use the default tournament folder."
+	for character in path:
+		if character.unicode_at(0) < 32 or character.unicode_at(0) == 127:
+			return "A tournament folder path cannot contain control characters."
+	path = path.simplify_path()
+	if FileAccess.file_exists(path): return "That path is a file. Choose a folder for tournament saves."
+	if path == DEFAULT_TOURNAMENTS:
+		if Settings.has_value(KEY_TOURNAMENTS): Settings.clear_value(KEY_TOURNAMENTS)
+	elif path != tournaments_folder(): Settings.set_value(KEY_TOURNAMENTS, path)
+	return ""
 
 
 ## One key's path, tidied: a `~` expanded, a trailing slash dropped, and

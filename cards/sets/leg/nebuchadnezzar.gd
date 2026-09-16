@@ -109,6 +109,7 @@ class NameEffect extends EffectBase:
 			shown.append(inst.data.card_name)
 			if inst.data.card_name == named:
 				doomed.append(inst)
+		game.reveal_information(-1, "Nebuchadnezzar — revealed cards", Array(shown))
 		game.log_line("%s names %s; %s reveals %s" % [
 			game.players[controller].player_name, named,
 			game.players[pid].player_name, ", ".join(shown)])

@@ -7,6 +7,229 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
+## Plain-text deck imports (2026-09-16)
+
+- `tests/ui/test_text_deck_import.gd`: 60+15 NecroDeck regression, file/paste
+  parity, CRLF/BOM, blank and explicit sideboard boundaries, proxies, saved
+  format round trips and safe file discovery. Live builder import/load routes
+  and the file picker are also pinned in `tests/ui/test_deck_builder.gd`.
+
+## In-game Booster Draft (2026-09-15)
+
+- `docs/booster-draft.md`: in-game workflow, pool/pack semantics, countdown,
+  native/browser saves and recovery; no standalone CLI.
+- `game/deck_builder/draft_pool_config.gd` (`DraftPoolConfig`): remembered
+  eligibility, exact-sheet validation and machine-entropy `DraftRecipe` deals.
+- `game/deck_builder/draft_pool_dialog.gd` (`DraftPoolDialog`): set/card check tree,
+  name search, explicit save/cancel and rarity summary.
+- `game/deck_builder/draft_setup.gd` (`DraftSetup`): launch controls, remembered
+  folder, pool selector, and preservation of the previous screen's unsaved state.
+- `game/deck_builder/draft_builder.gd` (`DraftBuilder`): existing builder restricted
+  to one dealt pool and one deck, with deadline-aware input and reserved clock space.
+- `game/deck_builder/draft_store.gd` (`DraftStore`): unique deck/pool files,
+  atomic exact-deck checkpoints, final pool-invariant guard and write refusals.
+- `game/deck_builder/draft_audit.gd` (`DraftAudit`): bounded read-only receipt and
+  deck-file validation, combined main/sideboard membership and copy-count checks.
+- `game/deck_builder/draft_recipe.gd` (`DraftRecipe`): frozen SHA-256 counter
+  dealer, self-contained eligible sheets, canonical commitments and deck comments.
+- `docs/draft-replay-v1.md`: portable recipe schema, dealing/hash specification,
+  independent reference vector and explicit pre-build trust boundary.
+- `tests/ui/test_draft_recipe.gd`: deterministic and JSON replay, reference vector,
+  tampering/substitution, native metadata retention, recovery and judge controls.
+- `game/deck_builder/draft_verifier.gd` (`DraftVerifier`): in-game pool/deck file
+  selectors, verification report and explicit organiser-copy trust boundary.
+- `game/deck_builder/draft_session.gd` (`DraftSession`, `PackArt`): animated pack
+  opening, monotonic deadline, frozen completion, save recovery and web downloads.
+- `tests/ui/test_booster_draft.gd`: pack composition, eligibility, setup lifecycle,
+  pool enforcement, real input at expiry, layout, close handling and save recovery.
+
+## SGManalink design (2026-09-14)
+
+- `docs/sgmanalink-computer-players.md`: actual local AI profiles in LAN rooms
+  and tournaments, fair/Unfair boundaries, lifecycle, pacing and verification.
+- `game/sgmanalink/bot_player.gd` (`SgBotPlayer`): exact public bot options,
+  shipped-player factory and referee-side opening/action scheduling adapter.
+- `game/sgmanalink/bot_setup.gd` (`SgBotSetup`): reusable count, fair difficulty,
+  separate Unfair challenge, pace and full deck-review controls.
+- `tests/unit/test_sgmanalink_bots.gd`: genuine profiles, fair substitution,
+  atomic/policy-bound roster batches, checkpoints and full Wizard engine play.
+- `tests/ui/test_sgmanalink_bot_network.gd`: real TLS configuration and mixed
+  human/Wizard games, eight-Wizard knockout, restart/disconnect/save/capacity tests.
+- `tests/ui/test_sgmanalink_bot_setup.gd`: four-rung challenge separation,
+  saved draft/clamped count, small-window controls and online Unfair badge.
+- `docs/sgmanalink-eight-player-campaign-2026-09-15.md`: eight-deck TLS
+  knockout results, mana-trigger pilot regression, fault coverage and replay recipe.
+- `docs/sgmanalink-tournaments.md`: LAN-only knockout rules, deck policies,
+  Master Panel, private recovery, storage contract and verification.
+- `game/sgmanalink/tournament.gd` (`SgTournament`): bounded knockout ledger,
+  registration/deck locking, random round draws, byes, series scores and recovery.
+- `game/sgmanalink/tournament_host.gd` (`SgTournamentHost`): organiser authority,
+  entrant-session bindings, concurrent duel rooms, result collection and save gating.
+- `game/sgmanalink/tournament_protocol.gd` (`SgTournamentProtocol`): exact public
+  context/view and private checkpoint schemas, pair/roster/lifecycle invariants.
+- `game/sgmanalink/tournament_store.gd` (`SgTournamentStore`): private local JSON
+  checkpoint replacement, last-good fallback and compatible saved-event discovery.
+- `game/sgmanalink/tournament_panel.gd` (`SgTournamentPanel`): styled configuration,
+  name/welcome, host-local remembered save-folder picker and saved-event list,
+  full deck review, round scorecards, tabbed Master Panel, standings and entrant hall.
+- `game/sgmanalink/tournament_results.gd` (`SgTournamentResults`): read-only shared
+  places, separate played/bye/forfeit accounting and published advancement links.
+- `game/sgmanalink/tournament_bracket.gd` (`SgTournamentBracket`, `BracketCanvas`):
+  scrollable connected round diagram, zoom, keyboard player picker and path focus.
+- `tests/unit/test_sgmanalink_tournament_results.gd`: twenty-player shared places,
+  byes/forfeits/draws, no premature final ranks and restored advancement graphs.
+- `tests/unit/test_sgmanalink_tournament.gd`: roster sizes/seeds, byes, series/draws,
+  duplicate-result rejection, policies, locked lists and checkpoint round trips.
+- `tests/ui/test_sgmanalink_tournament_network.gd`: twenty-one TLS clients, complete
+  knockout/series flows, privacy, authority, restart/capability recovery, save
+  failure, organiser participation, concurrent readiness and multi-table full-game
+  coverage pilots (optional `SG_TOURNAMENT_CAMPAIGN_PLAYERS=20` full knockout),
+  seeded varied-deck tournaments, duplicate/lost-ACK stress, credential-free journals
+  and cross-client final-standings/recovery checks.
+- `tests/ui/test_sgmanalink_tournament_panel.gd`: opt-in setup controls,
+  small-window layout, graph containment/zoom/path persistence, twenty-row final
+  standings and truthful cancelled-table labels.
+
+- `docs/sgmanalink-design.md`: proposed online personas, passkey recovery,
+  authoritative duels, secure transport, hidden-information boundaries and
+  player MElo; phased work on `sgmanalink`, no public online service.
+- `docs/sgmanalink-local-playtest.md`: desktop LAN/loopback instructions,
+  pinned invitations, discovery/firewall help, full-pool deck selection and test gates.
+- `docs/sgmanalink-network-campaign.md`: fair-information network self-play
+  design, reproducible fault campaign, evidence and two-machine limitations.
+- `tests/support/sg_network_pilot.gd`: DTO-only coverage pilot and normalized
+  public-table oracle; deliberately separate from gameplay AI difficulties.
+- `tests/ui/test_sgmanalink_campaign.gd`: seeded paired TLS games with real
+  clients, projection checks, JSONL traces, lost acknowledgements and duplicates.
+- `tests/unit/test_sgmanalink_pilot.gd`: campaign-instrument checks for DTO-only
+  decisions, gang blocks, damage division, targetless cancels, mana-trigger
+  deferral without double payment and public-oracle sensitivity.
+- `docs/sgmanalink-stability-2026-09-14.md`: LAN review fixes, recovery
+  semantics, regression/soak coverage and before/after performance measurements.
+- `docs/sgmanalink-hardening-2026-09-14.md`: second LAN robustness pass,
+  acknowledgement/snapshot ordering, command recovery, readiness, malformed
+  card references, departed-attacker privacy and redundant-publication regressions.
+- `docs/sgmanalink-visual-parity-2026-09-15.md`: matched local/online native
+  rendering review, presentation corrections and verification boundaries.
+- `docs/sgmanalink-gameplay-parity-2026-09-15.md`: LAN gameplay-boundary
+  audit, no-ante match introduction, regression results and physical playtest checklist.
+- `docs/sgmanalink-lobby-polish-2026-09-15.md`: callback/session and deck-picker
+  lifecycle regressions, redesigned LAN menus and verification scope.
+- `docs/sgmanalink-authentication.md`: temporary-name decision, backend
+  responsibilities, dated free-service comparison (including Nakama's
+  Godot/referee boundary), domain/recovery planning and decentralized
+  alternatives; no provider selected or deployed.
+- `docs/block-MElo.md`: exploratory decentralized identity/ranking ledger
+  options, name ownership, consensus and referee trust, privacy, recovery
+  and verification gates; documentation only, no selected implementation.
+- `game/sgmanalink/protocol.gd` (`SgProtocol`): bounded ASCII JSON and exact
+  command schemas; bounded temporary nicknames, version-9 handshake and
+  separate message limits from per-seat view nesting.
+- `game/sgmanalink/practice_match.gd` (`SgPracticeMatch`): server-side full-pool
+  referee, explicit player actions, public/seat-private views and retiring hidden-zone
+  handles; retains the Forest practice list as an optional default fixture.
+- `game/sgmanalink/deck_catalog.gd` (`SgDeckCatalog`): shipped/saved deck discovery,
+  full main/sideboard lists and registry-only Unrestricted deck validation.
+- `game/sgmanalink/duel_actions.gd` (`SgDuelActions`): referee-owned announcements,
+  targets, modes, X, live abilities, private choices, special actions and authorized
+  information history; never serializes Callables, instances or library order.
+- `game/sgmanalink/payment.gd` (`SgPayment`): shared referee-side bounded X
+  search using actual spell/ability costs and precomputed eligible mana sources.
+- `game/sgmanalink/compatibility.gd` (`SgCompatibility`): portable protocol,
+  release/rules-revision and printed-catalogue fingerprint; not authentication.
+- `game/sgmanalink/journal.gd` (`SgJournal`): bounded, seat-filtered online
+  event history built from public events and authorized reveals, never raw logs.
+- `game/sgmanalink/lan_invite.gd` (`SgLanInvite`): private IPv4 validation,
+  local adapter addresses and bounded certificate-pinned temporary invitations.
+- `game/sgmanalink/lan_discovery.gd` (`SgLanDiscovery`): opt-in UDP LAN search,
+  bounded untrusted host listings, unicast replies, expiry and secret exclusion.
+- `game/sgmanalink/view_protocol.gd` (`SgViewProtocol`): exact bounded host
+  response/room/game/card schemas and consistent card/combat references before
+  a client UI sees remote values.
+- `game/sgmanalink/local_server.gd` (`SgLocalServer`): loopback or TLS LAN service,
+  room membership, ephemeral capabilities, sequencing/deduplication and
+  seat resumption; disambiguated guest labels, bounded in-memory state,
+  ephemeral certificate/invitations, optional LAN advertising, no MElo/public auth.
+- `game/sgmanalink/local_client.gd` (`SgLocalClient`): value-only WebSocket
+  client, pinned native LAN TLS, one outstanding command, retry/reconnect,
+  acknowledgement-plus-snapshot completion, stalled-action recovery, bounded
+  encoded sends, callback-safe session changes, explicit connecting state,
+  hostile-response refusal and memory-only tokens.
+- `game/sgmanalink/identity.gd` (`SgIdentity`): temporary name generator and
+  opt-in local display-name preference; no cryptographic identity or saved credentials.
+- `game/sgmanalink/lobby.gd` (`SgLobby`): separate classic Identity, Host Game,
+  Game Browser, deck chooser and waiting-room windows; automatic room creation after hosting,
+  invitation-only hosting, stable waiting-room refreshes, acknowledged deck choices,
+  room-bound chooser lifecycle and no automatic network on opening menus.
+- `game/sgmanalink/lobby_style.gd` (`SgLobbyStyle`): shared dark frame,
+  parchment sections, readable fields, compact actions and deck-list styling;
+  reuses existing fonts, buttons and the vector globe.
+- `game/sgmanalink/card_presentation.gd` (`SgCardPresentation`): detached
+  render-only cards for the full registered pool, built from disclosed card DTOs and
+  local printed definitions; no referee instances or client game simulation.
+- `game/sgmanalink/duel_view.gd` (`SgDuelView`): extends the actual `DuelScreen`;
+  acknowledgement-aware casting/payment, authoritative target candidates, remote
+  stable opening/choice answers, event delivery, deck-based palette, defeat
+  countdown and connection status separate from phase instructions. All layout,
+  combat gestures, phase stops, card widgets, spell flights and audio are shared.
+- `game/sgmanalink/duel_opening.gd` (`SgDuelOpening`): shared opening-window
+  ground with public player/deck names, actual rules and explicit unrated/no-ante
+  status; acknowledged introduction and persistent information beside mulligans.
+- `game/sgmanalink/duel_projection.gd` (`SgDuelProjection`): render-only `MtgGame`
+  interface populated solely from a validated seat view. Stable UI-local card
+  objects, empty-identity hidden-zone placeholders, fixed local-seat mapping and
+  outbound action messages; never runs setup, resolution or a client simulation.
+- `game/sgmanalink/duel_presentation.gd` (`SgDuelPresentation`): referee-side
+  allowlist for public characteristics, opaque references, combat/response hints,
+  payment reachability, fixed public deck-colour metadata, stack/animation data
+  and viewer-filtered event cues.
+- `game/sgmanalink/target_spec.gd` (`SgTargetSpec`): translates host-authorized
+  target tokens to the existing duel's physical card/player/chain/damage gestures.
+- `tests/unit/test_sgmanalink.gd`: schemas, private-state substitution,
+  view detachment, mana/casting/priority, combat divisions and discards;
+  LAN address/invitation/discovery bounds and nested host response schemas.
+- `tests/ui/test_sgmanalink_shared_duel.gd`: actual screen/projection boundary,
+  manual and automatic mana payment, physical targeting, X/modes/regeneration,
+  combat declarations and click damage, authorized choices/reveals, opening order,
+  duplicate-input guards, public card continuity, hidden-identity retirement,
+  mana-burn sounds, animated lands, Jaguar reminders and prevention markers.
+- `tests/ui/test_sgmanalink_visual_parity.gd`: deck-colour/seat mapping,
+  retained combat instructions during connection waits, stable opening controls,
+  live connection details, previous-life/result sequencing and restored-combat
+  layout/resize without recreating its card widgets; one-time no-ante introduction,
+  public match labels, long names, reconnect stability and opening cancellation.
+- `tests/ui/test_sgmanalink_polish.gd`: connection callback lifecycle,
+  stable waiting-room controls, identity locking, chooser Escape/room/search
+  lifecycle, viewport resize and delayed/refused deck confirmation over sockets.
+- `tests/unit/test_sgmanalink_full_pool.gd`: registry-wide DTO/render checks,
+  targeting, modes, X, abilities, private questions, authorized reveals,
+  masked zones, special actions and hidden-handle retirement.
+- `tests/ui/test_sgmanalink_network.gd`: real sockets, GUI room flow,
+  authentication/seat bounds, stale/duplicate commands, disconnects,
+  lost acknowledgements, controller replacement, real UDP discovery, TLS LAN
+  resumption, private full-deck submissions, invitation GUI flow and a complete
+  encrypted duel through the new interface.
+- `tests/ui/test_sgmanalink_interface.gd`: identity save/cancel/forget,
+  informational Overview without duplicate navigation, responsive separate windows,
+  opt-in network activity and full-pool deck selection/review.
+- `tests/unit/test_sgmanalink_stability.gd`: codec round trips, bounded combat
+  adjacency, actual X costs, anonymous projection slots and private journal bounds.
+- `tests/ui/test_sgmanalink_recovery.gd`: live-lobby mana questions,
+  cancellation, private searches, triggered payments, divided damage,
+  lost-ack/reconnect, journal deduplication, large-combat sockets and
+  cache invalidation after refused multi-target payments.
+- `tests/ui/test_sgmanalink_hardening.gd`: delayed/missing snapshots, bounded
+  outgoing commands, replacement-opponent readiness, redundant publication
+  counts, malformed host-card graphs and departed/vanished attacker handling;
+  `GateServer` delays real-socket state delivery and `CountingMatch` counts
+  view construction.
+
+`MtgGame.reveal_information` is a presentation-only, viewer-scoped channel for
+rule-authorized looks/reveals. Choice preflight records only information preceding
+each question in `PlayerChoice.information`; engine logs are never sent to clients.
+Revelation's continuous `MtgPlayer.hand_revealed` flag is separate from temporary
+per-card reveals and is respected by network views and fair observations.
+
 ## Release packaging (0.20.0)
 
 - `tools/package_release.py`: packages verified Linux, Windows, macOS and
@@ -1017,7 +1240,7 @@ shandalar/
 │   │                          opposing_attackers() rather than comparing
 │   │                          a `blocks` value; damage math lives in
 │   │                          MtgGame
-│   ├── deck_list.gd         class DeckList — .deck/.dec/.dck parser and
+│   ├── deck_list.gd         class DeckList — .txt/.deck/.dec/.dck parser and
 │   │                          validator, maindeck + `SB:` sideboard (the
 │   │                          Deck Lab, the setup screen and the Deck
 │   │                          Builder all read it). `strict` carries the
@@ -1029,6 +1252,9 @@ shandalar/
 │   │                          mode; DEC titles require an exact NAME field
 │   │                          (2026-09-13 regression cases in
 │   │                          tests/tools/test_deck_lab.gd)
+│   │                          Plain .txt and opted-in pasted lists use a
+│   │                          blank-line sideboard boundary unless explicit
+│   │                          SB: lines occur; native/DEC/DCK stay unchanged.
 │   ├── proxy_card.gd        class ProxyCard — **[QoL]** THE PROXY, a paper
 │   │                          stand-in for a card this game does not
 │   │                          implement. Definition: a card NAME the
@@ -4075,7 +4301,9 @@ shandalar/
 │    is_own() only under user://, PLACE_KEYS the ones the Options note
 │    names — every key remembered and put back. Also pins normalized
 │    deletion boundaries, symlink rejection, deck-folder siblings/escapes,
-│    and portable paths beside a macOS app bundle (2026-09-12);
+│    and portable paths beside a macOS app bundle (2026-09-12); explicit
+│    tournament folder choices, path rejection and default-without-write
+│    behavior (2026-09-15);
 │    tests/unit/test_skin_pack.gd — THE SKIN PACK (SkinPack): a probe
 │    zip built with ZIPPacker (a 4x6 PNG, a sidecar, a portrait) so the
 │    contract is tested with no 1997 art on the machine — inspect()
@@ -5123,7 +5351,11 @@ shandalar/
 │   │                          "Forget my zips" may delete. Read by
 │   │                          SkinPack, GameSkin.search_dirs,
 │   │                          PortraitLibrary.default_dirs and
-│   │                          MusicLibrary.dirs; shown by Options > Skin
+│   │                          MusicLibrary.dirs; shown by Options > Skin.
+│   │                          tournaments_folder/set_tournaments_folder
+│   │                          manage the separate private organiser-save
+│   │                          location (user://tournaments), validated and
+│   │                          remembered only on explicit GUI choice.
 │   ├── portrait_library.gd  class PortraitLibrary — THE PLAYER'S OWN FACE
 │   │                          (the duelist above it is DERIVED from the
 │   │                          deck's colour; this one is CHOSEN). Scans

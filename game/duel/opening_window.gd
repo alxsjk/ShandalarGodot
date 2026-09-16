@@ -147,6 +147,7 @@ var _lead: Label = null
 var _status: Label = null
 var _captions: Array[Label] = []
 var _cards: Array[CardPreview] = []
+var _ante_row: HBoxContainer
 var _buttons: Array[Button] = []
 ## The deciding seat's hand window and the cards it was last shown — see
 ## [method show_hand]; null until a seat has a hand to show.
@@ -204,6 +205,7 @@ func _init() -> void:
 	# --- the two antes, side by side, each a full card ---
 	# PACKED LEFT, not centred: see [constant SIZE]'s note on the ground.
 	var antes := HBoxContainer.new()
+	_ante_row = antes
 	antes.alignment = BoxContainer.ALIGNMENT_BEGIN
 	antes.add_theme_constant_override("separation", int(CARD_GAP))
 	antes.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -232,6 +234,13 @@ func _init() -> void:
 		_cards.append(card)
 		antes.add_child(column)
 	_dialog.body().add_child(antes)
+
+
+## A match without stakes can use this space for public match information.
+## Keep the original ground, hand position and answer row unchanged.
+func replace_antes(content: Control) -> void:
+	for child in _ante_row.get_children(): child.hide()
+	_ante_row.add_child(content)
 
 
 ## Fill the two ante slots from [param viewer]'s point of view — the seat
@@ -338,6 +347,26 @@ func set_status(text: String) -> void:
 ## button the player may not use is DISABLED rather than removed, because
 ## the original's window always shows both of its buttons.
 func ask(answers: Array) -> int:
+	set_answers(answers)
+	while _pressed < 0 and is_inside_tree():
+		await get_tree().process_frame
+	return _pressed
+
+
+## Shared button row for asynchronous network openings.
+func set_answers(answers: Array) -> void:
+	_pressed = -1
+	# Network snapshots can update only readiness while this exact question
+	# remains open. Keep its buttons (and focus) instead of recreating the row.
+	var same := _buttons.size() == answers.size()
+	if same:
+		for i in answers.size():
+			if _buttons[i].text != answers[i].label or _buttons[i].get_meta("answer", -1) != answers[i].answer:
+				same = false
+				break
+	if same:
+		for i in answers.size(): _buttons[i].disabled = bool(answers[i].get("disabled", false))
+		return
 	# Un-parent BEFORE queueing: a queue_free'd child is still in the tree
 	# for the rest of the frame, so the old row would lay out beside the
 	# new one for a frame (the same trap CardPreview documents).
@@ -345,19 +374,16 @@ func ask(answers: Array) -> int:
 		btn.get_parent().remove_child(btn)
 		btn.queue_free()
 	_buttons.clear()
-	_pressed = -1
 	for entry in answers:
 		var answer: int = entry["answer"]
 		var btn := _dialog.add_button(entry["label"])
 		btn.custom_minimum_size = BUTTON_SIZE
 		btn.disabled = bool(entry.get("disabled", false))
+		btn.set_meta("answer", answer)
 		btn.pressed.connect(func() -> void:
 			_pressed = answer
 			answered.emit(answer))
 		_buttons.append(btn)
-	while _pressed < 0 and is_inside_tree():
-		await get_tree().process_frame
-	return _pressed
 
 
 ## The window is done; fade it away rather than snapping it off.

@@ -23,6 +23,7 @@ class AmnesiaEffect extends EffectBase:
 		var names := PackedStringArray()
 		for inst in p.hand:
 			names.append(inst.data.card_name)
+		game.reveal_information(-1, "Amnesia — revealed hand", Array(names))
 		game.log_line("%s reveals: %s" % [p.player_name, ", ".join(names)])
 		var nonlands: Array = []
 		for inst in p.hand:

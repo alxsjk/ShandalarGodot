@@ -47,6 +47,7 @@ class EfreetEffect extends EffectBase:
 		if hand.is_empty():
 			return
 		var taken: Variant = RandomEffects.pick(game, hand)
+		game.reveal_information(-1, "Tempest Efreet — revealed card", [taken.data.card_name])
 		game.log_line("%s reveals %s at random" % [
 			game.players[victim].player_name, taken.data.card_name])
 		# Exchange ownership: the revealed card becomes ours (and lands in

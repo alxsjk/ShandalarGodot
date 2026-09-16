@@ -41,6 +41,7 @@ class WandEffect extends EffectBase:
 		if revealed == null:
 			return
 		var toll := 1 if revealed.data.is_land() else revealed.data.cost.mana_value()
+		game.reveal_information(-1, "Wand of Ith — revealed card", [revealed.data.card_name])
 		game.log_line("%s reveals %s to %s" % [
 			game.players[pid].player_name, revealed.data.card_name,
 			source.data.card_name])

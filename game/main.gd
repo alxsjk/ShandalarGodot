@@ -2,7 +2,7 @@ class_name MainScreen
 extends Control
 ## Title screen — the stone menu column over the original title art,
 ## plus the corner wordmark, card sets, version and future Manalink entry.
-## Magic Battle opens setup; adventure and online games are placeholders.
+## Magic Battle opens setup; SGManalink opens an isolated local playtest.
 ## The adventure mode (M5) will grow this menu; the flow stays:
 ## menu -> setup -> duel.
 
@@ -198,7 +198,7 @@ func _ready() -> void:
 	# adventure placeholder, so mouse and keyboard can ask what it is.
 	var online := UiChrome.menu_button("", MANALINK_SIZE, MENU_FONT, MENU_BOLD)
 	online.name = "Manalink"
-	online.tooltip_text = "Manalink online games — coming in a future update."
+	online.tooltip_text = "SGManalink - LAN multiplayer playtest with temporary names. Internet games are coming later."
 	online.size_flags_horizontal = Control.SIZE_SHRINK_END
 	online.pressed.connect(_open_manalink_notice)
 	status.add_child(online)
@@ -283,13 +283,12 @@ func _on_fetch_progressed(fraction: float) -> void:
 	_fetching.text = SkinPack.transfer_line(fraction)
 
 
-## The placeholder never changes rooms or attempts a network connection.
+## Opening the lobby does not start a listener or connect automatically.
 func _open_manalink_notice() -> void:
 	if is_instance_valid(_manalink_notice):
 		return
-	_manalink_notice = UiChrome.explain_popup(self, "Manalink — online games",
-		"Online multiplayer is planned for a future update. Manalink "
-		+ "online games are not implemented yet.")
+	_manalink_notice = SgLobby.new()
+	add_child(_manalink_notice)
 
 
 ## Hand the rest of the command line to the Deck Lab and quit with its

@@ -10,7 +10,7 @@ your file manager names them.
 It is where the game WRITES, with one exception asked for by name: the
 running duel log, `duel_log.txt`, is kept beside the executable so it is
 where you look for it (and under `user://` instead when that directory
-cannot be written). Nothing else is written outside your home directory.
+cannot be written). Draft and tournament saves can also use a folder you explicitly choose.
 
 In configurable paths, `~` uses `HOME`, or `USERPROFILE` when `HOME` is
 absent (a native Windows launch). If neither is known, the spelling is
@@ -46,7 +46,7 @@ so give it the same treatment when it writes.
 |---|---|---|
 | **Your decks** | `user://decks/*.deck` | Everything the Deck Builder saves. Plain text, one `count name` per line; the format is `DeckLab/README.md`. Drop a `.deck` file in and it appears in the pickers under **User-created**. The Deck Builder writes **here and nowhere else** — the decks the game ships are never written over and never shadowed, so a deck of yours may not take one of their names (see below). |
 | **Deck exports** | `user://decks/export/` | Where `Export` writes, so an export can never shadow a save. |
-| **A deck anywhere else** | any path you point at | The Deck Builder's **Load** button lists the decks the game knows; its **From disk…** button opens a file browser onto the whole machine, for a `.deck`, a `.dec` or a 1997 `.dck` that lives somewhere else entirely — a real install's `Decks\` folder, a download, a friend's file. Nothing is copied into `user://decks/` by opening it: the deck lands on the surface and `Save deck` is still what writes a file of yours. A file that will not parse is refused in a window that says why. |
+| **A deck anywhere else** | any path you point at | The Deck Builder's **Load → From disk…** and **Deck → Import deck → From a file…** open a `.txt`, `.deck`, `.dec` or 1997 `.dck` anywhere on disk. Nothing is copied into `user://decks/` by opening it: the deck lands on the surface and **Save deck** writes your own `.deck`. A file that will not parse is refused in a window that says why. |
 | **Your portraits** | `user://portraits/*.png` | The face you pick on the Magic Battle screen. PNG/JPG/WEBP, any size, ~120×150 reads best; the file name becomes the name (`grey_wizard.png` → "Grey Wizard"). The folder holds a `README.txt` saying exactly this — the game writes it the first time you open the setup screen. A file here **beats** an imported one of the same name, and a new name is **added** to the 1997 faces in the chooser, not put in their place. **Options → Skin** shows the folder by its path with how many of yours are in it; the `portraits_folder` key moves it (below). |
 | **Your music** | `user://music/*.{wav,ogg,mp3}` | Your own soundtrack. Whole tracks, any length — the game plays one through and crossfades into the next, it never loops a fragment. Pick one, or shuffle everything, under **Options -> Music**. The file name becomes the name (`windswept_march.ogg` -> "Windswept March"), and a file named after one of the original's tracks (`music_duel`, `music_location_1`..`_19`, `music_location_0`, `music_temple`, `music_castle_white`/`_blue`/`_black`/`_red`/`_green`) **replaces** that one. A new name is **added** to the original scores and played among them. The folder holds a `README.txt` saying exactly this — the game writes it the first time you open Options, whose **Skin** section shows the folder by its path with how many tracks of yours are in it; the `music_folder` key moves it (below). |
 | **The skin folder** | `user://original_skin/` | The 1997 material as loose files — what `tools/import_original.py` takes out of YOUR copy of the 1997 game: panels, duelist faces, territory art, fonts, **sixty-five sounds** (thirty-eight duel effects and the **twenty-seven** music tracks — `Dueltune`, `LocMus0`..`19`, the Temple and the five castle themes), and `portraits/` — **seventy** faces, cut and decoded rather than copied. Those are the **fourteen** player faces of `16faces.spr` (the character-select pool, named for the `@PLAYERNAMES` entry each one seeds), the **fifty-five** enemy faces of `Faces/*.pic` (named for `@DECKFACES`, so `rogue_witch.png` → "Rogue Witch"), and `Face.pic`, the Facemaker face you are wearing. A converted sheet instead of the raw files yields only the first nine, and no enemies at all. Absent, the game draws its own clean skin and plays identically. A file here overrides the same file in the skin zip; with **Use the skin folder instead of the zip** ticked in **Options → Skin** the zip stays closed and this folder alone dresses the game. The screen shows the folder by its path; the `skin_folder` key moves it (below). |
@@ -58,6 +58,89 @@ so give it the same treatment when it writes.
 | **The running duel log** | `duel_log.txt` beside the executable | Every duel, appended as it happens — the same lines the duel log window (`L`) shows, with `[Step]` markers and `Player 1 (name)` labels — each game under a `**********  GAME at <date time>  —  A vs B  (seed N)  **********` banner. Capped at 1 MB: past that the oldest game drops off the front. Under `user://` when the executable's directory is read-only, or when the editor runs the project. This is the file to attach to a bug report; the seed on its banner replays the duel. |
 | **A saved duel log** | `user://duel_log_<ms>.txt` | What the duel log window's **Save** writes: one duel, on request. |
 | **Screenshots** | `user://screenshot_<ms>.png` | What the duel screen's screenshot key writes. |
+
+### Plain-text deck imports
+
+In a `.txt` file, write one quantity and card name per line, such as
+`4 Lightning Bolt`. The first blank line **after the main-deck cards start**
+separates the sideboard; every subsequent card belongs to it. Leading blanks,
+blank lines after a title but before the first card, and trailing blanks are
+harmless. Whitespace-only lines count as blank, and Windows line endings work.
+The same convention applies to **Import deck → Paste a decklist…**.
+
+If any lines have explicit `SB:` prefixes, those markers take precedence:
+only marked lines are sideboard and blank lines are formatting. Existing
+`.deck` and `.dec` files still require `SB:`; `.dck` is unchanged. Comments
+beginning `#` or `//` do not themselves start a sideboard. In a plain list
+without `SB:`, do not separate main-deck categories with blank lines.
+
+Unavailable cards remain visible as proxies and block gameplay until replaced
+or implemented. Saving an imported list writes explicit sideboard markers, so
+the split survives later loads. Ordinary `.txt` files are not automatically
+indexed from the decks folder, keeping unrelated notes and ratings out of deck
+pickers; open them explicitly, then save the deck.
+
+### SGManalink display-name preference
+
+The **Identity** window can remember a temporary display name on this device.
+It writes only `sgmanalink_nickname` under `[options]` in `user://settings.cfg`,
+and only when **Use this identity** is confirmed with **Remember** checked.
+Confirming with Remember unchecked removes that key. This does not create a
+verified account or reserve the name. Invitations, private keys and seat-resume
+credentials are never saved there; closing SGManalink forgets the temporary seat.
+
+SGManalink's duel history is audience-filtered and kept in memory, with bounded
+host catch-up on reconnect. Unlike offline duels, it is not automatically appended
+to the running `duel_log.txt` (the raw referee log can contain hidden information).
+The normal log window's **Save** button explicitly saves only your received history
+to `user://duel_log_<ms>.txt`. Such a saved log can include private looks that card
+rules authorized for your seat; consider that before sharing it.
+
+### Private LAN tournament progress
+
+The organiser's checkpoints live in **`user://tournaments/`**, or the folder
+selected in **Tournament setup → Save folder** (the optional
+`tournaments_folder` settings key). Browse, type a path or restore Default;
+the saved-event list follows the chosen folder. Existing saves are not moved
+and the path is never sent to other players. Each tournament has
+a random filename ending in `.json`, with a last-good `.json.bak` backup; a
+`.json.tmp` may remain after an interrupted write. **Keep these files private:**
+they contain registered decklists, names, the welcome message, pairings, scores and recovery-code
+hashes. They contain no live hands, library order, duel seeds, TLS private keys,
+invitations or plaintext recovery codes. Nothing is uploaded.
+
+Players can explicitly copy their own recovery code from the Tournament Hall
+and save it privately. The game does not put plaintext codes in settings or
+logs; clipboard history may retain a copied code. Reopening an application
+requires the current host invitation and this code to recover the entry.
+Restoring a tournament on the host preserves completed scores but restarts
+interrupted games. Use the same build for checkpoint recovery.
+Tournament welcome support uses protocol 11. Earlier protocol-8/9/10 checkpoints are
+not migrated or deleted; they require their original compatible build to recover.
+Computer entries also save their level, separate Unfair flag, pace and deck;
+their seats are recreated without issuing player recovery codes.
+
+### Booster Draft decks and dealt pools
+
+**Options → Booster Draft** saves to `user://decks` by default, or an explicitly
+chosen `drafts_folder`. Each session creates a unique `draft-….deck` plus a
+`draft-….pool.json` receipt of all dealt cards. Recovery writes use `.pending`
+files; successful writes replace them. `draft_pool_cards` and `draft_options`
+remember eligibility and launch settings in `settings.cfg`. No directory is
+created and no default key is written merely by opening setup.
+
+Desktop results can open the save folder. Web keeps the files in browser storage
+and offers Download deck/Download pool for external copies. See
+[Booster Draft](booster-draft.md) for timer, pack and recovery behavior.
+The pool receipt is written before building. **Verify saved deck…** in draft
+setup compares main deck plus sideboard quantities against an original receipt,
+without changing either file. Organisers should keep that original themselves;
+player-editable files are not tamper-proof.
+New draft decks also carry `# draft-…` comments with a seed, pack settings,
+fingerprint and complete replay recipe. **Reconstruct deck** regenerates all
+packs from the deck alone; a judge can compare a separately retained pre-draft
+fingerprint. The pool receipt contains that same commitment before construction.
+Native load/save/copy preserves the comments. Older drafts remain membership-only.
 
 ## What ships inside the pack (read-only)
 

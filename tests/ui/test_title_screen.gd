@@ -671,7 +671,7 @@ func test_manalink_and_download_progress_stay_clear_of_the_menu_when_resized() -
 				assert_gte(fetching.global_position.x, _menu_column(title).get_global_rect().end.x)
 
 
-func test_manalink_opens_only_a_closeable_future_feature_notice() -> void:
+func test_manalink_opens_a_closeable_local_lobby_without_connecting() -> void:
 	var title := await _build_at_window_size()
 	var online := title.find_child("Manalink", true, false) as Button
 	online.pressed.emit()
@@ -684,10 +684,21 @@ func test_manalink_opens_only_a_closeable_future_feature_notice() -> void:
 	for node in notice.find_children("*", "", true, false):
 		if node is Label:
 			explanation += node.text + "\n"
-		if node is Button and node.text == "OK":
+		if node is Button and node.text == "Close":
 			ok = node
 	assert_string_contains(explanation, "Manalink")
-	assert_string_contains(explanation, "not implemented yet")
+	assert_string_contains(explanation, "Full implemented card pool")
+	assert_string_contains(explanation, "LAN tournaments are in Tournament.")
+	assert_string_contains(explanation, "Internet play and MElo are parked.")
+	assert_true(notice is SgLobby)
+	assert_false((notice as SgLobby).client.online)
+	assert_null((notice as SgLobby).service, "opening the globe starts no listener")
+	assert_null((notice as SgLobby)._discovery, "opening the globe sends no LAN queries")
+	assert_eq(get_viewport().gui_get_focus_owner(), (notice as SgLobby)._close_button)
+	online.grab_focus()
+	await get_tree().process_frame
+	assert_eq(get_viewport().gui_get_focus_owner(), (notice as SgLobby)._close_button,
+		"keyboard focus cannot activate the main menu behind the lobby")
 	assert_not_null(ok)
 	online.pressed.emit()
 	assert_eq(title._manalink_notice, notice, "rapid activation cannot stack notices")

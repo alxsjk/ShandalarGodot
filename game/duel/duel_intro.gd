@@ -33,7 +33,7 @@ signal reconfigure_pressed
 var _left := TIMEOUT
 
 
-func build(config: DuelConfig) -> void:
+func build(config: DuelConfig, back_label := "Reconfigure duel") -> void:
 	var board := build_panel(config)
 	if config.private_hotseat():
 		# Use the spare title band above the portraits. A fixed-width holder
@@ -58,7 +58,7 @@ func build(config: DuelConfig) -> void:
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.position = Vector2(60, 345)
 	buttons.size = Vector2(380, 40)
-	var back := UiChrome.menu_button("Reconfigure duel", Vector2(190, 34), 15)
+	var back := UiChrome.menu_button(back_label, Vector2(190, 34), 15)
 	back.pressed.connect(func() -> void: reconfigure_pressed.emit())
 	buttons.add_child(back)
 	var go := UiChrome.menu_button("Go!", Vector2(120, 34), 15)

@@ -118,6 +118,7 @@ func test_jandors_ring_draw_history_resets_each_turn() -> void:
 # ----------------------------------------------------------------- Land Tax --
 
 func test_land_tax_shuffles_once_after_all_its_searches() -> void:
+	watch_signals(g)
 	put_battlefield(0, "Land Tax")
 	put_battlefield(1, "Swamp")
 	put_battlefield(1, "Swamp")
@@ -129,6 +130,8 @@ func test_land_tax_shuffles_once_after_all_its_searches() -> void:
 	assert_eq(seat.offered[1][0], "Pick up to 2 more basic lands.")
 	assert_eq(seat.offered[2][0], "Pick up to 1 more basic land.")
 	assert_eq(_log_count("shuffles their library"), 1, "ONE shuffle, at the end")
+	assert_signal_emit_count(g, "information_revealed", 3)
+	assert_signal_emitted_with_parameters(g, "information_revealed", [-1, "Land Tax — found card", ["Forest"]])
 	var last_find := -1
 	var shuffle_at := -1
 	for i in g.log_lines.size():

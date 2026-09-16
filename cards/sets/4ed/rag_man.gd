@@ -29,6 +29,9 @@ class RagEffect extends EffectBase:
 	func resolve(game: MtgGame, _source: CardInstance, _controller: int,
 			target: TargetRef, _x_value: int = 0) -> void:
 		var pid := target.player_id
+		var seen: Array = []
+		for card in game.players[pid].hand: seen.append(card.data.card_name)
+		game.reveal_information(-1, "Rag Man — revealed hand", seen)
 		var creatures: Array[CardInstance] = []
 		for inst in game.players[pid].hand:
 			if inst.data.is_creature():
