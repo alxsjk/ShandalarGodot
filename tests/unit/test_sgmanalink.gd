@@ -70,6 +70,57 @@ func test_server_dtos_validate_nested_shapes_before_ui_use() -> void:
 	assert_false(SgViewProtocol.valid({"type": "ack", "seq": 1, "ok": "yes", "error": ""}))
 
 
+func test_text_effect_snapshots_are_public_detached_and_cleared() -> void:
+	var host := put_battlefield(0, "Swamp")
+	g.change_text(host, "land_type", "swamp", "island")
+	host.memory["private_note"] = "SECRET library choice"
+	var duel := SgPracticeMatch.new(42)
+	duel.game = g
+	var cards := duel._cards(1, [host])
+	assert_true(SgViewProtocol.cards(cards))
+	assert_eq(cards[0].text_effects, [{"kind": "land_type", "from": "swamp", "to": "island"}])
+	assert_false(JSON.stringify(cards).contains("SECRET"))
+	cards[0].text_effects[0].to = "forest"
+	assert_eq(host.text_changes[0].to, "island", "the snapshot cannot mutate the engine")
+	host.face_down = true
+	cards = duel._cards(1, [host])
+	assert_true(cards[0].text_effects.is_empty(), "a masked snapshot reveals no effect history")
+	assert_true(SgViewProtocol.cards(cards))
+	cards[0].text_effects = [{"kind": "land_type", "from": "swamp", "to": "island"}]
+	assert_false(SgViewProtocol.cards(cards), "the client also rejects masked effect history")
+	host.face_down = false
+	g.return_to_hand(host)
+	assert_true(duel._cards(0, [host])[0].text_effects.is_empty(), "no stale reminder in another zone")
+
+
+func test_text_effect_protocol_rejects_malformed_or_unbounded_records() -> void:
+	var valid := [
+		{"kind": "land_type", "from": "swamp", "to": "island"},
+		{"kind": "color_word", "from": Mtg.ManaColor.W, "to": Mtg.ManaColor.G},
+		{"kind": "mana_color", "from": Mtg.ManaColor.W, "to": Mtg.ManaColor.C},
+		{"kind": "circle_color", "to": Mtg.ManaColor.G},
+	]
+	assert_true(SgViewProtocol.text_effects(valid))
+	assert_true(SgViewProtocol.text_effects(JSON.parse_string(JSON.stringify(valid))))
+	for invalid in [null, {}, [null], [{}], [{"kind": "unknown", "from": 1, "to": 2}],
+		[{"kind": "land_type", "from": "swamp", "to": "../../private"}],
+		[{"kind": "land_type", "from": [], "to": "island"}],
+		[{"kind": "color_word", "from": true, "to": 2}],
+		[{"kind": "color_word", "from": 1, "to": 3}],
+		[{"kind": "color_word", "from": 1, "to": Mtg.ManaColor.C}],
+		[{"kind": "mana_color", "from": 1, "to": 1.5}],
+		[{"kind": "circle_color", "to": 1, "private": "secret"}],
+		[{"kind": "circle_color", "to": NAN}]]:
+		assert_false(SgViewProtocol.text_effects(invalid), str(invalid))
+	var oversized: Array = []
+	oversized.resize(SgProtocol.MAX_CARDS + 1)
+	oversized.fill(valid[0])
+	assert_false(SgViewProtocol.text_effects(oversized))
+	var old_hello := {"v": SgProtocol.VERSION - 1, "type": "hello", "access": "0".repeat(64),
+		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint()}
+	assert_false(SgProtocol.valid(old_hello), "old clients cannot silently drop reminder fields")
+
+
 func test_temporary_names_are_bounded_display_text_not_credentials() -> void:
 	var hello := {"v": SgProtocol.VERSION, "type": "hello", "access": "0".repeat(64),
 		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint()}

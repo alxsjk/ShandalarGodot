@@ -120,15 +120,37 @@ def source_cards() -> list[dict]:
     return rows
 
 
-def assigned_pairs() -> set[tuple[str, str]]:
-    """The 897 named entries already provided by cards/sets/."""
+def assigned_pairs(root: Path | None = None) -> set[tuple[str, str]]:
+    """The 897 base assignments, from source scripts or a packaged snapshot.
+
+    Release tooling generates the snapshot from these same source scripts;
+    players do not need a source checkout merely to construct Pack 1.
+    """
+    root = ROOT if root is None else root
+    snapshot = root / "packaging/card_packs/pack_1_dotp_complete/base_assignments.json"
+    if snapshot.is_file():
+        rows = read_json(snapshot)
+        if not isinstance(rows, list) or len(rows) != 897:
+            raise ValueError("expected 897 portable base assignments")
+        known = {code: set(unique_names(read_json(root / "cards/data" / f"{code}.json")))
+                 for code in SET_ORDER}
+        pairs = set()
+        for row in rows:
+            if (not isinstance(row, list) or len(row) != 2
+                    or not all(isinstance(value, str) for value in row)
+                    or row[0] not in known or row[1] not in known[row[0]]):
+                raise ValueError("invalid portable base assignment")
+            pairs.add(tuple(row))
+        if len(pairs) != 897 or len({name for _, name in pairs}) != 897:
+            raise ValueError("duplicate portable base assignments")
+        return pairs
     pairs: set[tuple[str, str]] = set()
     for code in SET_ORDER:
-        rows = read_json(BASE_DATA / f"{code}.json")
+        rows = read_json(root / "cards/data" / f"{code}.json")
         by_file: dict[str, list[str]] = {}
         for name in unique_names(rows):
             by_file.setdefault(slugify(name), []).append(name)
-        for path in sorted((ROOT / "cards" / "sets" / code).glob("*.gd")):
+        for path in sorted((root / "cards" / "sets" / code).glob("*.gd")):
             if path.name.startswith("_"):
                 continue
             matches = by_file.get(path.stem, [])

@@ -1,10 +1,12 @@
 # Cross-platform release packages
 
 Release packaging does not change the duel layout or rules. Godot 4.7.2
-can cross-export all four targets; verify the official template archive's
+can cross-export the six local test targets; verify the official template archive's
 checksum and extract only the needed templates. Set local custom-template
 paths in the ignored `export_presets.cfg`, using the example as a guide.
-The macOS export is universal; Windows and Linux target x86-64.
+Separate Mac presets target Apple Silicon and Intel (the universal preset
+remains available). Windows and desktop Linux target x86-64; Raspberry Pi
+uses Linux ARM64 with both desktop and mobile texture imports.
 
 Use the debug export template for desktop releases, as documented in
 CONTRIBUTING.md. Web uses the non-threaded release template. No test-profile
@@ -16,6 +18,9 @@ Inspect the exit status and log for export errors.
 godot --headless --path . --export-debug 'Windows 64' /path/to/windows64/Shandalar.exe
 godot --headless --path . --export-debug 'Linux 64' /path/to/linux64/Shandalar.x86_64
 godot --headless --path . --export-debug macOS /path/to/macos/Shandalar.app
+godot --headless --path . --export-debug 'macOS Apple Silicon' /path/to/macos-arm64/Shandalar.app
+godot --headless --path . --export-debug 'macOS Intel' /path/to/macos-intel/Shandalar.app
+godot --headless --path . --export-debug 'Raspberry Pi 5 ARM64' /path/to/raspberry-pi5-arm64/Shandalar.arm64
 godot --headless --path . --export-release Web /path/to/web/index.html
 ```
 
@@ -34,17 +39,47 @@ python3 tools/package_release.py --platform windows64 \
   --skin-zip /path/to/original_skin.zip --commit FULL_COMMIT_HASH
 ```
 
-Repeat with `linux64`, `macos` and `web`. The version comes only from
+Repeat with `linux64`, `macos-arm64`, `macos-intel`, `raspberry-pi5-arm64`
+and `web` (`macos` still packages a universal app). The version comes only from
 `project.godot`. The packager never exports, uploads, overwrites an existing
 package, copies the whole build directory, or builds a card pack. It streams
 the approved files into two ZIPs, checks their integrity, preserves launcher
 permissions and app signatures, and writes no UID/GID or extended metadata.
 All packages carry tools under `tools/`, a README and per-file SHA256SUMS.
+The five numbered-pack builders and their Python dependencies are bundled,
+alongside explicitly allowlisted `cards/data/` and `packaging/card_packs/`
+metadata. Pack 1's base assignments are generated from the source registry
+at packaging time, avoiding a dependency on the checkout's card scripts.
+`CARD-ART-AND-PACKS.md` is also embedded in the package README. Verify the
+extracted builders from outside the source tree, not just their presence.
+Never include artwork caches or generated numbered ZIPs in this tool bundle.
+The older `build_release.sh --package` Linux/web paths use the same staging
+helper, so they also carry the full construction toolkit and README instructions.
 Only `-with-skin` includes `skin/original_skin.zip`; no package carries card
 pictures. Validate the supplied skin with `tools/skin_catalogue.py --check`.
 
-The public release consists of eight game ZIPs, the same `original_skin.zip`
-as a separate download, and `SHA256SUMS` covering those nine assets. Publish
+The six-target local matrix consists of twelve game ZIPs, the same
+`original_skin.zip` as a separate download, and `SHA256SUMS` covering those
+thirteen assets. Keep a local verification report separate from the game
+archives, describing native versus cross-export checks. The web game fetches
+the bundled skin ZIP from its server on first load; manual import also works.
+The Pi launcher selects OpenGL ES 3 and caps rendering at 60 FPS; this is not
+a performance guarantee. The Mac minimum versions are declared in the
+generated app's Info.plist, not inferred from generic Godot documentation.
+Verify actual Mach-O slices (do not assume an export option thins the binary).
+
+The official Mac template contains only `godot_macos_debug.universal` and
+`godot_macos_release.universal`. Architecture-specific presets need derived
+template ZIPs, not merely a changed architecture dropdown. Extract `macos.zip`
+into a temporary directory. For each of `arm64` and `x86_64`, use `lipo -thin`
+on both universal binaries, naming the outputs `godot_macos_debug.ARCH` and
+`godot_macos_release.ARCH`. Archive the unchanged `macos_template.app` structure
+with only that architecture's two executables, excluding the universal and
+other architecture's binaries. Save as `macos-arm64.zip` / `macos-x86_64.zip`
+beside the original template (preserve the original). Godot signs the final
+exported apps. Verify both the Mach-O slice and final app signature.
+
+For a later, explicitly authorised public release, publish
 only this explicit list, never a wildcard over the build or local-art folder.
 Create the release as a draft, upload and verify all assets against local
 checksums, then publish. Keep personal paths and author details out of

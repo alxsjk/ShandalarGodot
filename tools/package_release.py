@@ -16,11 +16,28 @@ import stat
 import zipfile
 
 import tool_banner
+import pack_1_dotp_complete as pack_one
 
 ROOT = Path(__file__).resolve().parents[1]
-PLATFORMS = ("linux64", "windows64", "macos", "web")
+PLATFORMS = ("linux64", "windows64", "macos", "macos-arm64", "macos-intel",
+             "raspberry-pi5-arm64", "web")
+MAC_PLATFORMS = ("macos", "macos-arm64", "macos-intel")
+LINUX_BINARIES = {"linux64": "Shandalar.x86_64", "raspberry-pi5-arm64": "Shandalar.arm64"}
+PACK_BUILDERS = ("pack_1_dotp_complete", "pack_2_fallen_empires", "pack_3_ice_age",
+                 "pack_4_homelands", "pack_5_alliances")
 TOOLS = ("mtg_assets.py", "import_original.py", "fetch_card_art.py",
-         "skin_catalogue.py", "tool_banner.py")
+         "skin_catalogue.py", "tool_banner.py", "fetch_cards.py", "gen_cards.py",
+         *(name + ".py" for name in PACK_BUILDERS))
+# Explicit metadata allowlist: never recurse into a download/art cache.
+PACK_DATA = {
+    PACK_BUILDERS[0]: ("README.txt", "manifest.json", "missing_cards.json"),
+    PACK_BUILDERS[1]: ("README.txt", "manifest.json", "cards.json", "set.json"),
+    **{name: ("README.txt", "manifest.json", "cards.json", "set.json", "reprint_names.json")
+       for name in PACK_BUILDERS[2:]},
+}
+BUILDER_DATA = tuple(f"cards/data/{code}.json" for code in pack_one.SET_ORDER) + tuple(
+    f"packaging/card_packs/{pack}/{name}" for pack, names in PACK_DATA.items() for name in names)
+BASE_ASSIGNMENTS = "packaging/card_packs/pack_1_dotp_complete/base_assignments.json"
 LOCAL_PACK = "Pack-1-DotP-complete.zip"
 WORDMARK = ("┌─┐┌─┐┌─┐┬┌─", "├─┘├─┤│  ├┴┐", "┴  ┴ ┴└─┘┴ ┴")
 START = {
@@ -41,6 +58,18 @@ START = {
            "Browser storage belongs to this site's address. Export important decks\n"
            "before clearing it. The web build has no command-line Deck Lab.",
 }
+START["macos-arm64"] = START["macos"].replace(
+    "Universal: Apple Silicon and Intel.", "Apple Silicon (arm64) only; macOS 13 or newer.")
+START["macos-intel"] = START["macos"].replace(
+    "Universal: Apple Silicon and Intel.",
+    "Legacy Intel (x86-64) only; macOS 11 or newer with OpenGL 3.3.\n"
+    "Older Intel hardware/OS versions still require on-device testing.")
+START["raspberry-pi5-arm64"] = (
+    "Raspberry Pi 5 / compatible newer ARM64 Linux: use a 64-bit desktop OS\n"
+    "with working OpenGL 3.3 or OpenGL ES 3.0 graphics drivers.\n"
+    "Extract the whole folder and run ./run.sh in a graphical desktop session.\n"
+    "If needed: chmod +x run.sh Shandalar.arm64\n"
+    "Not a 32-bit Raspberry Pi OS binary. Performance needs on-device testing.")
 
 
 def digest(path: Path) -> str:
@@ -67,18 +96,20 @@ def check_skin(path: Path) -> None:
 
 
 def payload(folder: Path, platform: str) -> dict[str, Path]:
+    family = "macos" if platform in MAC_PLATFORMS else platform
     required = {
         "linux64": ("Shandalar.x86_64", "Shandalar.pck"),
+        "raspberry-pi5-arm64": ("Shandalar.arm64", "Shandalar.pck"),
         "windows64": ("Shandalar.exe", "Shandalar.console.exe", "Shandalar.pck"),
         "macos": ("Shandalar.app/Contents/MacOS/Shandalar",
                   "Shandalar.app/Contents/Resources/Shandalar.pck",
                   "Shandalar.app/Contents/Info.plist"),
         "web": ("index.html", "index.js", "index.wasm", "index.pck"),
-    }[platform]
+    }[family]
     for name in required:
         if not (folder / name).is_file() or (folder / name).stat().st_size == 0:
             raise ValueError(f"Missing or empty export: {name}")
-    if platform == "macos":
+    if platform in MAC_PLATFORMS:
         files = [p for p in (folder / "Shandalar.app").rglob("*") if not p.is_dir()]
     elif platform == "web":
         files = [p for p in folder.glob("index.*") if p.is_file()]
@@ -125,6 +156,39 @@ def member(archive: zipfile.ZipFile, name: str, content: Path | bytes, executabl
                 shutil.copyfileobj(source, target, 1024 * 1024)
 
 
+def player_tool_files(root: Path = ROOT) -> dict[str, Path]:
+    files = {"tools/" + name: root / "tools" / name for name in TOOLS}
+    files.update({name: root / name for name in BUILDER_DATA})
+    files["CARD-ART-AND-PACKS.md"] = root / "docs/card-art-and-packs.md"
+    return files
+
+
+def stage_player_tools(folder: Path, root: Path = ROOT) -> None:
+    """Also serve build_release.sh's older Linux/web staging path.
+
+    Existing identical tools are harmless; never replace different content.
+    The destination is a fresh build staging directory, not a player profile.
+    """
+    files = player_tool_files(root)
+    guard_private(list(files.values()))
+    contents = {name: path.read_bytes() for name, path in files.items()}
+    contents[BASE_ASSIGNMENTS] = pack_one.json_bytes(sorted(pack_one.assigned_pairs(root)))
+    for name, content in contents.items():
+        dest = folder / name
+        if dest.is_symlink() or (dest.exists() and dest.read_bytes() != content):
+            raise ValueError(f"Refusing to overwrite different staged tool data: {name}")
+    for name, content in contents.items():
+        dest = folder / name
+        if not dest.exists():
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(content)
+    readme = folder / "README.txt"
+    previous = readme.read_text(encoding="utf-8") if readme.exists() else ""
+    guide = contents["CARD-ART-AND-PACKS.md"].decode("utf-8")
+    if guide not in previous:
+        readme.write_text(previous + "\n\n" + guide, encoding="utf-8")
+
+
 def package(folder: Path, out: Path, platform: str, skin: Path, revision: str,
             root: Path = ROOT) -> list[Path]:
     version = tool_banner.project_version(root)
@@ -134,12 +198,15 @@ def package(folder: Path, out: Path, platform: str, skin: Path, revision: str,
         raise ValueError("A complete source commit hash is required")
     check_skin(skin)
     files = payload(folder, platform)
-    files.update({"tools/" + name: root / "tools" / name for name in TOOLS})
+    files.update(player_tool_files(root))
+    base_assignments = pack_one.json_bytes(sorted(pack_one.assigned_pairs(root)))
+    asset_guide = root / "docs/card-art-and-packs.md"
     files.update({"LICENSE.txt": root / "LICENSE",
                   "setup.txt": root / "docs" / "setup.txt",
                   "skin/SKIN.txt": root / "docs" / "skin-catalogue.txt",
                   "RELEASE_NOTES.md": root / "docs" / "releases" / f"{version}.md",
                   "DECKLAB.md": root / "DeckLab" / "README.md",
+                  "CARD-ART-AND-PACKS.md": asset_guide,
                   "icon.png": root / "game" / "icon.png"})
     if platform == "web":
         files["setup-web.txt"] = root / "docs" / "setup-web.txt"
@@ -150,10 +217,11 @@ def package(folder: Path, out: Path, platform: str, skin: Path, revision: str,
         raise ValueError("Refusing to overwrite an existing package or partial file")
     out.mkdir(parents=True, exist_ok=True)
     for output, included in zip(outputs, (False, True)):
-        extra = {}
-        readme = (f"SHANDALAR {version}\nSource commit: {revision}\n\n{START[platform]}\n\n"
-                  "The duel and Deck Builder are playable. Adventure and online\n"
-                  "Manalink multiplayer are future features. See RELEASE_NOTES.md.\n\n"
+        extra = {BASE_ASSIGNMENTS: base_assignments}
+        readme = (f"SHANDALAR {version}\nGame source commit: {revision}\n\n{START[platform]}\n\n"
+                  "Duels, Deck Builder, Booster Draft and LAN SGManalink are included.\n"
+                  "Adventure and public Internet play are not included.\n"
+                  "Use matching builds and enabled packs for LAN play. See RELEASE_NOTES.md.\n\n"
                   + ("Original skin included in skin/original_skin.zip. Leave it zipped.\n"
                      if included else "Original skin not included. The fallback appearance is fully playable.\n")
                   + "Card pictures are NOT included. Import your own cardart.zip in Options > Skin.\n"
@@ -166,11 +234,21 @@ def package(folder: Path, out: Path, platform: str, skin: Path, revision: str,
                   "Godot Engine is MIT-licensed; copyright and third-party notices:\n"
                   "https://godotengine.org/license/\n")
         extra["README.txt"] = readme.encode()
-        if platform in ("linux64", "macos"):
-            binary = "./Shandalar.x86_64" if platform == "linux64" else "./Shandalar.app/Contents/MacOS/Shandalar"
+        if platform == "web" and included:
+            extra["README.txt"] += (
+                "\nWeb skin setup: keep skin/original_skin.zip beside index.html.\n"
+                "The game fetches it into browser storage on the first load.\n"
+                "You can also import the ZIP manually through Options > Skin.\n").encode()
+        extra["README.txt"] += ("\n\n" + asset_guide.read_text(encoding="utf-8")).encode()
+        if platform in LINUX_BINARIES or platform in MAC_PLATFORMS:
+            binary = "./" + LINUX_BINARIES[platform] if platform in LINUX_BINARIES else "./Shandalar.app/Contents/MacOS/Shandalar"
             prefix = '#!/bin/sh\nset -eu\ncd -- "$(dirname -- "$0")"\n'
             extra["run.sh"] = (prefix + f'exec "{binary}" "$@"\n').encode()
             extra["deck_lab.sh"] = (prefix + f'exec "{binary}" --headless --no-header -- --deck-lab "$@"\n').encode()
+            if platform == "raspberry-pi5-arm64":
+                extra["run.sh"] = (prefix +
+                    'exec "./Shandalar.arm64" --rendering-method gl_compatibility '
+                    '--rendering-driver opengl3_es --max-fps 60 "$@"\n').encode()
         elif platform == "windows64":
             extra["deck_lab.bat"] = ("@echo off\r\ncd /d \"%~dp0\"\r\n"
                                      "Shandalar.console.exe --headless --no-header -- --deck-lab %*\r\n").encode()
@@ -184,7 +262,7 @@ def package(folder: Path, out: Path, platform: str, skin: Path, revision: str,
         try:
             with zipfile.ZipFile(temporary, "x", compression=zipfile.ZIP_DEFLATED) as archive:
                 for key, value in sorted({**selected, **extra}.items()):
-                    executable = key.endswith((".sh", ".x86_64")) or "/Contents/MacOS/" in key
+                    executable = key.endswith((".sh", ".x86_64", ".arm64")) or "/Contents/MacOS/" in key
                     member(archive, f"{name}/{key}", value, executable)
             with zipfile.ZipFile(temporary) as archive:
                 if archive.testzip() is not None:

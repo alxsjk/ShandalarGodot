@@ -422,6 +422,8 @@ if [ "$WEB" = 1 ]; then
 		cp -p tools/mtg_assets.py tools/import_original.py \
 		      tools/fetch_card_art.py tools/skin_catalogue.py \
 		      tools/tool_banner.py "$STAGE/tools/"
+		# Share the complete builder dependency/data list with every other platform.
+		python3 -c 'import sys; from pathlib import Path; sys.path.insert(0, "tools"); from package_release import stage_player_tools; stage_player_tools(Path(sys.argv[1]))' "$STAGE"
 		zip_stage "$STAGE" "Shandalar-$VERSION-web"
 		echo "release files: $PKG_DIR/Shandalar-$VERSION-web.zip + $PKG_DIR/Shandalar-$VERSION-web-with-skin.zip"
 	fi
@@ -572,6 +574,9 @@ LAB
 	cp -p tools/mtg_assets.py tools/import_original.py \
 	      tools/fetch_card_art.py tools/skin_catalogue.py \
 	      tools/tool_banner.py "$STAGE/"
+	# Keep the historical flat helpers, and add the common tools/ layout plus
+	# numbered-pack metadata and player README used by all current platforms.
+	python3 -c 'import sys; from pathlib import Path; sys.path.insert(0, "tools"); from package_release import stage_player_tools; stage_player_tools(Path(sys.argv[1]))' "$STAGE"
 	cp -p docs/skin-catalogue.txt "$STAGE/skin/SKIN.txt"
 	cat > "$STAGE/run.sh" <<'RUNNER'
 #!/usr/bin/env bash

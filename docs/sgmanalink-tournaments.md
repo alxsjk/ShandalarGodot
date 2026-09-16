@@ -89,8 +89,8 @@ codes. An interrupted game starts again from opening hands with both players
 ready; previously recorded wins remain. There is no seamless host migration.
 Save failure suspends tournament advancement and is shown to the organiser.
 Recovery requires a matching build and the same enabled gameplay packs. Earlier
-protocol-8/9/10/11 development checkpoints remain untouched but are not migrated
-to the current protocol-12 compatibility contract.
+protocol-8/9/10/11/12 development checkpoints remain untouched but are not migrated
+to the current protocol-13 compatibility contract.
 Computer entries retain their settings and are recreated without recovery codes.
 
 **Tournament setup → Save folder** offers a typed path, **Browse…** and
@@ -108,7 +108,7 @@ application cannot reclaim an entry by matching its nickname.
 
 ## Play on a LAN
 
-1. Use matching protocol-12 development builds and enabled card packs. Open the globe, choose a
+1. Use matching protocol-13 development builds and enabled card packs. Open the globe, choose a
    temporary name, and select the appropriate LAN address/port in **Host Game**.
 2. Open **Tournament**. Name the event, optionally write a welcome message,
    choose the save folder, 2–20 maximum entrants, a

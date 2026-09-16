@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import tempfile
+import json
+import shutil
 import unittest
 import zipfile
 from pathlib import Path
@@ -12,6 +14,22 @@ import pack_1_dotp_complete as pack
 
 
 class PackOneTests(unittest.TestCase):
+    def test_portable_base_assignments_without_game_scripts(self):
+        expected = pack.assigned_pairs()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shutil.copytree(pack.BASE_DATA, root / 'cards/data')
+            snapshot = root / 'packaging/card_packs/pack_1_dotp_complete/base_assignments.json'
+            snapshot.parent.mkdir(parents=True)
+            snapshot.write_text(json.dumps(sorted(expected)), encoding='utf-8')
+            self.assertEqual(pack.assigned_pairs(root), expected)
+            self.assertFalse((root / 'cards/sets').exists())
+            for bad in ([], sorted(expected) + [sorted(expected)[0]],
+                        [['2ed', 'not a real card']] + sorted(expected)[1:]):
+                snapshot.write_text(json.dumps(bad), encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    pack.assigned_pairs(root)
+
     def test_assembled_counts_and_complete_set_membership(self):
         manifest, catalog, cards, _readme = pack.assembled()
         self.assertEqual(manifest["counts"], pack.EXPECTED)

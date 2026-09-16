@@ -34,5 +34,12 @@ static func make(card: Dictionary, seat: int, zone: int, existing: CardInstance 
 	instance.prevention = int(card.prevention)
 	instance.regeneration_shields = int(card.regeneration)
 	instance.face_down = card.masked
+	var effects: Array = card.text_effects.duplicate(true)
+	for effect in effects:
+		# JSON numbers arrive as floats; normalize color enum keys for hover text.
+		if effect.kind != "land_type":
+			effect.to = int(effect.to)
+			if effect.has("from"): effect.from = int(effect.from)
+	instance.set_meta("sg_text_effects", effects)
 	instance.set_meta("sg_handle", card.id)
 	return instance

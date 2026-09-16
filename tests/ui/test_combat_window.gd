@@ -4,13 +4,103 @@ extends GutTest
 
 
 var screen: DuelScreen
+var _saved_position: Variant
 
 
 func before_each() -> void:
+	_saved_position = Settings.get_value(CombatWindow.POS_SETTING, null) \
+		if Settings.has_value(CombatWindow.POS_SETTING) else null
+	Settings.clear_value(CombatWindow.POS_SETTING)
 	screen = load("res://game/duel/duel_screen.tscn").instantiate()
 	add_child_autofree(screen)
 	await get_tree().process_frame
 	screen.game._step_index = Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS)
+	screen.set_process(false)
+
+
+func after_each() -> void:
+	if _saved_position == null:
+		Settings.clear_value(CombatWindow.POS_SETTING)
+	else:
+		Settings.set_value(CombatWindow.POS_SETTING, _saved_position)
+
+
+func _drag_window(to: Vector2, release := true) -> void:
+	var win := screen._combat_window
+	var grip := Vector2(50, 12)
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	down.global_position = win.global_position + grip
+	win._on_bar_input(down)
+	var move := InputEventMouseMotion.new()
+	move.button_mask = MOUSE_BUTTON_MASK_LEFT
+	move.global_position = to + grip
+	win._on_bar_input(move)
+	if release:
+		var up := InputEventMouseButton.new()
+		up.button_index = MOUSE_BUTTON_LEFT
+		up.global_position = move.global_position
+		win._on_bar_input(up)
+
+
+func test_dragged_position_survives_refresh_phases_restore_and_next_combat() -> void:
+	var g := screen.game
+	var lion := _summon(g, "Savannah Lions", g.active_player)
+	g.combat.attackers[lion.id] = true
+	screen._refresh()
+	var chosen := Vector2(40, 90)
+	_drag_window(chosen)
+	assert_eq(Settings.get_value(CombatWindow.POS_SETTING, null), chosen)
+	for step in [Mtg.Step.DECLARE_ATTACKERS, Mtg.Step.DECLARE_BLOCKERS,
+			Mtg.Step.COMBAT_DAMAGE, Mtg.Step.COMBAT_END]:
+		g._step_index = Mtg.STEP_ORDER.find(step)
+		screen._refresh()
+		assert_true(screen._combat_window.visible)
+		assert_eq(screen._combat_window.position, chosen, "refresh must not re-center")
+	screen._on_combat_minimized(true)
+	screen._on_window_icon_pressed()
+	assert_eq(screen._combat_window.position, chosen, "minimize/restore keeps the position")
+	g._step_index = Mtg.STEP_ORDER.find(Mtg.Step.MAIN2)
+	screen._refresh()
+	g._step_index = Mtg.STEP_ORDER.find(Mtg.Step.DECLARE_ATTACKERS)
+	screen._refresh()
+	assert_eq(screen._combat_window.position, chosen, "the next combat keeps it too")
+
+
+func test_refresh_during_drag_does_not_snap_back_before_release() -> void:
+	var g := screen.game
+	var lion := _summon(g, "Savannah Lions", g.active_player)
+	g.combat.attackers[lion.id] = true
+	screen._refresh()
+	_drag_window(Vector2(45, 100), false)
+	screen._refresh()
+	assert_eq(screen._combat_window.position, Vector2(45, 100))
+	assert_false(Settings.has_value(CombatWindow.POS_SETTING), "not persisted until release")
+
+
+func test_saved_position_survives_first_fit_and_stays_reachable() -> void:
+	var win := screen._combat_window
+	Settings.set_value(CombatWindow.POS_SETTING, Vector2(35, 80))
+	win.restore_position()
+	win.fit(screen._board_area())
+	assert_eq(win.position, Vector2(35, 80), "first combat must not overwrite a saved position")
+	Settings.set_value(CombatWindow.POS_SETTING, Vector2(9000, 9000))
+	win.restore_position()
+	win.fit(Rect2(0, 0, 400, 300))
+	var room := win.get_viewport_rect().size
+	assert_lte(win.position.x, room.x - CombatWindow.EDGE - 60.0)
+	assert_lte(win.position.y, room.y - CombatWindow.EDGE - CombatWindow.TITLE_H)
+	assert_eq(Settings.get_value(CombatWindow.POS_SETTING, null), Vector2(9000, 9000),
+		"layout clamping must not rewrite the player's saved preference")
+
+
+func test_untouched_window_still_centers_when_board_size_changes() -> void:
+	var win := screen._combat_window
+	for area in [Rect2(100, 50, 1000, 700), Rect2(70, 30, 600, 500)]:
+		win.fit(area)
+		assert_eq(win.position + win.size * 0.5, area.get_center())
+	assert_false(Settings.has_value(CombatWindow.POS_SETTING))
 
 
 # ----------------------------------------------------------- the title --

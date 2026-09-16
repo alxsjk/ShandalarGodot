@@ -1701,6 +1701,96 @@ func test_cancelling_the_name_leaves_the_deck_unsaved() -> void:
 	assert_eq(screen.deck.count_of("Lightning Bolt"), 1, "and the deck is intact")
 
 
+## Playtest: a long title/filename pushed the save question and its buttons
+## outside the fixed stone frame. Keep the full text, including unbroken names.
+func _assert_save_question_fits(dialog: OriginalDialog, message: String) -> void:
+	var bounds := dialog.get_global_rect().grow(-15.0)
+	assert_true(bounds.encloses(dialog.body().get_global_rect()),
+		"the message area stays inside the stone frame")
+	var found := false
+	for node in _walk(dialog):
+		if node is Button:
+			assert_true(bounds.encloses(node.get_global_rect()),
+				"the %s button stays inside the stone frame" % node.text)
+		if node is Label and node.text == message:
+			found = true
+			assert_gt(node.get_line_count(), 1, "long names wrap")
+			assert_lte(node.size.x, bounds.size.x, "no horizontal overflow")
+			assert_eq(node.max_lines_visible, -1, "the name is not truncated")
+			if node.get_parent() is ScrollContainer:
+				var scroll: ScrollContainer = node.get_parent()
+				assert_true(scroll.clip_contents, "long text stays in its reading area")
+				assert_false(scroll.get_h_scroll_bar().visible,
+					"even an unbroken filename wraps, never scrolls sideways")
+				if node.size.y > scroll.size.y:
+					assert_true(scroll.get_v_scroll_bar().visible,
+						"all of an exceptionally long name remains readable")
+			else:
+				assert_true(bounds.encloses(node.get_global_rect()))
+	assert_true(found, "the complete original message is retained")
+
+
+func test_long_deck_name_save_question_stays_inside_its_window() -> void:
+	screen._add_one("Lightning Bolt")
+	for deck_name in ["Playtest save " + "Fallen Empires and Ice Age ".repeat(5),
+			"Playtest" + "Unbroken".repeat(22), "Playtest " + "very long ".repeat(200)]:
+		screen.deck.deck_name = deck_name
+		screen._confirm_discard(func() -> void: fail_test("Cancel must not discard"))
+		for _frame in 4:
+			await get_tree().process_frame
+		_assert_save_question_fits(screen.open_dialogs()[-1],
+			DeckStore.SAVE_QUESTION % deck_name)
+		_answer("Cancel")
+		await get_tree().process_frame
+		assert_eq(screen.deck.deck_name, deck_name, "no shortening the saved title")
+
+
+func test_long_deck_name_overwrite_question_stays_inside_its_window() -> void:
+	var deck_name := ("Playtest long overwrite " + "Fallen Empires and Ice Age ".repeat(5)).strip_edges()
+	screen.deck.deck_name = deck_name
+	screen._add_one("Lightning Bolt")
+	assert_eq(DeckStore.save(screen.deck), "")
+	screen._add_one("Mountain")
+	screen._save_deck()
+	for _frame in 4:
+		await get_tree().process_frame
+	_assert_save_question_fits(screen.open_dialogs()[-1],
+		DeckStore.DECK_EXISTS % DeckStore.path_for(deck_name).get_file())
+	_answer("Cancel")
+	await get_tree().process_frame
+	assert_eq(DeckStore.load_deck(DeckStore.path_for(deck_name), []).total(), 1,
+		"Cancel did not overwrite the saved deck")
+	screen._save_deck()
+	_answer("OK")
+	await get_tree().process_frame
+	var saved := DeckStore.load_deck(DeckStore.path_for(deck_name), [])
+	assert_eq(saved.deck_name, deck_name, "the full title round-trips")
+	assert_eq(saved.total(), 2, "OK still overwrites the deck")
+	_drop_saved(deck_name)
+
+
+func test_long_deck_name_entry_stays_inside_its_window() -> void:
+	var deck_name := "Playtest name " + "Unbroken".repeat(22)
+	screen._open_deck_info()
+	var dialog: OriginalDialog = screen.open_dialogs()[-1]
+	var field: LineEdit = null
+	for node in _walk(dialog):
+		if node is LineEdit:
+			field = node
+	assert_not_null(field)
+	field.text = deck_name
+	field.caret_column = field.text.length()
+	for _frame in 4:
+		await get_tree().process_frame
+	assert_true(dialog.get_global_rect().grow(-15.0).encloses(field.get_global_rect()),
+		"typing a long title scrolls inside the field, not outside the window")
+	_answer("OK")
+	await get_tree().process_frame
+	assert_eq(screen.deck.deck_name, deck_name)
+	assert_lte(screen._header_label.size.x, screen._header_slab.size.x,
+		"the header also stays bounded after naming")
+
+
 # ================================== THIRD AUDIT PASS (2026-09-01) ==
 # THE SIDEBOARD SURFACE. The ROADMAP's objection to building one — *"the
 # screen would have been editing a field nothing reads"* — died when

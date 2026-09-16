@@ -3376,9 +3376,7 @@ func _confirm_discard(then: Callable) -> void:
 	if not _dirty or deck.total() + deck.side_total() == 0:
 		then.call()
 		return
-	var dialog := OriginalDialog.create("", Vector2(430, 180))
-	dialog.body().add_child(OriginalDialog.label(
-		DeckStore.SAVE_QUESTION % deck.deck_name, 15))
+	var dialog := _deck_save_question(DeckStore.SAVE_QUESTION % deck.deck_name)
 	dialog.add_button("Yes").pressed.connect(func() -> void:
 		dialog.dismiss()
 		_save_deck(then))
@@ -3535,6 +3533,23 @@ func _exit() -> void:
 
 
 # ------------------------------------------------------------- dialogs --
+
+## A save prompt has a fixed stone frame, but player-chosen names have no
+## layout limit. Wrap even unbroken filenames and scroll unusually long
+## messages inside the body, leaving the action buttons visible below it.
+func _deck_save_question(message: String, height := 180.0) -> OriginalDialog:
+	var dialog := OriginalDialog.create("", Vector2(430, height))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.focus_mode = Control.FOCUS_ALL
+	dialog.body().add_child(scroll)
+	var text := OriginalDialog.label(message, 15)
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(text)
+	return dialog
+
 
 ## `@TITLEDIALOG` (`Menus.txt:47`) — "Deck Info" / "Title". The original's
 ## dialog also collects Description, Name, E-Mail, Date, Face, Comments
@@ -3903,9 +3918,7 @@ func _save_deck(then := Callable()) -> void:
 		return
 	if DeckStore.exists(deck.deck_name):
 		var file := DeckStore.path_for(deck.deck_name).get_file()
-		var dialog := OriginalDialog.create("", Vector2(430, 170))
-		dialog.body().add_child(OriginalDialog.label(
-			DeckStore.DECK_EXISTS % file, 15))
+		var dialog := _deck_save_question(DeckStore.DECK_EXISTS % file, 170.0)
 		dialog.add_button("OK").pressed.connect(func() -> void:
 			dialog.dismiss()
 			_write_deck(then))

@@ -84,14 +84,15 @@ static func cards(value: Variant) -> bool:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "cost", "land",
 			"power", "toughness", "tapped", "sick", "damage", "attacking", "blocking", "playable",
 			"creature", "owner", "controller", "masked", "types", "colors", "keywords", "subtypes", "counters",
-			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "attached", "actions", "exile_playable"]) \
+			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "attached", "actions", "exile_playable", "text_effects"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card_name(card.name) \
 			or not text(card.rules, 4096) or not text(card.cost, 128) \
 			or not text(card.blocking, 16) \
 			or (card.blocking != "" and not SgProtocol.short_text(card.blocking, 16)) \
 			or not text(card.chosen, 128) or not text(card.attached, 16) \
 			or not SgProtocol.indices(card.keywords, 64) or not SgProtocol.names(card.subtypes, 64) \
-			or not SgProtocol.names(card.landwalk, 64) or not counters(card.counters) or not options(card.actions):
+			or not SgProtocol.names(card.landwalk, 64) or not counters(card.counters) or not options(card.actions) \
+			or not text_effects(card.text_effects) or (card.masked and not card.text_effects.is_empty()):
 			return false
 		for key in ["land", "tapped", "sick", "attacking", "playable", "creature", "masked", "exile_playable"]:
 			if not card[key] is bool:
@@ -104,6 +105,29 @@ static func cards(value: Variant) -> bool:
 		for keyword in card.keywords:
 			if not SgProtocol.integer(keyword, 0, Mtg.Keyword.size() - 1): return false
 		if not SgProtocol.integer(card.owner, 0, 1) or not SgProtocol.integer(card.controller, 0, 1): return false
+	return true
+
+
+static func text_effects(value: Variant) -> bool:
+	if not value is Array or value.size() > SgProtocol.MAX_CARDS:
+		return false
+	for effect in value:
+		if not effect is Dictionary or not effect.has("kind"):
+			return false
+		var circle: bool = effect.kind == "circle_color"
+		if not SgProtocol.exact(effect, ["kind", "to"] if circle else ["kind", "from", "to"]):
+			return false
+		if effect.kind == "land_type":
+			if not effect.from is String or not effect.to is String \
+					or not Mtg.BASIC_LAND_COLORS.has(effect.from) or not Mtg.BASIC_LAND_COLORS.has(effect.to):
+				return false
+		elif effect.kind in ["color_word", "mana_color", "circle_color"]:
+			var colors: Array = Mtg.ManaColor.values() if effect.kind == "mana_color" else Array(Mtg.WUBRG)
+			for key in (["to"] if circle else ["from", "to"]):
+				if not SgProtocol.integer(effect[key], 1, 32) or not colors.has(int(effect[key])):
+					return false
+		else:
+			return false
 	return true
 
 

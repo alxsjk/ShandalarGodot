@@ -7,6 +7,15 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
+## 0.31.0 release packages
+
+- `docs/releases/0.31.0.md`: concise release highlights, six architecture-specific
+  targets, skin/pack setup and checksum instructions.
+- `docs/card-art-and-packs.md`: player commands for base artwork and all five
+  packs, portable folder layout and browser limitations; included in release READMEs.
+- Release builder metadata includes a generated Pack 1 `base_assignments.json`
+  snapshot of the source registry, so players need no `cards/sets/` scripts.
+
 ## Packs + SGManalink integration (2026-09-16)
 
 - `docs/packs-sgmanalink-integration.md`: merge basis, reproduced boundary
@@ -141,8 +150,8 @@ needed); card files have NO class_name (they register by name instead);
   options, name ownership, consensus and referee trust, privacy, recovery
   and verification gates; documentation only, no selected implementation.
 - `game/sgmanalink/protocol.gd` (`SgProtocol`): bounded ASCII JSON and exact
-  command schemas; bounded temporary nicknames, version-9 handshake and
-  separate message limits from per-seat view nesting.
+  command schemas; bounded temporary nicknames, version-13 handshake (public
+  hack reminders) and separate message limits from per-seat view nesting.
 - `game/sgmanalink/practice_match.gd` (`SgPracticeMatch`): server-side full-pool
   referee, explicit player actions, public/seat-private views and retiring hidden-zone
   handles; retains the Forest practice list as an optional default fixture.
@@ -163,7 +172,7 @@ needed); card files have NO class_name (they register by name instead);
   bounded untrusted host listings, unicast replies, expiry and secret exclusion.
 - `game/sgmanalink/view_protocol.gd` (`SgViewProtocol`): exact bounded host
   response/room/game/card schemas and consistent card/combat references before
-  a client UI sees remote values.
+  a client UI sees remote values; bounded, allowlisted public text-effect records.
 - `game/sgmanalink/local_server.gd` (`SgLocalServer`): loopback or TLS LAN service,
   room membership, ephemeral capabilities, sequencing/deduplication and
   seat resumption; disambiguated guest labels, bounded in-memory state,
@@ -184,7 +193,8 @@ needed); card files have NO class_name (they register by name instead);
   reuses existing fonts, buttons and the vector globe.
 - `game/sgmanalink/card_presentation.gd` (`SgCardPresentation`): detached
   render-only cards for the full registered pool, built from disclosed card DTOs and
-  local printed definitions; no referee instances or client game simulation.
+  local printed definitions; public hack reminders carried in presentation-only
+  metadata, no referee instances or client game simulation.
 - `game/sgmanalink/duel_view.gd` (`SgDuelView`): extends the actual `DuelScreen`;
   acknowledgement-aware casting/payment, authoritative target candidates, remote
   stable opening/choice answers, event delivery, deck-based palette, defeat
@@ -205,12 +215,14 @@ needed); card files have NO class_name (they register by name instead);
   target tokens to the existing duel's physical card/player/chain/damage gestures.
 - `tests/unit/test_sgmanalink.gd`: schemas, private-state substitution,
   view detachment, mana/casting/priority, combat divisions and discards;
-  LAN address/invitation/discovery bounds and nested host response schemas.
+  LAN address/invitation/discovery bounds and nested host response schemas;
+  detached/hidden-zone-safe hack records and malformed-effect rejection.
 - `tests/ui/test_sgmanalink_shared_duel.gd`: actual screen/projection boundary,
   manual and automatic mana payment, physical targeting, X/modes/regeneration,
   combat declarations and click damage, authorized choices/reveals, opening order,
   duplicate-input guards, public card continuity, hidden-identity retirement,
-  mana-burn sounds, animated lands, Jaguar reminders and prevention markers.
+  mana-burn sounds, animated lands, Jaguar reminders and prevention markers;
+  all four hack reminders through JSON for either seat, removed on leaving play.
 - `tests/ui/test_sgmanalink_visual_parity.gd`: deck-colour/seat mapping,
   retained combat instructions during connection waits, stable opening controls,
   live connection details, previous-life/result sequencing and restored-combat
@@ -386,6 +398,11 @@ per-card reveals and is respected by network views and fair observations.
   seeded engine, candidate/null/control and real-screen campaign entry points.
 - `tests/cards/test_pack_5_*.gd`, `tests/ui/test_pack_5_integration.gd`: catalogue,
   costs, resources, combat, triggers, hidden links, choices, AI and UI regressions.
+- `tests/cards/test_pack_5_reinforcements.gd`: one/two/three graveyard targets,
+  top-of-library placement, human ordering and subsequent draw steps, zero/illegal
+  targets, and a target leaving the graveyard before resolution.
+- `tests/ui/test_reinforcements_casting.gd`: real graveyard card buttons, Done
+  with fewer than three picks, ordering answers and the next draws.
 - `docs/pack-5-alliances.md`: construction, adaptations, audits and acceptance.
 - `docs/adding-card-packs.md`: future-pack end-to-end contributor checklist.
 
@@ -405,12 +422,15 @@ base `SET_ORDER`. Saved decks remain name-based and record required pack ids.
 
 - `tools/package_release.py`: packages verified Linux, Windows, macOS and
   web exports into standalone and original-skin ZIPs; explicit payloads,
-  per-file checksums, private-path checks, no card packs or overwrite.
-- `tools/test_package_release.py`: offline tests of all four package pairs,
-  executable permissions, checksum coverage and refused unsafe inputs.
+  per-file checksums, private-path checks, all five construction tools and
+  allowlisted metadata; no generated card packs/artwork or overwrite.
+  Its shared staging helper also serves `build_release.sh --package`.
+- `tools/test_package_release.py`: offline tests of platform package pairs,
+  executable permissions, checksum coverage, refused unsafe inputs and
+  extracted-builder execution without a source checkout.
 - `docs/releases/0.20.0.md`: player announcement, platform downloads,
   fair-play pledge, scope, limitations and community thanks.
-- `docs/release-builds.md`: repeatable four-platform export and packaging.
+- `docs/release-builds.md`: repeatable cross-platform export and packaging.
 
 The release soak's `HumanClicker._float_mana_for` skips the mana planner's
 null-source entries (mana already floating), as `_tick_paying` already did.
@@ -3392,6 +3412,10 @@ shandalar/
 │    cast, Cancel leaving the mana floating), the yellow name meaning
 │    could_afford, and the double-click AUTO-CAST including X funnelling
 │    and `Don't auto tap this card`;
+│    tests/ui/test_outpost_activation.gd — Kjeldoran Outpost's Soldier
+│    activation before/after drawing mana, reserved tap excluded from
+│    payment plans/clicks/highlights/menus, cancellation, already-tapped
+│    refusal, and legal self-payment for non-tapping activations/mana;
 │    tests/ui/test_card_placement.gd — MOVING A CARD BY HAND: the free
 │    layer over each half, placements in half coordinates and clamped
 │    inside it, the last-moved card drawn on top, a press that never
@@ -3449,6 +3473,8 @@ shandalar/
 │    tests/ui/test_combat_window.gd — the Combat window's title, when it
 │    opens, which lane each side lines up in, that a creature in combat
 │    leaves its territory, and minimise/restore via the Phase Bar icon;
+│    dragged/restored placement survives refreshes, combat phases and
+│    later combats, with reachable clamping and untouched auto-centering;
 │    tests/unit/test_board_order.gd — ARRANGE CARDS' three orders against
 │    s30's own golden fixtures, the live-P/T correction, non-mutation,
 │    and stability across repeated arranges;
@@ -4144,7 +4170,10 @@ shandalar/
 │    menu's Deck Builder entry points at a scene that exists. Playtest #8
 │    (2026-09-13): every card's tooltip fits with full rules text, all
 │    three surfaces use smart wrapping, and tiny viewports bound long
-│    unbroken proxy names and explicit paragraphs; and the
+│    unbroken proxy names and explicit paragraphs. Save-window playtest
+│    (2026-09-16): long titles and filenames wrap inside the save/overwrite
+│    frame, exceptionally long messages scroll, and naming/Cancel/OK keep
+│    the full deck title and correct save behaviour; and the
 │    audit pass's own bugs — the scroll surviving a card going into the
 │    deck, bar and wheel landing on the same page, the window resize,
 │    Escape closing a dialog rather than the screen, the @SAVE prompt, a
@@ -4474,6 +4503,11 @@ shandalar/
 │    "prevent 3" in SHIELD_INK centred on the art with the P/T outline,
 │    following the pool, "prevent all" at 9999, yielding to a targeting
 │    stamp, hidden face down, the tooltip's shield line;
+│    tests/ui/test_text_change_ghost.gd — persistent hack reminders for
+│    Magical Hack, Sleight of Mind, Quarum Trench Gnomes and Balduvian
+│    Shaman: both seats, piles, tapping, combat, stack-to-battlefield,
+│    coexistence with real Auras/choices/shields, full change on hover,
+│    non-targetable presentation only, cleanup and zone-change lifetime;
 │    tests/unit/test_game_paths.gd — THE PLAYER'S PLACES (GamePaths,
 │    2026-09-08): the built-in places with no key written (and reading
 │    leaves no trace), a key moving its place (trailing slash dropped,
@@ -6544,6 +6578,16 @@ shandalar/
 │       │                      resolved empty value shows "No creatures"
 │       │                      with an explanation, not a blank fan.
 │       │                      tests/ui/test_chosen_type_ghost_2026_09_08.gd
+│       │                      HACK REMINDERS (2026-09-16, [QoL]):
+│       │                      _text_change_ghost_data derives inspectable
+│       │                      source-card ghosts from text_changes and
+│       │                      Shaman's public Circle-color memory. They
+│       │                      occupy fan steps outside real attachments,
+│       │                      inside the temporary shield. The spell
+│       │                      chain reserves their overflow below its
+│       │                      caption; automatic battlefield rows reserve
+│       │                      headroom inside the territory's clip.
+│       │                      No extra engine objects/targets.
 │       ├── human_agent.gd   class HumanAgent — DecisionAgent for human
 │       │                      seats: pre-selection mailbox the UI fills
 │       │                      BEFORE casting (tutor picks) plus park(),

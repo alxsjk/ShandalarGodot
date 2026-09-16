@@ -83,6 +83,44 @@ func test_online_is_the_actual_duel_screen_with_private_projection() -> void:
 	for card in screen.game.players[1].library: assert_eq(card.data.card_name, "Unknown card")
 
 
+func test_online_hack_reminders_survive_the_wire_for_either_seat(seat = use_parameters([0, 1])) -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var swamp := put_battlefield(0, "Swamp")
+	var knight := put_battlefield(1, "Black Knight")
+	var plains := put_battlefield(1, "Plains")
+	var circle := put_battlefield(0, "Circle of Protection: Red")
+	g.change_text(swamp, "land_type", "swamp", "island")
+	g.change_text(knight, "color_word", Mtg.ManaColor.W, Mtg.ManaColor.G)
+	g.change_text(plains, "mana_color", Mtg.ManaColor.W, Mtg.ManaColor.C)
+	circle.memory["shaman_circle_color"] = Mtg.ManaColor.G
+	var screen := _screen(seat)
+	var wire: Dictionary = JSON.parse_string(JSON.stringify(_room(seat)))
+	assert_true(SgViewProtocol.room(wire))
+	screen.present(wire, true, false)
+	await _pump()
+	var ghosts := screen.find_children("TextChangeGhost*", "", true, false)
+	assert_eq(ghosts.size(), 4)
+	var expectations := {
+		"Magical Hack": "Swamp becomes Island",
+		"Sleight of Mind": "White becomes Green",
+		"Quarum Trench Gnomes": "White becomes Colorless",
+		"Balduvian Shaman": "Cumulative upkeep {1}",
+	}
+	for ghost in ghosts:
+		assert_true(expectations.has(ghost.instance.data.card_name))
+		assert_string_contains(ghost.tooltip_text, expectations.get(ghost.instance.data.card_name, "MISSING"))
+		assert_true(ghost.disabled)
+		ghost.mouse_entered.emit()
+		assert_eq(screen._card_preview._shown, ghost.instance)
+	assert_true(_local(screen, swamp).text_changes.is_empty(), "only presentation metadata, no client rules mutation")
+	assert_true(commands.is_empty(), "hovering reminders never sends an action")
+	for card in [swamp, knight, plains, circle]: g.return_to_hand(card)
+	revision += 1
+	screen.present(_room(seat), true, false)
+	await _pump()
+	assert_true(screen.find_children("TextChangeGhost*", "", true, false).is_empty())
+
+
 func test_auto_payment_waits_for_color_and_resumes_once() -> void:
 	advance_to_step(Mtg.Step.MAIN1)
 	var bears := give_hand(0, "Grizzly Bears")

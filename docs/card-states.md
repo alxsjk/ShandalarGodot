@@ -227,6 +227,20 @@ imported sheet at 4x. The art is **1997**'s.
 | **The combat window's sword / shield / bones** | — | Lane markers in the Combat window — **one per side, not per card**. A creature in a combat lane wears nothing but its `COMMITTED` highlight. | — | `game/duel/combat_window.gd:225-230` | **1997** (`Winbk_Attackbones` and friends) |
 | **Deck Builder only: the "pile" plate and the copy-count disc** | — | A bottom-left plate naming the pile a card is in, and a 22px dark disc at the bottom-right with how many copies the deck holds. Both are real children of a `MiniCard`, and both exist only in the Deck Builder. | — | `game/deck_builder/card_area.gd:797-856` | The count disc is **[s30]**'s `drawCountOverlay`. |
 
+#### Persistent hack reminders
+
+Persistent text changes now carry source-card reminders behind their target
+(2026-09-16 playtest fix): Magical Hack, Sleight of Mind, Quarum Trench Gnomes,
+and Balduvian Shaman's adapted Circle-of-Protection rewrite. Hover a reminder
+to read the applied change; Shaman's also states cumulative upkeep {1}.
+These are visual reminders, not extra permanents or targetable Auras. They
+follow the target through tapping, combat and spell resolution, persist at
+cleanup, and disappear when the recorded effect is cleared on leaving play.
+Online duels use the same display from bounded public effect records; private
+card memory and hidden-card history are never sent. This requires matching
+protocol-13 builds on both ends. Reminders are hidden while the target is
+face-down so their text cannot reveal its printed identity.
+
 ### 3.7 What is deliberately NOT on a small card
 
 * **The set icon / set letters.** They live on the **enlarged card** in the

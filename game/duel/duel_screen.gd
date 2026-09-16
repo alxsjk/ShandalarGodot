@@ -1937,6 +1937,8 @@ func _tap_for_payment(inst: CardInstance) -> void:
 	if mana_count == 0:
 		return
 	if mana_count == 1:
+		if _pending_mana_conflicts(inst, 0):
+			return
 		_report(game.tap_for_mana(inst.controller_id, inst))
 		return
 	_open_ability_menu(inst, true)
@@ -2085,7 +2087,8 @@ func _submit_pending() -> void:
 		mode = Mode.PAYING
 		_set_target_cursor(false)
 		_paying_pool = _payment_pool_state()
-		_set_prompt(GRAB_MANA_PROMPT % _pending_card.data.card_name)
+		_set_prompt("Pay mana to activate %s" % _pending_card.data.card_name
+			if _pending_ability_index >= 0 else GRAB_MANA_PROMPT % _pending_card.data.card_name)
 		return
 	# A cast that WENT THROUGH keeps its tutor pick: the search happens
 	# when the spell resolves, priority rounds from now, and the pick is
@@ -2129,8 +2132,33 @@ func _pending_is_reachable() -> bool:
 		return false
 	if ManaPlanner.cost_is_free(payment["cost"]) and int(payment["extra"]) == 0:
 		return false     # free and still refused: not a mana problem
-	return not ManaPlanner.plan(game, _pending_pid, payment["cost"],
+	return not ManaPlanner.plan_from(_pending_payment_sources(), payment["cost"],
 		int(payment["extra"]), payment["usage"]).is_empty()
+
+
+## A pending activation still needs its source when its costs are paid.
+## In particular, Outpost cannot tap for {W} AND tap to make a Soldier.
+## Non-tapping mana on that same permanent remains legal; do not exclude
+## the entire card. Planning, payment clicks, and menu cues share this guard.
+func _pending_mana_conflicts(inst: CardInstance, mana_index: int) -> bool:
+	if inst != _pending_card or _pending_ability_index < 0 \
+			or _pending_ability_index >= inst.cur_activated_abilities.size():
+		return false
+	var activation: ActivatedAbility = inst.cur_activated_abilities[_pending_ability_index]
+	var mana: ManaAbility = inst.cur_mana_abilities[mana_index]
+	return (activation.tap_cost and mana.taps_source) or mana.sacrifice_source or mana.exile_source
+
+
+func _pending_payment_sources(excluded: Dictionary = {}) -> Array:
+	var sources := ManaPlanner.sources(game, _pending_pid, excluded)
+	return sources.filter(func(row: Array) -> bool:
+		return row[0] == null or not _pending_mana_conflicts(row[0], int(row[1])))
+
+
+func _has_payment_mana(inst: CardInstance) -> bool:
+	for index in inst.cur_mana_abilities.size():
+		if not _pending_mana_conflicts(inst, index): return true
+	return false
 
 
 ## The floating composition the held-open cast was last priced against.
@@ -2247,7 +2275,7 @@ func _auto_x_budget() -> int:
 ## X, and only a plan can say so.
 func _x_budget(cost: ManaCost, surcharge: int, usage: Array,
 		excluded: Dictionary) -> int:
-	var src := ManaPlanner.sources(game, _pending_pid, excluded)
+	var src := _pending_payment_sources(excluded)
 	var budget := 0
 	# 40 is the same kind of safety net the advance driver carries: no
 	# board in this pool makes more mana than that in one step.
@@ -2276,8 +2304,8 @@ func _auto_tap_for_pending() -> void:
 	else:
 		payment = game.ability_payment(_pending_pid, _pending_card,
 			_pending_ability_index, _pending_x)
-	var tap_plan := ManaPlanner.plan(game, _pending_pid, payment["cost"],
-		int(payment["extra"]), payment["usage"], _no_auto_tap)
+	var tap_plan := ManaPlanner.plan_from(_pending_payment_sources(_no_auto_tap), payment["cost"],
+		int(payment["extra"]), payment["usage"])
 	ManaPlanner.run_plan(game, _pending_pid, tap_plan)
 	# Targets still to pick? Then the mana is all this gesture owed and the
 	# targeting loop takes over ("If the spell is a targeted one, you need
@@ -4801,7 +4829,8 @@ func _open_ability_menu(inst: CardInstance, mana_only := false) -> void:
 	var id := 0
 	for ability in inst.cur_mana_abilities:
 		_ability_menu.add_item(str(ability), id)
-		_ability_menu.set_item_disabled(id, inst.zone != ability.activation_zone)
+		_ability_menu.set_item_disabled(id, inst.zone != ability.activation_zone
+			or (mana_only and _pending_mana_conflicts(inst, id)))
 		id += 1
 	if not mana_only:
 		for ability in inst.cur_activated_abilities:
@@ -4835,6 +4864,8 @@ func _on_ability_chosen(id: int) -> void:
 		return
 	var mana_count := inst.cur_mana_abilities.size()
 	if id < mana_count:
+		if bool(_ability_menu.get_meta("mana_only", false)) and _pending_mana_conflicts(inst, id):
+			return
 		_report(game.tap_for_mana(inst.controller_id, inst, id))
 		return
 	if bool(_ability_menu.get_meta("mana_only", false)):
@@ -6369,8 +6400,21 @@ func _rebuild_stack() -> void:
 		# how a counterspell TAKES a chain object as its target, through
 		# `_on_card_clicked` → `_try_take_target`), hover-docked in the
 		# Showcase, highlighted and cued like any other card.
-		var w := _make_card(item.card, item)
-		entry.add_child(w)
+		var w: Control
+		var changes: Array[CardData] = []
+		if item.kind == Mtg.StackKind.SPELL:
+			changes = _text_change_ghost_data(item.card)
+		if not changes.is_empty():
+			w = _make_widget(item.card, item)
+			# Unlike battlefield rows, the chain has a caption immediately
+			# above each spell. Reserve the fan's height below that caption.
+			var room := MarginContainer.new()
+			room.add_theme_constant_override("margin_top", int(AURA_PEEK.y * changes.size()))
+			room.add_child(w)
+			entry.add_child(room)
+		else:
+			w = _make_card(item.card, item)
+			entry.add_child(w)
 		# The chain object's description (its TARGETS) on top of the card's
 		# own tooltip. A `Button` stops Godot's tooltip walk at itself, so
 		# the entry's copy below would never be reached over the card.
@@ -6416,6 +6460,17 @@ func _rebuild_field(pid: int) -> void:
 			by_row[Row.LANDS].append(inst)
 		else:
 			by_row[Row.OTHER].append(inst)
+	# A hack fan can sit on a land in the very first row. Its title bands
+	# overflow upward, so reserve headroom inside this territory's clip.
+	# Inset the whole column equally: neighbors keep their shared baseline,
+	# creatures keep their bottom alignment, and manually placed cards do
+	# not move (their own clamp already accounts for the full fan).
+	var headroom := 0.0
+	for cards_in_row in by_row.values():
+		for inst in cards_in_row:
+			if not _text_change_ghost_data(inst).is_empty():
+				headroom = maxf(headroom, AURA_PEEK.y * _fan_steps(inst))
+	_half_rows[pid].offset_top = BOARD_INSET_V + headroom
 	for row in by_row:
 		var container: Container = _field_rows[pid][row]
 		_clear_children(container)
@@ -7381,14 +7436,70 @@ func _cancel_drag() -> void:
 
 ## How many cards stand behind [param inst] in its fan: its attachments,
 ## the chosen-type ghost when it made a choice and the shield ghost when
-## it wears one — the number both the widget ([method _make_widget]) and
+## it wears one, plus its persistent text changes — the number both the
+## widget ([method _make_widget]) and
 ## the free layer's footprint ([method _placement_span]) count by.
 func _fan_steps(inst: CardInstance) -> int:
 	if inst == null or inst.zone != Mtg.Zone.BATTLEFIELD:
 		return 0
 	return inst.attachments.size() \
 		+ (1 if _chosen_ghost_data(inst) != null else 0) \
-		+ (1 if _shield_ghost_data(inst) != null else 0)
+		+ (1 if _shield_ghost_data(inst) != null else 0) \
+		+ _text_change_ghost_data(inst).size()
+
+
+## The current text-changing effects, including Pack 3's Circle rewrite. UI
+## reminders derived from the recorded rules state (or the online public
+## snapshot), not extra permanents, attachments or legal targets.
+const TEXT_CHANGE_SOURCES := {
+	"land_type": "Magical Hack",
+	"color_word": "Sleight of Mind",
+	"mana_color": "Quarum Trench Gnomes",
+	"circle_color": "Balduvian Shaman",
+}
+var _text_change_ghosts: Dictionary = {}
+
+
+func _text_change_ghost_data(inst: CardInstance) -> Array[CardData]:
+	var out: Array[CardData] = []
+	if inst == null or inst.face_down or inst.zone not in [Mtg.Zone.BATTLEFIELD, Mtg.Zone.STACK]:
+		return out
+	var changes: Array = inst.get_meta("sg_text_effects", inst.text_changes).duplicate()
+	# Pack 3's limited Circle rewrite keeps its chosen color in public
+	# memory rather than text_changes. Read it, without loading pack scripts.
+	if inst.memory.has("shaman_circle_color"):
+		changes.append({"kind": "circle_color", "to": inst.memory.shaman_circle_color})
+	for change in changes:
+		var kind := String(change.get("kind", ""))
+		var source_name := String(TEXT_CHANGE_SOURCES.get(kind, "Text change"))
+		var key := JSON.stringify([inst.data.card_name, change])
+		if not _text_change_ghosts.has(key):
+			var from_word := str(change.get("from", "")).capitalize()
+			var to_word := str(change.get("to", "")).capitalize()
+			if kind in ["color_word", "mana_color", "circle_color"]:
+				from_word = Mtg.COLOR_NAMES.get(change.get("from"), from_word)
+				to_word = Mtg.COLOR_NAMES.get(change.get("to"), to_word)
+			var scope := "Land types / landwalk"
+			if kind == "color_word":
+				scope = "Color words / protection"
+			elif kind == "mana_color":
+				scope = "Mana production"
+			elif kind != "land_type":
+				scope = "Text"
+			# Words rather than a Unicode arrow: imported 1997 fonts need
+			# not carry that glyph, and the change must remain readable.
+			var explanation := "%s: %s becomes %s." % [scope, from_word, to_word]
+			if kind == "circle_color":
+				explanation = "Circle protection: %s.\nCumulative upkeep {1}." % to_word
+			var source := CardRegistry.get_card(source_name) if CardRegistry.has_card(source_name) else null
+			var data := source.shallow_copy() if source != null \
+				else CardData.new(source_name, "", Mtg.CardType.ENCHANTMENT)
+			data.oracle("Effect reminder on %s.\n%s\n" % [inst.data.card_name, explanation]
+				+ "Applied in order with the other text changes. Lasts until the affected object leaves play.\n"
+				+ "Visual reminder only — not a permanent, Aura, or legal target.")
+			_text_change_ghosts[key] = data
+		out.append(_text_change_ghosts[key])
+	return out
 
 
 ## The ghost cards built for the choices on the table, by chooser and
@@ -7497,8 +7608,10 @@ func _ghost_card(data: CardData, inst: CardInstance, node_name: String) -> MiniC
 	return ghost
 
 
-func _make_widget(inst: CardInstance) -> Control:
-	var w := _make_card(inst)
+func _make_widget(inst: CardInstance, chain_item: StackItem = null) -> Control:
+	var w := _make_card(inst, chain_item)
+	if chain_item != null:
+		w.tooltip_text = "%s\n%s" % [chain_item.description, w.tooltip_text]
 	var result: Control = w
 	if w.wants_rotation():
 		# 1997 tapped rotation: the card keeps its exact dimensions and
@@ -7545,17 +7658,18 @@ func _make_widget(inst: CardInstance) -> Control:
 		else null
 	var chosen := _chosen_ghost(inst) if inst.zone == Mtg.Zone.BATTLEFIELD \
 		else null
-	if (not inst.attachments.is_empty() or ghost != null or chosen != null) \
-			and inst.zone == Mtg.Zone.BATTLEFIELD:
+	var changes := _text_change_ghost_data(inst)
+	if (not inst.attachments.is_empty() or ghost != null or chosen != null or not changes.is_empty()) \
+			and inst.zone in [Mtg.Zone.BATTLEFIELD, Mtg.Zone.STACK]:
 		var attached: Array[CardInstance] = []
 		for id in inst.attachments:
 			var aura := game.find_instance(id)
 			if aura != null:
 				attached.append(aura)
-		if attached.is_empty() and ghost == null and chosen == null:
+		if attached.is_empty() and ghost == null and chosen == null and changes.is_empty():
 			return result
 		var inner := 1 if chosen != null else 0
-		var steps := float(attached.size() + inner + (1 if ghost != null else 0))
+		var steps := float(attached.size() + inner + changes.size() + (1 if ghost != null else 0))
 		var wrap := Control.new()
 		# A TAPPED host is already inside its rotation holder, which is
 		# WIDER and TALLER than a card and holds the turning card centred
@@ -7608,6 +7722,13 @@ func _make_widget(inst: CardInstance) -> Control:
 		if ghost != null:
 			ghost.position = corner + Vector2(AURA_PEEK.x * steps, -AURA_PEEK.y * steps)
 			wrap.add_child(ghost)
+		# Persistent hacks sit outside the real attachments, oldest nearest
+		# the host; the short-lived shield remains the outermost reminder.
+		for j in range(changes.size() - 1, -1, -1):
+			var out := float(inner + attached.size() + j + 1)
+			var reminder := _ghost_card(changes[j], inst, "TextChangeGhost%d" % j)
+			reminder.position = corner + Vector2(AURA_PEEK.x * out, -AURA_PEEK.y * out)
+			wrap.add_child(reminder)
 		for j in range(attached.size() - 1, -1, -1):
 			var out := float(j + 1 + inner)
 			var back := _make_card(attached[j])
@@ -7718,7 +7839,7 @@ func _highlight_for(inst: CardInstance) -> int:
 			if inst.zone == Mtg.Zone.BATTLEFIELD \
 					and inst.controller_id == _pending_pid \
 					and not inst.tapped \
-					and not inst.cur_mana_abilities.is_empty() \
+					and _has_payment_mana(inst) \
 					and not (inst.is_creature() and inst.summoning_sick):
 				return MiniCard.Highlight.OPTIONAL
 		Mode.NORMAL:

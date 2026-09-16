@@ -38,12 +38,12 @@ engine, and the freedom to keep the game alive.
   <em>A spell chain in progress during a duel.</em>
 </p>
 
-## Play — 0.20.0
+## Play — 0.31.0
 
-**Our first comfortably playable release for duels and deck building is out.**
+**Duels, deck building, optional expansions, Booster Draft and LAN play.**
 
-[Download Shandalar 0.20.0](https://github.com/b0realis/ShandalarGodot/releases/tag/v0.20.0)
-for **Windows, Linux, macOS or web**. The release page has launch
+[Download Shandalar 0.31.0](https://github.com/b0realis/ShandalarGodot/releases/tag/v0.31.0)
+for **Windows, Linux, Apple Silicon/Intel Mac, Raspberry Pi 5 ARM64 or web**. The release page has launch
 instructions, standalone and original-skin packages, and SHA-256 checksums.
 
 Play with an **897-card early-Magic core**, historic decks, four computer
@@ -51,24 +51,26 @@ opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
 sideboarding. Optional `Pack-1-DotP-complete.zip` finishes the eight set
 checklists: its title-screen `1-tDotP` button can enable 373 additional set
 entries, for **1,270 set entries / 901 unique rules identities**. The Deck Builder
-supports large cards, live filters and keyboard browsing. Adventure and
-online multiplayer are still to come.
+supports large cards, live filters and keyboard browsing. Further optional packs
+add **Fallen Empires, Ice Age, Homelands and Alliances**, with engine and AI support.
+Adventure and public Internet matchmaking remain future work.
 
-Pack 1's ZIP is intentionally not a release download. Build it—and fetch its
-art—locally from this source tree with `tools/pack_1_dotp_complete.py`.
+Card artwork and constructed pack ZIPs are intentionally not release downloads.
+Every platform package includes the Python builders and
+[construction instructions](docs/card-art-and-packs.md); no source checkout is needed.
 
-## Development — 0.31.0
+## LAN play and Booster Draft
 
-The integrated development source includes local-network duels and
+The desktop release includes local-network duels and
 [random-draw knockout tournaments](docs/sgmanalink-tournaments.md), including
 up to **20 players**, configurable match lengths and deck policies, an
 organiser's Master Panel, graphical advancement and final standings.
 [Computer seats](docs/sgmanalink-computer-players.md) use the same four local
 opponents and separate Unfair challenge; choose how many to add to a tournament.
-Use matching development builds; these features are not in the 0.20.0 downloads.
+Use matching 0.31.0 builds and enabled card catalogues on all participants.
 Internet play, permanent accounts and MElo are parked for now.
 
-The development build also includes an in-game [Booster Draft](docs/booster-draft.md): choose
+The game also includes an in-game [Booster Draft](docs/booster-draft.md): choose
 sets/cards, open random packs, and build against a countdown with automatic saves.
 Find it under Options; no command-line launcher is needed.
 
@@ -109,12 +111,41 @@ separately. Import packs through **Options → Skin**; on desktop they can
 also live in `skin/` beside the game.
 
 **Card pictures are not included in the repository or release downloads.**
-Use your own `cardart.zip`, or build one for personal use with Python 3:
+Current 0.31.0 packages for **all platforms** include the construction tools
+and their required metadata in `tools/`, `cards/data/` and
+`packaging/card_packs/`; no source checkout is needed. Older 0.20.0 downloads
+do not include the numbered-pack builders. Use Python 3.10+ and run these
+commands from the extracted game folder (Windows: use `py -3` for `python3`):
 
 ```sh
-python3 tools/fetch_card_art.py --out assets/cardart/
-python3 tools/mtg_assets.py --from-cardart assets/cardart/ --out cardart.zip
+python3 tools/fetch_card_art.py --out cache/cardart
+python3 tools/mtg_assets.py --from-cardart cache/cardart --out skin/cardart.zip
 ```
+
+Run the ZIP command only after the download succeeds. This creates the base
+card pictures. Numbered packs include their own set artwork; for example:
+
+```sh
+python3 tools/pack_3_ice_age.py fetch-art
+python3 tools/pack_3_ice_age.py build cardpacks/Pack-3-Ice_Age.zip
+python3 tools/pack_3_ice_age.py verify cardpacks/Pack-3-Ice_Age.zip
+```
+
+The [card artwork and pack guide](docs/card-art-and-packs.md) gives complete
+commands for **Pack 1 (1-tDotP), Fallen Empires, Ice Age, Homelands and
+Alliances**, cache locations and platform-specific installation details.
+It also ships as `CARD-ART-AND-PACKS.md` and is included in each package's README.
+
+On desktop, keep `original_skin.zip` and `cardart.zip` in **`skin/`**, and
+the exact-name `Pack-*.zip` files in **`cardpacks/`**, both beside the game
+executable (beside `Shandalar.app` on Mac, never inside it). **Leave ZIPs
+zipped.** Use **Options → Card Packs → Rescan**, then enable the packs.
+The separate `packaging/card_packs/` directory is builder metadata, not an
+installation folder. Completed packs and card art are never bundled in releases.
+
+Web can import/fetch the skin and base cardart ZIPs into browser storage;
+this build has no browser installation path for numbered gameplay packs.
+Its included Python tools run on your computer and can build packs for desktop.
 
 To rebuild the original skin from your own game installation:
 

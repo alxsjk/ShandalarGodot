@@ -198,6 +198,9 @@ var _dragging := false
 var _drag_moved := false
 var _drag_from := Vector2.ZERO
 var _drag_offset := Vector2.ZERO
+## fit() runs on every duel refresh, not just on viewport resize. Once
+## the player places the window, layout may resize/clamp it but not center it.
+var _user_positioned := false
 
 
 ## The pointer is read FROM THE EVENT, not `get_global_mouse_position()`:
@@ -212,12 +215,14 @@ func _on_bar_input(event: InputEvent) -> void:
 			_drag_offset = _drag_from - global_position
 		else:
 			if _dragging and _drag_moved:
+				_user_positioned = true
 				Settings.set_value(POS_SETTING, position)
 			_dragging = false
 	elif event is InputEventMouseMotion and _dragging:
 		if event.global_position.distance_to(_drag_from) > DRAG_SLOP:
 			_drag_moved = true
 		if _drag_moved:
+			_user_positioned = true
 			position = event.global_position - _drag_offset
 			_clamp_on_screen()
 
@@ -239,6 +244,7 @@ func restore_position() -> void:
 		return
 	var saved: Variant = Settings.get_value(POS_SETTING, Vector2.ZERO)
 	if saved is Vector2:
+		_user_positioned = true
 		position = saved
 		_clamp_on_screen()
 
@@ -277,12 +283,16 @@ static func title_for(attacking_pid: int, human_pid: int,
 ## Lay the window out inside [param area] (the board's rectangle): the
 ## art's own 888 wide wherever there is room, centred on the area and
 ## straddling its middle — the seam where the two territories meet, which
-## is where combat happens.
+## is where combat happens. A dragged/restored position takes precedence
+## across phase changes, minimize/restore, and subsequent combats.
 func fit(area: Rect2) -> void:
 	var w := minf(ART_SIZE.x, maxf(custom_minimum_size.x, area.size.x - 8.0))
 	size = Vector2(w, HEIGHT)
-	position = Vector2(area.position.x + (area.size.x - w) * 0.5,
-		area.get_center().y - HEIGHT * 0.5)
+	if _user_positioned:
+		_clamp_on_screen()
+	else:
+		position = Vector2(area.position.x + (area.size.x - w) * 0.5,
+			area.get_center().y - HEIGHT * 0.5)
 
 
 ## Rebuild both lanes. [param attacker_ids] and [param blocker_ids] are

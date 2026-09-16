@@ -159,6 +159,7 @@ func _cards(pid: int, list: Array) -> Array:
 			"protection": card.cur_protection, "landwalk": Array(card.cur_landwalk),
 			"rampage": card.cur_rampage, "prevention": card.prevention,
 			"regeneration": card.regeneration_shields, "chosen": chosen,
+			"text_effects": [] if masked else _text_effects(card),
 			"attached": "" if card.attached_to < 0 or game.find_instance(card.attached_to) == null \
 				else _handle(pid, game.find_instance(card.attached_to)),
 			"actions": [] if masked else SgDuelActions.options(card, pid),
@@ -173,6 +174,16 @@ func _cards(pid: int, list: Array) -> Array:
 			hidden.land = false
 			hidden.creature = false
 	return out
+
+
+func _text_effects(card: CardInstance) -> Array:
+	if card.zone not in [Mtg.Zone.BATTLEFIELD, Mtg.Zone.STACK]:
+		return []
+	# Only public reminder facts, never the card's arbitrary private memory.
+	var effects := card.text_changes.duplicate(true)
+	if card.memory.has("shaman_circle_color"):
+		effects.append({"kind": "circle_color", "to": card.memory.shaman_circle_color})
+	return effects.slice(-SgProtocol.MAX_CARDS)
 
 
 func _playable(pid: int, card: CardInstance) -> bool:

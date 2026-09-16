@@ -199,3 +199,85 @@ application/file_description="ShandalarGodot"
 application/copyright="ShandalarGodot contributors"
 codesign/enable=false
 ssh_remote_deploy/enabled=false
+
+; Architecture-specific local test exports (desktop debug templates).
+[preset.4]
+name="macOS Apple Silicon"
+platform="macOS"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter="*.deck, *.txt, cards/data/*.json, packaging/card_packs/*/*.json"
+exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
+export_path="../shandalar-build/macos-arm64/Shandalar.app"
+script_export_mode=2
+
+[preset.4.options]
+export/distribution_type=0
+binary_format/architecture="arm64"
+custom_template/debug="../tools/export_templates/4.7.2.stable/macos-arm64.zip"
+custom_template/release="../tools/export_templates/4.7.2.stable/macos-arm64.zip"
+application/bundle_identifier="org.shandalar.godot"
+application/icon="res://game/icon.png"
+application/short_version=""
+application/version=""
+application/min_macos_version_arm64="13.0"
+codesign/codesign=1
+codesign/identity=""
+notarization/notarization=0
+texture_format/s3tc_bptc=true
+texture_format/etc2_astc=false
+
+[preset.5]
+name="macOS Intel"
+platform="macOS"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter="*.deck, *.txt, cards/data/*.json, packaging/card_packs/*/*.json"
+exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
+export_path="../shandalar-build/macos-intel/Shandalar.app"
+script_export_mode=2
+
+[preset.5.options]
+export/distribution_type=0
+binary_format/architecture="x86_64"
+custom_template/debug="../tools/export_templates/4.7.2.stable/macos-x86_64.zip"
+custom_template/release="../tools/export_templates/4.7.2.stable/macos-x86_64.zip"
+application/bundle_identifier="org.shandalar.godot"
+application/icon="res://game/icon.png"
+application/short_version=""
+application/version=""
+application/min_macos_version_x86_64="11.0"
+codesign/codesign=1
+codesign/identity=""
+notarization/notarization=0
+texture_format/s3tc_bptc=true
+texture_format/etc2_astc=false
+
+[preset.6]
+name="Raspberry Pi 5 ARM64"
+platform="Linux"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter="*.deck, *.txt, cards/data/*.json, packaging/card_packs/*/*.json"
+exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
+export_path="../shandalar-build/raspberry-pi5-arm64/Shandalar.arm64"
+script_export_mode=2
+
+[preset.6.options]
+custom_template/debug="../tools/export_templates/4.7.2.stable/linux_debug.arm64"
+custom_template/release="../tools/export_templates/4.7.2.stable/linux_release.arm64"
+debug/export_console_wrapper=0
+binary_format/embed_pck=false
+binary_format/architecture="arm64"
+texture_format/s3tc_bptc=true
+texture_format/etc2_astc=true
+ssh_remote_deploy/enabled=false

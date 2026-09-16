@@ -20,6 +20,7 @@ func _persisted_keys() -> Array[String]:
 	for row in DuelOptions.MENU_TOGGLES:
 		keys.append(String(row["key"]))
 	keys.append("ExpandTextBoxOnBigCard")
+	keys.append(CombatWindow.POS_SETTING)
 	return keys
 
 
