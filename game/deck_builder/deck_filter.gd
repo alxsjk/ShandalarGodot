@@ -179,6 +179,10 @@ const TYPE_LABELS := {
 ## lowercase "Arabian nights"). The order is CardRegistry.SET_ORDER, i.e.
 ## the order the sets were printed in.
 const SET_LABELS := {
+	"fem": "Fallen Empires",
+	"ice": "Ice Age",
+	"hml": "Homelands",
+	"all": "Alliances",
 	"2ed": "Unlimited",
 	"arn": "Arabian nights",
 	"atq": "Antiquities",
@@ -244,6 +248,20 @@ var gold_mode: int = Gold.ALL:
 var types: Dictionary = {}
 ## set code -> depressed.
 var sets: Dictionary = {}
+## Browser-only visibility of the 897 shipped identities / native printings.
+## Pack reprints can still admit the same name when this source is hidden.
+var original_cards_on := true:
+	set(value):
+		if original_cards_on != value:
+			original_cards_on = value
+			revision += 1
+## Browser-only Pack 1 visibility: suppress its new names AND reprint
+## memberships. Does not alter installed packs, saved decks or duel legality.
+var completion_pack_on := true:
+	set(value):
+		if completion_pack_on != value:
+			completion_pack_on = value
+			revision += 1
 ## The Inventory's type-ahead: *"you can type in the first few letters of
 ## the name of any card you want to see"* (manual ch.10). Matched as a
 ## PREFIX first, then anywhere in the name, so "light" finds Lightning
@@ -396,6 +414,8 @@ func _init() -> void:
 ## Every button depressed, every extra filter off — the screen's opening
 ## state, in which the whole pool is displayed.
 func reset() -> void:
+	original_cards_on = true
+	completion_pack_on = true
 	colors.clear()
 	for color in COLOR_ORDER:
 		colors[color] = true
@@ -403,7 +423,7 @@ func reset() -> void:
 	for type_flag in TYPE_ORDER:
 		types[type_flag] = true
 	sets.clear()
-	for code in CardRegistry.SET_ORDER:
+	for code in CardRegistry.active_set_order():
 		sets[code] = true
 	gold = true
 	gold_mode = Gold.ALL
@@ -457,11 +477,13 @@ func set_text(value: String) -> void:
 ## the far commoner question — *"show me only white creatures"* — cost
 ## twenty-one, because it is `Clear All` and then two.
 func select_all() -> void:
+	original_cards_on = true
+	completion_pack_on = true
 	for color in COLOR_ORDER:
 		colors[color] = true
 	for type_flag in TYPE_ORDER:
 		types[type_flag] = true
-	for code in CardRegistry.SET_ORDER:
+	for code in CardRegistry.active_set_order():
 		sets[code] = true
 	gold = true
 	cost_mode = Cost.OFF
@@ -504,6 +526,10 @@ func clear_all() -> void:
 ## Is anything hiding cards right now? (Used to letter the screen — the
 ## filter itself needs no such flag.)
 func active() -> bool:
+	if not original_cards_on:
+		return true
+	if CardRegistry.optional_pack_enabled() and not completion_pack_on:
+		return true
 	for color in colors:
 		if not colors[color]:
 			return true
@@ -731,7 +757,7 @@ static func _facts_for(d: CardData) -> Array:
 			mini(d.cost.mana_value(), 99),
 			type_rank(d),
 			color_rank(d),
-			maxi(CardRegistry.SET_ORDER.find(d.set_code), 0),
+			maxi(CardRegistry.active_set_order().find(d.set_code), 0),
 			d.oracle_text.to_lower(),
 		]
 		_facts[key] = got
@@ -912,7 +938,47 @@ static func aura_kind(d: CardData) -> int:
 
 
 func matches_set(d: CardData) -> bool:
-	return set_on(d.set_code)
+	# Pack 1 makes a reprint visible under every set that published the
+	# name. CardData remains one rules identity, so it is returned once.
+	# Synthetic and proxy CardData are deliberately outside the registry;
+	# retain the original set-code fallback for those callers.
+	if not CardRegistry.has_card(d.card_name):
+		return original_cards_on and set_on(d.set_code)
+	for code in CardRegistry.active_set_order():
+		if set_on(code) and CardRegistry.card_in_set(d.card_name, code,
+				completion_pack_on, original_cards_on):
+			return true
+	return false
+
+
+## Which printing should represent this name in the Deck Builder. The deck
+## remains name-based: this only follows the live set filter so a Fourth
+## Edition-only view can show Fourth Edition art for a reprint. With several
+## matching sets visible, retain the implementation's native set when possible
+## and otherwise take the earliest visible printing.
+func preferred_printing(d: CardData) -> String:
+	if not CardRegistry.has_card(d.card_name):
+		return d.set_code
+	var first := ""
+	for code in CardRegistry.active_set_order():
+		if not set_on(code) or not CardRegistry.card_in_set(d.card_name, code,
+				completion_pack_on, original_cards_on):
+			continue
+		if code == d.set_code:
+			return code
+		if first == "":
+			first = code
+	return first if first != "" else d.set_code
+
+
+## Restore the shipped 897-name pool. Colour/type/search filters stay as
+## chosen; only source/set visibility changes. Deck contents are untouched.
+func original_1997() -> void:
+	original_cards_on = true
+	completion_pack_on = false
+	for code in CardRegistry.active_set_order():
+		sets[code] = CardRegistry.SET_ORDER.has(code)
+	revision += 1
 
 
 ## The type-ahead. Empty box = everything. With [member search_rules] on

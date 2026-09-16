@@ -101,6 +101,32 @@ static func has_value(key: String) -> bool:
 
 # Typed accessors for the options the game actually has.
 
+## Numbered gameplay card packs the player has switched on. Availability
+## is deliberately NOT part of this value: keeping an id here means a pack
+## the player enabled comes back on automatically when its ZIP returns.
+static func enabled_card_packs() -> Array[String]:
+	var raw: Variant = get_value("enabled_card_packs", [])
+	var out: Array[String] = []
+	if raw is Array or raw is PackedStringArray:
+		for value in raw:
+			var id := String(value).strip_edges()
+			if id != "" and not out.has(id):
+				out.append(id)
+	return out
+
+
+## Persist the enabled-pack ids without materialising an empty default.
+static func set_enabled_card_packs(ids: Array[String]) -> void:
+	var clean: Array[String] = []
+	for value in ids:
+		var id := String(value).strip_edges()
+		if id != "" and not clean.has(id):
+			clean.append(id)
+	if clean.is_empty():
+		clear_value("enabled_card_packs")
+	else:
+		set_value("enabled_card_packs", clean)
+
 ## `Sound &Effects` — entry 9 of `@DECKSURFACE_STANDALONE`
 ## (`s30/assets/text/Menus.txt:169-179`) and of `@MAINMENU_STANDALONE`
 ## (`:218-228`). The 1997 game had no options SCREEN; this switch and the

@@ -48,6 +48,40 @@ func test_big_cards_is_the_default_without_writing_a_setting() -> void:
 	assert_true(screen._command_labels().has("Big cards"))
 
 
+func test_extras_precedes_compact_stats_and_done_gets_the_spare_width() -> void:
+	for big in [false, true]:
+		Settings.set_value(SETTING, big)
+		screen.queue_free()
+		await _settle()
+		await _open()
+		var extras := screen._command_row.get_node("ExtrasButton") as Button
+		var stats := screen._stats_button
+		var done := screen._command_row.get_node("DoneButton") as Button
+		assert_eq(extras.get_index() + 1, stats.get_index(), "Extras immediately left of Stats")
+		assert_eq(stats.size_flags_horizontal, Control.SIZE_FILL)
+		assert_almost_eq(stats.size.x, 128.0, 1.0, "Stats no longer expands")
+		assert_gt(done.size.x, stats.size.x, "Done is the larger primary action")
+		assert_eq(done.get_index(), screen._command_row.get_child_count() - 1)
+		assert_lte(done.get_global_rect().end.x, screen.get_global_rect().end.x - 7.0)
+		var face := done.get_theme_stylebox("normal")
+		var tint: Color = face.modulate_color if face is StyleBoxTexture else face.bg_color
+		assert_gt(tint.g, tint.r * 2.0, "emerald face")
+		assert_gt(tint.g, tint.b, "emerald remains greener than blue")
+		assert_gt(done.get_theme_color("font_color").get_luminance(), 0.8)
+
+
+func test_emerald_done_also_styles_the_skinless_button() -> void:
+	var button := Button.new()
+	add_child_autofree(button)
+	OriginalDialog._flat_button(button)
+	DeckBuilderScreen._style_emerald_done(button)
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var face := button.get_theme_stylebox(state) as StyleBoxFlat
+		assert_not_null(face)
+		assert_gt(face.bg_color.g, face.bg_color.r)
+	assert_ne(button.get_theme_stylebox("normal").bg_color, button.get_theme_stylebox("pressed").bg_color)
+
+
 func test_a_saved_classic_choice_still_wins_after_a_settings_reload() -> void:
 	Settings.reload()
 	screen.queue_free()

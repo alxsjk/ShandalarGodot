@@ -182,6 +182,10 @@ var sideboard: Dictionary = {}
 ## line, so opening a shipped deck in the builder and saving it silently
 ## reclassified it. That is the only reason this field exists.
 var group := ""
+## Gameplay packs declared by the loaded file. [method required_pack_ids]
+## also derives requirements from the actual card names before every save,
+## so metadata cannot go stale after editing.
+var required_packs: Array[String] = []
 
 
 ## Fold an expanded [DeckList] (what the loader and the engine use) into
@@ -193,6 +197,7 @@ static func from_deck_list(list: DeckList) -> DeckModel:
 		model.counts[card_name] = int(model.counts.get(card_name, 0)) + 1
 	for card_name in list.sideboard:
 		model.sideboard[card_name] = int(model.sideboard.get(card_name, 0)) + 1
+	model.required_packs = list.required_packs.duplicate()
 	return model
 
 
@@ -401,6 +406,7 @@ func clear() -> void:
 	sideboard.clear()
 	group = ""
 	draft_comments = ""
+	required_packs.clear()
 	deck_name = DEFAULT_NAME
 
 
@@ -975,6 +981,8 @@ func to_text() -> String:
 	# [method DeckGroups.declared_in] takes the FIRST declaration it finds.
 	if group.strip_edges() != "":
 		lines.append("%s %s" % [DeckGroups.PREFIX, group.strip_edges()])
+	for pack_id in required_pack_ids():
+		lines.append("%s %s" % [DeckList.REQUIRED_PACK_PREFIX, pack_id])
 	lines.append("name: %s" % deck_name)
 	for line in notes.strip_edges().split("\n"):
 		if line.strip_edges() != "":
@@ -986,6 +994,24 @@ func to_text() -> String:
 		for card_name in side_names():
 			lines.append("SB: %d %s" % [int(sideboard[card_name]), card_name])
 	return "\n".join(lines) + "\n"
+
+
+## Declared requirements plus any pack implied by a name in either pile.
+## No printing id is stored: a deck continues to mean "four Disenchant",
+## not "four Fourth Edition Disenchant", unless a future explicit pinning
+## feature introduces a separate field.
+func required_pack_ids() -> Array[String]:
+	var out: Array[String] = required_packs.duplicate()
+	var all_names := names()
+	all_names.append_array(side_names())
+	# Command-line SceneTree scripts compile their dependencies before
+	# autoload identifiers exist (Deck Lab's Pack 3 campaign reproduced it).
+	var packs := (Engine.get_main_loop() as SceneTree).root.get_node("CardPacks")
+	for pack_id in packs.packs_required_by(all_names):
+		if not out.has(pack_id):
+			out.append(pack_id)
+	out.sort()
+	return out
 
 
 ## [QoL] Read [member notes] back out of a `.deck` file's raw text. A file
@@ -1093,6 +1119,7 @@ func duplicate_model() -> DeckModel:
 	copy.notes = notes
 	copy.draft_comments = draft_comments
 	copy.group = group
+	copy.required_packs = required_packs.duplicate()
 	return copy
 
 

@@ -1,0 +1,3009 @@
+[
+  {
+    "artist": "Edward P. Beard, Jr.",
+    "collector_number": "1a",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{W}",
+    "name": "Combat Medic",
+    "oracle_text": "{1}{W}: Prevent the next 1 damage that would be dealt to any target this turn.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human Cleric Soldier"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "1b",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{W}",
+    "name": "Combat Medic",
+    "oracle_text": "{1}{W}: Prevent the next 1 damage that would be dealt to any target this turn.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human Cleric Soldier"
+  },
+  {
+    "artist": "Anson Maddocks",
+    "collector_number": "1c",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{W}",
+    "name": "Combat Medic",
+    "oracle_text": "{1}{W}: Prevent the next 1 damage that would be dealt to any target this turn.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human Cleric Soldier"
+  },
+  {
+    "artist": "Liz Danforth",
+    "collector_number": "1d",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{W}",
+    "name": "Combat Medic",
+    "oracle_text": "{1}{W}: Prevent the next 1 damage that would be dealt to any target this turn.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human Cleric Soldier"
+  },
+  {
+    "artist": "Anthony S. Waters",
+    "collector_number": "2",
+    "colors": [
+      "W"
+    ],
+    "keywords": [
+      "Enchant"
+    ],
+    "mana_cost": "{2}{W}",
+    "name": "Farrel's Mantle",
+    "oracle_text": "Enchant creature\nWhenever enchanted creature attacks and isn't blocked, its controller may have it deal damage equal to its power plus 2 to another target creature. If that player does, the attacking creature assigns no combat damage this turn.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment — Aura"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "3a",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{W}{W}",
+    "name": "Farrel's Zealot",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may have it deal 3 damage to target creature. If you do, this creature assigns no combat damage this turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "3b",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{W}{W}",
+    "name": "Farrel's Zealot",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may have it deal 3 damage to target creature. If you do, this creature assigns no combat damage this turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human"
+  },
+  {
+    "artist": "Edward P. Beard, Jr.",
+    "collector_number": "3c",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{W}{W}",
+    "name": "Farrel's Zealot",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may have it deal 3 damage to target creature. If you do, this creature assigns no combat damage this turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human"
+  },
+  {
+    "artist": "Phil Foglio",
+    "collector_number": "4",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{W}{W}",
+    "name": "Farrelite Priest",
+    "oracle_text": "{1}: Add {W}. If this ability has been activated four or more times this turn, sacrifice this creature at the beginning of the next end step.",
+    "power": "1",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Human Cleric"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "5",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{5}{W}",
+    "name": "Hand of Justice",
+    "oracle_text": "{T}, Tap three untapped white creatures you control: Destroy target creature.",
+    "power": "2",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "6",
+    "type_line": "Creature — Avatar"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "6",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{W}",
+    "name": "Heroism",
+    "oracle_text": "Sacrifice a white creature: For each attacking red creature, prevent all combat damage that would be dealt by that creature this turn unless its controller pays {2}{R}.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Edward P. Beard, Jr.",
+    "collector_number": "7a",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Infantry",
+    "oracle_text": "{1}: This creature gains first strike until end of turn.\n{1}: This creature gains banding until end of turn. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Christopher Rush",
+    "collector_number": "7b",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Infantry",
+    "oracle_text": "{1}: This creature gains first strike until end of turn.\n{1}: This creature gains banding until end of turn. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "7c",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Infantry",
+    "oracle_text": "{1}: This creature gains first strike until end of turn.\n{1}: This creature gains banding until end of turn. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Drew Tucker",
+    "collector_number": "7d",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Infantry",
+    "oracle_text": "{1}: This creature gains first strike until end of turn.\n{1}: This creature gains banding until end of turn. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "8a",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Javelineers",
+    "oracle_text": "This creature enters with a javelin counter on it.\n{T}, Remove a javelin counter from this creature: It deals 1 damage to any target.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Edward P. Beard, Jr.",
+    "collector_number": "8b",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Javelineers",
+    "oracle_text": "This creature enters with a javelin counter on it.\n{T}, Remove a javelin counter from this creature: It deals 1 damage to any target.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Scott Kirschner",
+    "collector_number": "8c",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Javelineers",
+    "oracle_text": "This creature enters with a javelin counter on it.\n{T}, Remove a javelin counter from this creature: It deals 1 damage to any target.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Pete Venters",
+    "collector_number": "9",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}{W}",
+    "name": "Icatian Lieutenant",
+    "oracle_text": "{1}{W}: Target Soldier creature gets +1/+0 until end of turn.",
+    "power": "1",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Drew Tucker",
+    "collector_number": "10a",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Moneychanger",
+    "oracle_text": "This creature enters with three credit counters on it.\nWhen this creature enters, it deals 3 damage to you.\nAt the beginning of your upkeep, put a credit counter on this creature.\nSacrifice this creature: You gain 1 life for each credit counter on this creature. Activate only during your upkeep.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human"
+  },
+  {
+    "artist": "Edward P. Beard, Jr.",
+    "collector_number": "10b",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Moneychanger",
+    "oracle_text": "This creature enters with three credit counters on it.\nWhen this creature enters, it deals 3 damage to you.\nAt the beginning of your upkeep, put a credit counter on this creature.\nSacrifice this creature: You gain 1 life for each credit counter on this creature. Activate only during your upkeep.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "10c",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Moneychanger",
+    "oracle_text": "This creature enters with three credit counters on it.\nWhen this creature enters, it deals 3 damage to you.\nAt the beginning of your upkeep, put a credit counter on this creature.\nSacrifice this creature: You gain 1 life for each credit counter on this creature. Activate only during your upkeep.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Human"
+  },
+  {
+    "artist": "Kaja Foglio",
+    "collector_number": "11",
+    "colors": [
+      "W"
+    ],
+    "keywords": [
+      "Banding"
+    ],
+    "mana_cost": "{4}{W}",
+    "name": "Icatian Phalanx",
+    "oracle_text": "Banding (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
+    "power": "2",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "4",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Drew Tucker",
+    "collector_number": "12",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Priest",
+    "oracle_text": "{1}{W}{W}: Target creature gets +1/+1 until end of turn.",
+    "power": "1",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Cleric"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "13a",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Scout",
+    "oracle_text": "{1}, {T}: Target creature gains first strike until end of turn.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier Scout"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "13b",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Scout",
+    "oracle_text": "{1}, {T}: Target creature gains first strike until end of turn.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier Scout"
+  },
+  {
+    "artist": "Rob Alexander",
+    "collector_number": "13c",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Scout",
+    "oracle_text": "{1}, {T}: Target creature gains first strike until end of turn.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier Scout"
+  },
+  {
+    "artist": "Phil Foglio",
+    "collector_number": "13d",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{W}",
+    "name": "Icatian Scout",
+    "oracle_text": "{1}, {T}: Target creature gains first strike until end of turn.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier Scout"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "14",
+    "colors": [
+      "W"
+    ],
+    "keywords": [
+      "First strike",
+      "Banding"
+    ],
+    "mana_cost": "{3}{W}",
+    "name": "Icatian Skirmishers",
+    "oracle_text": "First strike; banding (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)\nWhenever this creature attacks, all creatures banded with it gain first strike until end of turn.",
+    "power": "1",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+  },
+  {
+    "artist": "Tom Wänerstrand",
+    "collector_number": "15",
+    "colors": [
+      "W"
+    ],
+    "keywords": [],
+    "mana_cost": "{5}{W}",
+    "name": "Icatian Town",
+    "oracle_text": "Create four 1/1 white Citizen creature tokens.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Bryon Wackwitz",
+    "collector_number": "16a",
+    "colors": [
+      "W"
+    ],
+    "keywords": [
+      "Protection"
+    ],
+    "mana_cost": "{W}{W}",
+    "name": "Order of Leitbur",
+    "oracle_text": "Protection from black\n{W}: This creature gains first strike until end of turn.\n{W}{W}: This creature gets +1/+0 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Cleric Knight"
+  },
+  {
+    "artist": "Bryon Wackwitz",
+    "collector_number": "16b",
+    "colors": [
+      "W"
+    ],
+    "keywords": [
+      "Protection"
+    ],
+    "mana_cost": "{W}{W}",
+    "name": "Order of Leitbur",
+    "oracle_text": "Protection from black\n{W}: This creature gains first strike until end of turn.\n{W}{W}: This creature gets +1/+0 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Cleric Knight"
+  },
+  {
+    "artist": "Randy Asplund-Faith",
+    "collector_number": "16c",
+    "colors": [
+      "W"
+    ],
+    "keywords": [
+      "Protection"
+    ],
+    "mana_cost": "{W}{W}",
+    "name": "Order of Leitbur",
+    "oracle_text": "Protection from black\n{W}: This creature gains first strike until end of turn.\n{W}{W}: This creature gets +1/+0 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Cleric Knight"
+  },
+  {
+    "artist": "Mark Tedin",
+    "collector_number": "17",
+    "colors": [
+      "U"
+    ],
+    "keywords": [
+      "Trample",
+      "Mill"
+    ],
+    "mana_cost": "{5}{U}{U}{U}",
+    "name": "Deep Spawn",
+    "oracle_text": "Trample\nAt the beginning of your upkeep, sacrifice this creature unless you mill two cards.\n{U}: This creature gains shroud until end of turn and doesn't untap during your next untap step. Tap this creature. (A creature with shroud can't be the target of spells or abilities.)",
+    "power": "6",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "6",
+    "type_line": "Creature — Homarid"
+  },
+  {
+    "artist": "Drew Tucker",
+    "collector_number": "18a",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}",
+    "name": "High Tide",
+    "oracle_text": "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Instant"
+  },
+  {
+    "artist": "Anson Maddocks",
+    "collector_number": "18b",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}",
+    "name": "High Tide",
+    "oracle_text": "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Instant"
+  },
+  {
+    "artist": "Amy Weber",
+    "collector_number": "18c",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}",
+    "name": "High Tide",
+    "oracle_text": "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Instant"
+  },
+  {
+    "artist": "Quinton Hoover",
+    "collector_number": "19a",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Homarid",
+    "oracle_text": "This creature enters with a tide counter on it.\nAt the beginning of your upkeep, put a tide counter on this creature.\nAs long as there is exactly one tide counter on this creature, it gets -1/-1.\nAs long as there are exactly three tide counters on this creature, it gets +1/+1.\nWhenever there are four or more tide counters on this creature, remove all tide counters from it.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Homarid"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "19b",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Homarid",
+    "oracle_text": "This creature enters with a tide counter on it.\nAt the beginning of your upkeep, put a tide counter on this creature.\nAs long as there is exactly one tide counter on this creature, it gets -1/-1.\nAs long as there are exactly three tide counters on this creature, it gets +1/+1.\nWhenever there are four or more tide counters on this creature, remove all tide counters from it.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Homarid"
+  },
+  {
+    "artist": "Mark Tedin",
+    "collector_number": "19c",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Homarid",
+    "oracle_text": "This creature enters with a tide counter on it.\nAt the beginning of your upkeep, put a tide counter on this creature.\nAs long as there is exactly one tide counter on this creature, it gets -1/-1.\nAs long as there are exactly three tide counters on this creature, it gets +1/+1.\nWhenever there are four or more tide counters on this creature, remove all tide counters from it.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Homarid"
+  },
+  {
+    "artist": "Bryon Wackwitz",
+    "collector_number": "19d",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Homarid",
+    "oracle_text": "This creature enters with a tide counter on it.\nAt the beginning of your upkeep, put a tide counter on this creature.\nAs long as there is exactly one tide counter on this creature, it gets -1/-1.\nAs long as there are exactly three tide counters on this creature, it gets +1/+1.\nWhenever there are four or more tide counters on this creature, remove all tide counters from it.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Homarid"
+  },
+  {
+    "artist": "Amy Weber",
+    "collector_number": "20",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}{U}",
+    "name": "Homarid Shaman",
+    "oracle_text": "{U}: Tap target green creature.",
+    "power": "2",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Homarid Shaman"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "21",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}{U}",
+    "name": "Homarid Spawning Bed",
+    "oracle_text": "{1}{U}{U}, Sacrifice a blue creature: Create X 1/1 blue Camarid creature tokens, where X is the sacrificed creature's mana value.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "22a",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{4}{U}",
+    "name": "Homarid Warrior",
+    "oracle_text": "{U}: This creature gains shroud until end of turn and doesn't untap during your next untap step. Tap it. (A creature with shroud can't be the target of spells or abilities.)",
+    "power": "3",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Homarid Warrior"
+  },
+  {
+    "artist": "Randy Asplund-Faith",
+    "collector_number": "22b",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{4}{U}",
+    "name": "Homarid Warrior",
+    "oracle_text": "{U}: This creature gains shroud until end of turn and doesn't untap during your next untap step. Tap it. (A creature with shroud can't be the target of spells or abilities.)",
+    "power": "3",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Homarid Warrior"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "22c",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{4}{U}",
+    "name": "Homarid Warrior",
+    "oracle_text": "{U}: This creature gains shroud until end of turn and doesn't untap during your next untap step. Tap it. (A creature with shroud can't be the target of spells or abilities.)",
+    "power": "3",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Homarid Warrior"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "23a",
+    "colors": [
+      "U"
+    ],
+    "keywords": [
+      "Enchant"
+    ],
+    "mana_cost": "{2}{U}{U}",
+    "name": "Merseine",
+    "oracle_text": "Enchant creature\nThis Aura enters with three net counters on it.\nEnchanted creature doesn't untap during its controller's untap step if this Aura has a net counter on it.\nPay enchanted creature's mana cost: Remove a net counter from this Aura. Only the controller of the enchanted creature may activate this ability.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment — Aura"
+  },
+  {
+    "artist": "Margaret Organ-Kean",
+    "collector_number": "23b",
+    "colors": [
+      "U"
+    ],
+    "keywords": [
+      "Enchant"
+    ],
+    "mana_cost": "{2}{U}{U}",
+    "name": "Merseine",
+    "oracle_text": "Enchant creature\nThis Aura enters with three net counters on it.\nEnchanted creature doesn't untap during its controller's untap step if this Aura has a net counter on it.\nPay enchanted creature's mana cost: Remove a net counter from this Aura. Only the controller of the enchanted creature may activate this ability.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment — Aura"
+  },
+  {
+    "artist": "Drew Tucker",
+    "collector_number": "23c",
+    "colors": [
+      "U"
+    ],
+    "keywords": [
+      "Enchant"
+    ],
+    "mana_cost": "{2}{U}{U}",
+    "name": "Merseine",
+    "oracle_text": "Enchant creature\nThis Aura enters with three net counters on it.\nEnchanted creature doesn't untap during its controller's untap step if this Aura has a net counter on it.\nPay enchanted creature's mana cost: Remove a net counter from this Aura. Only the controller of the enchanted creature may activate this ability.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment — Aura"
+  },
+  {
+    "artist": "Pete Venters",
+    "collector_number": "23d",
+    "colors": [
+      "U"
+    ],
+    "keywords": [
+      "Enchant"
+    ],
+    "mana_cost": "{2}{U}{U}",
+    "name": "Merseine",
+    "oracle_text": "Enchant creature\nThis Aura enters with three net counters on it.\nEnchanted creature doesn't untap during its controller's untap step if this Aura has a net counter on it.\nPay enchanted creature's mana cost: Remove a net counter from this Aura. Only the controller of the enchanted creature may activate this ability.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment — Aura"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "24",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}{U}",
+    "name": "River Merfolk",
+    "oracle_text": "{U}: This creature gains mountainwalk until end of turn. (It can't be blocked as long as defending player controls a Mountain.)",
+    "power": "2",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Merfolk"
+  },
+  {
+    "artist": "Amy Weber",
+    "collector_number": "25",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{U}{U}",
+    "name": "Seasinger",
+    "oracle_text": "When you control no Islands, sacrifice this creature.\nYou may choose not to untap this creature during your untap step.\n{T}: Gain control of target creature whose controller controls an Island for as long as you control this creature and this creature remains tapped.",
+    "power": "0",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Merfolk"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "26",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{U}",
+    "name": "Svyelunite Priest",
+    "oracle_text": "{U}{U}, {T}: Target creature gains shroud until end of turn. Activate only during your upkeep. (It can't be the target of spells or abilities.)",
+    "power": "1",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Merfolk Cleric"
+  },
+  {
+    "artist": "Rob Alexander",
+    "collector_number": "27a",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}",
+    "name": "Tidal Flats",
+    "oracle_text": "{U}{U}: For each attacking creature without flying, its controller may pay {1}. If that player doesn't, creatures you control blocking that creature gain first strike until end of turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Rob Alexander",
+    "collector_number": "27b",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}",
+    "name": "Tidal Flats",
+    "oracle_text": "{U}{U}: For each attacking creature without flying, its controller may pay {1}. If that player doesn't, creatures you control blocking that creature gain first strike until end of turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Sandra Everingham",
+    "collector_number": "27c",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{U}",
+    "name": "Tidal Flats",
+    "oracle_text": "{U}{U}: For each attacking creature without flying, its controller may pay {1}. If that player doesn't, creatures you control blocking that creature gain first strike until end of turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Tom Wänerstrand",
+    "collector_number": "28",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Tidal Influence",
+    "oracle_text": "Cast this spell only if no permanents named Tidal Influence are on the battlefield.\nThis enchantment enters with a tide counter on it.\nAt the beginning of your upkeep, put a tide counter on this enchantment.\nAs long as there is exactly one tide counter on this enchantment, all blue creatures get -2/-0.\nAs long as there are exactly three tide counters on this enchantment, all blue creatures get +2/+0.\nWhenever there are four or more tide counters on this enchantment, remove all tide counters from it.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "29",
+    "colors": [
+      "U"
+    ],
+    "keywords": [
+      "First strike"
+    ],
+    "mana_cost": "{1}{U}{U}",
+    "name": "Vodalian Knights",
+    "oracle_text": "First strike\nThis creature can't attack unless defending player controls an Island.\nWhen you control no Islands, sacrifice this creature.\n{U}: This creature gains flying until end of turn.",
+    "power": "2",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Merfolk Knight"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "30a",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Vodalian Mage",
+    "oracle_text": "{U}, {T}: Counter target spell unless its controller pays {1}.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Merfolk Wizard"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "30b",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Vodalian Mage",
+    "oracle_text": "{U}, {T}: Counter target spell unless its controller pays {1}.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Merfolk Wizard"
+  },
+  {
+    "artist": "Quinton Hoover",
+    "collector_number": "30c",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{U}",
+    "name": "Vodalian Mage",
+    "oracle_text": "{U}, {T}: Counter target spell unless its controller pays {1}.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Merfolk Wizard"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "31a",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{U}",
+    "name": "Vodalian Soldiers",
+    "oracle_text": "",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Merfolk Soldier"
+  },
+  {
+    "artist": "Jeff A. Menges",
+    "collector_number": "31b",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{U}",
+    "name": "Vodalian Soldiers",
+    "oracle_text": "",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Merfolk Soldier"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "31c",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{U}",
+    "name": "Vodalian Soldiers",
+    "oracle_text": "",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Merfolk Soldier"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "31d",
+    "colors": [
+      "U"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{U}",
+    "name": "Vodalian Soldiers",
+    "oracle_text": "",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Merfolk Soldier"
+  },
+  {
+    "artist": "Amy Weber",
+    "collector_number": "32",
+    "colors": [
+      "U"
+    ],
+    "keywords": [
+      "Defender"
+    ],
+    "mana_cost": "{1}{U}{U}",
+    "name": "Vodalian War Machine",
+    "oracle_text": "Defender (This creature can't attack.)\nTap an untapped Merfolk you control: This creature can attack this turn as though it didn't have defender.\nTap an untapped Merfolk you control: This creature gets +2/+1 until end of turn.\nWhen this creature dies, destroy all Merfolk tapped this turn to pay for its abilities.",
+    "power": "0",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "4",
+    "type_line": "Creature — Wall"
+  },
+  {
+    "artist": "Pete Venters",
+    "collector_number": "33a",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{B}",
+    "name": "Armor Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Put a +1/+2 counter on target creature.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "33b",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{B}",
+    "name": "Armor Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Put a +1/+2 counter on target creature.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Jeff A. Menges",
+    "collector_number": "33c",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{B}",
+    "name": "Armor Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Put a +1/+2 counter on target creature.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Scott Kirschner",
+    "collector_number": "33d",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{B}",
+    "name": "Armor Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Put a +1/+2 counter on target creature.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Kaja Foglio",
+    "collector_number": "34a",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Basal Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Add {B}{B}.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Phil Foglio",
+    "collector_number": "34b",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Basal Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Add {B}{B}.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "34c",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Basal Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Add {B}{B}.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Christopher Rush",
+    "collector_number": "34d",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Basal Thrull",
+    "oracle_text": "{T}, Sacrifice this creature: Add {B}{B}.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Anson Maddocks",
+    "collector_number": "35",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{3}{B}",
+    "name": "Breeding Pit",
+    "oracle_text": "At the beginning of your upkeep, sacrifice this enchantment unless you pay {B}{B}.\nAt the beginning of your end step, create a 0/1 black Thrull creature token.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Anson Maddocks",
+    "collector_number": "36",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{3}{B}",
+    "name": "Derelor",
+    "oracle_text": "Black spells you cast cost {B} more to cast.",
+    "power": "4",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "4",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Randy Asplund-Faith",
+    "collector_number": "37",
+    "colors": [
+      "B"
+    ],
+    "keywords": [
+      "First strike",
+      "Trample"
+    ],
+    "mana_cost": "{4}{B}{B}",
+    "name": "Ebon Praetor",
+    "oracle_text": "First strike, trample\nAt the beginning of your upkeep, put a -2/-2 counter on this creature.\nSacrifice a creature: Remove a -2/-2 counter from this creature. If the sacrificed creature was a Thrull, put a +1/+0 counter on this creature. Activate only during your upkeep and only once each turn.",
+    "power": "5",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "5",
+    "type_line": "Creature — Avatar Praetor"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "38a",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Hymn to Tourach",
+    "oracle_text": "Target player discards two cards at random.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Liz Danforth",
+    "collector_number": "38b",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Hymn to Tourach",
+    "oracle_text": "Target player discards two cards at random.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Quinton Hoover",
+    "collector_number": "38c",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Hymn to Tourach",
+    "oracle_text": "Target player discards two cards at random.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Scott Kirschner",
+    "collector_number": "38d",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Hymn to Tourach",
+    "oracle_text": "Target player discards two cards at random.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "39a",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}",
+    "name": "Initiates of the Ebon Hand",
+    "oracle_text": "{1}: Add {B}. If this ability has been activated four or more times this turn, sacrifice this creature at the beginning of the next end step.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Cleric"
+  },
+  {
+    "artist": "Liz Danforth",
+    "collector_number": "39b",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}",
+    "name": "Initiates of the Ebon Hand",
+    "oracle_text": "{1}: Add {B}. If this ability has been activated four or more times this turn, sacrifice this creature at the beginning of the next end step.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Cleric"
+  },
+  {
+    "artist": "Kaja Foglio",
+    "collector_number": "39c",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}",
+    "name": "Initiates of the Ebon Hand",
+    "oracle_text": "{1}: Add {B}. If this ability has been activated four or more times this turn, sacrifice this creature at the beginning of the next end step.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Cleric"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "40a",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Mindstab Thrull",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may sacrifice it. If you do, defending player discards three cards.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "40b",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Mindstab Thrull",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may sacrifice it. If you do, defending player discards three cards.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Mark Tedin",
+    "collector_number": "40c",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Mindstab Thrull",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may sacrifice it. If you do, defending player discards three cards.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "41a",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Necrite",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may sacrifice it. If you do, destroy target creature defending player controls. It can't be regenerated.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Christopher Rush",
+    "collector_number": "41b",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Necrite",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may sacrifice it. If you do, destroy target creature defending player controls. It can't be regenerated.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Drew Tucker",
+    "collector_number": "41c",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Necrite",
+    "oracle_text": "Whenever this creature attacks and isn't blocked, you may sacrifice it. If you do, destroy target creature defending player controls. It can't be regenerated.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "42a",
+    "colors": [
+      "B"
+    ],
+    "keywords": [
+      "Protection"
+    ],
+    "mana_cost": "{B}{B}",
+    "name": "Order of the Ebon Hand",
+    "oracle_text": "Protection from white\n{B}: This creature gains first strike until end of turn.\n{B}{B}: This creature gets +1/+0 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Cleric Knight"
+  },
+  {
+    "artist": "Christopher Rush",
+    "collector_number": "42b",
+    "colors": [
+      "B"
+    ],
+    "keywords": [
+      "Protection"
+    ],
+    "mana_cost": "{B}{B}",
+    "name": "Order of the Ebon Hand",
+    "oracle_text": "Protection from white\n{B}: This creature gains first strike until end of turn.\n{B}{B}: This creature gets +1/+0 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Cleric Knight"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "42c",
+    "colors": [
+      "B"
+    ],
+    "keywords": [
+      "Protection"
+    ],
+    "mana_cost": "{B}{B}",
+    "name": "Order of the Ebon Hand",
+    "oracle_text": "Protection from white\n{B}: This creature gains first strike until end of turn.\n{B}{B}: This creature gets +1/+0 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Cleric Knight"
+  },
+  {
+    "artist": "Anthony S. Waters",
+    "collector_number": "43",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{B}{B}",
+    "name": "Soul Exchange",
+    "oracle_text": "As an additional cost to cast this spell, exile a creature you control.\nReturn target creature card from your graveyard to the battlefield. Put a +2/+2 counter on that creature if the exiled creature was a Thrull.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "44",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{4}{B}",
+    "name": "Thrull Champion",
+    "oracle_text": "Thrull creatures get +1/+1.\n{T}: Gain control of target Thrull for as long as you control this creature.",
+    "power": "2",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Thrull"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "45",
+    "colors": [
+      "B"
+    ],
+    "keywords": [
+      "Regenerate",
+      "Enchant"
+    ],
+    "mana_cost": "{B}",
+    "name": "Thrull Retainer",
+    "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1.\nSacrifice this Aura: Regenerate enchanted creature.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment — Aura"
+  },
+  {
+    "artist": "Anson Maddocks",
+    "collector_number": "46",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{B}",
+    "name": "Thrull Wizard",
+    "oracle_text": "{1}{B}: Counter target black spell unless that spell's controller pays {B} or {3}.",
+    "power": "1",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Thrull Wizard"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "47",
+    "colors": [
+      "B"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Tourach's Chant",
+    "oracle_text": "At the beginning of your upkeep, sacrifice this enchantment unless you pay {B}.\nWhenever a player puts a Forest onto the battlefield, this enchantment deals 3 damage to that player unless they put a -1/-1 counter on a creature they control.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Sandra Everingham",
+    "collector_number": "48",
+    "colors": [
+      "B"
+    ],
+    "keywords": [
+      "Enchant"
+    ],
+    "mana_cost": "{1}{B}{B}",
+    "name": "Tourach's Gate",
+    "oracle_text": "Enchant land you control\nSacrifice a Thrull: Put three time counters on this Aura.\nAt the beginning of your upkeep, remove a time counter from this Aura. If there are no time counters on this Aura, sacrifice it.\nTap enchanted land: Attacking creatures you control get +2/-1 until end of turn. Activate only if enchanted land is untapped.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment — Aura"
+  },
+  {
+    "artist": "Rob Alexander",
+    "collector_number": "49a",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Brassclaw Orcs",
+    "oracle_text": "This creature can't block creatures with power 2 or greater.",
+    "power": "3",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Dan Frazier",
+    "collector_number": "49b",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Brassclaw Orcs",
+    "oracle_text": "This creature can't block creatures with power 2 or greater.",
+    "power": "3",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Rob Alexander",
+    "collector_number": "49c",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Brassclaw Orcs",
+    "oracle_text": "This creature can't block creatures with power 2 or greater.",
+    "power": "3",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "49d",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Brassclaw Orcs",
+    "oracle_text": "This creature can't block creatures with power 2 or greater.",
+    "power": "3",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Bryon Wackwitz",
+    "collector_number": "50",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Dwarven Armorer",
+    "oracle_text": "{R}, {T}, Discard a card: Put a +0/+1 counter or a +1/+0 counter on target creature.",
+    "power": "0",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Dwarf"
+  },
+  {
+    "artist": "Jeff A. Menges",
+    "collector_number": "51",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{X}{R}",
+    "name": "Dwarven Catapult",
+    "oracle_text": "Dwarven Catapult deals X damage divided evenly, rounded down, among all creatures target opponent controls.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Instant"
+  },
+  {
+    "artist": "Jeff A. Menges",
+    "collector_number": "52",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}{R}",
+    "name": "Dwarven Lieutenant",
+    "oracle_text": "{1}{R}: Target Dwarf creature gets +1/+0 until end of turn.",
+    "power": "1",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Dwarf Soldier"
+  },
+  {
+    "artist": "Rob Alexander",
+    "collector_number": "53a",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{R}",
+    "name": "Dwarven Soldier",
+    "oracle_text": "Whenever this creature blocks or becomes blocked by one or more Orcs, this creature gets +0/+2 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Dwarf Soldier"
+  },
+  {
+    "artist": "Randy Asplund-Faith",
+    "collector_number": "53b",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{R}",
+    "name": "Dwarven Soldier",
+    "oracle_text": "Whenever this creature blocks or becomes blocked by one or more Orcs, this creature gets +0/+2 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Dwarf Soldier"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "53c",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{R}",
+    "name": "Dwarven Soldier",
+    "oracle_text": "Whenever this creature blocks or becomes blocked by one or more Orcs, this creature gets +0/+2 until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Dwarf Soldier"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "54a",
+    "colors": [
+      "R"
+    ],
+    "keywords": [
+      "Regenerate"
+    ],
+    "mana_cost": "{R}",
+    "name": "Goblin Chirurgeon",
+    "oracle_text": "Sacrifice a Goblin: Regenerate target creature.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Goblin Shaman"
+  },
+  {
+    "artist": "Phil Foglio",
+    "collector_number": "54b",
+    "colors": [
+      "R"
+    ],
+    "keywords": [
+      "Regenerate"
+    ],
+    "mana_cost": "{R}",
+    "name": "Goblin Chirurgeon",
+    "oracle_text": "Sacrifice a Goblin: Regenerate target creature.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Goblin Shaman"
+  },
+  {
+    "artist": "Dan Frazier",
+    "collector_number": "54c",
+    "colors": [
+      "R"
+    ],
+    "keywords": [
+      "Regenerate"
+    ],
+    "mana_cost": "{R}",
+    "name": "Goblin Chirurgeon",
+    "oracle_text": "Sacrifice a Goblin: Regenerate target creature.",
+    "power": "0",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Goblin Shaman"
+  },
+  {
+    "artist": "Tom Wänerstrand",
+    "collector_number": "55",
+    "colors": [
+      "R"
+    ],
+    "keywords": [
+      "Landwalk",
+      "Islandwalk"
+    ],
+    "mana_cost": "{2}{R}",
+    "name": "Goblin Flotilla",
+    "oracle_text": "Islandwalk (This creature can't be blocked as long as defending player controls an Island.)\nAt the beginning of each combat, unless you pay {R}, whenever this creature blocks or becomes blocked by a creature this combat, that creature gains first strike until end of turn.",
+    "power": "2",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Goblin"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "56a",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Goblin Grenade",
+    "oracle_text": "As an additional cost to cast this spell, sacrifice a Goblin.\nGoblin Grenade deals 5 damage to any target.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Dan Frazier",
+    "collector_number": "56b",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Goblin Grenade",
+    "oracle_text": "As an additional cost to cast this spell, sacrifice a Goblin.\nGoblin Grenade deals 5 damage to any target.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Christopher Rush",
+    "collector_number": "56c",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Goblin Grenade",
+    "oracle_text": "As an additional cost to cast this spell, sacrifice a Goblin.\nGoblin Grenade deals 5 damage to any target.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Sorcery"
+  },
+  {
+    "artist": "Anson Maddocks",
+    "collector_number": "57",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{R}",
+    "name": "Goblin Kites",
+    "oracle_text": "{R}: Target creature you control with toughness 2 or less gains flying until end of turn. Flip a coin at the beginning of the next end step. If you lose the flip, sacrifice that creature.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Dan Frazier",
+    "collector_number": "58a",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Goblin War Drums",
+    "oracle_text": "Creatures you control have menace. (They can't be blocked except by two or more creatures.)",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "58b",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Goblin War Drums",
+    "oracle_text": "Creatures you control have menace. (They can't be blocked except by two or more creatures.)",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "58c",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Goblin War Drums",
+    "oracle_text": "Creatures you control have menace. (They can't be blocked except by two or more creatures.)",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Jeff A. Menges",
+    "collector_number": "58d",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Goblin War Drums",
+    "oracle_text": "Creatures you control have menace. (They can't be blocked except by two or more creatures.)",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Dan Frazier",
+    "collector_number": "59",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Goblin Warrens",
+    "oracle_text": "{2}{R}, Sacrifice two Goblins: Create three 1/1 red Goblin creature tokens.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Mark Tedin",
+    "collector_number": "60",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Orcish Captain",
+    "oracle_text": "{1}: Flip a coin. If you win the flip, target Orc creature gets +2/+0 until end of turn. If you lose the flip, it gets -0/-2 until end of turn.",
+    "power": "1",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Orc Warrior"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "61a",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Orcish Spy",
+    "oracle_text": "{T}: Look at the top three cards of target player's library.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Orc Rogue"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "61b",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Orcish Spy",
+    "oracle_text": "{T}: Look at the top three cards of target player's library.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Orc Rogue"
+  },
+  {
+    "artist": "Pete Venters",
+    "collector_number": "61c",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{R}",
+    "name": "Orcish Spy",
+    "oracle_text": "{T}: Look at the top three cards of target player's library.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Orc Rogue"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "62a",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Orcish Veteran",
+    "oracle_text": "This creature can't block white creatures with power 2 or greater.\n{R}: This creature gains first strike until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Dan Frazier",
+    "collector_number": "62b",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Orcish Veteran",
+    "oracle_text": "This creature can't block white creatures with power 2 or greater.\n{R}: This creature gains first strike until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Quinton Hoover",
+    "collector_number": "62c",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Orcish Veteran",
+    "oracle_text": "This creature can't block white creatures with power 2 or greater.\n{R}: This creature gains first strike until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "62d",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Orcish Veteran",
+    "oracle_text": "This creature can't block white creatures with power 2 or greater.\n{R}: This creature gains first strike until end of turn.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Orc"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "63",
+    "colors": [
+      "R"
+    ],
+    "keywords": [
+      "Trample"
+    ],
+    "mana_cost": "{3}{R}{R}",
+    "name": "Orgg",
+    "oracle_text": "Trample\nThis creature can't attack if defending player controls an untapped creature with power 3 or greater.\nThis creature can't block creatures with power 3 or greater.",
+    "power": "6",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "6",
+    "type_line": "Creature — Orgg"
+  },
+  {
+    "artist": "Quinton Hoover",
+    "collector_number": "64",
+    "colors": [
+      "R"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{R}",
+    "name": "Raiding Party",
+    "oracle_text": "This enchantment can't be the target of white spells or abilities from white sources.\nSacrifice an Orc: Each player may tap any number of untapped white creatures they control. For each creature tapped this way, that player chooses up to two Plains. Then destroy all Plains that weren't chosen this way by any player.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Pete Venters",
+    "collector_number": "65a",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Elven Fortress",
+    "oracle_text": "{1}{G}: Target blocking creature gets +0/+1 until end of turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Randy Asplund-Faith",
+    "collector_number": "65b",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Elven Fortress",
+    "oracle_text": "{1}{G}: Target blocking creature gets +0/+1 until end of turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "65c",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Elven Fortress",
+    "oracle_text": "{1}{G}: Target blocking creature gets +0/+1 until end of turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Tom Wänerstrand",
+    "collector_number": "65d",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Elven Fortress",
+    "oracle_text": "{1}{G}: Target blocking creature gets +0/+1 until end of turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Richard Kane Ferguson",
+    "collector_number": "66",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}",
+    "name": "Elvish Farmer",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Create a 1/1 green Saproling creature token.\nSacrifice a Saproling: You gain 2 life.",
+    "power": "0",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Elf"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "67a",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}",
+    "name": "Elvish Hunter",
+    "oracle_text": "{1}{G}, {T}: Target creature doesn't untap during its controller's next untap step.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Elf Archer"
+  },
+  {
+    "artist": "Anson Maddocks",
+    "collector_number": "67b",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}",
+    "name": "Elvish Hunter",
+    "oracle_text": "{1}{G}, {T}: Target creature doesn't untap during its controller's next untap step.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Elf Archer"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "67c",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}",
+    "name": "Elvish Hunter",
+    "oracle_text": "{1}{G}, {T}: Target creature doesn't untap during its controller's next untap step.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Elf Archer"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "68a",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Elvish Scout",
+    "oracle_text": "{G}, {T}: Untap target attacking creature you control. Prevent all combat damage that would be dealt to and dealt by it this turn.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Elf Scout"
+  },
+  {
+    "artist": "Pete Venters",
+    "collector_number": "68b",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Elvish Scout",
+    "oracle_text": "{G}, {T}: Untap target attacking creature you control. Prevent all combat damage that would be dealt to and dealt by it this turn.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Elf Scout"
+  },
+  {
+    "artist": "Christopher Rush",
+    "collector_number": "68c",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Elvish Scout",
+    "oracle_text": "{G}, {T}: Untap target attacking creature you control. Prevent all combat damage that would be dealt to and dealt by it this turn.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Elf Scout"
+  },
+  {
+    "artist": "Rob Alexander",
+    "collector_number": "69",
+    "colors": [
+      "G"
+    ],
+    "keywords": [
+      "Regenerate"
+    ],
+    "mana_cost": "{3}{G}{G}{G}",
+    "name": "Feral Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Regenerate this creature.",
+    "power": "6",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "3",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "70",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}{G}",
+    "name": "Fungal Bloom",
+    "oracle_text": "{G}{G}: Put a spore counter on target Fungus.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Sandra Everingham",
+    "collector_number": "71a",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}{G}",
+    "name": "Night Soil",
+    "oracle_text": "{1}, Exile two creature cards from a single graveyard: Create a 1/1 green Saproling creature token.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "71b",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}{G}",
+    "name": "Night Soil",
+    "oracle_text": "{1}, Exile two creature cards from a single graveyard: Create a 1/1 green Saproling creature token.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Drew Tucker",
+    "collector_number": "71c",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}{G}",
+    "name": "Night Soil",
+    "oracle_text": "{1}, Exile two creature cards from a single graveyard: Create a 1/1 green Saproling creature token.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Susan Van Camp",
+    "collector_number": "72a",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Spore Cloud",
+    "oracle_text": "Tap all blocking creatures. Prevent all combat damage that would be dealt this turn. Each attacking creature and each blocking creature doesn't untap during its controller's next untap step.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Instant"
+  },
+  {
+    "artist": "Jesper Myrfors",
+    "collector_number": "72b",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Spore Cloud",
+    "oracle_text": "Tap all blocking creatures. Prevent all combat damage that would be dealt this turn. Each attacking creature and each blocking creature doesn't untap during its controller's next untap step.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Instant"
+  },
+  {
+    "artist": "Amy Weber",
+    "collector_number": "72c",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Spore Cloud",
+    "oracle_text": "Tap all blocking creatures. Prevent all combat damage that would be dealt this turn. Each attacking creature and each blocking creature doesn't untap during its controller's next untap step.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Instant"
+  },
+  {
+    "artist": "Margaret Organ-Kean",
+    "collector_number": "73",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}{G}",
+    "name": "Spore Flower",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Prevent all combat damage that would be dealt this turn.",
+    "power": "0",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Edward P. Beard, Jr.",
+    "collector_number": "74a",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Create a 1/1 green Saproling creature token.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Jesper Myrfors",
+    "collector_number": "74b",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Create a 1/1 green Saproling creature token.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "74c",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Create a 1/1 green Saproling creature token.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "74d",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}",
+    "name": "Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Create a 1/1 green Saproling creature token.",
+    "power": "1",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Ron Spencer",
+    "collector_number": "75",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Thallid Devourer",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: Create a 1/1 green Saproling creature token.\nSacrifice a Saproling: This creature gets +1/+2 until end of turn.",
+    "power": "2",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Melissa A. Benson",
+    "collector_number": "76",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Thelon's Chant",
+    "oracle_text": "At the beginning of your upkeep, sacrifice this enchantment unless you pay {G}.\nWhenever a player puts a Swamp onto the battlefield, this enchantment deals 3 damage to that player unless the player puts a -1/-1 counter on a creature they control.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Pete Venters",
+    "collector_number": "77",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{G}{G}",
+    "name": "Thelon's Curse",
+    "oracle_text": "Blue creatures don't untap during their controllers' untap steps.\nAt the beginning of each player's upkeep, that player may choose any number of tapped blue creatures they control and pay {U} for each creature chosen this way. If the player does, untap those creatures.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Enchantment"
+  },
+  {
+    "artist": "Margaret Organ-Kean",
+    "collector_number": "78",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{G}",
+    "name": "Thelonite Druid",
+    "oracle_text": "{1}{G}, {T}, Sacrifice a creature: Forests you control become 2/3 creatures until end of turn. They're still lands.",
+    "power": "1",
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": "1",
+    "type_line": "Creature — Human Cleric Druid"
+  },
+  {
+    "artist": "Bryon Wackwitz",
+    "collector_number": "79",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{2}{G}{G}",
+    "name": "Thelonite Monk",
+    "oracle_text": "{T}, Sacrifice a green creature: Target land becomes a Forest. (This effect lasts indefinitely.)",
+    "power": "1",
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Insect Monk Cleric"
+  },
+  {
+    "artist": "Daniel Gelon",
+    "collector_number": "80a",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Thorn Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: It deals 1 damage to any target.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "80b",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Thorn Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: It deals 1 damage to any target.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Jesper Myrfors",
+    "collector_number": "80c",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Thorn Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: It deals 1 damage to any target.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Mark Tedin",
+    "collector_number": "80d",
+    "colors": [
+      "G"
+    ],
+    "keywords": [],
+    "mana_cost": "{1}{G}{G}",
+    "name": "Thorn Thallid",
+    "oracle_text": "At the beginning of your upkeep, put a spore counter on this creature.\nRemove three spore counters from this creature: It deals 1 damage to any target.",
+    "power": "2",
+    "rarity": "common",
+    "set": "fem",
+    "toughness": "2",
+    "type_line": "Creature — Fungus"
+  },
+  {
+    "artist": "Heather Hudson",
+    "collector_number": "81",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{2}",
+    "name": "Aeolipile",
+    "oracle_text": "{1}, {T}, Sacrifice this artifact: It deals 2 damage to any target.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Margaret Organ-Kean",
+    "collector_number": "82",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{2}",
+    "name": "Balm of Restoration",
+    "oracle_text": "{1}, {T}, Sacrifice this artifact: Choose one —\n• You gain 2 life.\n• Prevent the next 2 damage that would be dealt to any target this turn.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Phil Foglio",
+    "collector_number": "83",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{2}",
+    "name": "Conch Horn",
+    "oracle_text": "{1}, {T}, Sacrifice this artifact: Draw two cards, then put a card from your hand on top of your library.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Mark Tedin",
+    "collector_number": "84",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{0}",
+    "name": "Delif's Cone",
+    "oracle_text": "{T}, Sacrifice this artifact: This turn, when target creature you control attacks and isn't blocked, you may gain life equal to its power. If you do, it assigns no combat damage this turn.",
+    "power": null,
+    "rarity": "common",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Mark Tedin",
+    "collector_number": "85",
+    "colors": [],
+    "keywords": [
+      "Regenerate"
+    ],
+    "mana_cost": "{1}",
+    "name": "Delif's Cube",
+    "oracle_text": "{2}, {T}: This turn, when target creature you control attacks and isn't blocked, it assigns no combat damage this turn and you put a cube counter on this artifact.\n{2}, Remove a cube counter from this artifact: Regenerate target creature.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Edward P. Beard, Jr.",
+    "collector_number": "86",
+    "colors": [],
+    "keywords": [
+      "Regenerate"
+    ],
+    "mana_cost": "{3}",
+    "name": "Draconian Cylix",
+    "oracle_text": "{2}, {T}, Discard a card at random: Regenerate target creature.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Kaja Foglio",
+    "collector_number": "87",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{2}",
+    "name": "Elven Lyre",
+    "oracle_text": "{1}, {T}, Sacrifice this artifact: Target creature gets +2/+2 until end of turn.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Margaret Organ-Kean",
+    "collector_number": "88",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{2}",
+    "name": "Implements of Sacrifice",
+    "oracle_text": "{1}, {T}, Sacrifice this artifact: Add two mana of any one color.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Douglas Shuler",
+    "collector_number": "89",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{5}",
+    "name": "Ring of Renewal",
+    "oracle_text": "{5}, {T}: Discard a card at random, then draw two cards.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Scott Kirschner",
+    "collector_number": "90",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{3}",
+    "name": "Spirit Shield",
+    "oracle_text": "You may choose not to untap this artifact during your untap step.\n{2}, {T}: Target creature gets +0/+2 for as long as this artifact remains tapped.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Scott Kirschner",
+    "collector_number": "91",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "{3}",
+    "name": "Zelyon Sword",
+    "oracle_text": "You may choose not to untap this artifact during your untap step.\n{3}, {T}: Target creature gets +2/+0 for as long as this artifact remains tapped.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Artifact"
+  },
+  {
+    "artist": "Pat Lewis",
+    "collector_number": "92",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Bottomless Vault",
+    "oracle_text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {B} for each storage counter removed this way.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Pat Lewis",
+    "collector_number": "93",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Dwarven Hold",
+    "oracle_text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {R} for each storage counter removed this way.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "94",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Dwarven Ruins",
+    "oracle_text": "This land enters tapped.\n{T}: Add {R}.\n{T}, Sacrifice this land: Add {R}{R}.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "95",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Ebon Stronghold",
+    "oracle_text": "This land enters tapped.\n{T}: Add {B}.\n{T}, Sacrifice this land: Add {B}{B}.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "96",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Havenwood Battleground",
+    "oracle_text": "This land enters tapped.\n{T}: Add {G}.\n{T}, Sacrifice this land: Add {G}{G}.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Pat Lewis",
+    "collector_number": "97",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Hollow Trees",
+    "oracle_text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {G} for each storage counter removed this way.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Pat Lewis",
+    "collector_number": "98",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Icatian Store",
+    "oracle_text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {W} for each storage counter removed this way.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Kaja Foglio",
+    "collector_number": "99",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Rainbow Vale",
+    "oracle_text": "{T}: Add one mana of any color. An opponent gains control of this land at the beginning of the next end step.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "100",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Ruins of Trokair",
+    "oracle_text": "This land enters tapped.\n{T}: Add {W}.\n{T}, Sacrifice this land: Add {W}{W}.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Pat Lewis",
+    "collector_number": "101",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Sand Silos",
+    "oracle_text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {U} for each storage counter removed this way.",
+    "power": null,
+    "rarity": "rare",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  },
+  {
+    "artist": "Mark Poole",
+    "collector_number": "102",
+    "colors": [],
+    "keywords": [],
+    "mana_cost": "",
+    "name": "Svyelunite Temple",
+    "oracle_text": "This land enters tapped.\n{T}: Add {U}.\n{T}, Sacrifice this land: Add {U}{U}.",
+    "power": null,
+    "rarity": "uncommon",
+    "set": "fem",
+    "toughness": null,
+    "type_line": "Land"
+  }
+]

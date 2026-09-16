@@ -80,7 +80,7 @@ func from_sources(desc: String, cb: Callable) -> PreventDamageShieldEffect:
 ##    packet found the hole immediately.
 ##
 ## [param who] is the Circle itself, so "you" is its controller.
-func _packet_matches(_game: MtgGame, packet: DamagePacket,
+func _packet_matches(game: MtgGame, packet: DamagePacket,
 		who: CardInstance) -> bool:
 	if packet.source == null or packet.target == null:
 		return false
@@ -90,7 +90,7 @@ func _packet_matches(_game: MtgGame, packet: DamagePacket,
 		return false
 	if source_filter.is_valid():
 		return bool(source_filter.call(packet.source))
-	return (color_mask & packet.source.cur_colors) != 0
+	return (color_mask & game.damage_source_colors(packet.source)) != 0
 
 
 ## Pushes one shield onto the CONTROLLER's MtgPlayer.prevention_shields (or
@@ -116,7 +116,7 @@ func resolve(game: MtgGame, source: CardInstance, controller: int, target: Targe
 	# THE MODERN FORM: one source of the colour, the controller's choice.
 	var kind: String = source_desc if source_desc != "" \
 		else "a %s source" % _colour_words()
-	var choices := game.damage_sources(_source_qualifies, TargetRef.player(controller))
+	var choices := game.damage_sources(_source_qualifies.bind(game), TargetRef.player(controller))
 	if choices.is_empty():
 		game.log_line("%s: nothing to name as %s, nothing is shielded" % [
 			source.data.card_name, kind])
@@ -136,10 +136,10 @@ func resolve(game: MtgGame, source: CardInstance, controller: int, target: Targe
 
 ## Is [param inst] a source this Circle may name — of the colour, or of
 ## the predicate's kind?
-func _source_qualifies(inst: CardInstance) -> bool:
+func _source_qualifies(inst: CardInstance, game: MtgGame) -> bool:
 	if source_filter.is_valid():
 		return bool(source_filter.call(inst))
-	return (color_mask & inst.cur_colors) != 0
+	return (color_mask & game.damage_source_colors(inst)) != 0
 
 
 ## "red", "black or red" — the mask in card English, for the prompt.

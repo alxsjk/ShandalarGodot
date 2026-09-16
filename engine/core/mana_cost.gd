@@ -15,6 +15,10 @@ extends RefCounted
 ## Colored requirement counts, keyed by Mtg.Color flag. Never mutated after
 ## parse.
 var colored: Dictionary = {}
+## Soul Burn's X: actual mana types, NOT hybrid symbols or "as though"
+## color permissions. The printed cost remains unchanged.
+var restricted_x_mask := 0
+var restricted_x_amount := 0
 
 ## Generic portion of the cost (the number in {2} etc.). Payable by any mana.
 var generic: int = 0
@@ -29,6 +33,11 @@ var x_count: int = 0
 
 ## The original text form, kept for logs, UI, and error messages.
 var text: String = ""
+
+## A spending restriction does not turn generic X into colored symbols.
+## Discounts first cover ordinary generic mana, then the restricted X.
+func restricted_x_due(extra: int) -> int:
+	return maxi(0, restricted_x_amount - maxi(0, -extra - generic))
 
 
 ## Parse [param cost_text] ("{1}{G}" etc.). An empty string is a free cost
@@ -72,6 +81,8 @@ func minus_generic(n: int) -> ManaCost:
 	out.has_x = has_x
 	out.x_count = x_count
 	out.text = text
+	out.restricted_x_mask = restricted_x_mask
+	out.restricted_x_amount = restricted_x_amount
 	for c in colored:
 		out.colored[c] = colored[c]
 	return out
@@ -84,9 +95,14 @@ func plus_colored(color: int, n: int) -> ManaCost:
 	var out := ManaCost.new()
 	out.generic = generic
 	out.text = text
+	out.restricted_x_mask = restricted_x_mask
+	out.restricted_x_amount = restricted_x_amount
 	for c in colored:
 		out.colored[c] = colored[c]
-	if n > 0:
+	if n > 0 and (color & (color - 1)) != 0:
+		out.restricted_x_mask = color
+		out.restricted_x_amount += n
+	elif n > 0:
 		out.colored[color] = int(out.colored.get(color, 0)) + n
 	return out
 
@@ -94,7 +110,7 @@ func plus_colored(color: int, n: int) -> ManaCost:
 ## Mana value ("converted mana cost"). X counts as 0 while unresolved,
 ## per CR 203.3b.
 func mana_value() -> int:
-	var total := generic
+	var total := generic + restricted_x_amount
 	for c in colored:
 		total += colored[c]
 	return total

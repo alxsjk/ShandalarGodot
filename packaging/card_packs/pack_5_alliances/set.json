@@ -1,0 +1,9 @@
+{
+  "all_printings": 199,
+  "code": "all",
+  "name": "Alliances",
+  "released_at": "1996-06-10",
+  "source_url": "https://api.scryfall.com/cards/search?include_extras=true&include_variations=true&order=set&q=e%3Aall&unique=prints",
+  "standard_printings": 199,
+  "unique_names": 144
+}

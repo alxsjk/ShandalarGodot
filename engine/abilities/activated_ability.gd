@@ -26,9 +26,19 @@ extends RefCounted
 
 ## Mana part of the cost (empty ManaCost = free).
 var cost: ManaCost
+## Opt-in, generic-cost storage artifacts: the player chooses the actual
+## mana types spent before payment. Each activation captures its own record.
+var capture_mana_spent := false
 
 ## Whether the cost includes tapping the source ({T}).
 var tap_cost: bool = false
+## Only this zone grants activation permission. Putting an activated
+## ability in a card definition does not make it usable from every zone.
+var activation_zone: int = Mtg.Zone.BATTLEFIELD
+
+func from_graveyard() -> ActivatedAbility:
+	activation_zone = Mtg.Zone.GRAVEYARD
+	return self
 
 ## "Sacrifice this permanent" as part of the cost (Strip Mine). Paid after
 ## mana/tap — the source is in the graveyard while the ability resolves.
@@ -37,6 +47,15 @@ var sacrifice_cost: bool = false
 ## "Pay N life" as part of the cost (Greed). Payable down to exactly 0
 ## life (CR 118.4 — and yes, that kills you via state-based actions).
 var life_cost: int = 0
+
+## Exiling the top cards is an announcement cost, not a resolving effect.
+## Only the size is queried before payment; no chooser/AI sees future cards.
+var library_exile_cost := 0
+var object_costs: Array = []
+
+func with_library_exile_cost(count: int) -> ActivatedAbility:
+	library_exile_cost = maxi(0, count)
+	return self
 
 
 ## Fluent: add "Sacrifice this permanent" to the cost.
@@ -274,6 +293,8 @@ func may_sacrifice_itself() -> ActivatedAbility:
 ## on the stack item under `_sacrificed_names`, `_sacrificed_total_power`
 ## and `_sacrificed_instances` (see [member StackItem.cost_paid]).
 var sacrifice_any_number: bool = false
+## Fixed multi-permanent costs (Goblin Warrens). Still paid before resolving.
+var sacrifice_count: int = 1
 
 ## Fluent: make the sacrifice cost "any number of" (see
 ## [member sacrifice_any_number]).
@@ -291,6 +312,8 @@ func any_number() -> ActivatedAbility:
 ## until 2026-09-02, one slot per permanent, so two stacked activations
 ## read each other's record.)
 var discard_cost: int = 0
+var discard_filter: Callable = Callable()
+var discard_filter_desc := "card"
 
 ## Fluent: add a "Discard N cards" cost (chooser = the paying player).
 func with_discard_cost(n: int) -> ActivatedAbility:
@@ -335,6 +358,20 @@ func with_exile_of(desc: String, filter: Callable) -> ActivatedAbility:
 ## under `_exiled_mana_value` for the ability's own effects to read.
 var graveyard_exile_filter: Callable = Callable()
 var graveyard_exile_desc: String = ""
+var graveyard_exile_count := 1
+var graveyard_exile_any_player := false
+
+## Additional non-{T} taps can include summoning-sick creatures.
+var tap_permanent_filter: Callable = Callable()
+var tap_permanent_count := 0
+
+## Optional activator restriction: Callable(game, source, pid) -> String.
+## Merseine belongs to the Aura but only its host's controller may pay.
+var activator_condition: Callable = Callable()
+
+## Bookkeeping at cost payment, before the ability can be countered.
+## Callable(game, source, paid_costs). May not ask additional questions.
+var on_cost_paid: Callable = Callable()
 
 ## Fluent: add an "Exile a <desc> from your graveyard" cost.
 func with_exile_from_graveyard(desc: String, filter: Callable) -> ActivatedAbility:

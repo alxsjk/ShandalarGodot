@@ -211,7 +211,8 @@ func _on_life_clicked(pid: int) -> void:
 
 
 func _click_hand_card(inst: CardInstance) -> void:
-	if inst.owner_id != 0 or game.priority_player != 0: return
+	if projection.locked or game.priority_player != 0: return
+	if not ((inst.zone == Mtg.Zone.HAND and inst.owner_id == 0) or game.can_play_from_exile(0, inst)): return
 	if inst.is_land():
 		_report(game.play_land(0, inst))
 		return
@@ -415,6 +416,24 @@ func _click_permanent(inst: CardInstance) -> void:
 
 func _tap_for_payment(inst: CardInstance) -> void:
 	_open_ability_menu(inst, true)
+
+
+func _on_graveyard_card(inst: CardInstance) -> void:
+	if projection.locked: return
+	if mode == Mode.TARGETING:
+		super._on_graveyard_card(inst)
+		return
+	if inst.face_down:
+		if _card_preview != null: _card_preview.show_back()
+		return
+	if _card_preview != null: _card_preview.show_card(inst)
+	if game.priority_player != 0: return
+	if game.can_play_from_exile(0, inst):
+		_close_graveyard()
+		_click_hand_card(inst)
+	elif not projection.faces.get(projection.handle(inst.id), {}).get("actions", []).is_empty():
+		_close_graveyard()
+		_open_ability_menu(inst)
 
 
 func _open_ability_menu(inst: CardInstance, mana_only := false) -> void:

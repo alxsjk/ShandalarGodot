@@ -1,0 +1,12 @@
+{
+  "pack_format": 1,
+  "id": "pack-1",
+  "number": 1,
+  "name": "DotP Complete",
+  "file_name": "Pack-1-DotP-complete.zip",
+  "version": "1.0.0",
+  "minimum_game_version": "0.20.0",
+  "set_order": ["2ed", "arn", "atq", "leg", "drk", "4ed", "past", "phpr"],
+  "description": "Adds the 373 named set entries missing from the default pool: 369 cross-set reprints and four new rules identities, completing all eight Duels of the Planeswalkers card-group checklists.",
+  "rules_note": "Chaos Orb, Falling Star, Shahrazad, and Word of Command use clearly marked digital adaptations because their tabletop procedures cannot be reproduced faithfully in this duel interface. Reprints share one name-based rules identity and the same copy accounting."
+}

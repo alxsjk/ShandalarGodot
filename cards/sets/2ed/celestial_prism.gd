@@ -10,5 +10,5 @@ extends CardScript
 func build() -> CardData:
 	var prism := CardData.new("Celestial Prism", "{3}", Mtg.CardType.ARTIFACT)
 	for color in Mtg.WUBRG:
-		prism.mana(ManaAbility.new(color).with_mana_cost("{2}"))
+		prism.mana(ManaAbility.new(color).with_mana_cost("{2}").with_plannable_conversion())
 	return prism.oracle("{2}, {T}: Add one mana of any color.")

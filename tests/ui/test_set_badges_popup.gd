@@ -40,6 +40,17 @@ func test_a_set_we_hold_whole_says_so_rather_than_counting() -> void:
 	assert_string_contains(SetBadges.describe("past"), "all 12 of its cards")
 
 
+func test_promo_popup_explains_the_combined_harperprism_and_dragon_con_group() -> void:
+	var text := SetBadges.describe("phpr")
+	assert_string_contains(text, "five HarperPrism book promos")
+	for name in ["Arena", "Giant Badger", "Mana Crypt", "Sewers of Estark",
+			"Windseeker Centaur"]:
+		assert_string_contains(text, name)
+	assert_string_contains(text, "Nalathni Dragon under Dragon Con (pdrc)")
+	assert_string_contains(text, "not HarperPrism (phpr)")
+	assert_string_contains(text, "six-card count refers to this combined group")
+
+
 func test_a_click_on_a_badge_asks_the_shell_for_that_set() -> void:
 	var row := SetBadges.new()
 	add_child_autofree(row)

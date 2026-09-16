@@ -60,11 +60,11 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 			var row := {"id": m._handle(pid, card), "flags": {}, "abilities": [], "castable": false}
 			for key in FLAGS:
 				row.flags[key] = (0 if key in ["cur_extra_blocks", "skip_untaps"] else false) if card.face_down and card.zone != Mtg.Zone.BATTLEFIELD else card.get(key)
-			if card.zone == Mtg.Zone.HAND and card.owner_id == pid:
-				row.castable = g.cast_timing_refusal(pid, card).is_empty() and g.could_afford(pid, card.data)
+			if (card.zone == Mtg.Zone.HAND and card.owner_id == pid) or g.can_play_from_exile(pid, card):
+				row.castable = g.cast_timing_refusal(pid, card).is_empty() and SgPayment.affordable(g, pid, card, true)
 				if card.data.is_type(Mtg.CardType.INSTANT):
-					result.floating = result.floating or g.can_afford(pid, card.data)
-					result.respond = result.respond or (g.could_afford(pid, card.data) and has_aim(g, card))
+					result.floating = result.floating or SgPayment.affordable(g, pid, card)
+					result.respond = result.respond or (SgPayment.affordable(g, pid, card, true) and has_aim(g, card))
 			for option in ([] if card.face_down else SgDuelActions.options(card, pid)):
 				var cost: ManaCost = card.data.cost if option.kind == "spell" else ManaCost.new()
 				if option.kind == "ability": cost = card.cur_activated_abilities[option.index].cost
@@ -82,10 +82,11 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 			result.cards.append(row)
 			if card.zone == Mtg.Zone.BATTLEFIELD and card.controller_id == pid:
 				if CombatState.attack_illegality(g, card, 1 - pid).is_empty(): result.attackable.append(row.id)
+			if card.zone == Mtg.Zone.BATTLEFIELD and card.controller_id == 1 - g.active_player and g.block_chooser() == pid:
 				var legal: Array = []
 				for attacker_id in g.combat.attackers:
 					var attacker := g.find_instance(attacker_id)
-					if attacker != null and CombatState.block_illegality(g, card, attacker, pid).is_empty():
+					if attacker != null and CombatState.block_illegality(g, card, attacker, card.controller_id).is_empty():
 						legal.append(m._handle(pid, attacker))
 				if not legal.is_empty(): result.blockable.append([row.id, legal])
 	for item in g.stack:

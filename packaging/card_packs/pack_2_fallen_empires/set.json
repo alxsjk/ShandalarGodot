@@ -1,0 +1,9 @@
+{
+  "all_printings": 187,
+  "code": "fem",
+  "name": "Fallen Empires",
+  "released_at": "1994-11-01",
+  "source_url": "https://api.scryfall.com/cards/search?include_extras=true&include_variations=true&order=set&q=e%3Afem&unique=prints",
+  "standard_printings": 187,
+  "unique_names": 102
+}

@@ -129,7 +129,7 @@ static func classify(data: CardData) -> Array[String]:
 	if intent.mana_for_life: out.append("life_mana")
 	if intent.adds_mana: out.append("acceleration")
 	if not intent.makes_token.is_empty(): out.append("tokens")
-	if data.aura_reanimates: out.append("reanimation")
+	if data.aura_reanimates or data.aura_graveyard_entry: out.append("reanimation")
 	# This closed pool also has card-local effects. Oracle clauses classify
 	# their strategic role only; legality and tactical value remain engine-owned.
 	var line := data.oracle_text.to_lower()

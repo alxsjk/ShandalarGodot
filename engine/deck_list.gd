@@ -45,6 +45,12 @@ var errors: Array[String] = []
 ## with their counts, so an importer folds the list exactly as it folds any
 ## other, and this says which of them the player will have to replace.
 var proxies: Array[String] = []
+## Optional gameplay packs declared by this project's `.deck` format.
+## These are comments to older builds and other deck readers, so adding the
+## metadata never changes the name-based card lines.
+var required_packs: Array[String] = []
+
+const REQUIRED_PACK_PREFIX := "# requires-pack:"
 
 
 ## Load any supported format; .dck files route to the MicroProse parser.
@@ -160,6 +166,11 @@ func parse(text: String, fallback_name := "deck", strict := true, blank_sideboar
 		var line := raw_line.strip_edges()
 		if line.is_empty():
 			if infer_sideboard and saw_main_card: in_sideboard = true
+			continue
+		if line.to_lower().begins_with(REQUIRED_PACK_PREFIX):
+			var pack_id := line.substr(REQUIRED_PACK_PREFIX.length()).strip_edges()
+			if pack_id != "" and not required_packs.has(pack_id):
+				required_packs.append(pack_id)
 			continue
 		if line.begins_with("#"):
 			continue

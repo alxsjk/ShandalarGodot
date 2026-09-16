@@ -1,0 +1,13 @@
+{
+  "pack_format": 1,
+  "id": "pack-2",
+  "number": 2,
+  "name": "Fallen Empires",
+  "badge": "2-FEM",
+  "file_name": "Pack-2-Fallen-Empires.zip",
+  "version": "1.0.0",
+  "minimum_game_version": "0.20.0",
+  "set_order": ["fem"],
+  "description": "Adds Fallen Empires as a separately enabled expansion: 102 unique cards from 187 published printings. Its Deck Builder medallion lives under Extras, leaving the original eight-set strip unchanged.",
+  "rules_note": "This expansion is optional and does not require Pack 1. Decks remain name-based. Original decks and the default card pool are unchanged while this pack is disabled."
+}

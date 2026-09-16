@@ -66,7 +66,7 @@ class RiddleEffect extends EffectBase:
 		for player in game.players:
 			for zone in [player.battlefield, player.graveyard, player.exile, player.ante]:
 				for inst in zone:
-					if not inst.face_down or inst.controller_id == pid:
+					if not inst.face_down:
 						known.append(inst)
 		for inst in known:
 			if inst.is_token or inst.owner_id != pid: continue

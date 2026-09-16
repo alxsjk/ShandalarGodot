@@ -297,7 +297,7 @@ func checkpoint() -> Dictionary:
 
 
 func restore(data: Dictionary) -> String:
-	if not SgTournamentProtocol.checkpoint(data): return "Invalid or incompatible tournament checkpoint. Use the same game build."
+	if not SgTournamentProtocol.checkpoint(data): return "Invalid or incompatible tournament checkpoint. Use the same game build and enabled card packs."
 	id = data.id
 	config = data.config.duplicate(true)
 	entrants = data.entrants.duplicate(true)

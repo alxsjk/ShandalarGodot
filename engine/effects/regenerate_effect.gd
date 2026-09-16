@@ -37,6 +37,9 @@ func resolve(game: MtgGame, source: CardInstance, _controller: int, target: Targ
 		affected = game.find_instance(target.instance_id)
 	if affected == null or affected.zone != Mtg.Zone.BATTLEFIELD:
 		return   # died before the shield resolved — too late (no retroactive save)
+	if target_spec == null and source.layer_timestamp != int(game.cost_paid("_source_timestamp", source.layer_timestamp)):
+		return
+	game._rec(affected, &"regeneration_shields")
 	affected.regeneration_shields += 1
 	game.log_line("%s gains a regeneration shield (%d)" % [
 		affected.data.card_name, affected.regeneration_shields])

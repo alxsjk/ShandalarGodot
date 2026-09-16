@@ -379,7 +379,8 @@ static var _rarity: Dictionary = {}
 static func rarity_of(card_name: String) -> String:
 	if _rarity.is_empty():
 		_load_rarity()
-	return String(_rarity.get(card_name, ""))
+	if _rarity.has(card_name): return String(_rarity[card_name])
+	return CardRegistry.pack_rarity_of(card_name)
 
 
 ## First printing wins, which matches how the rest of this project treats

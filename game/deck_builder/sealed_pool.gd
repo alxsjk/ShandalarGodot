@@ -38,7 +38,9 @@ extends RefCounted
 ##
 ## THE SHEETS use printed rarity from DeckStats.rarity_of, NOT the decorative
 ## L marker: legendary is a supertype, and uncommon legends belong in the
-## uncommon sheet. Basic lands have their own sheet. The game's canonical
+## uncommon sheet. The five ordinary basic lands have their own sheet;
+## snow-covered basics use printed rarity (common), preserving recipe v1's
+## fixed five-name land sheet. The game's canonical
 ## rarity per name is used across eligible sets, not factory/set-specific
 ## collation. A card the data cannot place is on no sheet.
 ##
@@ -118,7 +120,7 @@ static func sheets(library: Array) -> Dictionary:
 	for data in library:
 		if data == null:
 			continue
-		var tier := "land" if (data.supertypes & Mtg.Supertype.BASIC) != 0 else DeckStats.rarity_of(data.card_name)
+		var tier := "land" if LAND_NAMES.has(data.card_name) else DeckStats.rarity_of(data.card_name)
 		if out.has(tier):
 			if not out[tier].has(data.card_name): out[tier].append(data.card_name)
 	for slot in out:
@@ -228,7 +230,7 @@ static func slot_of(card_name: String) -> String:
 	var data := CardRegistry.get_card(card_name)
 	if data == null:
 		return ""
-	if (data.supertypes & Mtg.Supertype.BASIC) != 0:
+	if LAND_NAMES.has(card_name):
 		return "land"
 	var tier := DeckStats.rarity_of(card_name)
 	return tier if SLOT_ORDER.has(tier) else ""

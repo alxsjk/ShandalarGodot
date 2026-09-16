@@ -258,12 +258,17 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   dispatch. Duplicate/contradictory card locations, absent combat-card references
   and unknown keyword values are rejected before replacing the client view.
   Seat authorization comes from the connection, not a player
-  number submitted by the client. The data protocol is version 11 (all players
-  need this updated build, including computer seats and tournament welcome messages);
+  number submitted by the client. The data protocol is version 12 (all players
+  need this updated build, including viewer-specific exile-play permissions);
   the invitation keeps the `sglan1:` envelope prefix and carries the same
-  protocol-11 compatibility check inside it. A handshake fingerprint additionally
+  protocol-12 compatibility check inside it. A handshake fingerprint additionally
   checks the release version, maintained rules revision and printed card catalogue.
   It detects incompatible builds, not modified-client cheating or player identity.
+  Enable the same gameplay packs before connecting. Hosting, connecting and
+  resumable sessions lock pack changes/rescans until Stop/Forget; ordinary Deck
+  Builder source filters do not change the active catalogue. A new connection
+  fingerprints the current pool, including enabled packs. See the
+  [integration audit](packs-sgmanalink-integration.md).
   Invalid invitations, expired seats, incompatible builds and full hosts report
   distinct failures and do not trigger endless automatic retries.
 - Each client receives a detached allowlisted view. Opponent hands and library

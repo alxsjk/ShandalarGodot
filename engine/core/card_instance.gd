@@ -79,6 +79,12 @@ var revealed_in_hand: bool = false
 ## Tapped/untapped.
 var tapped: bool = false
 
+## Monotonic continuity markers for "for as long as" effects. An untap or
+## control change breaks a duration even if the old state is restored before
+## resolution. Updated and journaled by MtgGame, never reset on a new turn.
+var untap_sequence: int = 0
+var control_sequence: int = 0
+
 ## Damage marked this turn (cleared at cleanup, CR 514.2).
 var damage: int = 0
 
@@ -123,6 +129,14 @@ var layer_timestamp: int = 0
 ## Distinguish successive graveyard objects of the same physical card
 ## (CR 400.7). A delayed exile must not follow a Regrowth and rediscard.
 var graveyard_entry: int = 0
+## Each real entry to exile creates a new object, including re-exiling a
+## card after it returned to a hand or graveyard.
+var exile_entry: int = 0
+## Permission is attached to this exile incarnation, not to ownership.
+var exile_visible_to := -1
+var exile_playable_by: int = -1
+## -1 = no time limit; otherwise expire as that player's next upkeep begins.
+var exile_play_until_upkeep_of: int = -1
 
 ## Counters on this permanent, kind -> count ("+1/+1", "-1/-1", ...).
 ## The continuous pipeline applies any counter whose NAME parses as a P/T
@@ -146,11 +160,18 @@ var damaged_by_this_turn: Array[int] = []
 ## rather than replacing it because the two are asked separately and the
 ## list is the cheap one. Cleared and snapshotted with it.
 var damage_from_this_turn: Dictionary = {}
+## Source id AND battlefield incarnation; a returned Vampire is a new
+## object and must not claim damage dealt by its previous incarnation.
+var damage_origins_this_turn: Dictionary = {}
 
 ## Regeneration shields built up this turn (CR 701.15): each one replaces
 ## the next destruction with tap + clear damage + leave combat. Created by
 ## RegenerateEffect, consumed by MtgGame.destroy, expired at cleanup.
 var regeneration_shields: int = 0
+var regenerations_this_turn := 0
+## Shield index -> {beneficiary, controller}; only the consumed shield's
+## delayed draw triggers. Other shields remain independently selectable.
+var regeneration_draws: Dictionary = {}
 
 ## "This creature can't be regenerated this turn" (Hurr Jackal,
 ## Whippoorwill). MtgGame.destroy ignores every shield while this is set;
@@ -166,6 +187,19 @@ var regeneration_banned_this_turn: bool = false
 ## declaration it has to refuse leaves nothing spent. Set by statics each
 ## recalculation, exactly like cur_cant_attack.
 var cur_attack_costs: Array[Dictionary] = []
+## Declaration-wide restrictions/costs. These are live derived values,
+## not card-name checks: copies and removed abilities use the same rules.
+var cur_attacks_alone := false
+var cur_min_attack_group := 1
+var cur_min_block_group := 1
+var cur_attack_land_sacrifices := 0
+var cur_block_power_tax_threshold := 0
+var cur_block_power_tax := 0
+var cur_blocked_by_tax := 0
+
+## Derived land-mana replacement choices, collected by continuous effects.
+var cur_land_mana_replacements: Array[int] = []
+var cur_wind_untap_replacement := false
 
 ## "For each 1 damage that would be dealt to this creature, if it has a
 ## <kind> counter on it, remove one and prevent that 1 damage" (Rock
@@ -204,6 +238,9 @@ var damage_unpreventable_this_turn: bool = false
 ## Damage-prevention pool for THIS TURN (Healing Salve, Samite Healer):
 ## incoming damage consumes it point for point. Cleared at cleanup.
 var prevention: int = 0
+## Individually metered shields whose actual prevention has a later
+## consequence (Sacred Boon). Receipts survive cleanup until collected.
+var tracked_prevention: Array[Dictionary] = []
 
 ## THE CARD THE SHIELD CAME FROM — the definition of whatever last filled
 ## [member prevention]: the Healing Salve, the Samite Healer, the creature
@@ -266,6 +303,9 @@ var damage_redirect_sources: Array[int] = []
 ## Cleared at cleanup and when the card leaves the battlefield.
 var damage_point_redirect_to: int = -1
 var damage_point_redirects: int = 0
+## Individually metered redirects to another battlefield incarnation.
+## Each row is {destination, stamp, remaining}; expires at cleanup.
+var creature_damage_redirects: Array[Dictionary] = []
 
 ## "This creature attacks this turn if able" (Nettling Imp, Siren's Call).
 ## declare_attackers refuses a declaration that leaves it at home; cleared
@@ -280,6 +320,10 @@ var face_down: bool = false
 ## cleared at cleanup). Lurker's "unless it attacked or blocked this
 ## turn" reads it alongside attacked_this_turn.
 var blocked_this_turn: bool = false
+
+## Increments whenever this object blocks or becomes blocked. Unlike the
+## per-turn flag it survives cleanup (Wiitigo's "since your last upkeep").
+var block_history_sequence: int = 0
 
 ## Whether this creature attacked this turn (set in declare_attackers,
 ## cleared at its controller's untap). Erg Raiders-style punishments and
@@ -372,6 +416,9 @@ var ability_uses: Dictionary = {}
 ## One-shot "doesn't untap during its controller's NEXT untap step"
 ## (Barl's Cage) — consumed and cleared by that untap step.
 var skip_next_untap: bool = false
+## "Your next untap step" fixes the player when the effect resolves;
+## changing this creature's controller does not change that player.
+var skip_untap_for: Array[int] = []
 
 ## "Doesn't untap during its controller's next N untap steps"
 ## (Telekinesis: two). Decremented by each of those untap steps.
@@ -401,10 +448,21 @@ var cur_toughness: int = 0
 ## as a creature dying, and [member last_colors] is why a Deathlaced bear
 ## does not.
 var last_power: int = 0
+var last_counters: Dictionary = {}
+var last_blocked_this_turn := false
+var last_regenerations_this_turn := 0
 var last_toughness: int = 0
 var last_types: int = 0
 var last_colors: int = 0
 var last_subtypes: Array[String] = []
+## Attachment at departure, for simultaneous leaves-the-battlefield triggers.
+var last_attached_to: int = -1
+## Effects that may deal damage after this incarnation leaves opt in to
+## retaining an immutable source snapshot. Old records survive a blink;
+## ordinary permanents do not allocate them. Never register these copies
+## as live game objects or mutate them after construction.
+var capture_departure_source := false
+var departed_sources: Dictionary = {}
 
 var cur_keywords: Array[int] = []
 ## Live COLOURS as an Mtg.ManaColor bitmask (CR 105.2 / 613 layer 5).
@@ -416,6 +474,9 @@ var cur_colors: int = 0
 ## add to these until end of turn. Rules code asks the INSTANCE
 ## (is_creature()/has_subtype()), never data, for battlefield objects.
 var cur_types: int = 0
+## Live supertypes: snow can be granted/removed without changing land types
+## or BASIC status. Snow-Covered basics remain unlimited in decks.
+var cur_supertypes: int = 0
 var cur_subtypes: Array[String] = []
 ## Live ACTIVATED ABILITIES. Reset to the printed list every
 ## recalculation; statics may APPEND granted abilities (Zombie Master
@@ -464,6 +525,9 @@ var cur_rampage: int = 0
 ## and cleared with everything else by the face-down branch below.
 var cur_cant_be_blocked_by: Array[String] = []
 var cur_cant_block_power_ge: int = 0
+var cur_cant_block_power_ge_toughness := false
+var cur_min_blockers: int = 1
+var cur_cant_block_filter: Callable = Callable()
 var cur_cant_be_blocked_by_power_ge: int = 0
 
 ## HOW MANY ADDITIONAL ATTACKERS THIS CREATURE MAY BLOCK, beyond the one
@@ -487,6 +551,7 @@ var extra_blocks_this_turn: int = 0
 ## "Doesn't untap during its controller's untap step" — set by statics
 ## (Meekstone) each recalculation; the untap step honors it.
 var cur_skips_untap: bool = false
+var cur_exile_on_leaving := false
 ## "Can't attack" — set by statics (Moat bans non-flyers) each
 ## recalculation; checked in CombatState.attack_illegality.
 var cur_cant_attack: bool = false
@@ -543,6 +608,9 @@ var cur_must_be_blocked_filter: Callable = Callable()
 ## SHROUD: "can't be the target of spells or abilities" (Spectral Cloak).
 ## Set by statics each recalculation; TargetSpec refuses every source.
 var cur_shroud: bool = false
+## Autumn Willow grants individual players permission to ignore this
+## permanent's shroud, without removing shroud or other targeting bans.
+var cur_shroud_ignored_by: Array[int] = []
 
 ## "Can't be enchanted by other Auras" (Anti-Magic Aura's second clause).
 ## Set by statics; TargetSpec refuses AURA sources other than the one
@@ -565,6 +633,10 @@ var cur_cant_be_spell_target: bool = false
 ## for damage flagged as combat damage, so the creature's own ping
 ## abilities still work.
 var cur_prevent_combat_damage_dealt: bool = false
+## Delif/Farrel replacements suppress assignment, not damage prevention.
+var cur_assigns_no_combat_damage: bool = false
+## Vodalian War Machine retains defender but may ignore it while attacking.
+var cur_can_attack_with_defender: bool = false
 ## "Prevent all COMBAT damage that would be dealt TO this creature"
 ## (Gaseous Form) — same combat-only gate.
 var cur_prevent_combat_damage_taken: bool = false
@@ -623,17 +695,21 @@ func _init(p_data: CardData, p_id: int, p_owner: int) -> void:
 ## duplicates. Nothing may hold on to one of these arrays expecting a
 ## snapshot — they are live views by contract (see the class doc).
 func reset_characteristics() -> void:
+	cur_land_mana_replacements.clear()
+	cur_wind_untap_replacement = false
 	cur_statics_suspended = false
 	cur_power = data.power
 	cur_toughness = data.toughness
 	cur_protection = data.protection_from | added_protection
 	cur_types = data.types | added_types   # permanent grants (Transmogrant)
+	cur_supertypes = data.supertypes
 	cur_colors = data.color_mask() if color_override < 0 else color_override
 	cur_keywords.assign(data.keywords)
 	cur_landwalk.assign(data.landwalk)
 	cur_rampage = data.rampage
 	cur_cant_be_blocked_by.assign(data.cant_be_blocked_by)
 	cur_cant_block_power_ge = data.cant_block_power_ge
+	cur_cant_block_power_ge_toughness = false
 	cur_cant_be_blocked_by_power_ge = data.cant_be_blocked_by_power_ge
 	cur_extra_blocks = data.extra_blocks
 	cur_subtypes.assign(data.subtypes)
@@ -643,23 +719,36 @@ func reset_characteristics() -> void:
 	cur_activated_abilities.assign(data.activated_abilities)
 	cur_triggered_abilities.assign(data.triggered_abilities)
 	cur_block_restrictions.clear()
+	cur_min_blockers = 1
+	cur_cant_block_filter = Callable()
 	cur_bands_with.clear()
 	cur_damage_immunity.clear()
 	cur_target_bans.clear()
 	cur_immune_to_wall_only = false
 	cur_skips_untap = false
+	cur_exile_on_leaving = false
 	cur_cant_attack = false
 	cur_attack_costs = []
+	cur_attacks_alone = false
+	cur_min_attack_group = 1
+	cur_min_block_group = 1
+	cur_attack_land_sacrifices = 0
+	cur_block_power_tax_threshold = 0
+	cur_block_power_tax = 0
+	cur_blocked_by_tax = 0
 	cur_attacks_as_if_hasty = false
 	cur_abilities_silenced = false
 	cur_prevent_damage_from_creatures = false
 	cur_cant_be_spell_target = false
 	cur_shroud = false
+	cur_shroud_ignored_by.clear()
 	cur_cant_be_aura_target = false
 	cur_prevent_all_damage_dealt = false
 	cur_must_be_blocked = false
 	cur_must_be_blocked_filter = Callable()
 	cur_prevent_combat_damage_dealt = false
+	cur_assigns_no_combat_damage = false
+	cur_can_attack_with_defender = false
 	cur_prevent_combat_damage_taken = false
 	cur_prevent_all_damage_taken = false
 	cur_indestructible = false
@@ -680,6 +769,7 @@ func reset_characteristics() -> void:
 		cur_power = 2
 		cur_toughness = 2
 		cur_types = Mtg.CardType.CREATURE
+		cur_supertypes = 0
 		cur_colors = 0
 		cur_subtypes.clear()
 		cur_keywords.clear()
@@ -848,12 +938,28 @@ func is_aura() -> bool:
 ## graveyard remembers nothing (CR 400.7) — but first snapshot the live
 ## power/toughness into [member last_power] / [member last_toughness].
 func clear_battlefield_state() -> void:
+	if capture_departure_source:
+		var departed := CardInstance.new(data, id, owner_id)
+		departed.controller_id = controller_id
+		departed.layer_timestamp = layer_timestamp
+		departed.zone = Mtg.Zone.GRAVEYARD # explicitly not a live permanent
+		for property in get_property_list():
+			var key := String(property.name)
+			if not key.begins_with("cur_"): continue
+			var value = get(key)
+			departed.set(key, value.duplicate() if value is Array or value is Dictionary else value)
+		departed_sources[layer_timestamp] = departed
+	capture_departure_source = false
 	# LAST KNOWN INFORMATION (CR 608.2h) must be captured BEFORE the wipe.
 	last_power = cur_power
+	last_counters = counters.duplicate()
+	last_blocked_this_turn = blocked_this_turn
+	last_regenerations_this_turn = regenerations_this_turn
 	last_toughness = cur_toughness
 	last_types = cur_types
 	last_colors = cur_colors
 	last_subtypes = cur_subtypes.duplicate()
+	last_attached_to = attached_to
 	tapped = false
 	damage = 0
 	summoning_sick = false
@@ -866,8 +972,12 @@ func clear_battlefield_state() -> void:
 	counters.clear()
 	damaged_by_this_turn.clear()
 	damage_from_this_turn.clear()
+	damage_origins_this_turn.clear()
+	tracked_prevention.clear()
 	damaged_players_this_turn.clear()
 	regeneration_shields = 0
+	regenerations_this_turn = 0
+	regeneration_draws.clear()
 	destruction_shields = 0
 	damage_eats_counters = ""
 	damage_all_redirect_to = -1
@@ -878,6 +988,7 @@ func clear_battlefield_state() -> void:
 	attacked_this_turn = false
 	could_attack_this_turn = false
 	blocked_this_turn = false
+	block_history_sequence = 0
 	blocked_ids_this_turn.clear()
 	must_block_this_turn = false
 	extra_blocks_this_turn = 0
@@ -887,6 +998,7 @@ func clear_battlefield_state() -> void:
 	damage_redirect_sources.clear()
 	damage_point_redirect_to = -1
 	damage_point_redirects = 0
+	creature_damage_redirects.clear()
 	removed_keywords.clear()
 	added_keywords.clear()
 	added_types = 0
@@ -901,6 +1013,7 @@ func clear_battlefield_state() -> void:
 	ability_uses.clear()
 	memory.clear()
 	skip_next_untap = false
+	skip_untap_for.clear()
 	skip_untaps = 0
 	controller_id = owner_id
 	reset_characteristics()

@@ -10,8 +10,19 @@ extends EffectBase
 ## nothing special needed here.
 
 
+var destination: int = Mtg.Zone.GRAVEYARD
+
+func to_library_top() -> CounterEffect:
+	destination = Mtg.Zone.LIBRARY
+	return self
+
 func _init(desc: String = "", filter: Callable = Callable()) -> void:
 	target_spec = TargetSpec.spell(desc, filter)
+
+## Some counters may legally target a spell without affecting it
+## (Hydroblast/Pyroblast). The AI must distinguish that from legality.
+func affects_spell(_inst: CardInstance) -> bool:
+	return true
 
 
 ## Removes the target's StackItem and moves the card to its owner's
@@ -22,7 +33,7 @@ func resolve(game: MtgGame, _source: CardInstance, _controller: int, target: Tar
 		_x_value: int = 0) -> void:
 	var inst := game.find_instance(target.instance_id)
 	if inst != null:
-		game.counter_spell(inst)
+		game.counter_spell(inst, destination)
 
 
 ## One-line log/UI text.

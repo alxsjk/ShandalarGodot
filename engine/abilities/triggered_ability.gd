@@ -46,6 +46,16 @@ extends RefCounted
 
 ## Which Mtg.EventType wakes this ability up.
 var event_type: int
+## A single delayed trigger may watch "leaves OR becomes untapped".
+## It is consumed on the first matching event, not once per event type.
+var extra_event_types: Array[int] = []
+
+func also_when(type: int) -> TriggeredAbility:
+	extra_event_types.append(type)
+	return self
+
+func listens(type: int) -> bool:
+	return type == event_type or extra_event_types.has(type)
 
 ## Optional extra condition: func(game: MtgGame, source: CardInstance,
 ## event: GameEvent) -> bool. Unset = always fires on a type match.
@@ -66,6 +76,25 @@ var is_mana_trigger: bool = false
 ## Reviewed deterministic public damage/death aftermath only. Never enable
 ## for draws, searches, randomness, optional costs or hidden-zone choices.
 var forecast_safe := false
+## Public policy descriptor: this self-death trigger schedules its source's
+## automatic return. Not executable permission and not a hidden-zone read.
+var returns_source_after_death := false
+## Optional public mana-planning description for a delayed mana trigger.
+## Resolution still belongs to on_resolve. The planner may count this
+## only for a matching land subtype producing the same color.
+var mana_bonus_subtype := ""
+var mana_bonus_color := 0
+var mana_bonus_amount := 0
+var mana_bonus_restriction := ""
+var mana_bonus_snow_extra := 0
+## Optional per-occurrence context captured WHEN the ability triggers,
+## before costs finish or players respond. Never stored on the permanent.
+## func(game, source, event) -> Dictionary; read via game.trigger_context().
+var capture_context: Callable = Callable()
+
+func capturing(callback: Callable) -> TriggeredAbility:
+	capture_context = callback
+	return self
 
 
 func public_aftermath() -> TriggeredAbility:
@@ -76,6 +105,16 @@ func public_aftermath() -> TriggeredAbility:
 ## [method targeting]; read by MtgGame as the trigger goes on the stack
 ## (CR 603.3d) and again as it resolves (CR 608.2b).
 var target_spec: TargetSpec = null
+## Same-spec distinct targets; default preserves the single-target contract.
+var target_min := 1
+var target_max := 1
+
+func targeting_up_to(spec: TargetSpec, maximum: int, order: Callable = Callable(), prompt := "") -> TriggeredAbility:
+	assert(maximum >= 1)
+	targeting(spec, order, prompt)
+	target_min = 0
+	target_max = maximum
+	return self
 
 ## The controller's PREFERENCE among the legal targets:
 ## func(game: MtgGame, source: CardInstance, a: TargetRef, b: TargetRef)
@@ -162,7 +201,7 @@ func _init(p_event_type: int, p_on_resolve: Callable, p_text: String = "",
 
 ## Does this ability trigger on [param event] from [param source]?
 func matches(game: MtgGame, source: CardInstance, event: GameEvent) -> bool:
-	if event.type != event_type:
+	if not listens(event.type):
 		return false
 	if condition.is_valid():
 		return condition.call(game, source, event)

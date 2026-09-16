@@ -92,6 +92,7 @@ func start_lan(address: String, requested_port := 17897, visible := true, nickna
 	_lan_pem = pem
 	_tls_options = TLSOptions.server(key, certificate)
 	port = _listener.get_local_port()
+	CardPacks.lock_catalogue(self)
 	access_code = crypto.generate_random_bytes(32).hex_encode()
 	if not SgProtocol.token(access_code):
 		stop()
@@ -122,10 +123,12 @@ func start_local(requested_port := 17897) -> Error:
 		return result
 	port = _listener.get_local_port()
 	access_code = secret.hex_encode()
+	CardPacks.lock_catalogue(self)
 	return OK
 
 
 func stop() -> void:
+	CardPacks.unlock_catalogue(self)
 	_listener.stop()
 	if tournament != null:
 		remove_child(tournament)
@@ -313,7 +316,7 @@ func _receive(id: int, message: Dictionary) -> void:
 			_reject(id, "Invalid invitation. Ask the host for a current invitation.")
 			return
 		if message.build != SgCompatibility.fingerprint():
-			_reject(id, "Incompatible builds or card catalogue. Both players must use the same game build.")
+			_reject(id, "Incompatible builds or card catalogue. Both players must use the same game build and enabled card packs.")
 			return
 		var resume := String(message.resume)
 		if not resume.is_empty():

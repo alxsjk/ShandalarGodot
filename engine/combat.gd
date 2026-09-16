@@ -42,6 +42,9 @@ extends RefCounted
 
 ## instance_id of each attacker → true (declared this combat).
 var attackers: Dictionary = {}
+## Who attacked or blocked THIS combat, retained after removal from combat.
+## Values are battlefield timestamps, so a blinked object is not a participant.
+var participant_stamps: Dictionary = {}
 
 ## Declared attack bands: Array of Arrays of attacker ids. Attackers not
 ## in any band fight as implicit solo bands.
@@ -96,6 +99,7 @@ var damage_order: Dictionary = {}
 ## attackers arrive pre-blocked and silently deal no damage.
 func clear() -> void:
 	attackers.clear()
+	participant_stamps.clear()
 	bands.clear()
 	blocks.clear()
 	extra_blocks.clear()
@@ -272,7 +276,7 @@ func blockers_of(attacker_id: int) -> Array[int]:
 
 ## Can [param inst] be declared as an attacker against [param defender_pid]?
 ## "" when legal, else a human-readable refusal.
-static func attack_illegality(game: MtgGame, inst: CardInstance, defender_pid: int) -> String:
+static func attack_illegality(game: MtgGame, inst: CardInstance, defender_pid: int, check_group := true) -> String:
 	if not inst.is_creature():
 		return "not a creature"
 	# CR 508.1a: an attacking creature is one the active player controls ON
@@ -294,7 +298,7 @@ static func attack_illegality(game: MtgGame, inst: CardInstance, defender_pid: i
 	if inst.summoning_sick and not inst.has_keyword(Mtg.Keyword.HASTE) \
 			and not inst.cur_attacks_as_if_hasty:
 		return "summoning sickness"
-	if inst.has_keyword(Mtg.Keyword.DEFENDER):
+	if inst.has_keyword(Mtg.Keyword.DEFENDER) and not inst.cur_can_attack_with_defender:
 		return "has defender"
 	if inst.cur_cant_attack:
 		return "can't attack"
@@ -303,6 +307,12 @@ static func attack_illegality(game: MtgGame, inst: CardInstance, defender_pid: i
 	var needs := inst.data.attack_needs_defender_land
 	if needs != "" and not _controls_land_of_type(game, defender_pid, needs):
 		return "can't attack unless the defending player controls a %s" % needs.capitalize()
+	if check_group and inst.cur_min_attack_group > 1:
+		if inst.cur_attacks_alone or (game.max_attackers > 0 and game.max_attackers < inst.cur_min_attack_group): return "not enough permitted attackers"
+		var possible := 0
+		for other in game.players[inst.controller_id].battlefield:
+			if not other.cur_attacks_alone and attack_illegality(game, other, defender_pid, false) == "": possible += 1
+		if possible < inst.cur_min_attack_group: return "not enough other creatures can attack"
 	return ""
 
 
@@ -381,7 +391,7 @@ static func bands_with_among(blockers: Array) -> bool:
 
 ## Can [param blocker] block [param attacker]? "" when legal, else reason.
 static func block_illegality(game: MtgGame, blocker: CardInstance,
-		attacker: CardInstance, defender_pid: int) -> String:
+		attacker: CardInstance, defender_pid: int, check_group := true) -> String:
 	if not blocker.is_creature():
 		return "not a creature"
 	# CR 509.1a: a blocking creature is one the defending player controls
@@ -406,6 +416,8 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 		return "%s is no longer on the battlefield" % attacker.data.card_name
 	if blocker.tapped:
 		return "tapped creatures can't block"
+	if blocker.cur_cant_block_filter.is_valid() and blocker.cur_cant_block_filter.call(attacker):
+		return "this creature cannot block that attacker"
 	if attacker.has_keyword(Mtg.Keyword.UNBLOCKABLE):
 		return "can't be blocked"
 	if attacker.has_keyword(Mtg.Keyword.FLYING) \
@@ -439,6 +451,8 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 			and attacker.cur_power >= blocker.cur_cant_block_power_ge:
 		return "can't block creatures with power %d or greater" % \
 			blocker.cur_cant_block_power_ge
+	if blocker.cur_cant_block_power_ge_toughness and attacker.cur_power >= blocker.cur_toughness:
+		return "can't block creatures whose power is at least this creature's toughness"
 	if attacker.cur_cant_be_blocked_by_power_ge > 0 \
 			and blocker.cur_power >= attacker.cur_cant_be_blocked_by_power_ge:
 		return "can't be blocked by creatures with power %d or greater" % \
@@ -457,6 +471,21 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 		var cb: Callable = restriction["filter"]
 		if not cb.call(blocker):
 			return "can't be blocked except by: %s" % String(restriction["desc"])
+	if blocker.cur_block_power_tax > 0 and attacker.cur_power >= blocker.cur_block_power_tax_threshold \
+			and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % blocker.cur_block_power_tax)):
+		return "can't afford the blocking cost"
+	if attacker.cur_blocked_by_tax > 0 and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % attacker.cur_blocked_by_tax)):
+		return "can't afford the cost to block this attacker"
+	if check_group and blocker.cur_min_block_group > 1:
+		if game.max_blockers > 0 and game.max_blockers < blocker.cur_min_block_group: return "not enough permitted blockers"
+		var possible := 0
+		for other in game.players[defender_pid].battlefield:
+			for id in game.combat.attackers:
+				var target := game.find_instance(id)
+				if target != null and block_illegality(game, other, target, defender_pid, false) == "":
+					possible += 1
+					break
+		if possible < blocker.cur_min_block_group: return "not enough other creatures can block"
 	return ""
 
 
@@ -468,7 +497,11 @@ static func _controls_land_of_type(game: MtgGame, pid: int, land_type: String) -
 		if not inst.is_land():
 			continue
 		if land_type == "legendary":
-			if (inst.data.supertypes & Mtg.Supertype.LEGENDARY) != 0:
+			if (inst.cur_supertypes & Mtg.Supertype.LEGENDARY) != 0:
+				return true
+		elif land_type.begins_with("snow "):
+			if (inst.cur_supertypes & Mtg.Supertype.SNOW) != 0 \
+					and inst.has_subtype(land_type.trim_prefix("snow ")):
 				return true
 		elif inst.has_subtype(land_type):
 			return true

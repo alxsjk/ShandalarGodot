@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLATFORMS = ("linux64", "windows64", "macos", "web")
 TOOLS = ("mtg_assets.py", "import_original.py", "fetch_card_art.py",
          "skin_catalogue.py", "tool_banner.py")
+LOCAL_PACK = "Pack-1-DotP-complete.zip"
 WORDMARK = ("┌─┐┌─┐┌─┐┬┌─", "├─┘├─┤│  ├┴┐", "┴  ┴ ┴└─┘┴ ┴")
 START = {
     "linux64": "Linux x86-64: extract the whole folder and run ./run.sh.\n"
@@ -86,6 +87,8 @@ def payload(folder: Path, platform: str) -> dict[str, Path]:
     result = {}
     for path in files:
         name = path.relative_to(folder).as_posix()
+        if re.fullmatch(r"Pack-[0-9]+-.+\.zip", path.name):
+            raise ValueError(f"Local card-pack artifact must not be released: {name}")
         if path.is_symlink() or any(part.startswith(".") for part in Path(name).parts):
             raise ValueError(f"Unexpected link or hidden export file: {name}")
         if path.name == "override.cfg" or path.suffix in (".log", ".pdb"):

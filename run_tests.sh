@@ -86,7 +86,7 @@ Environment:
                             the player's own profile (default
                             $TMPDIR/shandalar-test-data)
 
-On macOS, user:// is the separate "Shandalar Tests" profile in Library/
+On macOS, user:// is the separate "Shandalar Integration Tests" profile in Library/
 Application Support/Godot/app_userdata; SHANDALAR_TEST_DATA_HOME controls
 the tool log directory, since Godot ignores XDG_DATA_HOME on macOS.
 
@@ -140,9 +140,39 @@ SUITE_TIMEOUT="${SUITE_TIMEOUT:-1800}"
 # `res://assets/original` in a dev checkout, which is why).
 shandalar_test_profile
 
+# PACK 1 IS A REAL EXTERNAL ZIP, even in tests. Build it with its own
+# dedicated standard-library tool and point the process at that exact file;
+# this tests discovery/validation without depending on a developer's sibling
+# shandalar-packs folder. The Python unit test pins deterministic packaging.
+python3 tools/test_pack_1_dotp_complete.py >/dev/null
+PACK_ONE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-1-DotP-complete.zip"
+python3 tools/pack_1_dotp_complete.py build "$PACK_ONE_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_1="$PACK_ONE_PATH"
+python3 tools/test_pack_2_fallen_empires.py >/dev/null
+PACK_TWO_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-2-Fallen-Empires.zip"
+python3 tools/pack_2_fallen_empires.py build "$PACK_TWO_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_2="$PACK_TWO_PATH"
+python3 tools/test_pack_3_ice_age.py >/dev/null
+PACK_THREE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-3-Ice_Age.zip"
+python3 tools/pack_3_ice_age.py build "$PACK_THREE_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_3="$PACK_THREE_PATH"
+python3 tools/test_pack_4_homelands.py >/dev/null
+PACK_FOUR_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-4-Homelands.zip"
+python3 tools/pack_4_homelands.py build "$PACK_FOUR_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_4="$PACK_FOUR_PATH"
+python3 tools/test_pack_5_alliances.py >/dev/null
+PACK_FIVE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-5-Alliances.zip"
+python3 tools/pack_5_alliances.py build "$PACK_FIVE_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_5="$PACK_FIVE_PATH"
+
 # Import step (quick no-op when the .godot cache is warm; a cold import
 # of the card art is minutes, not hours, so 600 s is generous).
 "$SHANDALAR_TIMEOUT" -k 5 600 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
+
+# A killed test cannot run after_each; do not inherit its enabled packs.
+# The helper refuses to touch a non-test profile, and changes no player data.
+"$SHANDALAR_TIMEOUT" -k 5 60 "$GODOT" --headless --path . \
+	-s tools/reset_test_packs.gd >"$SHANDALAR_TEST_DATA_HOME/reset-packs.log" 2>&1 </dev/null
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT

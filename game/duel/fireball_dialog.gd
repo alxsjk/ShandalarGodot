@@ -118,13 +118,13 @@ static func plan(budget: int, mana: int, targets: int, per_target: int,
 ## `targets`) so the caller can read the answer back without holding a
 ## reference to every control; a plain {X} spell has no `targets` box.
 static func window(label: String, budget: int, per_target: int,
-		legal_targets: int, x_count := 1) -> OriginalDialog:
+		legal_targets: int, x_count := 1, resource_prompt := ASK_MANA) -> OriginalDialog:
 	var full := per_target > 0
 	var dialog := OriginalDialog.create(label,
 		Vector2(392, 320 if full else 208), "panel_dark_stone")
 	var box := dialog.body()
 
-	var ask := OriginalDialog.label(ASK_MANA, 15)
+	var ask := OriginalDialog.label(resource_prompt, 15)
 	ask.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(ask)
 	var mana_row := HBoxContainer.new()

@@ -48,6 +48,8 @@ var targets: Array[TargetRef] = []
 ## resolvable; single-target effects get one-element groups. Empty for
 ## triggers (which carry no chosen targets).
 var target_groups: Array = []
+## Targeted triggers remember the chosen zone incarnation (CR 400.7).
+var trigger_target_incarnations: Dictionary = {}
 
 ## TRIGGER kind: the triggered ability and the event that fired it. The
 ## event is carried, not re-derived, so "that land's controller" (Ankh of

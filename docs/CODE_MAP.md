@@ -7,6 +7,19 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
+## Packs + SGManalink integration (2026-09-16)
+
+- `docs/packs-sgmanalink-integration.md`: merge basis, reproduced boundary
+  defects, compatibility decisions and combined verification evidence.
+- `tests/unit/test_sgmanalink_packs.gd`: catalogue fingerprints, pitch costs,
+  graveyard activation, exile privacy/play permission and Melee seat projection.
+- `tests/ui/test_sgmanalink_pack_sessions.gd`: independent host/client catalogue
+  locks, rescan protection and connect-time compatibility stamps.
+- `tests/ui/test_sgmanalink_pack_ui.gd`: actual shared-screen exile casting,
+  graveyard/hand-mana menus and opposing-blocker selection.
+- `tests/ui/test_pack_draft_integration.gd`: expansion pool selection, frozen
+  recipes, native saves, imports, copies, proxy preservation and Clear.
+
 ## Plain-text deck imports (2026-09-16)
 
 - `tests/ui/test_text_deck_import.gd`: 60+15 NecroDeck regression, file/paste
@@ -229,6 +242,159 @@ rule-authorized looks/reveals. Choice preflight records only information precedi
 each question in `PlayerChoice.information`; engine logs are never sent to clients.
 Revelation's continuous `MtgPlayer.hand_revealed` flag is separate from temporary
 per-card reveals and is respected by network views and fair observations.
+
+## Numbered gameplay packs
+
+- `game/card_packs.gd`: independent numbered-pack discovery, version/compatibility and
+  SHA-256 ZIP validation, safe art mounting, persistent enable/disable,
+  deck-requirement tracking, and registry configuration.
+- `game/card_packs_screen.gd`: Options → Card Packs management, including
+  Open Folder, Rescan, versions, enabled state and readable rejection reasons.
+- `game/card_pack_badges.gd`: compact `1-tDotP`, `2-FEM`, `3-ICE`, `4-HML`
+  and `5-ALL` status buttons below the title-screen original set strip;
+  five per row, hidden when absent, refreshed by Rescan.
+- `tests/ui/test_pack_menu_absence.gd`: pack-row geometry/wrapping, no-pack
+  catalogue and controls, missing-deck consent, and live registry refresh
+  of inventory, deck/sideboard faces, preview and legality.
+- `docs/pack-menu-no-packs-audit.md`: reproduced shell defects, no-pack
+  behavior, native layout checks and isolated desktop export evidence.
+- `cards/optional/pack_1/*.gd`: four trusted dormant digital adaptations;
+  pack archives never provide executable code.
+- `engine/effects/random_destroy_effect.gd`, `coin_flip_damage_effect.gd`,
+  `coin_flip_life_loss_effect.gd`, and `chosen_discard_effect.gd`: reusable,
+  seeded digital mechanics for Pack 1 and later packs; all four are read
+  structurally by `EffectIntent` and priced by `AiPlayer`.
+- `docs/pack-1-mechanics.md`: the four-identity mechanic audit, simplification
+  decisions, engine mappings, AI policy, and criteria for future fidelity.
+- `packaging/card_packs/pack_1_dotp_complete/`: Pack 1 manifest, player README,
+  and source records for its four new rules identities.
+- `tools/pack_1_dotp_complete.py`: separate Pack 1 census, Scryfall art fetch,
+  deterministic checksum-bearing ZIP build and strict verification. The
+  generated artifact is local-only and never included by release packaging; it has
+  373 set entries: 369 cross-set reprints and four new identities.
+- `tools/test_pack_1_dotp_complete.py`, `tests/unit/test_card_packs.gd`,
+  `tests/cards/test_pack_1_dotp_complete.gd`, and
+  `tests/ui/test_card_pack_badges.gd`: tool, loader, rules, and UI contracts.
+- `game/fallen_empires_pack.gd`: Pack 2's exact trusted 102-name/187-printing
+  catalog, script allowlist and ZIP checksum validation; no archive code runs.
+- `game/skin_pack.gd`: boot-time ordinary-art mounting skips all numbered
+  gameplay ZIPs, leaving their validation and enablement to `CardPacks`.
+- `cards/sets/fem/*.gd`: 102 dormant Fallen Empires card scripts; `_rules.gd`
+  shares the set's tribal, counter, upkeep, combat and activated-cost patterns.
+- `engine/ai/fallen_empires_tactics.gd`: public-board activation policies for
+  Pack 2's bespoke effects, plus High Tide payoff and divided Catapult sizing.
+  `AiPlayer` owns legality, mana payment and sacrifice/discard/tap pricing.
+  Described delayed mana bonuses in `TriggeredAbility` feed `ManaPlanner`.
+  Per-occurrence `capture_context` is held on the trigger's stack item and
+  exposed by `MtgGame.trigger_context`, keeping attachment/source identity
+  separate from what that permanent looks like after a response.
+- `engine/mana_conversion_planner.gd`: bounded, pure cost-first fallback for
+  `ManaAbility.planner_conversion`; simulates real pool payments and restrictions
+  for Initiates, Farrelite Priest and Implements. Ordinary plans retain the
+  fast path. Shared by the human auto-tapper and AI, with no speculative RNG.
+- `tests/cards/test_pack_2_integration.gd`: second-pass rules/AI regressions:
+  responseable delayed effects, source-incarnation and continuity checks,
+  trigger-controller ownership, banding, executable mana conversion, Hymn
+  targeting and Goblin Kites' expected-risk combat policy.
+- `tools/draw_our_art.gd`: also draws Fallen Empires' gold card crown and
+  the matching on/off stone Extras medallions in `game/art/`; shape shared,
+  no skin or downloaded pack artwork required for these UI symbols.
+- `engine/effects/create_token_effect.gd`, `random_hand_discard_effect.gd`,
+  `counter_marker_effect.gd`: shared token, seeded random discard, and permanent
+  named-counter effects, with structural AI intent readings.
+- `tools/pack_2_fallen_empires.py`: dedicated Scryfall data/art fetcher, atomic
+  deterministic ZIP builder, and strict verifier. Only its construction source
+  and metadata ship in this repository, never the generated ZIP or artwork.
+- `packaging/card_packs/pack_2_fallen_empires/`: manifest, player README, full
+  Scryfall printing snapshot (`cards.json`) and census/provenance (`set.json`).
+- `tests/cards/test_pack_2_fallen_empires.gd`, `tests/cards/test_pack_2_ai.gd`,
+  `tools/test_pack_2_fallen_empires.py`: independent-pack, rules, AI, live Extras
+  filter and offline archive regression tests.
+- `docs/pack-2-fallen-empires.md`: construction instructions, counts, native
+  mechanics/AI audit, and distribution policy.
+- `docs/pack-2-mechanics-audit.md`: reviewed rule families, specific AI policies,
+  verification scope and remaining strategic limitations.
+- `game/ice_age_pack.gd`: trusted Pack 3 catalogue, script allowlist and strict
+  metadata/artwork validation; 373 names, 346 new identities and 27 reprints.
+- `cards/sets/ice/*.gd`: trusted dormant Ice Age scripts; `_*.gd` share the
+  snow, upkeep, damage, library, control, storage, Aura and combat patterns.
+- `engine/abilities/cumulative_upkeep.gd`: age counters and all-or-nothing
+  optional mana/life/sacrifice payments, including restricted upkeep mana.
+- `engine/core/black_symbol_cost.gd`, `control_layers.gd`,
+  `combat_declaration.gd`: Drought's additional costs, timestamp-ordered
+  control effects, and whole-army attack/block restrictions respectively.
+- `engine/ai/ice_age_tactics.gd`: public Ice Age decisions. The
+  `forecasts_tactics` null switch controls damage retargeting, Meteor Shower's
+  shield-aware lethal sizing, and Venomous Breath/Battle Cry combat timing.
+- `packaging/card_packs/pack_3_ice_age/`: construction manifest, full printing
+  metadata, reprint identities and player README. Generated art/ZIP stay local.
+- `tools/pack_3_ice_age.py`, `tools/test_pack_3_ice_age.py`: dedicated fetch,
+  art download, deterministic construction, verification and offline tests.
+- `tools/pack_3_duel_audit.gd`: nine themed 60-card decks, rotating opponents,
+  deterministic seeds/rounds, both rules modes and actual cast/activation counts.
+- `tools/pack_3_deck_lab.gd`: isolated, unrated Ice Age entry point to Deck Lab's
+  candidate/null/control sweeps; threaded single-process execution.
+- `tests/cards/test_pack_3_*.gd`, `tests/ui/test_pack_3_actions.gd`: catalogue,
+  mechanics, AI and player-action regressions. `test_pack_3_campaign.gd` adds
+  incarnation, undo, hidden-information substitution and tactical timing cases.
+- `docs/pack-3-mechanics-audit.md`, `docs/pack-3-gameplay-campaign.md`: initial
+  integration and the subsequent reproduce-first engine/AI campaign.
+
+- `game/homelands_pack.gd`: Pack 4's trusted 115-identity allowlist, strict
+  inventory/metadata/artwork checks, and version gate. No dependencies on other packs.
+- `cards/sets/hml/*.gd`: 115 dormant card definitions, with eight `_*.gd`
+  rules-family helpers and `_effect_shapes.gd` public AI annotations.
+- `engine/ai/homelands_tactics.gd`: effect-shape policies for locks, finite
+  counters, X recharging, tribal deployment, redirects, evasion and custom
+  spells; aggregate attack-mana budgets. Existing `forecasts_tactics` null gate.
+- `engine/effects/creature_redirect_effect.gd`: metered creature-to-creature
+  redirection, preserving source and packet identity in modern/classic timing.
+- `engine/core/creature_types.gd`: checked-in Scryfall creature-type catalogue
+  used for unrestricted type choices, including An-Zerrin Ruins.
+- `engine/abilities/triggered_ability.gd`, `engine/stack_item.gd`: optional
+  multiple targets on triggers, held human choices and per-zone incarnations.
+- `tools/pack_4_homelands.py`, `tools/test_pack_4_homelands.py`: dedicated
+  construction, resuming art fetches, atomic ZIP verification and offline tests.
+- `packaging/card_packs/pack_4_homelands/`: source manifest, 140-printing
+  snapshot, 115-name catalogue provenance and player README. Generated ZIP/art stay local.
+- `tools/pack_4_duel_audit.gd`, `tools/pack_4_deck_lab.gd`: nine-deck complete
+  duel audit with actual-use counts, and isolated unrated AI comparison entry.
+- `tools/pack_4_ui_soak.gd`: the existing real DuelScreen demo/human clicker
+  with four Homelands deck themes and an in-memory isolated pack selection.
+- `tests/cards/test_pack_4_*.gd`, `tests/ui/test_pack_4_integration.gd`:
+  catalogue, rules, AI, undo, choice and live UI regressions.
+- `docs/pack-4-homelands.md`: construction, mechanics, AI scope and acceptance record.
+
+- `game/alliances_pack.gd`: Pack 5's trusted 199-printing / 144-name catalogue,
+  exact inventory, compatible-version and checksum contract.
+- `cards/sets/all/*.gd`: 144 dormant definitions and shared rules-family modules;
+  `_effect_shapes.gd` supplies semantic public AI metadata.
+- `engine/additional_object_costs.gd`: disjoint-cost assignment, atomic held
+  choices and journaled payment receipts (sacrifice, tap, untap, discard, counters).
+- `engine/ai/alliances_tactics.gd`: pitch/payment choices, library budgets,
+  exact-X removal and public combat/resource tactics; existing `forecasts_tactics` gate.
+- `engine/core/card_data.gd`, `engine/abilities/mana_ability.gd`: alternative
+  payments, repeated/colored additional costs, entry payments and hand mana.
+- `tools/pack_5_alliances.py`, `tools/test_pack_5_alliances.py`: independent local
+  builder/fetcher/verifier and offline archive-contract tests.
+- `tools/pack_5_duel_audit.gd`, `tools/pack_5_deck_lab.gd`, `tools/pack_5_ui_soak.gd`:
+  seeded engine, candidate/null/control and real-screen campaign entry points.
+- `tests/cards/test_pack_5_*.gd`, `tests/ui/test_pack_5_integration.gd`: catalogue,
+  costs, resources, combat, triggers, hidden links, choices, AI and UI regressions.
+- `docs/pack-5-alliances.md`: construction, adaptations, audits and acceptance.
+- `docs/adding-card-packs.md`: future-pack end-to-end contributor checklist.
+
+The Deck Builder keeps its original eight-medallion strip. Extras sits just
+left of the compact Stats button and opens six centered source rows;
+the wider emerald Done button takes the command row's remaining space.
+1997, tDotP Pack 1, Fallen E. Pack 2, Ice Age Pack 3, Homelands Pack 4 and Alliances Pack 5 have independent On/Off stone
+radio medallions: square bevelled tiles with gold rings, dark 97/card-fan/crown/ice/globe/banner
+emblems and On/Off captions below. Close is the only footer action. `original_cards_on` and
+`completion_pack_on` filter source membership without unloading packs or
+editing a deck. With 1997 hidden, Pack 1 still admits its added reprint pairs
+and chooses their artwork. `original_1997()` restores shipped memberships.
+Registry membership/printing APIs include enabled extras without changing the
+base `SET_ORDER`. Saved decks remain name-based and record required pack ids.
 
 ## Release packaging (0.20.0)
 
@@ -538,6 +704,18 @@ shandalar/
 │   │   ├── draw_effect.gd   class DrawEffect — draw N or X; .target_player()
 │   │   ├── destroy_effect.gd class DestroyEffect — destroy target;
 │   │   │                      can_regenerate honored by MtgGame.destroy
+│   │   ├── random_destroy_effect.gd class RandomDestroyEffect — a seeded
+│   │   │                      random subset of one opponent's permanents;
+│   │   │                      optional nontoken, source-presence and
+│   │   │                      destroy-source riders; AI reads the same pool
+│   │   ├── coin_flip_damage_effect.gd class CoinFlipDamageEffect — one
+│   │   │                      logged 50% flip per chosen creature, damage
+│   │   │                      and optional tap of each survivor
+│   │   ├── coin_flip_life_loss_effect.gd class CoinFlipLifeLossEffect —
+│   │   │                      two-player coin wager for a rounded fraction
+│   │   ├── chosen_discard_effect.gd class ChosenDiscardEffect — controller
+│   │   │                      chooses eligible opposing hand cards through
+│   │   │                      DecisionAgent; optional nonland filter
 │   │   ├── pump_effect.gd   class PumpEffect — +P/+T (+keywords) until EOT;
 │   │   │                      .self_buff() for firebreathing-style pumps
 │   │   ├── destroy_all_effect.gd class DestroyAllEffect — Wrath of God
@@ -2855,7 +3033,7 @@ shandalar/
 │                              never reads a matchups.csv as a
 │                              translation table
 │
-├── tests/                   GUT suite — 6085 tests / ~156 339 asserts, ~380 s
+├── tests/                   GUT suite — 6789 tests / 264 578 asserts, ~399 s
 │   ├── game_test.gd         class GameTest — the test DSL (see
 │   │                          ARCHITECTURE.md "Testing"): put_battlefield,
 │   │                          give_hand, put_synthetic (a permanent
@@ -3015,7 +3193,7 @@ shandalar/
 │    values, Spitting Slug's once-per-combat block, Dark Sphere's source
 │    pool, Wormwood Treefolk's unconditional self-burn)
 │   (tests/test_simplified_ledger.gd — CONTRIBUTING.md RULE 6, PINNED both ways:
-│    every card file carrying the word SIMPLIFIED is named in
+│    every core or optional-pack card file carrying the word SIMPLIFIED is named in
 │    docs/simplified-cards.md, and every card a ledger row names carries
 │    the word — registry names matched as whole words, longest first, so
 │    `Mountain Stronghold` does not name `Mountain`; struck-through LIFTED
@@ -7214,9 +7392,9 @@ shandalar/
     │                          (2.2 superseded by the Combat window; 2.8
     │                          done; 2.3/2.4/2.10/2.15 re-tagged; 2.9's
     │                          premise reversed by manual p.114)
-    ├── set-packages-plan.md  THE SET-PACKAGES PLAN (2026-09-02; the
-    │                          gating/loader is not built, the PACK FORMAT
-    │                          is — see its "Implemented: pack format v1"
+    ├── set-packages-plan.md  THE SET-PACKAGES PLAN (2026-09-02; Pack 1's
+    │                          gating/loader is now built, while the broader
+    │                          classic-expansion plan remains — see its format
     │                          section, tools/build_card_packs.py and the
     │                          sibling ../shandalar-packs/) — how a
     │                          toggleable "classic

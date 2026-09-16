@@ -84,7 +84,7 @@ static func cards(value: Variant) -> bool:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "cost", "land",
 			"power", "toughness", "tapped", "sick", "damage", "attacking", "blocking", "playable",
 			"creature", "owner", "controller", "masked", "types", "colors", "keywords", "subtypes", "counters",
-			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "attached", "actions"]) \
+			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "attached", "actions", "exile_playable"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card_name(card.name) \
 			or not text(card.rules, 4096) or not text(card.cost, 128) \
 			or not text(card.blocking, 16) \
@@ -93,7 +93,7 @@ static func cards(value: Variant) -> bool:
 			or not SgProtocol.indices(card.keywords, 64) or not SgProtocol.names(card.subtypes, 64) \
 			or not SgProtocol.names(card.landwalk, 64) or not counters(card.counters) or not options(card.actions):
 			return false
-		for key in ["land", "tapped", "sick", "attacking", "playable", "creature", "masked"]:
+		for key in ["land", "tapped", "sick", "attacking", "playable", "creature", "masked", "exile_playable"]:
 			if not card[key] is bool:
 				return false
 		for key in ["power", "toughness", "damage", "rampage", "prevention", "regeneration"]:

@@ -32,6 +32,21 @@ var self_damage: int = 0
 ## Targeted destroy / exile / "removal-shaped" card-local effect.
 var removes: bool = false
 
+## A random subset of permanents controlled by the targeted player is
+## destroyed. Kept as the effect because the AI needs its exact candidate
+## pool and count to price the lottery honestly rather than pretending it
+## can choose the best permanent.
+var random_destroy: RandomDestroyEffect = null
+
+## Independent coin-flip damage for each selected creature. Kept whole so
+## the target planner can select every profitable target while valuing each
+## at the actual one-half success rate.
+var coin_damage: CoinFlipDamageEffect = null
+
+## The flipper or their opponent loses a fraction of their current life on
+## a coin flip. This is a position-dependent wager, not fixed damage.
+var coin_life_loss: CoinFlipLifeLossEffect = null
+
 ## The removal says "can't be regenerated" (Terror) — a shield is no answer.
 var removal_ignores_regeneration: bool = false
 
@@ -185,6 +200,11 @@ var animates: AnimateSelfEffect = null
 ## Twist, Nebuchadnezzar). See [method _aimed_discard] for why this is
 ## read the way it is.
 var discards: int = 0
+
+## A chosen-card discard from a shared effect. Kept whole because its
+## eligibility filter (for example, nonlands only) determines whether a
+## target player's hand actually contains anything the spell can take.
+var chosen_discard: ChosenDiscardEffect = null
 
 ## Damage the effect deals to the TARGET'S CONTROLLER — the sting on the
 ## end of a punisher's removal ("Detonate deals X damage to that
@@ -557,11 +577,32 @@ static func read(effects: Array, card_name: String = "") -> EffectIntent:
 	for e in effects:
 		if intent.target_spec == null and e.target_spec != null:
 			intent.target_spec = e.target_spec
-		if e is DamageEffect:
+		if e is CreateTokenEffect:
+			intent.makes_token = {"power": e.token.power * e.count,
+				"toughness": e.token.toughness * e.count}
+		elif e is RandomHandDiscardEffect:
+			if not e.controller_mode:
+				intent.discards += e.count
+		elif e is CounterMarkerEffect:
+			var delta := ContinuousEffects.parse_pt_counter(e.kind)
+			intent.pumps = true
+			intent.pump_power += delta.x * e.count
+			intent.pump_toughness += delta.y * e.count
+		elif e is RandomDestroyEffect:
+			intent.random_destroy = e
+		elif e is CoinFlipDamageEffect:
+			intent.coin_damage = e
+		elif e is CoinFlipLifeLossEffect:
+			intent.coin_life_loss = e
+		elif e is ChosenDiscardEffect:
+			intent.chosen_discard = e
+			intent.discards += e.count
+		elif e is DamageEffect:
 			if e.controller_mode:
 				intent.self_damage += e.amount
 			elif e.use_x:
 				intent.damage_uses_x = true
+				intent.damage += e.x_bonus
 			else:
 				intent.damage += e.amount
 		elif e is DestroyEffect or e is ExileEffect:
@@ -576,6 +617,8 @@ static func read(effects: Array, card_name: String = "") -> EffectIntent:
 			intent.taps = true
 		elif e is UntapEffect:
 			intent.untaps = true
+		elif e is DelayedDrawEffect:
+			intent.draws += e.amount
 		elif e is DrawEffect:
 			if e.use_x:
 				intent.draws_use_x = true
@@ -760,7 +803,9 @@ const WHEEL_COUNTS := {
 ## Does this intent hurt what it targets? Mirrors the classification
 ## [method AiPlayer._is_harmful] has always used, from the summed reading.
 func is_harmful() -> bool:
-	if damage > 0 or damage_uses_x or removes or bounces or taps:
+	if damage > 0 or damage_uses_x or removes or bounces or taps \
+			or random_destroy != null or coin_damage != null \
+			or chosen_discard != null or discards != 0:
 		return true
 	if draws > 0 or draws_use_x or pumps or life_gain > 0 or untaps or regenerates:
 		return false
@@ -792,7 +837,8 @@ func kills(victim: CardInstance, x_value: int) -> bool:
 ## A creature-answering shape — what "removal" means to the response
 ## logic: kills a creature outright, or removes it from the board.
 func answers_creatures() -> bool:
-	return removes or bounces or damage > 0 or damage_uses_x
+	return removes or bounces or damage > 0 or damage_uses_x \
+		or coin_damage != null
 
 
 ## Is this effect's WHOLE job to tap (or untap) what it hits — Twiddle,
@@ -863,6 +909,19 @@ enum Aim {
 ##    theirs the worst case is a bigger, more fragile enemy creature. The
 ##    downside is not symmetric, so it points across the table.
 const AURA_HOSTILE := {
+	"Torture": true,               # repeated -1/-1 counters on its host
+	"Roots": true,                 # taps and prevents normal untapping
+	"Serra Bestiary": true,        # attack/block/tap-symbol activation ban
+	"Ironclaw Curse": true,        # toughness loss and blocking restriction
+	"Funeral March": true,         # host departure costs its controller a creature
+	"Orcish Mine": true,           # destroys the land and damages its controller
+	"Mammoth Harness": true,       # loses flying, opposing combatant gains first strike
+	"Errant Minion": true,        # damages the enchanted creature's controller
+	"Maddening Wind": true,
+	"Mind Whip": true,
+	"Seizures": true,
+	"Brand of Ill Omen": true,    # prevents the host's controller casting creatures
+	"Snowblind": true,           # reduces the host's power
 	"Artifact Possession": true,   # 2 damage to the artifact's controller
 	"Backfire": true,              # their creature's damage rebounds on them
 	"Blight": true,                # destroys the land it enchants
@@ -904,7 +963,7 @@ static func aura_aim(data: CardData) -> int:
 	# never needs a row in the table.
 	if data.aura_steals:
 		return Aim.HOSTILE          # Control Magic, Steal Artifact
-	if data.aura_reanimates:
+	if data.aura_reanimates or data.aura_graveyard_entry:
 		return Aim.FRIENDLY         # Animate Dead — the host is in a graveyard
 	if data.aura_grants_protection != 0:
 		return Aim.FRIENDLY         # the ward cycle
@@ -917,7 +976,7 @@ static func aura_aim(data: CardData) -> int:
 static func aura_is_classified(data: CardData) -> bool:
 	if data == null or not data.is_aura():
 		return false
-	return data.aura_steals or data.aura_reanimates \
+	return data.aura_steals or data.aura_reanimates or data.aura_graveyard_entry \
 		or data.aura_grants_protection != 0 or AURA_HOSTILE.has(data.card_name)
 
 

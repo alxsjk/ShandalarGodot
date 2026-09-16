@@ -122,6 +122,29 @@ var aura_steals: bool = false
 ## Non-empty marks the card modal; spell_effects is then unused. The mode
 ## index travels with the cast (MtgGame.cast_spell's mode argument).
 var modes: Array = []
+var object_costs: Array = []
+## Announced count of optional repeated additional mana costs, not printed X.
+var repeated_additional_cost := ""
+## A colored pip in addition to extra_cost_per_target (Primitive Justice).
+var extra_target_color_mask := 0
+
+## Alternative payment choices share the ordinary mode/target UI, but do
+## not change the printed mana cost or mana value (CR 118.9, 601.2b/f/h).
+## A payment row has the SAME effects as its printed-cost row. Copies keep
+## those effects; costs are never paid a second time by copying a spell.
+func with_pitch_cost(color: int, life := 0) -> CardData:
+	var effects := spell_effects.duplicate()
+	modes = [{"label": "Pay " + cost.text, "effects": effects},
+		{"label": "Exile another %s card from your hand%s" % [Mtg.COLOR_NAMES[color],
+			" and pay %d life" % life if life > 0 else ""], "effects": effects,
+			"payment": {"cost": ManaCost.parse(""), "exile_color": color, "life": life}}]
+	return self
+
+func payment_option(mode: int) -> Dictionary:
+	return modes[mode].get("payment", {}) if mode >= 0 and mode < modes.size() else {}
+
+func payment_base(mode: int) -> ManaCost:
+	return payment_option(mode).get("cost", cost)
 
 ## AI's mode chooser for modal cards: Callable(game, pid) -> int.
 ## Unset = mode 0. Cards ship their own judgment (see red_elemental_blast).
@@ -134,6 +157,8 @@ var ai_mode_picker: Callable = Callable()
 ##   "ability": Callable(game, caster_pid, source: CardInstance,
 ##                       modifier: CardInstance) -> int
 ## Each returns extra GENERIC mana added to the cost (negative reduces it).
+## "spell_colored": same arguments as "spell", returning a dictionary
+## of ManaColor -> additional pips (Derelor). Applied before substitutions.
 ## MtgGame sums across every battlefield permanent that carries one at
 ## cast/activation time, passing each callback ITS OWN source as
 ## [code]modifier[/code] — that is how "spells YOU cast cost less" knows
@@ -146,6 +171,9 @@ var cost_modifier: Dictionary = {}
 ## controller's control and attaches; when the aura leaves, the creature
 ## is destroyed (the modern oracle's behavior). Engine-side in MtgGame.
 var aura_reanimates: bool = false
+## An Aura initially enchanting a graveyard card, with a real ETB
+## reanimation trigger (Dance of the Dead), not immediate resurrection.
+var aura_graveyard_entry := false
 
 ## For protection-granting auras (the Wards): the colors THIS aura grants
 ## its host protection from. The aura-vs-protection state-based action
@@ -260,6 +288,9 @@ var sacrifice_if_no_land_type: String = ""
 ## so it never plans a cast the engine will bounce. Unset = the ordinary
 ## instant/sorcery timing rules only. Set it with [method castable_only_when].
 var cast_condition: Callable = Callable()
+## Pure post-announcement check: func(game, pid, card, x, targets).
+## Unlike cast_condition this is called only after X has been chosen.
+var announcement_condition: Callable = Callable()
 
 ## Fluent: attach a "Cast this spell only ..." rider.
 func castable_only_when(cb: Callable) -> CardData:
@@ -663,6 +694,11 @@ func bans_permanents_entering(cb: Callable) -> CardData:
 ## — "" to enter, otherwise the reason it cannot.
 var entry_condition: Callable = Callable()
 
+## A replacement that pays before entry, after pure arrival prohibitions.
+## Return false to replace entry with the owner's graveyard. The card has
+## never entered, so no ETB/leaves/dies event fires. Never called by dry runs.
+var entry_payment: Callable = Callable()
+
 ## Fluent: install an arrival veto (see [member entry_condition]).
 func enters_only_if(cb: Callable) -> CardData:
 	entry_condition = cb
@@ -676,6 +712,20 @@ func enters_only_if(cb: Callable) -> CardData:
 ## stack (CR 601.2h) — recording its mana value in the spell's own memory so
 ## the resolving effect can read it.
 var additional_sacrifice: Dictionary = {}
+
+## A spell's additional life payment is a COST, not damage or life loss
+## on resolution. X may be chosen even when no {X} appears in the mana cost.
+var additional_life: int = 0
+var additional_life_is_x: bool = false
+
+func with_additional_life(amount: int, uses_x := false) -> CardData:
+	additional_life = amount
+	additional_life_is_x = uses_x
+	if uses_x: cost.has_x = true
+	return self
+
+func life_payment(x_value: int) -> int:
+	return x_value if additional_life_is_x else additional_life
 
 ## Add an "as an additional cost, sacrifice a <desc>" clause.
 func with_additional_sacrifice(desc: String, filter: Callable) -> CardData:

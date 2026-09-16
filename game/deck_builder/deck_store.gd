@@ -473,6 +473,7 @@ static func _fold(list: DeckList, out_report: Array) -> DeckModel:
 	var model := DeckModel.new()
 	model.deck_name = list.deck_name if list.deck_name != "" \
 		else DeckModel.DEFAULT_NAME
+	model.required_packs = list.required_packs.duplicate()
 	for card_name in list.cards:
 		model.counts[card_name] = int(model.counts.get(card_name, 0)) + 1
 	for card_name in list.sideboard:

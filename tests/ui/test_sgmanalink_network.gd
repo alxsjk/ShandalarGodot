@@ -286,8 +286,8 @@ func test_host_can_remove_only_a_disconnected_waiting_guest() -> void:
 
 
 func test_incompatible_build_fails_before_allocating_a_seat() -> void:
-	a.build_fingerprint = "0".repeat(64)
 	assert_eq(a.connect_local(server.port, server.access_code), OK)
+	a.build_fingerprint = "0".repeat(64)
 	await _until(func() -> bool: return not a._wanted)
 	assert_string_contains(a.status, "Incompatible")
 	assert_false(a.online)

@@ -39,7 +39,8 @@ shandalar_test_profile() {
 	# PROFILE_PROBE xdg=/private/tmp/shandalar-profile-probe
 	# The editor's runtime feature override selects a separate profile
 	# before autoloads read settings. It is NOT passed to export commands.
-	if [ "$(uname -s)" = Darwin ]; then
-		export GODOT_EDITOR_CUSTOM_FEATURES="${GODOT_EDITOR_CUSTOM_FEATURES:+$GODOT_EDITOR_CUSTOM_FEATURES,}shandalar_test"
-	fi
+	# Also select this feature on Linux: numbered-pack metadata-only
+	# fixtures are accepted solely in this explicit test runtime. XDG
+	# isolation alone must not turn an ordinary player ZIP into a fixture.
+	export GODOT_EDITOR_CUSTOM_FEATURES="${GODOT_EDITOR_CUSTOM_FEATURES:+$GODOT_EDITOR_CUSTOM_FEATURES,}shandalar_test"
 }

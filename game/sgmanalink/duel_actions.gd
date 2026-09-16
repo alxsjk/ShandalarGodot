@@ -24,18 +24,22 @@ func _information_received(viewer: int, title: String, names: Array) -> void:
 
 static func options(card: CardInstance, pid: int) -> Array:
 	var result: Array = []
-	if card.zone == Mtg.Zone.HAND and card.owner_id == pid and not card.is_land():
+	var spell_source := (card.zone == Mtg.Zone.HAND and card.owner_id == pid) \
+		or (card.zone == Mtg.Zone.EXILE and not card.face_down and card.exile_playable_by == pid)
+	if spell_source and not card.is_land():
 		var modes: Array = []
 		for mode in card.data.modes:
 			modes.append(String(mode.get("label", mode.get("name", "Mode"))))
 		result.append({"kind": "spell", "index": 0, "label": "Cast " + card.data.card_name,
 			"x": card.data.cost.has_x, "modes": modes})
-	if card.zone != Mtg.Zone.BATTLEFIELD: return result
-	if card.controller_id == pid:
+	if (card.zone == Mtg.Zone.BATTLEFIELD and card.controller_id == pid) or (card.zone == Mtg.Zone.HAND and card.owner_id == pid):
 		for i in card.cur_mana_abilities.size():
+			if card.cur_mana_abilities[i].activation_zone != card.zone: continue
 			result.append({"kind": "mana", "index": i, "label": str(card.cur_mana_abilities[i]), "x": false, "modes": []})
+	if card.zone not in [Mtg.Zone.BATTLEFIELD, Mtg.Zone.GRAVEYARD]: return result
 	for i in card.cur_activated_abilities.size():
 		var ability: ActivatedAbility = card.cur_activated_abilities[i]
+		if ability.activation_zone != card.zone: continue
 		var permitted := ability.any_player_may_activate \
 			or (ability.only_owner_may_activate and card.owner_id == pid) \
 			or (ability.only_opponents_may_activate and card.controller_id != pid) \
@@ -76,9 +80,9 @@ func auto_prepare(pid: int, card: CardInstance, action: Dictionary, excluded: Di
 	request_data.x = 0
 	var error := prepare(pid, card, request_data)
 	if not error.is_empty(): return error
-	var cost: ManaCost = card.data.cost if draft.kind == "spell" else card.cur_activated_abilities[draft.index].cost
+	var cost: ManaCost = card.data.payment_base(draft.mode) if draft.kind == "spell" else card.cur_activated_abilities[draft.index].cost
 	if cost.has_x:
-		draft.x = SgPayment.budget(game, pid, card, draft.kind, draft.index, ManaPlanner.sources(game, pid, excluded), action.count)
+		draft.x = SgPayment.budget(game, pid, card, draft.kind, draft.index, ManaPlanner.sources(game, pid, excluded), action.count, draft.mode)
 	return autopay(pid, excluded, action.count)
 
 
@@ -192,7 +196,7 @@ func submit(pid: int, values: Array) -> String:
 func payment(count := 1) -> Dictionary:
 	if draft.is_empty() or draft.kind == "mana": return {}
 	if draft.kind == "spell":
-		return game.spell_payment(draft.pid, draft.card.data, draft.x, count)
+		return game.spell_payment(draft.pid, draft.card.data, draft.x, count, draft.card, draft.mode)
 	return game.ability_payment(draft.pid, draft.card, draft.index, draft.x)
 
 

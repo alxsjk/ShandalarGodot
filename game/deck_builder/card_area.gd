@@ -241,6 +241,9 @@ var badge_min := 2
 ## — which is what keeps the audit pass's `DeckFilter.revision` gate
 ## meaningful.
 var count_source := Callable()
+## Optional `func(CardData) -> String` used by the Inventory to choose a
+## displayed reprint. It affects artwork only; entries remain name-based.
+var art_set_for := Callable()
 ## `&Consolidate duplicate cards` — *"toggles whether multiple copies of
 ## the same card are displayed separately or grouped together. If they're
 ## together, a tiny number on the single representative card notes how
@@ -1162,6 +1165,7 @@ static func _plaque(index: int) -> Texture2D:
 class Cell extends Control:
 	var data: CardData = null
 	var card_name := ""
+	var printing_set := ""
 	var source := ""
 	## The card's face. EXACTLY ONE of these two is set: a cell holding a
 	## real card has a [MiniCard], a cell holding a PROXY has a
@@ -1385,6 +1389,8 @@ func _dress_face(cell: Cell, data: CardData) -> void:
 
 ## Point one page widget at a different card.
 func _bind_cell(cell: Cell, data: CardData, count: int) -> void:
+	var printing_set := String(art_set_for.call(data)) \
+		if art_set_for.is_valid() else ""
 	if cell.data != data:
 		cell.data = data
 		cell.card_name = data.card_name
@@ -1397,8 +1403,14 @@ func _bind_cell(cell: Cell, data: CardData, count: int) -> void:
 		else:
 			cell.face.instance = CardInstance.new(data, -1, 0)
 			cell.face.hovered = false
+			cell.face.art_override = CardPacks.art_texture(
+				data.card_name, printing_set)
 			cell.face.refresh()
 			cell.tooltip_text = "%s\n%s" % [data.card_name, data.oracle_text]
+	elif cell.face != null and cell.printing_set != printing_set:
+		cell.face.art_override = CardPacks.art_texture(data.card_name, printing_set)
+		cell.face.refresh()
+	cell.printing_set = printing_set
 	cell.source = source_name
 	_bind_badge(cell, count)
 	_dress_rarity(cell)

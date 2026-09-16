@@ -1300,7 +1300,7 @@ func _phase_status_message() -> String:
 	# directly, and it used to be unreachable behind the frame below.
 	if game.awaiting_attackers and _is_human(game.active_player):
 		return "Combat phase: Choose attackers."
-	if game.awaiting_blockers and _is_human(game.opponent_of(game.active_player)):
+	if game.awaiting_blockers and _is_human(game.block_chooser()):
 		return "Combat phase: Choose blockers."
 	# THE FAMOUS QUESTION. The player holds priority at instant speed — a
 	# spell waits on the chain, it is not their own quiet main phase, or
@@ -1349,7 +1349,7 @@ func _phase_status_message() -> String:
 		var when := "before combat" if step == Mtg.Step.MAIN1 else "after combat"
 		match step:
 			Mtg.Step.MAIN1, Mtg.Step.MAIN2:
-				if game.players[human].lands_played_this_turn >= 1:
+				if not game.land_drop_available(human):
 					return "Main phase (%s): cast spells" % when
 				return "Main phase (%s): cast spells, play land" % when
 	# Nobody is waiting on us: the referee is working.
@@ -1386,7 +1386,7 @@ func _on_card_clicked(inst: CardInstance) -> void:
 			# `_modal_open()` closed for the X dialog (2026-09-02).
 			if _modal_open() or not _is_human(inst.controller_id):
 				return
-			if inst.zone == Mtg.Zone.BATTLEFIELD:
+			if inst.zone == Mtg.Zone.BATTLEFIELD or _hand_mana(inst):
 				_tap_for_payment(inst)
 		Mode.NORMAL:
 			# A CENTRE POPUP OWNS THE TABLE, not only the keyboard: the X
@@ -1817,9 +1817,22 @@ func _repopulate_graveyard() -> void:
 ## submits and closes, an invalid one is refused); otherwise it is just
 ## something to look at, which is the original's Showcase.
 func _on_graveyard_card(inst: CardInstance) -> void:
+	if inst.face_down:
+		if _card_preview != null: _card_preview.show_back()
+		return
 	if mode != Mode.TARGETING:
 		if _card_preview != null:
 			_card_preview.show_card(inst)
+		if game.can_play_from_exile(_human_seat(), inst) and game.priority_player == _human_seat():
+			_close_graveyard()
+			_click_hand_card(inst)
+			return
+		if inst.zone == Mtg.Zone.GRAVEYARD and inst.owner_id == _human_seat() and game.priority_player == inst.owner_id:
+			for ability in inst.cur_activated_abilities:
+				if ability.activation_zone == Mtg.Zone.GRAVEYARD:
+					_close_graveyard()
+					_open_ability_menu(inst)
+					break
 		return
 	var before := _pending_slot
 	var had := _pending_card
@@ -1833,7 +1846,7 @@ func _on_graveyard_card(inst: CardInstance) -> void:
 
 
 func _click_hand_card(inst: CardInstance) -> void:
-	var pid := inst.owner_id
+	var pid := inst.exile_playable_by if inst.zone == Mtg.Zone.EXILE else inst.owner_id
 	if inst.is_land():
 		_report(game.play_land(pid, inst))
 		return
@@ -1898,7 +1911,7 @@ func _continue_cast_chain() -> void:
 			and not _humans[_pending_pid].has_preselection():
 		_open_search_dialog(search)
 		return
-	if _pending_card.data.cost.has_x:
+	if _pending_card.data.cost.has_x or _pending_card.data.repeated_additional_cost != "":
 		_open_x_dialog()
 	else:
 		_advance_pending()
@@ -2108,7 +2121,7 @@ func _pending_is_reachable() -> bool:
 	var payment: Dictionary
 	if _pending_ability_index < 0:
 		payment = game.spell_payment(_pending_pid, _pending_card.data,
-			_pending_x, maxi(_flatten_pending_targets().size(), 1))
+			_pending_x, maxi(_flatten_pending_targets().size(), 1), _pending_card, _pending_mode)
 	elif _pending_ability_index < _pending_card.cur_activated_abilities.size():
 		payment = game.ability_payment(_pending_pid, _pending_card,
 			_pending_ability_index, _pending_x)
@@ -2185,6 +2198,9 @@ func _auto_cast(inst: CardInstance) -> void:
 	# the target count and the slot rebuild all still run through
 	# [method _on_x_confirmed] and cannot drift from the typed answer.
 	if _x_dialog != null and _x_spin != null:
+		# A double click may spend available mana, never all of a player's
+		# life. Fire Covenant always keeps its explicit payment question.
+		if _pending_ability_index < 0 and _pending_card.data.additional_life_is_x: return
 		var budget := _auto_x_budget()
 		_x_spin.max_value = maxi(budget, int(_x_spin.max_value))
 		_x_spin.value = budget
@@ -2206,11 +2222,11 @@ func _auto_cast(inst: CardInstance) -> void:
 func _auto_x_budget() -> int:
 	var cost: ManaCost = _pending_card.data.cost
 	var surcharge := game.spell_surcharge(_pending_pid, _pending_card.data)
-	var usage: Array = game.mana_usage_keys(_pending_card.data)
+	var usage: Array = game.mana_usage_keys(_pending_card.data, _pending_card)
 	if _pending_ability_index >= 0:
 		cost = _pending_card.cur_activated_abilities[_pending_ability_index].cost
-		surcharge = 0        # surcharges are a SPELL tax (Gloom et al.)
-		usage = []
+		surcharge = game.ability_surcharge(_pending_pid, _pending_card)
+		usage = game.ability_mana_usage_keys(_pending_card)
 	return _x_budget(cost, surcharge, usage, _no_auto_tap)
 
 
@@ -2251,7 +2267,7 @@ func _auto_tap_for_pending() -> void:
 	var payment: Dictionary
 	if _pending_ability_index < 0:
 		payment = game.spell_payment(_pending_pid, _pending_card.data,
-			_pending_x, maxi(_flatten_pending_targets().size(), 1))
+			_pending_x, maxi(_flatten_pending_targets().size(), 1), _pending_card, _pending_mode)
 	else:
 		payment = game.ability_payment(_pending_pid, _pending_card,
 			_pending_ability_index, _pending_x)
@@ -2337,7 +2353,10 @@ func _try_take_target(ref: TargetRef) -> void:
 		return
 	var slot: Dictionary = _pending_slots[_pending_slot]
 	var spec: TargetSpec = slot["spec"]
-	var why := spec.refusal_reason(game, ref, _pending_card)
+	var earlier: Array = []
+	for index in _pending_slot: earlier.append_array(_pending_groups[index])
+	if spec.compare_within_group: earlier.append_array(_pending_groups[_pending_slot])
+	var why := spec.refusal_reason(game, ref, _pending_card, earlier)
 	if why != "":
 		# @PROMPT_ILLEGALTARGET, UIStrings.txt:1145 — "Illegal target."
 		# and "Illegal target (%s)." with the reason in the brackets, and
@@ -2979,7 +2998,7 @@ func _on_confirm() -> void:
 					held.data.card_name if held != null else "That creature"))
 				return
 			var err := game.declare_blockers(
-				game.opponent_of(game.active_player), _block_map)
+				game.block_chooser(), _block_map)
 			if err == "":
 				_block_map = {}
 				_selected_blocker = -1
@@ -3249,7 +3268,7 @@ func _ai_seat_to_act() -> int:
 	if game.awaiting_attackers:
 		deciding = game.active_player
 	elif game.awaiting_blockers:
-		deciding = game.opponent_of(game.active_player)
+		deciding = game.block_chooser()
 	else:
 		deciding = game.priority_player
 	return deciding if _ais.has(deciding) else -1
@@ -4660,15 +4679,15 @@ var _pending_target_count := -1
 func _open_x_dialog() -> void:
 	var cost: ManaCost = _pending_card.data.cost
 	var surcharge := game.spell_surcharge(_pending_pid, _pending_card.data)
-	var usage: Array = game.mana_usage_keys(_pending_card.data)
+	var usage: Array = game.mana_usage_keys(_pending_card.data, _pending_card)
 	var label := _pending_card.data.card_name
 	var per_target := 0
 	if _pending_ability_index >= 0:
 		var ability: ActivatedAbility = \
 			_pending_card.cur_activated_abilities[_pending_ability_index]
 		cost = ability.cost
-		surcharge = 0        # surcharges are a SPELL tax (Gloom et al.)
-		usage = []           # nor does an ability qualify for "cast only" mana
+		surcharge = game.ability_surcharge(_pending_pid, _pending_card)
+		usage = game.ability_mana_usage_keys(_pending_card)
 		label = "%s — %s" % [label, ability.text]
 	else:
 		per_target = _pending_card.data.extra_cost_per_target
@@ -4680,6 +4699,16 @@ func _open_x_dialog() -> void:
 	# reason — *"the only way to tap a locked land is manually, by clicking
 	# on it"* — and this window is answered by hand.
 	var budget := _x_budget(cost, surcharge, usage, {})
+	if _pending_ability_index < 0 and _pending_card.data.repeated_additional_cost != "":
+		var repeat_count := 0
+		while repeat_count <= budget:
+			var payment := game.spell_payment(_pending_pid, _pending_card.data, repeat_count + 1, 1, _pending_card, _pending_mode)
+			if ManaPlanner.plan(game, _pending_pid, payment.cost, payment.extra, payment.usage).is_empty(): break
+			repeat_count += 1
+		budget = repeat_count
+		label += " — number of additional " + _pending_card.data.repeated_additional_cost + " payments"
+	var life_x := _pending_ability_index < 0 and _pending_card.data.additional_life_is_x
+	if life_x: budget = maxi(0, game.players[_pending_pid].life)
 	if per_target <= 0:
 		# A plain {X} spell: only entries 1 and 2, and the field steps by
 		# x_count so every value on it buys a whole point of X.
@@ -4688,8 +4717,9 @@ func _open_x_dialog() -> void:
 	if _x_dialog != null:
 		_x_dialog.queue_free()
 	_x_dialog = FireballDialog.window(label, budget, per_target,
-		_legal_target_ceiling(), per_x)
+		_legal_target_ceiling(), per_x, "Life to pay (X):" if life_x else FireballDialog.ASK_MANA)
 	_x_spin = _x_dialog.get_meta("mana")
+	if life_x: _x_spin.value = 0
 	_x_dialog.add_button("OK").pressed.connect(_on_x_confirmed)
 	_x_dialog.add_button("Cancel").pressed.connect(_on_x_canceled)
 	add_child(_x_dialog)
@@ -4766,10 +4796,12 @@ func _open_ability_menu(inst: CardInstance, mana_only := false) -> void:
 	var id := 0
 	for ability in inst.cur_mana_abilities:
 		_ability_menu.add_item(str(ability), id)
+		_ability_menu.set_item_disabled(id, inst.zone != ability.activation_zone)
 		id += 1
 	if not mana_only:
 		for ability in inst.cur_activated_abilities:
 			_ability_menu.add_item(ability.text, id)
+			_ability_menu.set_item_disabled(id, inst.zone != ability.activation_zone)
 			for effect in ability.effects:
 				if effect.is_regeneration:
 					_ability_menu.set_item_tooltip(id,
@@ -4808,7 +4840,10 @@ func _on_ability_chosen(id: int) -> void:
 	var ability: ActivatedAbility = inst.cur_activated_abilities[ability_index]
 	_pending_card = inst
 	_pending_ability_index = ability_index
-	_pending_pid = inst.controller_id
+	_pending_pid = inst.owner_id if inst.zone == Mtg.Zone.GRAVEYARD else inst.controller_id
+	if ability.any_player_may_activate or ability.only_opponents_may_activate:
+		_pending_pid = _private_decision_seat() if config.private_hotseat() else _human_seat()
+	elif ability.only_owner_may_activate: _pending_pid = inst.owner_id
 	_pending_specs = ability.target_specs()
 	_build_ability_slots(ability)
 	_pending_targets = []
@@ -4908,7 +4943,7 @@ func _refresh() -> void:
 		# asks (docs/glossary-1997.md).
 		_set_prompt("Combat phase: Choose attackers.")
 	elif game.awaiting_blockers and mode != Mode.BLOCKERS \
-			and _is_human(game.opponent_of(game.active_player)):
+			and _is_human(game.block_chooser()):
 		mode = Mode.BLOCKERS
 		_block_map = {}
 		_selected_blocker = -1
@@ -5016,7 +5051,7 @@ func _refresh() -> void:
 				var top_gone: CardInstance = gone[-1]
 				# A card exiled FACE DOWN (Knowledge Vault) shows nothing:
 				# nobody may look at it, so the pile keeps its plate.
-				if not top_gone.face_down:
+				if not top_gone.face_down or top_gone.exile_visible_to == _human_seat():
 					exile_face = GameSkin.card_scan(top_gone.data.card_name)
 					if exile_face == null:
 						exile_face = GameSkin.card_art(top_gone.data.card_name)
@@ -5135,7 +5170,7 @@ func _exile_tooltip(pid: int) -> String:
 		return "%s exiled cards (out of play) — empty" % whose
 	var names := PackedStringArray()
 	for card in gone:
-		names.append("(face down)" if card.face_down else card.data.card_name)
+		names.append("(face down)" if card.face_down and card.exile_visible_to != _human_seat() else card.data.card_name)
 	return "%s exiled cards (out of play)\n%s" % [whose, "\n".join(names)]
 
 
@@ -5167,7 +5202,7 @@ func _private_decision_seat() -> int:
 	if game.awaiting_discard or game.awaiting_attackers:
 		return game.active_player
 	if game.awaiting_blockers:
-		return game.opponent_of(game.active_player)
+		return game.block_chooser()
 	if _pending_card != null:
 		return _pending_pid
 	if config.private_hotseat():
@@ -5235,6 +5270,7 @@ func _private_view_key() -> Array:
 
 
 func _may_see_hand(pid: int) -> bool:
+	if game != null and game.players[pid].hand_revealed: return true
 	if not config.private_hotseat():
 		return not hidden_hands.has(pid)
 	return _hotseat_revealed and pid == _hotseat_seat and _hotseat_key == _private_view_key()
@@ -5912,11 +5948,21 @@ func _popup_menu_at(menu: PopupMenu, at: Vector2) -> void:
 ## apart — see [method _on_card_look].
 ## `Don't auto tap this card` is entry 4 of `@MENU_SMALLCARD`.
 const CARD_MENU_NO_AUTO_TAP := 3
+const CARD_MENU_HAND_MANA := 100
+
+func _hand_mana(inst: CardInstance) -> bool:
+	if inst.zone != Mtg.Zone.HAND: return false
+	for ability in inst.cur_mana_abilities:
+		if ability.activation_zone == Mtg.Zone.HAND: return true
+	return false
 
 
 func _open_card_menu(inst: CardInstance, at: Vector2) -> void:
 	_card_menu_inst = inst
 	CardMenu.build(_card_menu, CardMenu.SMALL_CARD)
+	if _hand_mana(inst) and _is_human(inst.owner_id):
+		_card_menu.add_separator()
+		_card_menu.add_item("Activate mana ability from hand…", CARD_MENU_HAND_MANA)
 	# The mark is a property of THIS card, so its tick and its greying are
 	# settled here: only a permanent that makes mana has anything to lock.
 	var at_lock := _card_menu.get_item_index(CARD_MENU_NO_AUTO_TAP)
@@ -5930,6 +5976,9 @@ func _open_card_menu(inst: CardInstance, at: Vector2) -> void:
 
 
 func _on_card_menu_chosen(id: int) -> void:
+	if id == CARD_MENU_HAND_MANA and _card_menu_inst != null and _hand_mana(_card_menu_inst):
+		_open_ability_menu(_card_menu_inst, true)
+		return
 	if _card_menu_inst == null or id < 0 or id >= CardMenu.SMALL_CARD.size():
 		return
 	var row: Dictionary = CardMenu.SMALL_CARD[id]
@@ -6500,7 +6549,7 @@ const OPPONENT_HAND_TITLE := "Opponent (%d)"
 
 
 func _rebuild_hand(pid: int, container: Control) -> void:
-	var hidden := hidden_hands.has(pid)
+	var hidden := hidden_hands.has(pid) and not game.players[pid].hand_revealed
 	if container is HotseatHand:
 		container.can_interject = _hotseat_can_interject()
 		var open_stack := _spectator_hands() or pid == _hotseat_seat
@@ -7688,8 +7737,7 @@ func _highlight_for(inst: CardInstance) -> int:
 				if inst.owner_id == game.active_player \
 						and Mtg.is_main_step(game.current_step()) \
 						and game.stack.is_empty() \
-						and (game.players[inst.owner_id].lands_played_this_turn < 1
-							or game.unlimited_land_plays.has(inst.owner_id)):
+						and game.land_drop_available(inst.owner_id):
 					return MiniCard.Highlight.CASTABLE
 			# could_afford, not can_afford: the engine's own answer folds
 			# in cost modifiers (Gloom's tax, the Mana Matrix's discount),

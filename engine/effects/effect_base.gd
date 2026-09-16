@@ -84,6 +84,16 @@ func optional_target() -> EffectBase:
 ## back) says so here or is taken for removal.
 var ai_helpful: bool = false
 
+## Declarative shape of a card-local payload. Decisions consume these
+## public effect parameters, never card names or hidden information.
+var ai_role: StringName = &""
+var ai_parameters: Dictionary = {}
+
+func with_ai_role(role: StringName, parameters := {}) -> EffectBase:
+	ai_role = role
+	ai_parameters = parameters
+	return self
+
 
 ## Fluent: this effect benefits what it targets (see [member ai_helpful]).
 func helpful() -> EffectBase:

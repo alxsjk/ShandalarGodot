@@ -89,7 +89,7 @@ extends RefCounted
 ## default to END_OF_TURN, which is why every existing caller keeps
 ## working untouched.
 enum Duration { END_OF_TURN, END_OF_COMBAT, UNTIL_UPKEEP_OF, INDEFINITE,
-	UNTIL_END_OF_UPKEEP_OF }
+	UNTIL_END_OF_UPKEEP_OF, UNTIL_UNTAP_OF }
 
 ## THE LAYER-6 CLOCK (CR 613.7). Every effect that GRANTS or REMOVES an
 ## ability is stamped with the moment it was created, and
@@ -272,13 +272,15 @@ func record_all() -> void:
 
 
 func add_until_eot_pump(instance_id: int, power: int, toughness: int,
-		keywords: Array[int] = [], until_end_of_combat := false) -> void:
+		keywords: Array[int] = [], until_end_of_combat := false,
+		lasts := Duration.END_OF_TURN) -> void:
 	_rec(&"_floating")
 	_floating.append({
 		"instance_id": instance_id,
 		"power": power, "toughness": toughness,
 		"keywords": keywords.duplicate(),
 		"until_combat": until_end_of_combat,
+		"lasts": lasts,
 		"ts": _stamp(),
 	})
 
@@ -394,10 +396,10 @@ func add_until_eot_keywords(instance_id: int, keywords: Array,
 ## which is the duration the pool's only user prints.
 func add_floating_static(source: CardInstance, ability: StaticAbility,
 		lasts := Duration.END_OF_TURN, lasts_pid := -1,
-		until_end_of_combat := false) -> void:
+		until_end_of_combat := false, bound_instance_id := -1) -> void:
 	_rec(&"_floating_statics")
 	_floating_statics.append({
-		"instance_id": -1, "source": source, "ability": ability,
+		"instance_id": bound_instance_id, "source": source, "ability": ability,
 		"until_combat": until_end_of_combat,
 		"lasts": lasts, "lasts_pid": lasts_pid,
 		# A floating static is created by its source LEAVING, which is later
@@ -487,11 +489,12 @@ func add_until_eot_block_restriction(instance_id: int, desc: String,
 ## Register "becomes <colours> until end of turn" on an instance. Pass an
 ## Mtg.ManaColor bitmask; 0 makes the object colourless.
 func add_until_eot_color(instance_id: int, colors: int,
-		until_end_of_combat := false) -> void:
+		until_end_of_combat := false, lasts := Duration.END_OF_TURN) -> void:
 	_rec(&"_color_changes")
 	_color_changes.append({
 		"instance_id": instance_id, "colors": colors,
 		"until_combat": until_end_of_combat,
+		"lasts": lasts,
 	})
 
 
@@ -587,6 +590,15 @@ func expire_upkeep_of(pid: int) -> void:
 				list.remove_at(i)
 
 
+## Ends before untapping or applying untap restrictions (Orcish Farmer).
+func expire_untap_of(pid: int) -> void:
+	record_all()
+	for list in _all_lists():
+		for i in range(list.size() - 1, -1, -1):
+			if int(list[i].get("lasts", -1)) == Duration.UNTIL_UNTAP_OF and int(list[i].get("lasts_pid", -1)) == pid:
+				list.remove_at(i)
+
+
 ## Drop the "until the end of [param pid]'s next upkeep" effects (CR
 ## 611.2b) that were created BEFORE turn [param turn] — called by MtgGame
 ## as that player's upkeep step ends. An effect created during this very
@@ -612,7 +624,7 @@ func expire_end_of_combat() -> void:
 	record_all()
 	for list in _all_lists():
 		for i in range(list.size() - 1, -1, -1):
-			if list[i].get("until_combat", false):
+			if list[i].get("until_combat", false) or int(list[i].get("lasts", -1)) == Duration.END_OF_COMBAT:
 				list.remove_at(i)
 
 
@@ -800,9 +812,14 @@ func recalculate(game: MtgGame) -> void:
 	game.nullified_landwalk.clear()   # rebuilt by statics in pass 2
 	game.max_attackers = 0
 	game.max_blockers = 0
+	game.ghostly_flame_active = false
+	game.black_symbol_sacrifices = 0
+	game.block_chooser_override = -1
+	game.melee_active_effects.clear()
 	game.untap_caps.clear()
 	game.untap_cap_sources.clear()
 	game.unlimited_land_plays.clear()
+	game.extra_land_plays.clear()
 	for p in game.players:
 		p.mana_substitutions.clear()   # Sunglasses of Urza rebuilds it
 		p.cant_lose_to_life = false    # Lich rebuilds both of these
@@ -815,6 +832,7 @@ func recalculate(game: MtgGame) -> void:
 		p.artifact_damage_redirect = -1
 		p.combat_damage_redirect = -1   # Veteran Bodyguard rebuilds it
 		p.damage_caps.clear()           # Forethought Amulet rebuilds it
+		p.static_prevention_shields.clear()
 	for inst in battlefield:
 		inst.reset_characteristics()
 	for animation in _animations:
@@ -1066,3 +1084,21 @@ func recalculate(game: MtgGame) -> void:
 		var p := inst.cur_power
 		inst.cur_power = inst.cur_toughness
 		inst.cur_toughness = p
+
+	# These replacements change mana PRODUCTION, not land subtypes or the
+	# abilities a land has. Each applicable final color is an equivalent
+	# ordering choice under CR 616.1; the UI and mana planner see the same
+	# variants. Costs, restrictions, amounts and side effects are preserved.
+	for inst in battlefield:
+		if not inst.is_land(): continue
+		var colors := inst.cur_land_mana_replacements.duplicate()
+		var deep := game.players[inst.controller_id].land_mana_becomes
+		if deep != 0 and not colors.has(deep): colors.append(deep)
+		if colors.is_empty(): continue
+		var replaced: Array[ManaAbility] = []
+		for ability in inst.cur_mana_abilities:
+			if not ability.taps_source:
+				replaced.append(ability)
+				continue
+			for color in colors: replaced.append(ability.forcing_color(color))
+		inst.cur_mana_abilities = replaced

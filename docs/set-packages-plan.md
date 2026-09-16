@@ -1,24 +1,25 @@
 # Set packages — a toggleable "classic expansions" card pack
 
-Planning document (2026-09-02). Nothing in the gating/loader design below is
-implemented; the **pack file format** is (see "Implemented: pack format v1"
-at the end). Every statement about the codebase was verified by reading it
-on that date, and every number that is not a file count is labelled as an
-estimate.
+Planning document (2026-09-02), retained for the larger classic-expansions
+proposal. The first bounded implementation now exists: exact
+`Pack-1-DotP-complete.zip` discovery and validation, persistent enable/disable,
+set membership, live counts, and a dedicated Python art/build/verify tool.
+Pack 1 finishes the eight existing set checklists (373 added entries, 369 of
+them reprints, four new identities); it does not yet implement the new-set
+expansion proposed below. Historical statements are dated, and every number
+that is not a file count is labelled as an estimate.
 
 ## The short answers
 
 **Can an additional, self-contained, toggleable "old MTG up to Alliances /
 Fifth Edition" package be built without touching purist play when it is
-off?** Yes, with two caveats. The registry loads every folder under
-`res://cards/sets` unconditionally (`CardRegistry.ensure_loaded()`), so a
-package needs one new thing the codebase does not have — a set-membership
-table plus an "enabled packs" gate in `engine/card_registry.gd` — and the
-two registry pins (`test_registry_loaded_the_pool` = 897,
-`test_every_stub_has_graduated` = exactly 8 `cards/todo/` dirs) need
-package-aware variants. Everything else the pack needs (Settings key,
-deck-builder set filter, proxy boundary for saved decks, format legality,
-per-set wave tests) already exists in a shape a pack can extend.
+off?** Yes. Pack 1 has now proved the set-membership table and enabled-pack
+gate in `engine/card_registry.gd`; a broader new-set package still needs the
+remaining policy and mechanic work described here. The default registry loads
+only its fixed eight folders. Its 897-card and eight-empty-TODO pins remain
+the core contract, while Pack 1 has separate loader, rules, and UI tests for
+the optional 1,270-entry / 901-identity state. A broader package must extend
+those same pack-aware boundaries, plus format legality and per-set wave tests.
 
 **Can the existing pipeline build these packages, including card art?**
 Yes for cards, yes for art, with one caveat each. `tools/fetch_cards.py` →

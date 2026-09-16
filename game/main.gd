@@ -36,10 +36,20 @@ const MANALINK_SIZE := Vector2(72, 72)
 ## that just played their duel. `DeckLab/README.md` is its manual and
 ## ships beside the binary.
 const DECK_LAB_FLAG := "--deck-lab"
+## Release-only integration probe: validates a real external ZIP, activates
+## its dormant trusted scripts, checks every set-specific art pair, then exits.
+const VERIFY_PACK_1_FLAG := "--verify-pack-1"
+const VERIFY_PACK_2_FLAG := "--verify-pack-2"
+const VERIFY_PACK_3_FLAG := "--verify-pack-3"
+const VERIFY_PACK_4_FLAG := "--verify-pack-4"
+const VERIFY_PACK_5_FLAG := "--verify-pack-5"
 
 ## The corner line that reports a skin zip on its way (web builds).
 var _fetching: Label
 var _manalink_notice: Control
+var _pack_notice: Control
+var _pack_warning: Control
+var _version_label: Label
 
 
 func _ready() -> void:
@@ -48,6 +58,21 @@ func _ready() -> void:
 	# headless run.
 	if OS.get_cmdline_user_args().has(DECK_LAB_FLAG):
 		_run_deck_lab()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_1_FLAG):
+		_verify_exported_pack_1()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_2_FLAG):
+		_verify_exported_pack_2()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_3_FLAG):
+		_verify_exported_pack_3()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_4_FLAG):
+		_verify_exported_pack_4()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_5_FLAG):
+		_verify_exported_pack_5()
 		return
 	CardRegistry.ensure_loaded()
 	var title_bg := GameSkin.texture("title_background")
@@ -68,6 +93,7 @@ func _ready() -> void:
 	# painting's title text ends around y=400 of 800, so eight buttons,
 	# their gaps and the bottom inset have to fit in what is below it.
 	var box := VBoxContainer.new()
+	box.name = "MenuColumn"
 	box.add_theme_constant_override("separation", MENU_GAP)
 	box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -211,9 +237,8 @@ func _ready() -> void:
 	# Version tag stays at the bottom-right corner beneath the new button.
 	var version := Label.new()
 	version.name = "Version"
-	version.text = "v%s · %d cards" % [
-		ProjectSettings.get_setting("application/config/version", "dev"),
-		CardRegistry.size()]
+	_version_label = version
+	_refresh_version()
 	_corner_label(version, 12)
 	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	status.add_child(version)
@@ -228,6 +253,7 @@ func _ready() -> void:
 	# The column grows UP and RIGHT from the bottom-left corner, the mirror
 	# of the button column's up-and-left.
 	var corner := VBoxContainer.new()
+	corner.name = "CatalogueCorner"
 	corner.add_theme_constant_override("separation", 8)
 	corner.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	corner.grow_horizontal = Control.GROW_DIRECTION_END
@@ -259,13 +285,30 @@ func _ready() -> void:
 	# and mini lore info"). SetBadges knows the facts; the shell decides
 	# where the window opens, which is what the signal is for.
 	var row := SetBadges.new()
+	row.name = "OriginalSets"
 	row.set_clicked.connect(func(code: String) -> void:
 		var facts := SetBadges.facts_for(code)
 		UiChrome.explain_popup(self, String(facts.get("name", code)),
 			SetBadges.describe(code), 520.0))
 	var badges := UiChrome.panel_around(row, 8.0)
+	badges.name = "OriginalSetPlaque"
 	badges.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	corner.add_child(badges)
+	badges.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# [QoL] Numbered packs now have their own line below the original
+	# plaque, not an ever-widening extension of the 1997 set strip.
+	var pool_row := VBoxContainer.new()
+	pool_row.name = "CardPool"
+	pool_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	pool_row.add_theme_constant_override("separation", 6)
+	pool_row.add_child(badges)
+	var packs := CardPackBadges.new()
+	packs.name = "PackBadges"
+	packs.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	packs.pack_clicked.connect(_open_pack_notice)
+	pool_row.add_child(packs)
+	corner.add_child(pool_row)
+	CardPacks.changed.connect(_on_card_pack_changed)
+	CardPacks.rescanned.connect(_refresh_version)
 
 	# THE TITLE SCREEN HAS MUSIC, and it is the SHELL'S — one bed, looping,
 	# held by the `ShellMusic` autoload so it carries on unbroken into
@@ -281,6 +324,86 @@ func _ready() -> void:
 func _on_fetch_progressed(fraction: float) -> void:
 	_fetching.visible = SkinPack.busy()
 	_fetching.text = SkinPack.transfer_line(fraction)
+
+
+func _refresh_version() -> void:
+	if _version_label == null:
+		return
+	var version := String(ProjectSettings.get_setting(
+		"application/config/version", "dev"))
+	if CardRegistry.optional_pack_enabled() or not CardRegistry.extra_set_order().is_empty():
+		_version_label.text = "v%s · %s set entries · %s unique cards" % [version,
+			_grouped(CardRegistry.named_set_entry_count()), _grouped(CardRegistry.size())]
+	else:
+		_version_label.text = "v%s · %d cards" % [version, CardRegistry.size()]
+
+
+static func _grouped(value: int) -> String:
+	var digits := str(value)
+	var out := ""
+	while digits.length() > 3:
+		out = "," + digits.right(3) + out
+		digits = digits.left(-3)
+	return digits + out
+
+
+func _on_card_pack_changed(_id: String, _enabled: bool) -> void:
+	_refresh_version()
+
+
+func _open_pack_notice(id: String) -> void:
+	if is_instance_valid(_pack_notice):
+		return
+	var info := CardPacks.info(id)
+	if info.is_empty():
+		return
+	var enabled := CardPacks.is_enabled(id)
+	var counts: Dictionary = info.get("counts", {})
+	var body := "%s\n\n" % String(info.get("description", ""))
+	body += "Status: %s\n\n" % ("Enabled" if enabled else "Disabled")
+	body += "%s adds %s named set entries: %s cross-set reprints and " % [
+		CardPacks.label_for(id),
+		_grouped(int(counts.get("pack_card_entries", 0))),
+		_grouped(int(counts.get("reprint_entries", 0)))]
+	body += "%d new rules identities. This pack's checklists contain " % \
+		int(counts.get("new_rules_identities", 0))
+	body += "%s set entries representing %d unique cards. The catalog " % [
+		_grouped(int(counts.get("named_set_entries", 0))),
+		int(counts.get("distinct_cards", 0)),
+	]
+	body += "preserves %s published collector slots.\n\n" % \
+		_grouped(int(counts.get("published_printings", 0)))
+	if id == CardPacks.ID:
+		body += "The four new identities are Chaos Orb, Word of Command, "
+		body += "Shahrazad, and Falling Star. "
+	body += String(info.get("rules_note", ""))
+	var refusal := CardPacks.change_refusal()
+	if not refusal.is_empty(): body += "\n\n" + refusal
+	_pack_notice = UiChrome.action_popup(self, "%s — %s" % [
+		CardPacks.label_for(id), info.get("name", "Card pack")], body, [
+		{"label": "Enable", "name": "Enable", "disabled": enabled or not refusal.is_empty(),
+			"callable": CardPacks.set_enabled.bind(id, true)},
+		{"label": "Disable", "name": "Disable", "disabled": not enabled or not refusal.is_empty(),
+			"callable": _request_disable_pack.bind(id)},
+		{"label": "Close", "name": "Close"},
+	], 620.0)
+	_pack_notice.tree_exited.connect(func() -> void: _pack_notice = null)
+
+
+func _request_disable_pack(id: String) -> void:
+	var warning := CardPacks.disable_warning(id)
+	if warning == "":
+		CardPacks.set_enabled(id, false)
+		return
+	if is_instance_valid(_pack_warning):
+		return
+	_pack_warning = UiChrome.action_popup(self, "Current deck uses " + CardPacks.label_for(id),
+		warning, [
+			{"label": "Keep enabled", "name": "KeepEnabled"},
+			{"label": "Disable anyway", "name": "DisableAnyway",
+				"callable": CardPacks.set_enabled.bind(id, false)},
+		], 570.0)
+	_pack_warning.tree_exited.connect(func() -> void: _pack_warning = null)
 
 
 ## Opening the lobby does not start a listener or connect automatically.
@@ -311,6 +434,253 @@ func _run_deck_lab() -> void:
 		code = int(lab.call("_main", forwarded))
 	lab.free()
 	get_tree().quit(code)
+
+
+func _verify_exported_pack_1() -> void:
+	var was_enabled := Settings.enabled_card_packs().has(CardPacks.ID)
+	var failures: Array[String] = []
+	if not CardPacks.has_pack(CardPacks.ID):
+		failures.append("the exact ZIP was not discovered or validated")
+	elif not CardPacks.set_enabled(CardPacks.ID, true):
+		failures.append("Pack 1 could not be enabled")
+	else:
+		if CardRegistry.size() != 901 \
+				or CardRegistry.named_set_entry_count() != 1270:
+			failures.append("the enabled registry did not reach 901 / 1,270")
+		for name in CardPacks.ADDED_NAMES:
+			if not CardRegistry.has_card(name):
+				failures.append("dormant card script missing: " + name)
+		var orb := CardRegistry.get_card("Chaos Orb") if \
+			CardRegistry.has_card("Chaos Orb") else null
+		var star := CardRegistry.get_card("Falling Star") if \
+			CardRegistry.has_card("Falling Star") else null
+		if orb == null or orb.activated_abilities.is_empty() \
+				or not (orb.activated_abilities[0].effects[0] is RandomDestroyEffect):
+			failures.append("Chaos Orb's exported effect script did not load")
+		if star == null or star.spell_effects.is_empty() \
+				or not (star.spell_effects[0] is CoinFlipDamageEffect):
+			failures.append("Falling Star's exported effect script did not load")
+		var art_count := 0
+		for row in CardPacks.entry_records(CardPacks.ID):
+			for full_card in [false, true]:
+				if CardPacks.art_path(String(row.get("name", "")),
+						String(row.get("set", "")), full_card) == "":
+					failures.append("mounted artwork missing: %s / %s" % [
+						row.get("set", ""), row.get("name", "")])
+				else:
+					art_count += 1
+		if art_count != 746:
+			failures.append("expected 746 mounted set-art files, found %d" % art_count)
+	CardPacks.set_enabled(CardPacks.ID, was_enabled)
+	if failures.is_empty():
+		print("PACK 1 EXPORT VERIFY OK — 901 identities, 1,270 set entries, "
+			+ "746 set-art files, dormant scripts loaded")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			printerr("PACK 1 EXPORT VERIFY FAILED: " + failure)
+		get_tree().quit(2)
+
+
+## Export probe changes enablement in memory only, never player settings.
+func _verify_exported_pack_2() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	if not CardPacks.has_pack(FallenEmpiresPack.ID):
+		failures.append("the exact Pack 2 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [FallenEmpiresPack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 999 or CardRegistry.names_in_set("fem").size() != 102:
+			failures.append("expected 999 identities including 102 Fallen Empires cards")
+		for name in FallenEmpiresPack.names():
+			if not CardRegistry.has_card(name):
+				failures.append("missing dormant implementation: " + name)
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "fem", full)
+				if path == "" or Image.load_from_file(path) == null:
+					failures.append("missing or unreadable artwork: " + name)
+		var thallid := CardRegistry.get_card("Thallid") if CardRegistry.has_card("Thallid") else null
+		if thallid == null or not thallid.activated_abilities[0].effects[0] is CreateTokenEffect:
+			failures.append("the exported shared token effect did not load")
+		for key in ["set_icon_fem", "filter_fem_on", "filter_fem_off",
+				"filter_source_on", "filter_source_off", "filter_pack1_on", "filter_pack1_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty():
+				failures.append("missing exported crown/medallion artwork: " + key)
+		# Exercise the shipped cost-first planner, not just metadata loading.
+		var probe := MtgGame.new()
+		probe.setup(["Forest", "Forest"], ["Forest", "Forest"])
+		probe.start(0)
+		for name in ["Forest", "Implements of Sacrifice"]:
+			var inst := CardInstance.new(CardRegistry.get_card(name), probe._next_instance_id, 0)
+			probe._next_instance_id += 1
+			probe._instances[inst.id] = inst
+			probe._put_on_battlefield(inst, 0)
+		var cost := ManaCost.parse("{B}{B}")
+		var plan := ManaPlanner.plan(probe, 0, cost, 0)
+		if plan.is_empty():
+			failures.append("exported cost-first conversion planner returned no plan")
+		else:
+			for step in plan:
+				if step[0] != null and probe.tap_for_mana(0, step[0], step[1]) != "":
+					failures.append("exported mana conversion activation failed")
+			if not probe.players[0].mana_pool.can_pay(cost):
+				failures.append("exported conversion did not produce two black mana")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 2 EXPORT VERIFY OK — 999 identities, 102 Fallen Empires scripts, 204 decoded art files, 7 crown/medallion textures, executable mana conversion")
+		get_tree().quit(0)
+	else:
+		for why in failures:
+			printerr("PACK 2 EXPORT VERIFY FAILED: " + why)
+		get_tree().quit(2)
+
+
+## Packaging integration, not a claim that all card interactions passed.
+## Pending rules are counted explicitly so a resource-only pass cannot hide
+## an unfinished card. Never saves the temporary enabled-pack selection.
+func _verify_exported_pack_3() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	var pending := 0
+	var art_count := 0
+	if not CardPacks.has_pack(IceAgePack.ID):
+		failures.append("the exact Pack 3 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [IceAgePack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 1243 or CardRegistry.names_in_set("ice").size() != 373:
+			failures.append("expected 1,243 identities including 373 Ice Age names")
+		for name in IceAgePack.names():
+			if not CardRegistry.has_card(name):
+				failures.append("missing card: " + name)
+				continue
+			var card := CardRegistry.get_card(name)
+			if card.cast_condition.is_valid() and card.cast_condition.get_method() == "_pending": pending += 1
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "ice", full)
+				var picture := Image.load_from_file(path) if path != "" else null
+				if picture == null or picture.is_empty(): failures.append("missing or unreadable Ice Age artwork: " + name)
+				else: art_count += 1
+		for row in IceAgePack.scripts():
+			if not ResourceLoader.exists(String(row.path)) or load(String(row.path)) == null:
+				failures.append("missing dormant script: " + String(row.name))
+		if pending > 0: failures.append("unfinished Ice Age rules: %d" % pending)
+		for key in ["set_icon_ice", "filter_ice_on", "filter_ice_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty(): failures.append("missing Ice Age UI texture: " + key)
+		var ghoul := CardRegistry.get_card("Ashen Ghoul")
+		if ghoul == null or ghoul.activated_abilities.is_empty() or ghoul.activated_abilities[0].activation_zone != Mtg.Zone.GRAVEYARD:
+			failures.append("exported graveyard ability did not load")
+		var probe := MtgGame.new()
+		probe.setup(["Forest", "Forest"], ["Forest", "Forest"])
+		probe.start(0)
+		var elf := CardInstance.new(CardRegistry.get_card("Adarkar Unicorn"), probe._next_instance_id, 0)
+		probe._next_instance_id += 1
+		probe._instances[elf.id] = elf
+		probe._put_on_battlefield(elf, 0)
+		elf.summoning_sick = false
+		if probe.tap_for_mana(0, elf, 1) != "" or not probe.players[0].mana_pool.can_pay(ManaCost.parse("{1}{U}"), 0, ["cumulative_upkeep"]):
+			failures.append("exported coupled restricted-mana ability failed")
+		if probe.players[0].mana_pool.can_pay(ManaCost.parse("{1}{U}")):
+			failures.append("exported restriction incorrectly paid an unrestricted cost")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 3 EXPORT RESOURCES OK — 1,243 identities, 373 Ice Age names, 346 dormant scripts, %d decoded artwork files, 3 UI textures; %d rules still pending" % [art_count, pending])
+		get_tree().quit(0)
+	else:
+		for why in failures: printerr("PACK 3 EXPORT VERIFY FAILED: " + why)
+		get_tree().quit(2)
+
+
+## Real external ZIP and trusted dormant rules in an actual exported binary.
+func _verify_exported_pack_4() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	var art_count := 0
+	if not CardPacks.has_pack(HomelandsPack.ID):
+		failures.append("the exact Pack 4 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [HomelandsPack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 1012 or CardRegistry.names_in_set("hml").size() != 115:
+			failures.append("expected 1,012 identities including 115 Homelands names")
+		for name in HomelandsPack.names():
+			var card := CardRegistry.get_card(name)
+			if card == null:
+				failures.append("missing card: " + name)
+				continue
+			if card.cast_condition.is_valid() and card.cast_condition.get_method() == "_pending": failures.append("unfinished rules: " + name)
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "hml", full)
+				var picture := Image.load_from_file(path) if path != "" else null
+				if picture == null or picture.is_empty(): failures.append("missing artwork: " + name)
+				else: art_count += 1
+		for row in HomelandsPack.scripts():
+			if not ResourceLoader.exists(String(row.path)) or load(String(row.path)) == null: failures.append("missing dormant script: " + String(row.name))
+		for key in ["set_icon_hml", "filter_hml_on", "filter_hml_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty(): failures.append("missing UI texture: " + key)
+		var abbot := CardRegistry.get_card("Hazduhr the Abbot")
+		if abbot == null or not abbot.activated_abilities[0].effects[0] is CreatureRedirectEffect: failures.append("typed damage-redirection effect failed to load")
+		var oyster := CardRegistry.get_card("Giant Oyster")
+		if oyster == null or oyster.activated_abilities[0].effects[0].ai_role != &"sustained_lock": failures.append("public AI effect metadata failed to load")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 4 EXPORT RESOURCES OK — 1,012 identities, 115 Homelands names/dormant scripts, %d decoded artwork files, 3 UI textures; zero pending rules" % art_count)
+		get_tree().quit(0)
+	else:
+		for why in failures: printerr("PACK 4 EXPORT VERIFY FAILED: " + why)
+		get_tree().quit(2)
+
+
+func _verify_exported_pack_5() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	var art_count := 0
+	if not CardPacks.has_pack(AlliancesPack.ID):
+		failures.append("the exact Pack 5 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [AlliancesPack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 1041 or CardRegistry.names_in_set("all").size() != 144:
+			failures.append("expected 1,041 identities including 144 Alliances names")
+		for name in AlliancesPack.names():
+			var card := CardRegistry.get_card(name)
+			if card == null:
+				failures.append("missing card: " + name)
+				continue
+			if card.cast_condition.is_valid() and card.cast_condition.get_method() == "_pending": failures.append("unfinished rules: " + name)
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "all", full)
+				var picture := Image.load_from_file(path) if path != "" else null
+				if picture == null or picture.is_empty(): failures.append("missing artwork: " + name)
+				else: art_count += 1
+		for row in AlliancesPack.scripts():
+			if not ResourceLoader.exists(String(row.path)) or load(String(row.path)) == null: failures.append("missing dormant script: " + String(row.name))
+		for key in ["set_icon_all", "filter_all_on", "filter_all_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty(): failures.append("missing UI texture: " + key)
+		var force := CardRegistry.get_card("Force of Will")
+		if force == null or force.modes.size() != 2: failures.append("pitch payment modes failed to load")
+		var browse := CardRegistry.get_card("Browse")
+		if browse == null or browse.activated_abilities[0].effects[0].ai_role != &"library_selection": failures.append("public AI effect metadata failed to load")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 5 EXPORT RESOURCES OK — 1,041 identities, 144 Alliances names/dormant scripts, %d decoded artwork files, 3 UI textures; zero pending rules" % art_count)
+		get_tree().quit(0)
+	else:
+		for why in failures: printerr("PACK 5 EXPORT VERIFY FAILED: " + why)
+		get_tree().quit(2)
 
 
 ## One shell button, at this screen's size.

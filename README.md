@@ -46,10 +46,16 @@ engine, and the freedom to keep the game alive.
 for **Windows, Linux, macOS or web**. The release page has launch
 instructions, standalone and original-skin packages, and SHA-256 checksums.
 
-Play with an **897-card early-Magic pool**, historic decks, four computer
+Play with an **897-card early-Magic core**, historic decks, four computer
 opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
-sideboarding. The Deck Builder supports large cards, live filters and
-keyboard browsing. Adventure and online multiplayer are still to come.
+sideboarding. Optional `Pack-1-DotP-complete.zip` finishes the eight set
+checklists: its title-screen `1-tDotP` button can enable 373 additional set
+entries, for **1,270 set entries / 901 unique rules identities**. The Deck Builder
+supports large cards, live filters and keyboard browsing. Adventure and
+online multiplayer are still to come.
+
+Pack 1's ZIP is intentionally not a release download. Build it—and fetch its
+art—locally from this source tree with `tools/pack_1_dotp_complete.py`.
 
 ## Development — 0.30.0
 
@@ -91,6 +97,10 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
+Latest local verification ([packs + SGManalink integration](docs/packs-sgmanalink-integration.md)):
+**7,144 GUT tests / 321,964 assertions**, plus **256 Python tests** (one
+platform skip).
+
 ## Art and skins
 
 The game is playable with its built-in appearance. Choose a `-with-skin`
@@ -129,21 +139,50 @@ on Windows. `--procs` and `--jobs` control parallel workers;
 `--no-elo` keeps experiments out of the ratings ledger.
 The [DeckLab manual](DeckLab/README.md) has examples and all options.
 
-## Future roadmap
+## Post-0.20.0 roadmap
 
-Future work beyond the current development build:
+Work completed or planned after the 0.20.0 release:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
 - [ ] **SGManalink** — tournament-integrated booster opening and drafting.
   LAN duels, tournaments and the timed standalone draft builder are already
   available on `main`.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
-- [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
+- [x] **Cardpacks foundation + Pack 1** — optional, toggleable packs separate
+  from the core pool; its [four-card mechanics/AI audit](docs/pack-1-mechanics.md)
+  is complete.
+- [x] **Pack 2 — Fallen Empires** — 102 additional card names (187 printings),
+  a separate [Python construction tool and mechanics audit](docs/pack-2-fallen-empires.md),
+  and live **Extras** filters in the Deck Builder. Build packs locally;
+  generated ZIPs and card artwork are not distributed.
+- [x] **Pack 3 — Ice Age** — 373 names (383 printings), including
+  346 new identities and 27 reprints. The separate
+  [construction script](tools/pack_3_ice_age.py), local artwork ZIP, Extras
+  filter and [engine/AI integration audit](docs/pack-3-mechanics-audit.md)
+  are implemented. All new identities have handlers; two digital adaptations
+  are documented in Help and the simplified-card ledger. Build locally:
+  `python3 tools/pack_3_ice_age.py fetch-art`, then
+  `python3 tools/pack_3_ice_age.py`. ZIPs and downloaded artwork stay local.
+- [x] **Pack 4 — Homelands** — 115 new names (140 printings), a dedicated
+  [Python builder](tools/pack_4_homelands.py), local artwork, gold globe emblem,
+  matching Extras medallions, expanded Help and an
+  [engine/AI audit](docs/pack-4-homelands.md). Build locally with
+  `python3 tools/pack_4_homelands.py fetch-art`, then
+  `python3 tools/pack_4_homelands.py`. The ZIP and artwork stay local.
+- [x] **Pack 5 — Alliances** — 144 new names (199 printings), a separate
+  [Python builder](tools/pack_5_alliances.py), gold banner emblem, matching
+  Extras medallions, expanded Help and [engine/AI integration](docs/pack-5-alliances.md).
+  Build locally with `python3 tools/pack_5_alliances.py fetch-art`, then
+  `python3 tools/pack_5_alliances.py`. Included in the 0.30.0 development build;
+  generated packs and card pictures are not distributed.
 - [ ] **Internet play and community MElo (Magic Elo)** — parked until
   resources allow. No authentication or ranking service is required for LAN play.
 
 Experienced multiplayer, networking and backend developers are especially
 welcome to help improve LAN play and explore those longer-term ideas.
+
+With all five packs enabled: **2,004 set entries · 1,608 unique cards**.
+Want to add another set? Follow the [card-pack authoring guide](docs/adding-card-packs.md).
 
 See the [development roadmap](docs/ROADMAP.md#major-features-for-the-future)
 for the longer record.

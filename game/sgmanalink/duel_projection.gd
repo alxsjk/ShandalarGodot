@@ -140,6 +140,7 @@ func ingest(room: Dictionary) -> void:
 	mulligan_open = view.mode == "opening"
 	awaiting_attackers = view.mode == "attack"
 	awaiting_blockers = view.mode == "block"
+	block_chooser_override = local_seat(int(view.actor)) if awaiting_blockers else -1
 	awaiting_discard = view.mode == "discard"
 	discard_count = int(view.discard_count)
 	awaiting_damage_assignment = view.mode == "damage"
@@ -207,6 +208,7 @@ func _face(dto: Dictionary, zone: int) -> CardInstance:
 	card.owner_id = local_seat(int(dto.owner))
 	card.controller_id = local_seat(int(dto.controller))
 	card.revealed_in_hand = card.owner_id != 0 and zone == Mtg.Zone.HAND
+	card.exile_playable_by = 0 if dto.exile_playable else -1
 	card.set_meta("sg_handle", dto.id)
 	card.memory.clear()
 	if not dto.chosen.is_empty() and not card.data.chosen_type_key.is_empty():

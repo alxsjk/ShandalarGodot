@@ -296,14 +296,17 @@ func test_the_creature_branch_defaults_to_its_old_fixed_order() -> void:
 # contend. These two tests are the survey the build rested on, written so
 # that a new card changes a reading rather than a paragraph.
 
-## The five one-shot REPLACEMENTS. A sixth writer of the list forces this
+## The original five one-shot REPLACEMENTS plus Alliances' Martyrdom.
+## The 2026-09-16 survey checked its metered split, recipient protection,
+## incarnation expiry and prevention-first choice in test_pack_5_combat_triggers.
+## Another writer of the list forces this
 ## reading to be re-taken — and it is the replacements that make the
 ## question observable, because the fixed chain put every one of them
 ## ahead of every prevention.
-func test_the_pool_has_five_damage_replacement_writers() -> void:
+func test_the_pool_has_six_damage_replacement_writers() -> void:
 	var writers := _cards_containing("damage_replacements.append")
 	writers.sort()
-	assert_eq(writers, ["dark_sphere.gd", "eye_for_an_eye.gd", "forcefield.gd",
+	assert_eq(writers, ["_links.gd", "dark_sphere.gd", "eye_for_an_eye.gd", "forcefield.gd",
 		"nova_pentacle.gd", "shimian_night_stalker.gd"],
 		"a new damage replacement: re-take the CR 616.1 survey")
 
@@ -311,13 +314,15 @@ func test_the_pool_has_five_damage_replacement_writers() -> void:
 ## And the PREVENTIONS that can meet them on a packet aimed at a player:
 ## every Circle of Protection through PreventDamageShieldEffect, plus the
 ## two class shields that write the predicate list themselves.
-func test_the_pool_has_nine_player_side_prevention_writers() -> void:
+func test_the_pool_has_ten_player_side_prevention_writers() -> void:
 	var circles := _cards_containing("PreventDamageShieldEffect")
 	var direct := _cards_containing("prevention_shield_filters.append")
-	assert_eq(circles.size(), 7, "the Circle family: %s" % [circles])
+	# Seasoned Tactician uses the same source-selection shield; its four-card
+	# exile is an announcement cost, not another damage-replacement gate.
+	assert_eq(circles.size(), 10, "the Circle family, Ice Age, and Seasoned Tactician: %s" % [circles])
 	direct.sort()
-	assert_eq(direct, ["al_abara_s_carpet.gd", "scarecrow.gd"],
-		"and the two all-turn class shields")
+	assert_eq(direct, ["_choices.gd", "al_abara_s_carpet.gd", "scarecrow.gd"],
+		"the all-turn class shields and Mercenaries' one-source shield")
 
 
 ## Card FILES under cards/sets/ whose source contains [param needle].

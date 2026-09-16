@@ -20,6 +20,10 @@ Lifecycle="*res://game/lifecycle.gd"
 ; page. Where the places are is `game/paths.gd`. Before ShellMusic,
 ; which reads the skin.
 SkinPack="*res://game/skin_pack.gd"
+; Numbered gameplay packs carry trusted metadata and optional card art,
+; but no scripts. SkinPack mounts the player's own art first; then these
+; are discovered before any scene asks CardRegistry for the pool.
+CardPacks="*res://game/card_packs.gd"
 ShellMusic="*res://game/shell_music.gd"
 ; The finger-as-mouse layer for tablets, phones (the web export) and touch
 ; laptops. Inert wherever there is no touchscreen unless the player turns
@@ -31,7 +35,9 @@ TouchControls="*res://game/input/touch_controls.gd"
 config/name="Shandalar"
 ; [QoL] macOS ignores XDG_DATA_HOME. Test wrappers enable this editor-only
 ; runtime feature so their user:// never reads or writes the player's profile.
-config/name.shandalar_test="Shandalar Tests"
+; Keep integration tests separate from concurrent base and pack checkouts.
+; This feature is never selected by exported player builds.
+config/name.shandalar_test="Shandalar Integration Tests"
 config/version="0.30.0"
 config/description="Open-source remake of MicroProse's 1997 Magic: The Gathering (Shandalar), with a modular GDScript MTG rules engine."
 run/main_scene="res://game/main.tscn"

@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Regression tests for the dedicated Pack 1 builder."""
+
+from __future__ import annotations
+
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+
+import pack_1_dotp_complete as pack
+
+
+class PackOneTests(unittest.TestCase):
+    def test_assembled_counts_and_complete_set_membership(self):
+        manifest, catalog, cards, _readme = pack.assembled()
+        self.assertEqual(manifest["counts"], pack.EXPECTED)
+        self.assertEqual(manifest["version"], pack.PACK_VERSION)
+        self.assertEqual(manifest["minimum_game_version"],
+                         pack.MINIMUM_GAME_VERSION)
+        self.assertEqual(catalog["sets"]["2ed"]["named_cards"], 292)
+        self.assertEqual(catalog["sets"]["4ed"]["named_cards"], 368)
+        self.assertEqual(catalog["sets"]["arn"]["named_cards"], 78)
+        self.assertEqual(catalog["sets"]["atq"]["named_cards"], 85)
+        self.assertEqual(catalog["sets"]["leg"]["named_cards"], 310)
+        self.assertEqual(catalog["sets"]["drk"]["named_cards"], 119)
+        self.assertEqual(len(cards), 373)
+        self.assertEqual(len({(row["set"], row["name"]) for row in cards}), 373)
+        self.assertEqual(len(pack.art_targets(Path("unused"), cards)), 746)
+        self.assertTrue({"Chaos Orb", "Word of Command", "Shahrazad", "Falling Star"}
+                        .issubset({row["name"] for row in cards}))
+
+    def test_build_is_deterministic_and_verifies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp) / pack.FILE_NAME
+            second = Path(tmp) / "again" / pack.FILE_NAME
+            art = Path(tmp) / "art"
+            art.mkdir()
+            for path, _row, _variant in pack.art_targets(art):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"\xff\xd8Pack One test image\xff\xd9")
+            pack.build(first, art)
+            pack.build(second, art)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            self.assertEqual(pack.verify(first)["counts"], pack.EXPECTED)
+            report = pack.verify(first)
+            self.assertEqual(report["checksums"]["artwork"]["files"], 754)
+            self.assertEqual(len(report["checksums"]["artwork"]["sha256"]), 64)
+            self.assertEqual(set(report["checksums"]["metadata"]),
+                             {"catalog.json", "cards.json", "README.txt"})
+            with zipfile.ZipFile(first) as built:
+                names = built.namelist()
+            self.assertEqual(len(names), 758)
+            self.assertEqual(sum(name.startswith(pack.PREFIX + "art/")
+                                 for name in names), 746)
+            self.assertEqual(sum(name.startswith("skin/cardart/")
+                                 for name in names), 8)
+
+    def test_verify_rejects_wrong_name_and_extra_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            good = Path(tmp) / pack.FILE_NAME
+            pack.build(good, include_art=False)
+            wrong = Path(tmp) / "wrong.zip"
+            wrong.write_bytes(good.read_bytes())
+            with self.assertRaisesRegex(ValueError, "named exactly"):
+                pack.verify(wrong, require_art=False)
+            with zipfile.ZipFile(good, "a") as zf:
+                zf.writestr("outside.txt", "no")
+            with self.assertRaisesRegex(ValueError, "unexpected ZIP entries"):
+                pack.verify(good, require_art=False)
+
+    def test_verify_rejects_tampered_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            good = Path(tmp) / pack.FILE_NAME
+            pack.build(good, include_art=False)
+            changed = Path(tmp) / "changed.zip"
+            with zipfile.ZipFile(good) as source, zipfile.ZipFile(changed, "w") as out:
+                for info in source.infolist():
+                    payload = source.read(info.filename)
+                    if info.filename == pack.PREFIX + "README.txt":
+                        payload = b"changed"
+                    out.writestr(info, payload)
+            changed.replace(good)
+            with self.assertRaisesRegex(ValueError, "checksum|unexpected ZIP"):
+                pack.verify(good, require_art=False)
+
+
+if __name__ == "__main__":
+    unittest.main()

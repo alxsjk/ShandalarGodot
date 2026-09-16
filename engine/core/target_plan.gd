@@ -224,11 +224,13 @@ func _validate(game: MtgGame, source: CardInstance, effects: Array,
 	# each group is judged with the earlier groups' refs in hand.
 	var earlier: Array = []
 	for gi in groups.size():
+		var within: Array = earlier.duplicate()
 		for ref in groups[gi]:
-			var why: String = specs[gi].refusal_reason(game, ref, source, earlier)
+			var why: String = specs[gi].refusal_reason(game, ref, source, within if specs[gi].compare_within_group else earlier)
 			if why != "":
 				error = "Illegal target (%s)." % why
 				return
+			within.append(ref)
 		earlier.append_array(groups[gi])
 	# "Two target creatures" means two DIFFERENT ones (CR 601.2c) — and the
 	# rule spans the whole spell, so a divided spell can't double-dip either.

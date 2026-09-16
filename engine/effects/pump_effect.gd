@@ -59,6 +59,8 @@ func resolve(game: MtgGame, source: CardInstance, _controller: int, target: Targ
 	var affected := game.find_instance(affected_id)
 	if affected == null or affected.zone != Mtg.Zone.BATTLEFIELD:
 		return   # source left the battlefield before its own buff resolved
+	if self_mode and source.layer_timestamp != int(game.cost_paid("_source_timestamp", source.layer_timestamp)):
+		return   # the old ability cannot buff a new battlefield incarnation
 	var power_boost := x_value if use_x_power else power
 	game.continuous.add_until_eot_pump(affected_id, power_boost, toughness, granted_keywords)
 	game.log_line("%s gives %s %+d/%+d until end of turn" % [

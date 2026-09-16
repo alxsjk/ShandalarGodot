@@ -12,8 +12,8 @@ numbers:
 
 | | |
 |---|---|
-| Card pool | **897 implemented, `cards/todo/` EMPTY** — M3 complete |
-| Test suite | **6085 tests, 0 failing, 353 scripts** (156 339 asserts, the 2026-09-12 gate); tools self-tests **217 OK**, `./run_tests.sh` exit 0 — and exit 0 MEANS something, see the review bullet below |
+| Card pool | **897 implemented in the default core, `cards/todo/` EMPTY** — M3 complete; optional Pack 1 raises the eight set checklists to **1,270 named entries / 901 unique rules identities** |
+| Test suite | **6326 tests, 0 failing, 371 scripts** (235 026 asserts, the 2026-09-14 Pack 1 gate); tools self-tests **217 OK**, `./run_tests.sh` exit 0 — and exit 0 MEANS something, see the review bullet below |
 | Fidelity ledger | **6 live rows over 7 card files** (53 over 84 on the morning of 2026-09-02, 88 over 128 the day before), pinned to the `SIMPLIFIED` markers by `tests/test_simplified_ledger.gd` |
 | Duel to-do | **cleared** (`docs/duel-todo.md`) |
 | Rules forks | **7** in `engine/rules_options.gd`, all defaulting modern — and the fifth-edition side is now audited AS A SET, which is how its one HIGH defect was found |
@@ -12442,7 +12442,7 @@ local branch; no online push.
 
 ## Major features for the future
 
-Updated at the owner's request, 2026-09-14. Planned features, not part of
+Updated at the owner's request, 2026-09-15. Work completed or planned after
 the 0.20.0 duel and Deck Builder release:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
@@ -12453,11 +12453,42 @@ the 0.20.0 duel and Deck Builder release:
 - [ ] **MElo** — a community player ranking tied to protected personas and
   trusted, server-verified matches; separate from DeckLab's deck ratings.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
-- [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
+- [x] **Cardpacks foundation + Pack 1** — exact-name discovery, validation,
+  live enable/disable control and the first numbered pack.
+- [x] **Pack 2 — Fallen Empires** — 102 new identities, dedicated construction
+  tool, independent Extras filtering, engine/AI integration and Help glossary.
+  See [the Fallen Empires audit](pack-2-fallen-empires.md).
+- [x] **Pack 3 — Ice Age** — 373 names / 383 printings, including 346 new
+  identities and 27 reprints. Dedicated local construction/art tooling,
+  independent Extras filtering, engine/AI integration and expanded Help.
+  See [the Ice Age audit and acceptance record](pack-3-mechanics-audit.md).
+- [x] **Pack 4 — Homelands** — 115 new names / 140 printings, dedicated
+  local construction/art tooling, gold globe and stone medallions, independent
+  Extras filtering, expanded Help and a complete-set engine/AI audit.
+  See [the Homelands audit and acceptance record](pack-4-homelands.md).
 
-The finite early-Magic core remains the default; optional additions must
-not change it when disabled. Existing card-art import tools are available
-now; Cardpacks here means additional playable card sets, not picture ZIPs.
+- [x] **Pack 5 — Alliances** — 144 new names / 199 printings, independent
+  construction/art tooling, gold banner and matching stone medallions, Extras,
+  expanded Help, engine/AI integration and a future-pack authoring guide.
+  See [the Alliances audit](pack-5-alliances.md) and [adding packs](adding-card-packs.md).
+
+With all five optional packs enabled: **2,004 named set entries / 1,608 unique
+cards**. The 897-card original pool remains the default. Numbered ZIPs and
+downloaded card artwork are local-only; construction tools and metadata are
+the distributable artifacts. Balduvian Shaman and Game of Chaos add two explicit
+Ice Age adaptations; Homelands adds Timmerian Fiends' explicit token-exchange
+restriction to the [simplified-card ledger](simplified-cards.md).
+
+The finite 897-card early-Magic core remains the default. The first pack,
+`Pack-1-DotP-complete.zip`, adds 373 named set entries (369 cross-set reprints
+and four digital adaptations), producing 1,270 entries / 901 unique identities
+only while enabled through its `1-tDotP` title-screen button. Its dedicated
+Python tool builds and verifies the pack and fetches both art variants for all
+373 entries. Ordinary picture-only ZIPs remain separate.
+The four new identities have a completed
+[mechanics and AI audit](pack-1-mechanics.md): reusable seeded effects landed
+in the engine, the AI prices their real candidate pools and probabilities, and
+all four printed deviations are pinned in the simplified-card ledger.
 See [the set-pack design](set-packages-plan.md) and
 [the SGManalink design](sgmanalink-design.md) for the proposed groundwork.
 The earlier [Manalink planning study](manalink-planning.md) concerns the
@@ -13839,6 +13870,169 @@ contain 897 cards and 319 decks and produce the same LAN compatibility stamp.
 Intel startup and four duels passed under Rosetta; the Pi pack passed startup
 and four duels in the native Mac runtime. Actual Intel hardware and Pi Linux
 graphics/runtime validation remain playtest steps, not claims of these checks.
+
+## 2026-09-15 — Ice Age second-pass gameplay campaign
+
+The [gameplay campaign](pack-3-gameplay-campaign.md) follows the completed
+Pack 3 integration with reproduced combat-history and delayed-trigger repairs,
+prevention-aware damage/retarget decisions, useful Venomous Breath/Battle Cry
+timing, and avoidance of redundant delayed effects. No new simplifications or
+AI difficulty settings were added. The campaign tools use isolated settings
+and never write Deck Lab ratings.
+
+Final full GUT: **6,691 tests / 258,995 assertions / 393 scripts**, all passing.
+Python tools: **244 tests**, one platform skip. **180 full Ice Age duels**
+completed in modern/Fifth Edition rules; another **5,400 matched Deck Lab
+games** completed with no stalls or draws and byte-identical controls. The
+combat win-rate deltas were positive but not statistically conclusive.
+A fresh local macOS export loaded every Ice Age script and artwork image and
+executed the restricted-mana probe. All **12 stock-deck UI soak duels** also
+passed in renderer-free demo/human modes across both rulesets, without errors,
+warnings or stalls. See the campaign report for exact seeds,
+counts, commands, limitations and final UI checks. The owner subsequently
+requested a source commit and push; no release, pack ZIP or downloaded art
+is published by this campaign.
+
+## 2026-09-15 — Pack 4 Homelands implementation and engine/AI campaign
+
+[Homelands](pack-4-homelands.md) adds all 115 new identities from 140
+published printings, an independent Python builder/art fetcher/verifier,
+local-only artwork ZIP, compact 4-HML menu button, gold globe and matching
+stone Extras medallions. All four packs together expose 1,860 named set
+entries / 1,464 unique cards; the original 897-card pool remains the default.
+Help explains the new rules, and Timmerian Fiends' token-ownership restriction
+is explicitly recorded in the simplified-card ledger.
+
+The engine audit covers optional multi-target triggers, graveyard/battlefield
+incarnations, damage redirection, counter-removal events, attachment/combat
+history, player-bound untap delays, ownership exchange and library-top
+counters. Two final redirection defects were reproduced before repair:
+undo of an existing packet and damage following a returned creature.
+Shape-based AI policies support the new effects without hidden-information
+access or new difficulty settings. Conservative limits are documented.
+
+Final regression: **6,789 tests / 264,578 assertions / 404 GUT scripts**,
+all passing in 398.512s; **250 Python tests**, one platform skip.
+**180 complete Homelands duels** cover both rulesets. **2,400 final-runtime
+matched Lab games** have zero stalls/draws and byte-identical controls.
+Blue/red improved 9.0% → 38.5%; white/red 6.5% → 18.0%, in these specific
+matchups only. Native captures verified the actual UI, artwork and Help.
+A fresh macOS export loaded all 115 dormant scripts, 230 artwork images and
+three UI textures from the real local ZIP; its ad-hoc signature verifies.
+All **24 real-screen UI soak duels** passed: 12 stock-deck controls and 12
+Homelands games, demo plus fuzzed human under both rulesets, without errors,
+warnings or stalls. The audit page records exact reproduction details.
+Player settings are unchanged. No commit, push, new release or pack/art
+distribution is performed by this integration.
+
+## 2026-09-16 — Pack 5 Alliances and the future-pack authoring guide
+
+[Alliances](pack-5-alliances.md) adds 144 new identities from 199 published
+printings, a dedicated Python metadata/art builder and verifier, the local
+artwork ZIP, gold banner emblem, compact 5-ALL menu badge and a sixth centered
+Extras row. With all five packs enabled the catalogue reads **2,004 set
+entries · 1,608 unique cards**. The original 897-card pool and the player's
+saved selection remain unchanged. These trusted scripts require the 0.21.0
+development build; the published 0.20.0 release has not been replaced.
+
+The engine/AI audit adds alternative pitch payments, library-exile and object
+costs, entry sacrifices, reflexive triggers, cleanup actions, regeneration
+receipts, broader redirection, hidden-zone permissions and live blocking costs.
+Focused action tests cover tapped-out Force of Will, Bounty/Scars responses,
+Browse, exact-X Shaman removal and public-information-only choices. A seeded
+Gorilla/Gargoyle nonprogress cycle was reproduced and fixed through semantic
+return-after-death valuation, not a larger turn limit. Five timing adaptations
+are explicit in the card text, Help, manifest and simplified-card ledger.
+
+**180 full engine duels** completed across modern and Fifth Edition rules;
+**2,400 paired Deck Lab games** had zero stalls/draws and byte-identical null
+controls. In the specific blue/red study the on-policy win rate was 14.0%
+versus 7.5%; green/red's 31.5% versus 30.0% was inconclusive. These are not a
+general strength claim. All **24 real-screen UI soak duels** passed, split
+between pack/stock pools and demo/fuzzed-human paths in both rules profiles.
+
+Native captures verify the real menu, artwork, Help, Options and six-row
+Extras layout, including a smaller 800×600 window. A fresh isolated macOS
+export loaded all 144 dormant scripts, decoded all 288 artwork images and
+loaded three UI textures from the real ZIP. The same build passed the
+Homelands probe too; its ad-hoc signature verifies after the temporary profile
+override is removed. The player's settings remain byte-identical.
+
+The new [card-pack authoring guide](adding-card-packs.md) records catalogue and
+reprint accounting, snapshot/version compatibility, construction and archive
+validation, engine/AI implementation, simplified-card policy, every UI surface,
+test campaigns, screenshots, export probes, provenance and source-only delivery.
+This source update also includes the previously uncommitted Homelands work.
+Generated ZIPs, downloaded art and local evidence remain outside Git; no new
+release or release assets are published. Exact commands and limitations are
+in the pack audit.
+
+Final combined regression: **6,857/6,857 tests / 270,559 assertions / 412 GUT
+scripts**, strict wrapper exit 0 in 316.875 seconds; **256 Python tests**, one
+platform skip. The ledger's missing individual-file markers were corrected
+before this clean run; the earlier failed run is not counted as acceptance.
+
+## 2026-09-16 — Pack row and absent-pack audit
+
+The five numbered pack buttons now sit **below** the original bottom-left
+set strip. Their compact grid wraps after five buttons and disappears
+without leaving a gap when no ZIPs are available. Native captures verify
+all five at 1280×800 and 800×600, one pack, and none.
+
+The [no-pack audit](pack-menu-no-packs-audit.md) began with five reproduced
+failures: sideways/never-wrapping badges, stale menu badges/count on
+Rescan, stale Deck Builder inventory, and Card Packs' nonexistent Back
+destination. A tenth regression subsequently reproduced stale deck and
+sideboard faces, preview and legality after removing an enabled pack.
+All are repaired; name-based decks remain intact as cards become proxies
+or become available again. The ten focused tests pass 108 assertions.
+
+A fresh macOS export with a separately named profile, no numbered ZIPs
+and no imported skin exposes the original **897 cards**. All **157 original
+decks** load successfully, missing packs cannot be enabled, and Options,
+its Back button and Extras behave correctly. Saved missing-pack decks
+offer explicit proxy loading or cancellation rather than silently losing
+names. The same export completed **12 stock-deck duels** across Modern
+and Fifth Edition rules with no stalls or errors; this is a smoke check,
+not an AI-strength campaign. Its ad-hoc signature verifies after removing
+the temporary profile override, and player settings remain byte-identical.
+
+Final full regression: **6,867/6,867 tests / 270,667 assertions / 413 GUT
+scripts**, strict wrapper exit 0 in 316.308 seconds; **256 Python tests**,
+one platform skip. The pack-authoring guide now records the new layout
+and live-refresh contracts. No pack ZIPs or art are distributed and no
+release is published by this update.
+
+## 2026-09-16 — Dedicated packs + SGManalink integration
+
+The [integration audit](packs-sgmanalink-integration.md) combines main's
+**0.30.0** version, LAN/tournaments and frozen draft recipes with Packs 1–5
+on `integration/packs-sgmanalink`. Both original branch checkouts remain
+untouched; this is a reviewed merge candidate, not a release or a direct
+update to main. Existing pack minimum-version contracts remain intact.
+
+Reproduced and fixed boundary failures include stale catalogue fingerprints,
+pack switching during resumable LAN sessions, pitch-payment pricing, hand
+mana and graveyard actions, exile play/private visibility, and Melee's
+attacker-chosen blocking in the referee, detached UI and network AI scheduler.
+Protocol **12** and the new rules revision require matching peers and packs.
+The draft selector now sees expansion rarities; snow-covered basics use their
+printed common sheet without changing frozen recipe v1. Saved decks preserve
+both draft provenance and required-pack metadata, including disabled proxies.
+
+Final gate: **7,144/7,144 tests / 321,964 assertions / 439 GUT scripts**,
+strict wrapper exit **0** in **567.573 seconds**; **256 Python tests**, one
+platform skip. All **12 stock live-screen soak duels** and **54 expansion AI
+duels** finish under modern/Fifth Edition rules without errors or stalls.
+These are regression checks, not a new AI-strength comparison.
+
+A fresh exported Mac binary passes all five real-ZIP resource probes, all-pack
+and no-pack draft/socket checks, and all **157 original decks**. Native
+viewport captures verify the menu at 1280×800 and 800×600, Extras and LAN lobby.
+Windows/Linux/Web cross-exports succeed; native Windows/Linux, browser gameplay
+and physical multi-machine LAN checks remain release playtests. The attempted
+browser smoke stalled and is not counted as passed. Player settings remain
+byte-identical; no generated pack/art ZIPs or release assets are published.
 
 ## Standing quality gates
 

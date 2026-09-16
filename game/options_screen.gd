@@ -89,6 +89,8 @@ func _ready() -> void:
 
 	_add_skin_section(content)
 
+	_add_card_packs_section(content)
+
 	_add_sound_section(content)
 
 	content.add_child(UiChrome.body_label("Booster Draft:"))
@@ -178,6 +180,19 @@ func _add_display_section(content: VBoxContainer) -> void:
 	UiChrome.shadowed_button(touch)
 	touch_row.add_child(touch)
 	content.add_child(touch_row)
+
+
+## Numbered gameplay packs get their own compact management page. Keeping
+## validation details there leaves this already-long Options list readable.
+func _add_card_packs_section(content: VBoxContainer) -> void:
+	content.add_child(UiChrome.body_label("Card packs:"))
+	var manage := UiChrome.menu_button("Card Packs...", Vector2(180, 32), 14)
+	manage.name = "CardPacks"
+	manage.tooltip_text = "See installed numbered card packs, validation " \
+		+ "errors, versions, and enabled state."
+	manage.pressed.connect(func() -> void:
+		get_tree().change_scene_to_file("res://game/card_packs_screen.tscn"))
+	content.add_child(manage)
 
 
 ## THE SKIN AND THE PLAYER'S FOLDERS — `[QoL]`, and the owner's asks of

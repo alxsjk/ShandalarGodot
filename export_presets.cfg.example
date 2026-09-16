@@ -33,7 +33,9 @@
 ; Included by hand: `*.deck` (the 317 shipped decks — DeckStore lists
 ; `res://decks` at runtime) and `*.txt` (`cards/data/dck_ids.txt`). Godot
 ; treats neither extension as a resource, so without this line the
-; exported game has no decks at all.
+; exported game has no decks at all. The JSON includes retain the trusted
+; set catalogs and numbered-pack manifests/checklists used to validate
+; external ZIPs. Pack artwork and ZIPs themselves remain outside exports.
 ;
 ; THE WEB PRESET (2026-09-07, "play via mobiles/tablets"): the same pack
 ; wrapped by the `web_nothreads` template. NO THREADS on purpose — the
@@ -62,7 +64,7 @@ advanced_options=false
 dedicated_server=false
 custom_features=""
 export_filter="all_resources"
-include_filter="*.deck, *.txt"
+include_filter="*.deck, *.txt, cards/data/*.json, packaging/card_packs/*/*.json"
 exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
 export_path="../shandalar-build/linux64/Shandalar.x86_64"
 patches=PackedStringArray()
@@ -104,7 +106,7 @@ advanced_options=false
 dedicated_server=false
 custom_features=""
 export_filter="all_resources"
-include_filter="*.deck, *.txt"
+include_filter="*.deck, *.txt, cards/data/*.json, packaging/card_packs/*/*.json"
 exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
 export_path="../shandalar-build/web/index.html"
 patches=PackedStringArray()
@@ -150,7 +152,7 @@ advanced_options=false
 dedicated_server=false
 custom_features=""
 export_filter="all_resources"
-include_filter="*.deck, *.txt"
+include_filter="*.deck, *.txt, cards/data/*.json, packaging/card_packs/*/*.json"
 exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
 export_path="../shandalar-build/macos/Shandalar.app"
 script_export_mode=2
@@ -177,7 +179,7 @@ advanced_options=false
 dedicated_server=false
 custom_features=""
 export_filter="all_resources"
-include_filter="*.deck, *.txt"
+include_filter="*.deck, *.txt, cards/data/*.json, packaging/card_packs/*/*.json"
 exclude_filter="tests/*, tools/*, docs/*, addons/*, assets/*, sim_results/*, *.md"
 export_path="../shandalar-build/windows64/Shandalar.exe"
 script_export_mode=2

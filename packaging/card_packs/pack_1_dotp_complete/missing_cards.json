@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Chaos Orb",
+    "mana_cost": "{2}",
+    "type_line": "Artifact",
+    "oracle_text": "{1}, {T}: If this artifact is on the battlefield, flip it onto the battlefield from a height of at least one foot. If this artifact turns over completely at least once during the flip, destroy all nontoken permanents it touches. Then destroy this artifact.",
+    "power": null,
+    "toughness": null,
+    "keywords": [],
+    "colors": [],
+    "rarity": "rare",
+    "collector_number": "236",
+    "artist": "Mark Tedin",
+    "set": "2ed"
+  },
+  {
+    "name": "Word of Command",
+    "mana_cost": "{B}{B}",
+    "type_line": "Instant",
+    "oracle_text": "Look at target opponent's hand and choose a card from it. You control that player until Word of Command finishes resolving. The player plays that card if able. While doing so, the player can activate mana abilities only if they're from lands that player controls and only if mana they produce is spent to activate other mana abilities of lands the player controls and/or to play that card. If the chosen card is cast as a spell, you control the player while that spell is resolving.",
+    "power": null,
+    "toughness": null,
+    "keywords": [],
+    "colors": ["B"],
+    "rarity": "rare",
+    "collector_number": "137",
+    "artist": "Jesper Myrfors",
+    "set": "2ed"
+  },
+  {
+    "name": "Shahrazad",
+    "mana_cost": "{W}{W}",
+    "type_line": "Sorcery",
+    "oracle_text": "Players play a Magic subgame, using their libraries as their decks. Each player who doesn't win the subgame loses half their life, rounded up.",
+    "power": null,
+    "toughness": null,
+    "keywords": [],
+    "colors": ["W"],
+    "rarity": "rare",
+    "collector_number": "10",
+    "artist": "Kaja Foglio",
+    "set": "arn"
+  },
+  {
+    "name": "Falling Star",
+    "mana_cost": "{2}{R}",
+    "type_line": "Sorcery",
+    "oracle_text": "Flip Falling Star onto the playing area from a height of at least one foot. Falling Star deals 3 damage to each creature it lands on. Tap all creatures dealt damage by Falling Star. If Falling Star doesn't turn completely over at least once during the flip, it has no effect.",
+    "power": null,
+    "toughness": null,
+    "keywords": [],
+    "colors": ["R"],
+    "rarity": "rare",
+    "collector_number": "145",
+    "artist": "Douglas Shuler",
+    "set": "leg"
+  }
+]

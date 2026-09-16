@@ -16,6 +16,28 @@ AI seat, Wizard by default), the Gauntlet's *Enemy Level*, and the Deck
 Lab's `--profile-a` / `--profile-b` (`apprentice`, `magician`, `sorcerer`,
 `wizard`). All three build the same four presets from `AiProfile`.
 
+Ice Age's [second-pass gameplay campaign](pack-3-gameplay-campaign.md) extends
+the existing `forecasts_tactics` correctness layer: visible damage prevention
+and lethal retargets, declared-combat removal, and defensive untap/toughness
+rescues. All four presets already enable that layer; their mistake rates and
+reaction gates are unchanged. The campaign records hidden-information controls,
+the old/off policy, and matched Deck Lab measurements rather than introducing
+a separate Ice Age difficulty setting.
+
+Homelands uses the same layer for public-effect roles: sustained locks,
+finite counters, affordable attack taxes, tribal deployment, useful damage
+redirection and custom spell targets. Card rules expose shapes and parameters;
+the policies do not select decisions by card name or read hidden information.
+Difficulty presets remain unchanged. The [Homelands audit](pack-4-homelands.md)
+records matched candidate/null/control measurements and conservative limits.
+
+Alliances adds pitch-payment and library-cost decisions, exact-mana-value
+X removal, divided damage/counters, public prevention/pump forecasts and
+resource-engine roles behind the same `forecasts_tactics` gate. Tests and
+matched measurements are recorded in [the Pack 5 audit](pack-5-alliances.md).
+It does not grant knowledge of hidden piles or future library cards, and its
+conservative limits are documented there rather than claimed as perfect play.
+
 ## 1. The rule of the ladder
 
 **Every standard opponent plays fair.** Difficulty changes analysis and mistakes,

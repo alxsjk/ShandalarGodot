@@ -46,6 +46,8 @@ func connect_invitation(invitation: String, temporary_name := "") -> Error:
 	if cert == null:
 		return ERR_INVALID_PARAMETER
 	forget()
+	build_fingerprint = SgCompatibility.fingerprint()
+	CardPacks.lock_catalogue(self)
 	_address = data.address
 	_port = int(data.port)
 	_access = data.access
@@ -61,6 +63,8 @@ func connect_local(local_port: int, code: String, temporary_name := "") -> Error
 		or not SgProtocol.nickname(clean_name):
 		return ERR_INVALID_PARAMETER
 	forget()
+	build_fingerprint = SgCompatibility.fingerprint()
+	CardPacks.lock_catalogue(self)
 	_port = local_port
 	_access = code
 	_nickname = clean_name
@@ -91,6 +95,7 @@ func _connect() -> Error:
 
 
 func forget() -> void:
+	CardPacks.unlock_catalogue(self)
 	_wanted = false
 	_welcomed = false
 	if _socket != null:
@@ -257,7 +262,7 @@ func poll() -> void:
 				if message.build != build_fingerprint:
 					_wanted = false
 					online = false
-					status = "Incompatible game builds. Install the same build as the host."
+					status = "Incompatible game builds or card packs. Use the same build and enabled packs as the host."
 					_socket.close(-1)
 					changed.emit()
 					return

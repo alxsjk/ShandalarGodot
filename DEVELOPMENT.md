@@ -174,7 +174,7 @@ it is the same project name. On Linux, `run_tests.sh` and `duel_soak.sh` point
 `XDG_DATA_HOME` at a scratch directory (`$TMPDIR/shandalar-test-data`,
 override `SHANDALAR_TEST_DATA_HOME`). **macOS ignores XDG_DATA_HOME:** the
 wrappers instead enable Godot's `shandalar_test` runtime feature, selecting
-`~/Library/Application Support/Godot/app_userdata/Shandalar Tests/` before
+`~/Library/Application Support/Godot/app_userdata/Shandalar Integration Tests/` before
 autoloads start. On macOS the scratch variable controls tool logs, not that
 profile location. Runs share their test profile; run suite and soak sequentially
 when measuring settings-dependent behavior. Anything run by hand does **not**
@@ -205,7 +205,7 @@ to contain, so one can be drawn from scratch.
 | Folder | What is in it | May depend on | Why the boundary |
 |---|---|---|---|
 | `engine/` | The MTG rules engine. 71 `.gd` files: `core/` (data model and the shared enum vocabulary), `effects/`, `abilities/`, `ai/`, and `mtg_game.gd` — the orchestrator and the single mutation surface | nothing but itself | See below. This is the load-bearing boundary of the project |
-| `cards/` | `sets/<set>/` — **897 card files, one card per file**, filename = snake_case card name, no `class_name`; `data/` — the Scryfall-derived JSON the files were generated from, plus the 1997 `.dck` id table; `todo/` — eight set folders, empty *on purpose* and held in git by a `.gitkeep` that says why | `engine/` only | A card is data plus composed behaviour objects. No card touches engine internals, and the registry scans the folder, so there is no manifest to update |
+| `cards/` | `sets/<set>/` — **897 default card files, one card per file**, filename = snake_case card name, no `class_name`; `optional/pack_1/` — four dormant digital adaptations gated by validated Pack 1 metadata; `data/` — the Scryfall-derived JSON the files were generated from, plus the 1997 `.dck` id table; `todo/` — eight set folders, empty *on purpose* and held in git by a `.gitkeep` that says why | `engine/` only | A card is data plus composed behaviour objects. Pack 1 does not load scripts from its ZIP: trusted optional implementations ship dormant and the registry activates them only while that exact pack is enabled |
 | `game/` | The Godot presentation layer. 83 `.gd`, 8 `.tscn`: `duel/` (49 files — the duel screen, its widgets, and the gauntlet), `deck_builder/`, `help/`, `input/` (the touch layer), plus the title screen, options, skin loading and `paths.gd` | `engine/`, `cards/` | Everything that knows what a Node is lives here |
 | `decks/` | **319 `.deck` files**: five starters at the root, then one subfolder per provenance group — `1997/` (157), `tournament/` (76), `community/` (64), `extended_community/` (15), `variants/` (2, ours) — plus `ratings.txt`, the Deck Lab's committed Elo ledger | data only | `docs/decks-1997.md` carries the provenance of every group, pinned by `tests/unit/test_decks_1997.gd` |
 | `tests/` | GUT suite: 353 test scripts under `unit/` (73), `cards/` (116), `ui/` (91), `ai/` (70), `tools/` (2), plus `game_test.gd` — the `GameTest` harness DSL — and `test_simplified_ledger.gd` at the root | everything | Setup helpers may bend the rules; the action under test goes through the real public API |
@@ -561,8 +561,10 @@ the working view.
   `docs/ARCHITECTURE.md` points to this distinction too.
 - **The web build has been checked in a desktop browser pretending to be a
   tablet, not on a real one** (`README.md`, "Play in the browser").
-- **Set packages** (`docs/set-packages-plan.md`) are a design with the pack
-  *format* implemented and the gating and loader not.
+- **Numbered card packs 1–5 are implemented**, including validation, independent
+  enablement, artwork and trusted dormant rules. Build them locally; ZIPs and
+  card artwork are not distributed. See `docs/adding-card-packs.md` for new packs
+  and `docs/packs-sgmanalink-integration.md` for the LAN integration audit.
 
 Where something is half-done, the row that tracks it is in `docs/ROADMAP.md`
 or in the design document named above. If you cannot find a row for it, that

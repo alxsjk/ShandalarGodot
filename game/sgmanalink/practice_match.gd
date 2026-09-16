@@ -140,7 +140,7 @@ func _cards(pid: int, list: Array) -> Array:
 		var blocking := ""
 		if blocked != null and blocked.zone == Mtg.Zone.BATTLEFIELD and game.combat.attackers.has(blocked.id):
 			blocking = _handle(pid, blocked)
-		var masked := card.face_down
+		var masked := card.face_down and not (card.zone == Mtg.Zone.EXILE and card.exile_visible_to == pid)
 		var chosen := ""
 		if not masked and card.data.chosen_type_key != "" and card.memory.has(card.data.chosen_type_key):
 			chosen = String(card.memory[card.data.chosen_type_key]).capitalize()
@@ -161,7 +161,8 @@ func _cards(pid: int, list: Array) -> Array:
 			"regeneration": card.regeneration_shields, "chosen": chosen,
 			"attached": "" if card.attached_to < 0 or game.find_instance(card.attached_to) == null \
 				else _handle(pid, game.find_instance(card.attached_to)),
-			"actions": [] if masked else SgDuelActions.options(card, pid)})
+			"actions": [] if masked else SgDuelActions.options(card, pid),
+			"exile_playable": game.can_play_from_exile(pid, card)})
 		if masked: out.back().cost = ""
 		if masked and card.zone != Mtg.Zone.BATTLEFIELD:
 			var hidden: Dictionary = out.back()
@@ -175,14 +176,14 @@ func _cards(pid: int, list: Array) -> Array:
 
 
 func _playable(pid: int, card: CardInstance) -> bool:
-	if card.owner_id != pid or card.zone != Mtg.Zone.HAND or game.game_over \
+	if not ((card.owner_id == pid and card.zone == Mtg.Zone.HAND) or game.can_play_from_exile(pid, card)) or game.game_over \
 		or game.mulligan_open or game.priority_player != pid:
 		return false
 	if card.is_land():
 		return game.active_player == pid and Mtg.is_main_step(game.current_step()) \
-			and game.stack.is_empty() and (game.players[pid].lands_played_this_turn == 0 or game.unlimited_land_plays.has(pid)) \
+			and game.stack.is_empty() and game.land_drop_available(pid) \
 			and game.hand_lock_reason(card).is_empty() and game.play_banned(pid, card.data).is_empty() and game.entry_refused(card, pid).is_empty()
-	return game.cast_timing_refusal(pid, card).is_empty() and game.can_afford(pid, card.data)
+	return game.cast_timing_refusal(pid, card).is_empty() and SgPayment.affordable(game, pid, card)
 
 
 func decision_state() -> Dictionary:
@@ -190,7 +191,7 @@ func decision_state() -> Dictionary:
 	if game.mulligan_open: return {"mode": "opening", "actor": first_player if not game.mulligan_kept[first_player] else 1 - first_player}
 	if game.awaiting_choice != null: return {"mode": "choice", "actor": game.awaiting_choice.pid}
 	if game.awaiting_attackers: return {"mode": "attack", "actor": game.active_player}
-	if game.awaiting_blockers: return {"mode": "block", "actor": 1 - game.active_player}
+	if game.awaiting_blockers: return {"mode": "block", "actor": game.block_chooser()}
 	if game.awaiting_discard: return {"mode": "discard", "actor": game.active_player}
 	if game.awaiting_damage_assignment: return {"mode": "damage", "actor": int(game.damage_assignment_request().assigner)}
 	return {"mode": "priority", "actor": game.priority_player}
@@ -345,7 +346,7 @@ func act(pid: int, action: Dictionary) -> String:
 				if not game.players[pid].battlefield.has(card) or not card.is_land():
 					return "Card unavailable."
 				return game.tap_for_mana(pid, card)
-			if not game.players[pid].hand.has(card):
+			if not game.players[pid].hand.has(card) and not game.can_play_from_exile(pid, card):
 				return "Card unavailable."
 			return game.play_land(pid, card) if card.is_land() else game.cast_spell(pid, card)
 		"attack", "attack_bands", "discard":
@@ -377,7 +378,7 @@ func act(pid: int, action: Dictionary) -> String:
 				var blocker := _card(pid, pair[0])
 				var attacker := _card(pid, pair[1])
 				if blocker == null or attacker == null \
-					or not game.players[pid].battlefield.has(blocker) \
+					or not game.players[1 - game.active_player].battlefield.has(blocker) \
 					or not game.combat.attackers.has(attacker.id):
 					return "Block unavailable or selected twice."
 				if not blocks.has(blocker.id): blocks[blocker.id] = []

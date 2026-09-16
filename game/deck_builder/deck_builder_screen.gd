@@ -357,6 +357,7 @@ var _audio: DeckAudio
 var _music: MusicPlayer
 ## The Q/Esc menu ([method _open_deck_menu]) while it is up.
 var _menu: OriginalDialog = null
+var _pack_requirement_notice: Control = null
 var _bar_ground: Control
 var _side_ground: Control
 var _status_timer := 0.0
@@ -390,6 +391,8 @@ func _ready() -> void:
 	refresh()
 	_refresh_inventory()
 	_start_music()
+	CardPacks.changed.connect(_on_card_packs_changed)
+	CardPacks.rescanned.connect(_on_card_packs_changed.bind("", false))
 	set_process(true)
 
 
@@ -776,8 +779,13 @@ func _build_command_bar() -> void:
 	_dice_button.pressed.connect(_on_dice_pressed)
 	add_child(_dice_button)
 
-	_stats_button = OriginalDialog.button("", Vector2(120, COMMAND_BAR_H))
-	_stats_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var extras := OriginalDialog.button("Extras", Vector2(72, COMMAND_BAR_H))
+	extras.name = "ExtrasButton"
+	extras.tooltip_text = "Live set filters for enabled expansion packs"
+	extras.pressed.connect(_open_extra_sets)
+	_command_row.add_child(extras)
+
+	_stats_button = OriginalDialog.button("", Vector2(128, COMMAND_BAR_H))
 	_stats_button.pressed.connect(_run_command.bind("Stats"))
 	_stats_button.name = "StatsButton"
 	_command_row.add_child(_stats_button)
@@ -832,8 +840,11 @@ func _build_command_bar() -> void:
 		_slot_buttons.append(slot)
 
 	# `@DIALOGBUTTONS`' third word, and the screenshot's last button.
-	var done := OriginalDialog.button("Done", Vector2(120, COMMAND_BAR_H))
+	# Stats stays compact; the primary exit action takes the spare width.
+	var done := OriginalDialog.button("Done", Vector2(140, COMMAND_BAR_H))
+	done.name = "DoneButton"
 	done.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_emerald_done(done)
 	done.pressed.connect(_run_command.bind("Exit deck builder"))
 	_command_row.add_child(done)
 	add_child(_command_row)
@@ -846,6 +857,132 @@ func _build_command_bar() -> void:
 	_clear_button.visible = false
 	_clear_button.pressed.connect(_run_command.bind("Clear deck"))
 	add_child(_clear_button)
+
+
+## Tint only this button's faces, preserving the original stone texture,
+## bevel, keyboard focus ring and distinct hover/pressed states.
+static func _style_emerald_done(button: Button) -> void:
+	var colors := {"normal": Color("32c987"), "hover": Color("43e2a0"),
+		"pressed": Color("249965"), "hover_pressed": Color("2bae77"),
+		"disabled": Color("5b8070")}
+	for state in colors:
+		var box := button.get_theme_stylebox(state).duplicate() as StyleBox
+		if box is StyleBoxTexture:
+			box.modulate_color = colors[state]
+		elif box is StyleBoxFlat:
+			box.bg_color = (colors[state] as Color).darkened(0.30)
+		button.add_theme_stylebox_override(state, box)
+	for state in ["font_color", "font_hover_color", "font_pressed_color",
+		"font_hover_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(state, Color("effff6"))
+	button.add_theme_color_override("font_disabled_color", Color("afc4b9"))
+	button.add_theme_color_override("font_shadow_color", Color("082c20"))
+	button.add_theme_constant_override("shadow_offset_x", 1)
+	button.add_theme_constant_override("shadow_offset_y", 1)
+
+
+func _open_extra_sets() -> void:
+	if _dialog_busy():
+		return
+	var dialog := OriginalDialog.create("Extras", Vector2(410, 580))
+	dialog.set_meta("extra_sets", true)
+	var body := dialog.body()
+	body.alignment = BoxContainer.ALIGNMENT_CENTER
+	body.add_theme_constant_override("separation", 12)
+	_extra_source_row(body, "Original", "1997", true, filter.original_cards_on,
+		func(on: bool) -> void: filter.original_cards_on = on,
+		"The 897 original cards. Off hides their original printings;\nPack 1 reprints can still show the same names. Decks stay unchanged.")
+	_extra_source_row(body, "Pack1", "tDotP Pack 1", CardRegistry.optional_pack_enabled(),
+		filter.completion_pack_on, func(on: bool) -> void: filter.completion_pack_on = on,
+		"Complete the original sets: four new names and 369 reprint entries.\nThese switches filter the browser, not your saved deck or installed packs.")
+	_extra_source_row(body, "Pack2", "Fallen E. Pack 2", CardRegistry.extra_set_order().has("fem"),
+		filter.set_on("fem"), func(on: bool) -> void:
+			if filter.set_on("fem") != on:
+				filter.toggle_set("fem"),
+		"Fallen Empires: 102 unique cards.\nOther set, colour, type and search filters still apply.")
+	_extra_source_row(body, "Pack3", "Ice Age Pack 3", CardRegistry.extra_set_order().has("ice"),
+		filter.set_on("ice"), func(on: bool) -> void:
+			if filter.set_on("ice") != on:
+				filter.toggle_set("ice"),
+		"Ice Age: 373 names — 346 new cards and 27 reprints.\nSelecting only Ice Age uses its artwork; decks remain name-based.")
+	_extra_source_row(body, "Pack4", "Homelands Pack 4", CardRegistry.extra_set_order().has("hml"),
+		filter.set_on("hml"), func(on: bool) -> void:
+			if filter.set_on("hml") != on:
+				filter.toggle_set("hml"),
+		"Homelands: 115 distinct cards across 140 printings.\nOther set, colour, type and search filters still apply.")
+	_extra_source_row(body, "Pack5", "Alliances Pack 5", CardRegistry.extra_set_order().has("all"),
+		filter.set_on("all"), func(on: bool) -> void:
+			if filter.set_on("all") != on:
+				filter.toggle_set("all"),
+		"Alliances: 144 distinct cards across 199 printings.\nOther set, colour, type and search filters still apply.")
+	dialog.add_button("Close").pressed.connect(dialog.dismiss)
+	_show_dialog(dialog)
+
+
+## Matching radio pairs: one lit medallion per source. Always show every
+## row, even without its ZIP, so the layout does not jump between profiles.
+func _extra_source_row(body: VBoxContainer, id: String, title: String,
+		available: bool, on: bool, pick: Callable, cue: String) -> void:
+	var row := HBoxContainer.new()
+	row.name = "ExtraSourceRow_" + id
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	var label := OriginalDialog.label(title, 17)
+	label.custom_minimum_size.x = 170
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(label)
+	var group := ButtonGroup.new()
+	group.allow_unpress = false
+	for state in [true, false]:
+		var choice := VBoxContainer.new()
+		choice.add_theme_constant_override("separation", 2)
+		var button := Button.new()
+		button.name = "Extra" + id + ("On" if state else "Off")
+		button.toggle_mode = true
+		button.button_group = group
+		button.set_pressed_no_signal(state == (available and on))
+		button.disabled = state and not available
+		button.tooltip_text = ("On" if state else "Off") + " — " + title + "\n" \
+			+ (cue if available else "Enable this locally built pack in Options > Card Packs first.")
+		FilterBar.dress_source_medallion(button, id)
+		button.pressed.connect(func() -> void:
+			# Explicit assignment also makes an already-selected click harmless.
+			if not available:
+				return
+			pick.call(state)
+			for peer in group.get_buttons():
+				peer.set_pressed_no_signal(peer == button)
+			_refresh_inventory())
+		choice.add_child(button)
+		var caption := OriginalDialog.label("On" if state else "Off", 14)
+		caption.name = "Caption"
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		choice.add_child(caption)
+		row.add_child(choice)
+	body.add_child(row)
+
+
+func _on_card_packs_changed(_id: String, _enabled: bool) -> void:
+	var shown_name := ""
+	if _proxy_showcase.visible:
+		shown_name = _proxy_showcase.proxy_name
+	elif _showcase._shown != null:
+		shown_name = _showcase._shown.data.card_name
+	_pool.clear()
+	for name in CardRegistry.all_names():
+		_pool.append(CardRegistry.get_card(name))
+	for code in CardRegistry.active_set_order():
+		if not filter.sets.has(code):
+			filter.sets[code] = true
+	_drawn_revision = -1
+	_refresh_inventory()
+	# A registry change also changes whether saved names are playable.
+	# Rebind both piles and the preview, without editing the name-based deck.
+	_side_signature = "-"
+	refresh()
+	if shown_name != "":
+		_show_in_showcase(CardRegistry.get_card(shown_name)
+			if CardRegistry.has_card(shown_name) else ProxyCard.data_for(shown_name))
 
 
 ## [QoL] One deck-slot button. LETTERED, not glyphed: `Dekbtn1-3` is the
@@ -1141,6 +1278,8 @@ func _build_inventory() -> void:
 	_inventory.badge_min = 1
 	_inventory.count_source = func(card_name: String) -> int:
 		return deck.count_of(card_name)
+	_inventory.art_set_for = func(data: CardData) -> String:
+		return filter.preferred_printing(data)
 	_inventory.card_activated.connect(_add_one)
 	_inventory.card_bulk.connect(_add_playset)
 	_inventory.card_shifted.connect(_add_one_side)
@@ -1163,7 +1302,8 @@ func _show_in_showcase(data: CardData) -> void:
 		_showcase.visible = false
 		return
 	_proxy_showcase.visible = false
-	_showcase.show_card(CardInstance.new(data, -1, 0))
+	_showcase.show_card(CardInstance.new(data, -1, 0),
+		filter.preferred_printing(data))
 
 
 func _add_one(card_name: String) -> bool:
@@ -1369,6 +1509,9 @@ func _dropped_on_inventory(card_name: String, from: String) -> void:
 ## that list — it shows the whole pool through the filter and changes only
 ## when the filter does.
 func refresh() -> void:
+	var current_names := deck.names()
+	current_names.append_array(deck.side_names())
+	CardPacks.set_current_deck_names(current_names)
 	_header_label.text = deck.deck_name
 	if _header_slab != null:
 		_header_slab.tooltip_text = "%s\n\nDeck Info — name this deck" % deck.deck_name
@@ -3675,6 +3818,48 @@ func _load_deck(path: String) -> void:
 	if loaded == null:
 		_say(String(report[0]) if not report.is_empty() else DeckStore.LOAD_ERROR, true)
 		return
+	var missing := CardPacks.missing_requirements(loaded.required_pack_ids())
+	if not missing.is_empty():
+		_offer_required_pack(path, loaded, report, missing[0])
+		return
+	_finish_load(loaded, report)
+
+
+## A Pack 1 deck never silently becomes a proxy deck. The player may enable
+## its declared dependency and reload, deliberately inspect it without the
+## pack, or cancel without changing the current deck.
+func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
+		pack_id: String) -> void:
+	if is_instance_valid(_pack_requirement_notice):
+		return
+	var available := CardPacks.has_pack(pack_id)
+	var pack_label := CardPacks.label_for(pack_id)
+	var body := "%s requires %s, which is disabled." % [loaded.deck_name, pack_label]
+	if not available:
+		body += (" The exact %s file is not available; place a locally built " \
+			+ "copy in the Card Packs folder and Rescan from Options.") % \
+			CardPacks.file_name_for(pack_id)
+	else:
+		body += " Enable it now and reload this deck?"
+	_pack_requirement_notice = UiChrome.action_popup(self,
+		"This deck requires " + pack_label, body, [
+			{"label": "Enable " + pack_label, "name": "Enable" + pack_label.replace(" ", ""),
+				"disabled": not available,
+				"callable": _enable_pack_and_reload.bind(pack_id, path)},
+			{"label": "Load as proxies", "name": "LoadAsProxies",
+				"callable": _finish_load.bind(loaded, report)},
+			{"label": "Cancel", "name": "Cancel"},
+		], 600.0)
+	_pack_requirement_notice.tree_exited.connect(
+		func() -> void: _pack_requirement_notice = null)
+
+
+func _enable_pack_and_reload(pack_id: String, path: String) -> void:
+	if CardPacks.set_enabled(pack_id, true):
+		_load_deck(path)
+
+
+func _finish_load(loaded: DeckModel, report: Array) -> void:
 	_set_deck(loaded)
 	_cleared = null
 	_undo = null

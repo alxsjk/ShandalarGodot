@@ -29,6 +29,7 @@ class FloodEffect extends EffectBase:
 	func resolve(game: MtgGame, _source: CardInstance, controller: int,
 			_target: TargetRef, _x_value: int = 0) -> void:
 		game.players[controller].land_mana_becomes = Mtg.ManaColor.U
+		game.recalculate()
 		game.log_line("%s's lands run blue this turn"
 			% game.players[controller].player_name)
 
