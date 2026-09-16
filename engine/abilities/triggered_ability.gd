@@ -76,6 +76,9 @@ var is_mana_trigger: bool = false
 ## Reviewed deterministic public damage/death aftermath only. Never enable
 ## for draws, searches, randomness, optional costs or hidden-zone choices.
 var forecast_safe := false
+## Public policy descriptor: this self-death trigger schedules its source's
+## automatic return. Not executable permission and not a hidden-zone read.
+var returns_source_after_death := false
 ## Optional public mana-planning description for a delayed mana trigger.
 ## Resolution still belongs to on_resolve. The planner may count this
 ## only for a matching land subtype producing the same color.
@@ -102,6 +105,16 @@ func public_aftermath() -> TriggeredAbility:
 ## [method targeting]; read by MtgGame as the trigger goes on the stack
 ## (CR 603.3d) and again as it resolves (CR 608.2b).
 var target_spec: TargetSpec = null
+## Same-spec distinct targets; default preserves the single-target contract.
+var target_min := 1
+var target_max := 1
+
+func targeting_up_to(spec: TargetSpec, maximum: int, order: Callable = Callable(), prompt := "") -> TriggeredAbility:
+	assert(maximum >= 1)
+	targeting(spec, order, prompt)
+	target_min = 0
+	target_max = maximum
+	return self
 
 ## The controller's PREFERENCE among the legal targets:
 ## func(game: MtgGame, source: CardInstance, a: TargetRef, b: TargetRef)

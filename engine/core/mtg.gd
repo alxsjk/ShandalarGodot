@@ -222,6 +222,8 @@ enum EventType {
 	STATE_CHECK,          ## Engine-only state-trigger polling (CR 603.8).
 	LIFE_LOST,            ## data: {player, amount}; damage, costs and other loss.
 	CONTROL_CHANGED,     ## data: {instance, from_controller, to_controller}.
+	COUNTERS_REMOVED,    ## data: {instance, kind, removed, remaining}.
+	REGENERATED,         ## data: {instance, controller}; actual replacement, not shield creation.
 }
 
 ## What kind of object a StackItem is.

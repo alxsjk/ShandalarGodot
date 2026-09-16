@@ -120,6 +120,12 @@ func with_damage_filter(cb: Callable) -> TargetSpec:
 ## attacked this turn" (Fire and Brimstone). [member filter] cannot serve:
 ## it takes a CardInstance.
 var player_filter: Callable = Callable()
+## Player predicates needing the source's public history (Diseased Vermin).
+var player_source_filter: Callable = Callable()
+
+func with_player_source_filter(cb: Callable) -> TargetSpec:
+	player_source_filter = cb
+	return self
 
 ## Fluent: attach a player predicate (see [member player_filter]).
 func with_player_filter(cb: Callable) -> TargetSpec:
@@ -262,6 +268,8 @@ func is_supplied_by_caster() -> bool:
 ## item holds (CR 608.2b — a partner that stopped sharing a type is an
 ## illegal target).
 var sibling_filter: Callable = Callable()
+## Also constrain targets sharing one variable-length target group.
+var compare_within_group := false
 
 ## The [constant WHY] word a [member sibling_filter] refusal reports —
 ## `type` for Gauntlets' "shares one of those types", `blocked` for the
@@ -577,6 +585,8 @@ func refusal_reason(game: MtgGame, ref: TargetRef, source: CardInstance,
 			return WHY["player"]
 		if player_filter.is_valid() and not player_filter.call(game, ref.player_id):
 			return filter_reason
+		if player_source_filter.is_valid() and not player_source_filter.call(game, ref.player_id, source):
+			return filter_reason
 		if not _sibling_ok(game, source, ref, earlier):
 			return sibling_reason
 		return ""
@@ -618,7 +628,7 @@ func refusal_reason(game: MtgGame, ref: TargetRef, source: CardInstance,
 				return WHY["cant_target"]
 			if source != null and (inst.cur_protection & source.cur_colors) != 0:
 				return WHY["abilities"]
-			if inst.cur_shroud:
+			if inst.cur_shroud and (source == null or not inst.cur_shroud_ignored_by.has(source.controller_id)):
 				return WHY["abilities"]
 			if inst.cur_cant_be_spell_target and source != null \
 					and (source.zone == Mtg.Zone.STACK
@@ -677,7 +687,7 @@ func refusal_reason(game: MtgGame, ref: TargetRef, source: CardInstance,
 			return WHY["abilities"]
 		# SHROUD: nothing may target it, not even its controller's own
 		# abilities (Spectral Cloak while its host is untapped).
-		if inst.cur_shroud:
+		if inst.cur_shroud and (source == null or not inst.cur_shroud_ignored_by.has(source.controller_id)):
 			return WHY["abilities"]
 		# "Can't be enchanted by other Auras" (Anti-Magic Aura) — the
 		# aura that granted the ban is already attached, so any AURA

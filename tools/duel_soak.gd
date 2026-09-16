@@ -313,8 +313,7 @@ func _next() -> void:
 	var b: int = (_index * 3 + 1) % files.size()
 	if b == a:
 		b = (b + 1) % files.size()
-	config.decks = [DeckList.load_file(files[a]).cards, DeckList.load_file(files[b]).cards]
-	config.player_names = [files[a].get_file(), files[b].get_file()]
+	_configure_decks(config, files[a], files[b])
 	config.apply_deck_colors()
 	_duel = load("res://game/duel/duel_screen.tscn").instantiate()
 	_duel.config = config
@@ -328,7 +327,14 @@ func _next() -> void:
 	root.add_child(_duel)
 	print("SOAK %s seed %d starts: %s vs %s" % [
 		"human" if human else "demo", seed_value,
-		files[a].get_file(), files[b].get_file()])
+		config.player_names[0], config.player_names[1]])
+
+
+## Narrow extension seam for isolated optional-pack UI campaigns. Normal
+## soaks keep exactly the original deck rotation and player names.
+func _configure_decks(config: DuelConfig, first: String, second: String) -> void:
+	config.decks = [DeckList.load_file(first).cards, DeckList.load_file(second).cards]
+	config.player_names = [first.get_file(), second.get_file()]
 
 
 func _on_finished(winner_id: int) -> void:

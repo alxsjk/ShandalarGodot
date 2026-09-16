@@ -1,0 +1,9 @@
+{
+  "all_printings": 140,
+  "code": "hml",
+  "name": "Homelands",
+  "released_at": "1995-10-01",
+  "source_url": "https://api.scryfall.com/cards/search?include_extras=true&include_variations=true&order=set&q=e%3Ahml&unique=prints",
+  "standard_printings": 140,
+  "unique_names": 115
+}

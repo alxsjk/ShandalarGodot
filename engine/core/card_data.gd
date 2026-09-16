@@ -122,6 +122,29 @@ var aura_steals: bool = false
 ## Non-empty marks the card modal; spell_effects is then unused. The mode
 ## index travels with the cast (MtgGame.cast_spell's mode argument).
 var modes: Array = []
+var object_costs: Array = []
+## Announced count of optional repeated additional mana costs, not printed X.
+var repeated_additional_cost := ""
+## A colored pip in addition to extra_cost_per_target (Primitive Justice).
+var extra_target_color_mask := 0
+
+## Alternative payment choices share the ordinary mode/target UI, but do
+## not change the printed mana cost or mana value (CR 118.9, 601.2b/f/h).
+## A payment row has the SAME effects as its printed-cost row. Copies keep
+## those effects; costs are never paid a second time by copying a spell.
+func with_pitch_cost(color: int, life := 0) -> CardData:
+	var effects := spell_effects.duplicate()
+	modes = [{"label": "Pay " + cost.text, "effects": effects},
+		{"label": "Exile another %s card from your hand%s" % [Mtg.COLOR_NAMES[color],
+			" and pay %d life" % life if life > 0 else ""], "effects": effects,
+			"payment": {"cost": ManaCost.parse(""), "exile_color": color, "life": life}}]
+	return self
+
+func payment_option(mode: int) -> Dictionary:
+	return modes[mode].get("payment", {}) if mode >= 0 and mode < modes.size() else {}
+
+func payment_base(mode: int) -> ManaCost:
+	return payment_option(mode).get("cost", cost)
 
 ## AI's mode chooser for modal cards: Callable(game, pid) -> int.
 ## Unset = mode 0. Cards ship their own judgment (see red_elemental_blast).
@@ -670,6 +693,11 @@ func bans_permanents_entering(cb: Callable) -> CardData:
 ## [code]func(game: MtgGame, inst: CardInstance, controller: int) -> String[/code]
 ## — "" to enter, otherwise the reason it cannot.
 var entry_condition: Callable = Callable()
+
+## A replacement that pays before entry, after pure arrival prohibitions.
+## Return false to replace entry with the owner's graveyard. The card has
+## never entered, so no ETB/leaves/dies event fires. Never called by dry runs.
+var entry_payment: Callable = Callable()
 
 ## Fluent: install an arrival veto (see [member entry_condition]).
 func enters_only_if(cb: Callable) -> CardData:

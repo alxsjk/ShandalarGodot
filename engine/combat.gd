@@ -42,6 +42,9 @@ extends RefCounted
 
 ## instance_id of each attacker → true (declared this combat).
 var attackers: Dictionary = {}
+## Who attacked or blocked THIS combat, retained after removal from combat.
+## Values are battlefield timestamps, so a blinked object is not a participant.
+var participant_stamps: Dictionary = {}
 
 ## Declared attack bands: Array of Arrays of attacker ids. Attackers not
 ## in any band fight as implicit solo bands.
@@ -96,6 +99,7 @@ var damage_order: Dictionary = {}
 ## attackers arrive pre-blocked and silently deal no damage.
 func clear() -> void:
 	attackers.clear()
+	participant_stamps.clear()
 	bands.clear()
 	blocks.clear()
 	extra_blocks.clear()
@@ -447,6 +451,8 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 			and attacker.cur_power >= blocker.cur_cant_block_power_ge:
 		return "can't block creatures with power %d or greater" % \
 			blocker.cur_cant_block_power_ge
+	if blocker.cur_cant_block_power_ge_toughness and attacker.cur_power >= blocker.cur_toughness:
+		return "can't block creatures whose power is at least this creature's toughness"
 	if attacker.cur_cant_be_blocked_by_power_ge > 0 \
 			and blocker.cur_power >= attacker.cur_cant_be_blocked_by_power_ge:
 		return "can't be blocked by creatures with power %d or greater" % \
@@ -468,6 +474,8 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 	if blocker.cur_block_power_tax > 0 and attacker.cur_power >= blocker.cur_block_power_tax_threshold \
 			and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % blocker.cur_block_power_tax)):
 		return "can't afford the blocking cost"
+	if attacker.cur_blocked_by_tax > 0 and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % attacker.cur_blocked_by_tax)):
+		return "can't afford the cost to block this attacker"
 	if check_group and blocker.cur_min_block_group > 1:
 		if game.max_blockers > 0 and game.max_blockers < blocker.cur_min_block_group: return "not enough permitted blockers"
 		var possible := 0

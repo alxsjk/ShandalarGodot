@@ -909,6 +909,13 @@ enum Aim {
 ##    theirs the worst case is a bigger, more fragile enemy creature. The
 ##    downside is not symmetric, so it points across the table.
 const AURA_HOSTILE := {
+	"Torture": true,               # repeated -1/-1 counters on its host
+	"Roots": true,                 # taps and prevents normal untapping
+	"Serra Bestiary": true,        # attack/block/tap-symbol activation ban
+	"Ironclaw Curse": true,        # toughness loss and blocking restriction
+	"Funeral March": true,         # host departure costs its controller a creature
+	"Orcish Mine": true,           # destroys the land and damages its controller
+	"Mammoth Harness": true,       # loses flying, opposing combatant gains first strike
 	"Errant Minion": true,        # damages the enchanted creature's controller
 	"Maddening Wind": true,
 	"Mind Whip": true,

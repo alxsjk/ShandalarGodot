@@ -819,6 +819,7 @@ func recalculate(game: MtgGame) -> void:
 	game.untap_caps.clear()
 	game.untap_cap_sources.clear()
 	game.unlimited_land_plays.clear()
+	game.extra_land_plays.clear()
 	for p in game.players:
 		p.mana_substitutions.clear()   # Sunglasses of Urza rebuilds it
 		p.cant_lose_to_life = false    # Lich rebuilds both of these

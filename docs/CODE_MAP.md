@@ -14,7 +14,7 @@ needed); card files have NO class_name (they register by name instead);
   deck-requirement tracking, and registry configuration.
 - `game/card_packs_screen.gd`: Options → Card Packs management, including
   Open Folder, Rescan, versions, enabled state and readable rejection reasons.
-- `game/card_pack_badges.gd`: the compact `1-tDotP`, `2-FEM`, and `3-ICE` status buttons beside the
+- `game/card_pack_badges.gd`: the compact `1-tDotP`, `2-FEM`, `3-ICE` and `4-HML` status buttons beside the
   title-screen set badges.
 - `cards/optional/pack_1/*.gd`: four trusted dormant digital adaptations;
   pack archives never provide executable code.
@@ -98,11 +98,55 @@ needed); card files have NO class_name (they register by name instead);
 - `docs/pack-3-mechanics-audit.md`, `docs/pack-3-gameplay-campaign.md`: initial
   integration and the subsequent reproduce-first engine/AI campaign.
 
+- `game/homelands_pack.gd`: Pack 4's trusted 115-identity allowlist, strict
+  inventory/metadata/artwork checks, and version gate. No dependencies on other packs.
+- `cards/sets/hml/*.gd`: 115 dormant card definitions, with eight `_*.gd`
+  rules-family helpers and `_effect_shapes.gd` public AI annotations.
+- `engine/ai/homelands_tactics.gd`: effect-shape policies for locks, finite
+  counters, X recharging, tribal deployment, redirects, evasion and custom
+  spells; aggregate attack-mana budgets. Existing `forecasts_tactics` null gate.
+- `engine/effects/creature_redirect_effect.gd`: metered creature-to-creature
+  redirection, preserving source and packet identity in modern/classic timing.
+- `engine/core/creature_types.gd`: checked-in Scryfall creature-type catalogue
+  used for unrestricted type choices, including An-Zerrin Ruins.
+- `engine/abilities/triggered_ability.gd`, `engine/stack_item.gd`: optional
+  multiple targets on triggers, held human choices and per-zone incarnations.
+- `tools/pack_4_homelands.py`, `tools/test_pack_4_homelands.py`: dedicated
+  construction, resuming art fetches, atomic ZIP verification and offline tests.
+- `packaging/card_packs/pack_4_homelands/`: source manifest, 140-printing
+  snapshot, 115-name catalogue provenance and player README. Generated ZIP/art stay local.
+- `tools/pack_4_duel_audit.gd`, `tools/pack_4_deck_lab.gd`: nine-deck complete
+  duel audit with actual-use counts, and isolated unrated AI comparison entry.
+- `tools/pack_4_ui_soak.gd`: the existing real DuelScreen demo/human clicker
+  with four Homelands deck themes and an in-memory isolated pack selection.
+- `tests/cards/test_pack_4_*.gd`, `tests/ui/test_pack_4_integration.gd`:
+  catalogue, rules, AI, undo, choice and live UI regressions.
+- `docs/pack-4-homelands.md`: construction, mechanics, AI scope and acceptance record.
+
+- `game/alliances_pack.gd`: Pack 5's trusted 199-printing / 144-name catalogue,
+  exact inventory, compatible-version and checksum contract.
+- `cards/sets/all/*.gd`: 144 dormant definitions and shared rules-family modules;
+  `_effect_shapes.gd` supplies semantic public AI metadata.
+- `engine/additional_object_costs.gd`: disjoint-cost assignment, atomic held
+  choices and journaled payment receipts (sacrifice, tap, untap, discard, counters).
+- `engine/ai/alliances_tactics.gd`: pitch/payment choices, library budgets,
+  exact-X removal and public combat/resource tactics; existing `forecasts_tactics` gate.
+- `engine/core/card_data.gd`, `engine/abilities/mana_ability.gd`: alternative
+  payments, repeated/colored additional costs, entry payments and hand mana.
+- `tools/pack_5_alliances.py`, `tools/test_pack_5_alliances.py`: independent local
+  builder/fetcher/verifier and offline archive-contract tests.
+- `tools/pack_5_duel_audit.gd`, `tools/pack_5_deck_lab.gd`, `tools/pack_5_ui_soak.gd`:
+  seeded engine, candidate/null/control and real-screen campaign entry points.
+- `tests/cards/test_pack_5_*.gd`, `tests/ui/test_pack_5_integration.gd`: catalogue,
+  costs, resources, combat, triggers, hidden links, choices, AI and UI regressions.
+- `docs/pack-5-alliances.md`: construction, adaptations, audits and acceptance.
+- `docs/adding-card-packs.md`: future-pack end-to-end contributor checklist.
+
 The Deck Builder keeps its original eight-medallion strip. Extras sits just
-left of the compact Stats button and opens four centered source rows;
+left of the compact Stats button and opens six centered source rows;
 the wider emerald Done button takes the command row's remaining space.
-1997, tDotP Pack 1, Fallen E. Pack 2 and Ice Age Pack 3 have independent On/Off stone
-radio medallions: square bevelled tiles with gold rings, dark 97/card-fan/crown/ice
+1997, tDotP Pack 1, Fallen E. Pack 2, Ice Age Pack 3, Homelands Pack 4 and Alliances Pack 5 have independent On/Off stone
+radio medallions: square bevelled tiles with gold rings, dark 97/card-fan/crown/ice/globe/banner
 emblems and On/Off captions below. Close is the only footer action. `original_cards_on` and
 `completion_pack_on` filter source membership without unloading packs or
 editing a deck. With 1997 hidden, Pack 1 still admits its added reprint pairs
@@ -2744,7 +2788,7 @@ shandalar/
 │                              never reads a matchups.csv as a
 │                              translation table
 │
-├── tests/                   GUT suite — 6085 tests / ~156 339 asserts, ~380 s
+├── tests/                   GUT suite — 6789 tests / 264 578 asserts, ~399 s
 │   ├── game_test.gd         class GameTest — the test DSL (see
 │   │                          ARCHITECTURE.md "Testing"): put_battlefield,
 │   │                          give_hand, put_synthetic (a permanent

@@ -883,7 +883,7 @@ static func _style_emerald_done(button: Button) -> void:
 func _open_extra_sets() -> void:
 	if _dialog_busy():
 		return
-	var dialog := OriginalDialog.create("Extras", Vector2(390, 420))
+	var dialog := OriginalDialog.create("Extras", Vector2(410, 580))
 	dialog.set_meta("extra_sets", true)
 	var body := dialog.body()
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -904,6 +904,16 @@ func _open_extra_sets() -> void:
 			if filter.set_on("ice") != on:
 				filter.toggle_set("ice"),
 		"Ice Age: 373 names — 346 new cards and 27 reprints.\nSelecting only Ice Age uses its artwork; decks remain name-based.")
+	_extra_source_row(body, "Pack4", "Homelands Pack 4", CardRegistry.extra_set_order().has("hml"),
+		filter.set_on("hml"), func(on: bool) -> void:
+			if filter.set_on("hml") != on:
+				filter.toggle_set("hml"),
+		"Homelands: 115 distinct cards across 140 printings.\nOther set, colour, type and search filters still apply.")
+	_extra_source_row(body, "Pack5", "Alliances Pack 5", CardRegistry.extra_set_order().has("all"),
+		filter.set_on("all"), func(on: bool) -> void:
+			if filter.set_on("all") != on:
+				filter.toggle_set("all"),
+		"Alliances: 144 distinct cards across 199 printings.\nOther set, colour, type and search filters still apply.")
 	dialog.add_button("Close").pressed.connect(dialog.dismiss)
 	_show_dialog(dialog)
 

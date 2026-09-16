@@ -38,6 +38,17 @@ func forcing_color(color: int) -> ManaAbility:
 ## as five sacrifice ManaAbilities, one per color, chosen by ability index).
 ## MtgGame.tap_for_mana performs the sacrifice after producing the mana.
 var sacrifice_source: bool = false
+var activation_zone := Mtg.Zone.BATTLEFIELD
+var exile_source := false
+var object_costs: Array = []
+## Borrow a mana type from the first permanent named by object_costs.
+var borrow_paid_land_type := false
+
+func by_exiling_from_hand() -> ManaAbility:
+	activation_zone = Mtg.Zone.HAND
+	taps_source = false
+	exile_source = true
+	return self
 
 ## Optional MANA part of the cost ("{2}, {T}: Add one mana of any color"
 ## — Celestial Prism; Coal Golem's {3}). Paid from the FLOATING pool only
@@ -102,6 +113,11 @@ func without_tap() -> ManaAbility:
 ## such cost; the paired description names it in refusals and prompts.
 var sacrifice_filter: Callable = Callable()
 var sacrifice_filter_desc: String = ""
+var sacrifice_allows_self := false
+
+func may_sacrifice_itself() -> ManaAbility:
+	sacrifice_allows_self = true
+	return self
 
 ## Fluent: add a "Sacrifice a <desc>" cost to this mana ability.
 func with_sacrifice_of(desc: String, filter: Callable) -> ManaAbility:
@@ -345,4 +361,11 @@ func _to_string() -> String:
 	var parts := PackedStringArray()
 	for pair in produces:
 		parts.append("%d %s" % [pair[1], Mtg.COLOR_NAMES[pair[0]]])
-	return "{T}: Add " + ", ".join(parts)
+	var costs := PackedStringArray()
+	if cost != null and cost.text != "": costs.append(cost.text)
+	if taps_source: costs.append("{T}")
+	if sacrifice_source: costs.append("Sacrifice this permanent")
+	if exile_source: costs.append("Exile this card from your hand")
+	if sacrifice_filter.is_valid(): costs.append("Sacrifice " + sacrifice_filter_desc)
+	if life_cost > 0: costs.append("Pay %d life" % life_cost)
+	return ", ".join(costs) + ": Add " + ", ".join(parts)

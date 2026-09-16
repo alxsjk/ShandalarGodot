@@ -65,8 +65,14 @@ produces exactly these bytes.
 
 ## The pictures
 
+Alliances uses an original forked-banner silhouette drawn by `_alliances`,
+with the same gold card emblem and bevelled stone on/off tiles as the other packs.
+
 | file | what it is | drawn by | licence | SHA-256 |
 |---|---|---|---|---|
+| `set_icon_all.png` | Alliances — gold forked banner, 48x48 | `tools/draw_our_art.gd` (`_alliances`) | GPL-3.0 | `b0d3d2e5f531ba5c42e0a6d176707e3de3c6dcd1b6a540838bcf056ba46cb966` |
+| `filter_all_on.png` | Alliances — lit stone filter medallion, 48x48 | `tools/draw_our_art.gd` | GPL-3.0 | `0d86e56cc5068aa3b73bc507c6430071eea3ac165fdc7bbfa63a1a4809ba573a` |
+| `filter_all_off.png` | Alliances — dark stone filter medallion, 48x48 | `tools/draw_our_art.gd` | GPL-3.0 | `a412236039275e4c258785cf356cc5e4ca94cc76292530047a4e2da77232b1ac` |
 | `set_icon_arn.png` | Arabian Nights — a scimitar, 48x48 | `tools/draw_our_art.gd` (`_scimitar`) | GPL-3.0, with the rest of this project | `80e3adf1ef4e377d67f980bfbe7ce5395c6a4a9a69735c02d3e4896eb1432a3e` |
 | `set_icon_atq.png` | Antiquities — an anvil, 48x48 | `tools/draw_our_art.gd` (`_anvil`) | GPL-3.0 | `9a59e3a87a1e480b65c022dd4d3c5d26d998ad11d8d49a5c348dac3755574f7c` |
 | `set_icon_leg.png` | Legends — a broken column, 48x48 | `tools/draw_our_art.gd` (`_column`) | GPL-3.0 | `94911cc3d00508aeb43988d481e8b9c2f7849cf7466aa054f3b82e2285a73732` |
@@ -83,6 +89,9 @@ produces exactly these bytes.
 | `set_icon_ice.png` | Ice Age — six-armed gold snow crystal, 48x48 | `tools/draw_our_art.gd` (`_snowflake`) | GPL-3.0 | `265d6e37fc8f8c87dae371a614c4b39e5458bf90f30d4b7f38527eef06b7b2af` |
 | `filter_ice_on.png` | Ice Age — carved snow crystal on bright stone and gold ring, 48x48 | `tools/draw_our_art.gd` (`_snowflake`, `_stone_medallion`) | GPL-3.0 | `0366a6227e85f407f801f5309336e3816133588b083b1c2247c07020fbda2dd2` |
 | `filter_ice_off.png` | Ice Age — dim snow crystal tile, 48x48 | `tools/draw_our_art.gd` (`_snowflake`, `_stone_medallion`) | GPL-3.0 | `2e6688b9b7439fe5b91de83c4ed692bf92b3c20a92b11bf730d978b7efd20372` |
+| `set_icon_hml.png` | Homelands — gold globe with meridians and equator, 48x48 | `tools/draw_our_art.gd` (`_globe`) | GPL-3.0 | `f3b11d4f6c7f0ec738d27db3dff06eee788f4b9873e3da7cdb2285d3bcf24553` |
+| `filter_hml_on.png` | Homelands — globe on bright stone and gold ring, 48x48 | `tools/draw_our_art.gd` (`_globe`, `_stone_medallion`) | GPL-3.0 | `aa0b940ad78c4ea0eb674d4d6edce777a7d5002c4604c99f9455cfb35a14920e` |
+| `filter_hml_off.png` | Homelands — dim globe tile, 48x48 | `tools/draw_our_art.gd` (`_globe`, `_stone_medallion`) | GPL-3.0 | `91b3aa4ebefdbbbdc2dbb1050e50c0daeced7993e1802b54fb3eba647b1824b4` |
 | `damage_marker.png` | the dagger on a wounded creature, 64x40 | `tools/draw_our_art.gd` (`_dagger_blade`, `_dagger_hilt`) | GPL-3.0 | `771a24e7139e7df3757728350e0acf5e2fffb553e1a78bc48e1b04c20c52d489` |
 
 The eight set glyphs are the sets' own marks — an anvil, a scimitar, a
@@ -99,8 +108,8 @@ and square bevel, following the owner's set-strip reference. Pack 1 uses
 fanned cards with a glint; the original pool has live 97 numerals. On/Off
 captions sit below each tile, leaving the emblems unobscured. The faces
 retain the original strip's 2:1 brightness convention. The Ice Age snow
-crystal uses the same gold, stone, ring and bevel treatment. These textures
-ship with the game independently of a skin or external artwork ZIP.
+crystal and Homelands globe use the same gold, stone, ring and bevel treatment.
+These textures ship with the game independently of a skin or external artwork ZIP.
 
 TWO WERE REVISED ON 2026-09-09, both to the owner's brief, and the two
 hashes above moved with them.

@@ -48,6 +48,15 @@ var sacrifice_cost: bool = false
 ## life (CR 118.4 — and yes, that kills you via state-based actions).
 var life_cost: int = 0
 
+## Exiling the top cards is an announcement cost, not a resolving effect.
+## Only the size is queried before payment; no chooser/AI sees future cards.
+var library_exile_cost := 0
+var object_costs: Array = []
+
+func with_library_exile_cost(count: int) -> ActivatedAbility:
+	library_exile_cost = maxi(0, count)
+	return self
+
 
 ## Fluent: add "Sacrifice this permanent" to the cost.
 func with_sacrifice_cost() -> ActivatedAbility:

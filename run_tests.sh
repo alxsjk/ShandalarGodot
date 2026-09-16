@@ -156,6 +156,14 @@ python3 tools/test_pack_3_ice_age.py >/dev/null
 PACK_THREE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-3-Ice_Age.zip"
 python3 tools/pack_3_ice_age.py build "$PACK_THREE_PATH" --metadata-only >/dev/null
 export SHANDALAR_PACK_3="$PACK_THREE_PATH"
+python3 tools/test_pack_4_homelands.py >/dev/null
+PACK_FOUR_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-4-Homelands.zip"
+python3 tools/pack_4_homelands.py build "$PACK_FOUR_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_4="$PACK_FOUR_PATH"
+python3 tools/test_pack_5_alliances.py >/dev/null
+PACK_FIVE_PATH="$SHANDALAR_TEST_DATA_HOME/Pack-5-Alliances.zip"
+python3 tools/pack_5_alliances.py build "$PACK_FIVE_PATH" --metadata-only >/dev/null
+export SHANDALAR_PACK_5="$PACK_FIVE_PATH"
 
 # Import step (quick no-op when the .godot cache is warm; a cold import
 # of the card art is minutes, not hours, so 600 s is generous).

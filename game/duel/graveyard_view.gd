@@ -391,7 +391,7 @@ func _card(inst: CardInstance, legal: Callable, counter: String) -> MiniCard:
 	# tooltip already keep it shut — the plate stays a plate, the tooltip
 	# reads `(face down)`. Opening the viewer named it anyway. Nobody may
 	# look at a card exiled face down, so nobody does.
-	card.face_down = inst.face_down
+	card.face_down = inst.face_down and not (inst.zone == Mtg.Zone.EXILE and inst.exile_visible_to == _human)
 	# s30 OUTLINES a legal target and leaves an illegal one plain
 	# (`duel.go:3699-3712`); ours reuses the board's own target tint AND
 	# CardPile's 2px ring. The tint alone is a modulate on the imported

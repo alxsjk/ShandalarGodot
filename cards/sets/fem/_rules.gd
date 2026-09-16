@@ -760,6 +760,10 @@ static func _unblocked(g: MtgGame, source: CardInstance, _event: GameEvent) -> b
 	return g.combat.attackers.has(source.id) and g.combat.blockers_of_band(g.combat.band_of(source.id)).is_empty()
 
 static func _enemy_first(g: MtgGame, source: CardInstance, at: TargetRef, bt: TargetRef) -> bool:
+	if at.is_player or bt.is_player:
+		var av := (1000 if at.player_id != source.controller_id else -1000) if at.is_player else 0
+		var bv := (1000 if bt.player_id != source.controller_id else -1000) if bt.is_player else 0
+		return av > bv
 	var a := g.find_instance(at.instance_id)
 	var b := g.find_instance(bt.instance_id)
 	var av := (1000 if a.controller_id != source.controller_id else 0) + a.cur_power + a.cur_toughness

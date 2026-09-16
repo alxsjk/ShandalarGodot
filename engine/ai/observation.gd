@@ -29,7 +29,7 @@ static func capture(game: MtgGame, seat: int, ignore_own: Array = [],
 				if own and zone == "battlefield" and ignore_own.has(card.id): continue
 				# Face-down exile is not automatically visible to its owner
 				# (Necropotence grants neither player permission to look).
-				var entry := _card(card, (own and zone != "exile") or not card.face_down)
+				var entry := _card(card, (own and zone != "exile") or not card.face_down or (zone == "exile" and card.exile_visible_to == seat))
 				if own and ignore_own_resources and zone == "battlefield" \
 						and not card.cur_mana_abilities.is_empty():
 					entry.erase("tapped")

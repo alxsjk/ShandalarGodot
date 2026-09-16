@@ -82,6 +82,9 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
+Latest local verification (Alliances integration): **6,857 GUT tests /
+270,559 assertions**, plus **256 Python tests** (one platform skip).
+
 ## Art and skins
 
 The game is playable with its built-in appearance. Choose a `-with-skin`
@@ -143,11 +146,26 @@ Work completed or planned after the 0.20.0 release:
   are documented in Help and the simplified-card ledger. Build locally:
   `python3 tools/pack_3_ice_age.py fetch-art`, then
   `python3 tools/pack_3_ice_age.py`. ZIPs and downloaded artwork stay local.
+- [x] **Pack 4 — Homelands** — 115 new names (140 printings), a dedicated
+  [Python builder](tools/pack_4_homelands.py), local artwork, gold globe emblem,
+  matching Extras medallions, expanded Help and an
+  [engine/AI audit](docs/pack-4-homelands.md). Build locally with
+  `python3 tools/pack_4_homelands.py fetch-art`, then
+  `python3 tools/pack_4_homelands.py`. The ZIP and artwork stay local.
+- [x] **Pack 5 — Alliances** — 144 new names (199 printings), a separate
+  [Python builder](tools/pack_5_alliances.py), gold banner emblem, matching
+  Extras medallions, expanded Help and [engine/AI integration](docs/pack-5-alliances.md).
+  Build locally with `python3 tools/pack_5_alliances.py fetch-art`, then
+  `python3 tools/pack_5_alliances.py`. Requires the 0.21.0 development build;
+  generated packs and card pictures are not distributed.
 - [ ] **Community MElo (Magic Elo)** — a big long-term wish: a simple,
   elegant global player rating and ranking system for the community. :)
 
 Experienced multiplayer, networking and backend developers are especially
 welcome to help bring Manalink, tournaments and community rankings to life.
+
+With all five packs enabled: **2,004 set entries · 1,608 unique cards**.
+Want to add another set? Follow the [card-pack authoring guide](docs/adding-card-packs.md).
 
 See the [development roadmap](docs/ROADMAP.md#major-features-for-the-future)
 for the longer record.

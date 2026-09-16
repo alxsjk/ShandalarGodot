@@ -19,6 +19,8 @@ var id: int = 0
 var player_name: String = ""
 
 var life: int = 20
+var skip_draw_steps := 0
+var last_red_spell_damage_controller := -1
 
 ## Maximum hand size at cleanup (CR 402.2). Normally 7; Cursed Rack sets
 ## a chosen opponent's to 4, Library of Leng removes the limit entirely.

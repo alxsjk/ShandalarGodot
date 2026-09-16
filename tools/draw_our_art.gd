@@ -116,7 +116,7 @@ const OUT_DIR := "res://game/art"
 func _init() -> void:
 	var dir := ProjectSettings.globalize_path(OUT_DIR)
 	DirAccess.make_dir_recursive_absolute(dir)
-	for code in ["atq", "arn", "past", "drk", "4ed", "leg", "fem", "ice"]:
+	for code in ["atq", "arn", "past", "drk", "4ed", "leg", "fem", "ice", "hml", "all"]:
 		var img := _render(Vector2i(GLYPH_SIZE, GLYPH_SIZE),
 			[[_glyph(code), GOLD_LIT, GOLD_DARK]], RIM)
 		_write(img, dir, "set_icon_%s.png" % code)
@@ -124,6 +124,10 @@ func _init() -> void:
 	_write(_crown_medallion(false), dir, "filter_fem_off.png")
 	_write(_stone_medallion(true, _snowflake()), dir, "filter_ice_on.png")
 	_write(_stone_medallion(false, _snowflake()), dir, "filter_ice_off.png")
+	_write(_stone_medallion(true, _homelands()), dir, "filter_hml_on.png")
+	_write(_stone_medallion(false, _homelands()), dir, "filter_hml_off.png")
+	_write(_stone_medallion(true, _alliances()), dir, "filter_all_on.png")
+	_write(_stone_medallion(false, _alliances()), dir, "filter_all_off.png")
 	_write(_stone_medallion(true, []), dir, "filter_source_on.png")
 	_write(_stone_medallion(false, []), dir, "filter_source_off.png")
 	_write(_stone_medallion(true, _completed_cards()), dir, "filter_pack1_on.png")
@@ -180,7 +184,52 @@ func _glyph(code: String) -> Array:
 			return _crown()
 		"ice":
 			return _snowflake()
+		"hml":
+			return _homelands()
+		"all":
+			return _alliances()
 	return []
+
+
+## ALLIANCES — an authored forked banner. Broad gold folds and the same
+## silhouette in carved stone keep the set coherent with the earlier packs.
+func _alliances() -> Array:
+	return [{"op": "add", "poly": PackedVector2Array([
+		Vector2(0.17, 0.07), Vector2(0.25, 0.07), Vector2(0.25, 0.92),
+		Vector2(0.17, 0.92)])}, {"op": "add", "poly": PackedVector2Array([
+		Vector2(0.24, 0.11), Vector2(0.52, 0.06), Vector2(0.68, 0.13),
+		Vector2(0.88, 0.09), Vector2(0.78, 0.33), Vector2(0.91, 0.57),
+		Vector2(0.68, 0.61), Vector2(0.51, 0.52), Vector2(0.24, 0.56)])},
+		{"op": "sub", "poly": PackedVector2Array([
+			Vector2(0.50, 0.15), Vector2(0.56, 0.18), Vector2(0.56, 0.47), Vector2(0.50, 0.43)])}]
+
+
+## HOMELANDS — a ringed world and three authored land silhouettes.
+## Broad coastlines keep the gold mark legible in the tiny card slot;
+## the same geometry is carved into the stone filter, with no SVG dependency.
+func _homelands() -> Array:
+	var outer := PackedVector2Array()
+	var inner := PackedVector2Array()
+	for i in 64:
+		var direction := Vector2.from_angle(TAU * float(i) / 64.0)
+		outer.append(Vector2(0.5, 0.5) + direction * 0.46)
+		inner.append(Vector2(0.5, 0.5) + direction * 0.385)
+	return [
+		{"op": "add", "poly": outer}, {"op": "sub", "poly": inner},
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.24, 0.23), Vector2(0.37, 0.16), Vector2(0.49, 0.24),
+			Vector2(0.48, 0.37), Vector2(0.40, 0.43), Vector2(0.33, 0.36),
+			Vector2(0.19, 0.40), Vector2(0.17, 0.32)])},
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.15, 0.51), Vector2(0.28, 0.48), Vector2(0.37, 0.57),
+			Vector2(0.48, 0.59), Vector2(0.45, 0.70), Vector2(0.38, 0.77),
+			Vector2(0.39, 0.86), Vector2(0.28, 0.78), Vector2(0.23, 0.65)])},
+		{"op": "add", "poly": PackedVector2Array([
+			Vector2(0.57, 0.17), Vector2(0.72, 0.23), Vector2(0.82, 0.36),
+			Vector2(0.75, 0.44), Vector2(0.85, 0.55), Vector2(0.78, 0.72),
+			Vector2(0.62, 0.82), Vector2(0.58, 0.71), Vector2(0.64, 0.59),
+			Vector2(0.58, 0.47), Vector2(0.65, 0.34), Vector2(0.56, 0.28)])},
+	]
 
 
 ## ICE AGE — six crystal arms, each with two broad branches. The same

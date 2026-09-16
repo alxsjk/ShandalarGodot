@@ -51,6 +51,10 @@ var local_prevention: PreventionBudget = null
 ## Who or what is being dealt to. A player ref or a card ref; never a
 ## damage ref (damage does not damage damage).
 var target: TargetRef = null
+## A queued event belongs to this battlefield incarnation, not to a card
+## that left and returned during a classic prevention window. -1 is for
+## legacy/manual packet construction; MtgGame always stamps real packets.
+var target_timestamp := -1
 
 ## How much damage this packet started as.
 var amount: int = 0
@@ -79,6 +83,9 @@ var is_combat: bool = false
 ## damage, this causes a SECOND damage-prevention step that follows the
 ## current one"* — is the rule this flag is for.
 var from_redirect: bool = false
+## CR 614.5: one replacement cannot reapply to its own redirected damage.
+## Keys identify a metered creature redirect on one battlefield incarnation.
+var applied_creature_redirects: Array[String] = []
 
 ## Unique within one game, handed out by `MtgGame`. This is the id a
 ## [TargetRef] names when a spell targets the damage itself, so it must
@@ -131,6 +138,7 @@ func divert(n: int) -> int:
 ## ruling); everything else stays separate so a Circle targets exactly one
 ## of them.
 func matches(other: DamagePacket) -> bool:
+	if other != null and applied_creature_redirects != other.applied_creature_redirects: return false
 	if local_prevention != null or (other != null and other.local_prevention != null): return false
 	if other == null or source_id() != other.source_id():
 		return false
@@ -145,7 +153,7 @@ func matches(other: DamagePacket) -> bool:
 		return false
 	if target.is_player:
 		return target.player_id == other.target.player_id
-	return target.instance_id == other.target.instance_id
+	return target.instance_id == other.target.instance_id and target_timestamp == other.target_timestamp
 
 
 ## Fold [param other] into this packet (see [method matches]). The merged

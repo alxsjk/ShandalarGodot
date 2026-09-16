@@ -12457,12 +12457,22 @@ the 0.20.0 duel and Deck Builder release:
   identities and 27 reprints. Dedicated local construction/art tooling,
   independent Extras filtering, engine/AI integration and expanded Help.
   See [the Ice Age audit and acceptance record](pack-3-mechanics-audit.md).
+- [x] **Pack 4 — Homelands** — 115 new names / 140 printings, dedicated
+  local construction/art tooling, gold globe and stone medallions, independent
+  Extras filtering, expanded Help and a complete-set engine/AI audit.
+  See [the Homelands audit and acceptance record](pack-4-homelands.md).
 
-With all three optional packs enabled: **1,745 named set entries / 1,349 unique
+- [x] **Pack 5 — Alliances** — 144 new names / 199 printings, independent
+  construction/art tooling, gold banner and matching stone medallions, Extras,
+  expanded Help, engine/AI integration and a future-pack authoring guide.
+  See [the Alliances audit](pack-5-alliances.md) and [adding packs](adding-card-packs.md).
+
+With all five optional packs enabled: **2,004 named set entries / 1,608 unique
 cards**. The 897-card original pool remains the default. Numbered ZIPs and
 downloaded card artwork are local-only; construction tools and metadata are
 the distributable artifacts. Balduvian Shaman and Game of Chaos add two explicit
-Ice Age adaptations to the [simplified-card ledger](simplified-cards.md).
+Ice Age adaptations; Homelands adds Timmerian Fiends' explicit token-exchange
+restriction to the [simplified-card ledger](simplified-cards.md).
 
 The finite 897-card early-Magic core remains the default. The first pack,
 `Pack-1-DotP-complete.zip`, adds 373 named set entries (369 cross-set reprints
@@ -13125,3 +13135,82 @@ warnings or stalls. See the campaign report for exact seeds,
 counts, commands, limitations and final UI checks. The owner subsequently
 requested a source commit and push; no release, pack ZIP or downloaded art
 is published by this campaign.
+
+## 2026-09-15 — Pack 4 Homelands implementation and engine/AI campaign
+
+[Homelands](pack-4-homelands.md) adds all 115 new identities from 140
+published printings, an independent Python builder/art fetcher/verifier,
+local-only artwork ZIP, compact 4-HML menu button, gold globe and matching
+stone Extras medallions. All four packs together expose 1,860 named set
+entries / 1,464 unique cards; the original 897-card pool remains the default.
+Help explains the new rules, and Timmerian Fiends' token-ownership restriction
+is explicitly recorded in the simplified-card ledger.
+
+The engine audit covers optional multi-target triggers, graveyard/battlefield
+incarnations, damage redirection, counter-removal events, attachment/combat
+history, player-bound untap delays, ownership exchange and library-top
+counters. Two final redirection defects were reproduced before repair:
+undo of an existing packet and damage following a returned creature.
+Shape-based AI policies support the new effects without hidden-information
+access or new difficulty settings. Conservative limits are documented.
+
+Final regression: **6,789 tests / 264,578 assertions / 404 GUT scripts**,
+all passing in 398.512s; **250 Python tests**, one platform skip.
+**180 complete Homelands duels** cover both rulesets. **2,400 final-runtime
+matched Lab games** have zero stalls/draws and byte-identical controls.
+Blue/red improved 9.0% → 38.5%; white/red 6.5% → 18.0%, in these specific
+matchups only. Native captures verified the actual UI, artwork and Help.
+A fresh macOS export loaded all 115 dormant scripts, 230 artwork images and
+three UI textures from the real local ZIP; its ad-hoc signature verifies.
+All **24 real-screen UI soak duels** passed: 12 stock-deck controls and 12
+Homelands games, demo plus fuzzed human under both rulesets, without errors,
+warnings or stalls. The audit page records exact reproduction details.
+Player settings are unchanged. No commit, push, new release or pack/art
+distribution is performed by this integration.
+
+## 2026-09-16 — Pack 5 Alliances and the future-pack authoring guide
+
+[Alliances](pack-5-alliances.md) adds 144 new identities from 199 published
+printings, a dedicated Python metadata/art builder and verifier, the local
+artwork ZIP, gold banner emblem, compact 5-ALL menu badge and a sixth centered
+Extras row. With all five packs enabled the catalogue reads **2,004 set
+entries · 1,608 unique cards**. The original 897-card pool and the player's
+saved selection remain unchanged. These trusted scripts require the 0.21.0
+development build; the published 0.20.0 release has not been replaced.
+
+The engine/AI audit adds alternative pitch payments, library-exile and object
+costs, entry sacrifices, reflexive triggers, cleanup actions, regeneration
+receipts, broader redirection, hidden-zone permissions and live blocking costs.
+Focused action tests cover tapped-out Force of Will, Bounty/Scars responses,
+Browse, exact-X Shaman removal and public-information-only choices. A seeded
+Gorilla/Gargoyle nonprogress cycle was reproduced and fixed through semantic
+return-after-death valuation, not a larger turn limit. Five timing adaptations
+are explicit in the card text, Help, manifest and simplified-card ledger.
+
+**180 full engine duels** completed across modern and Fifth Edition rules;
+**2,400 paired Deck Lab games** had zero stalls/draws and byte-identical null
+controls. In the specific blue/red study the on-policy win rate was 14.0%
+versus 7.5%; green/red's 31.5% versus 30.0% was inconclusive. These are not a
+general strength claim. All **24 real-screen UI soak duels** passed, split
+between pack/stock pools and demo/fuzzed-human paths in both rules profiles.
+
+Native captures verify the real menu, artwork, Help, Options and six-row
+Extras layout, including a smaller 800×600 window. A fresh isolated macOS
+export loaded all 144 dormant scripts, decoded all 288 artwork images and
+loaded three UI textures from the real ZIP. The same build passed the
+Homelands probe too; its ad-hoc signature verifies after the temporary profile
+override is removed. The player's settings remain byte-identical.
+
+The new [card-pack authoring guide](adding-card-packs.md) records catalogue and
+reprint accounting, snapshot/version compatibility, construction and archive
+validation, engine/AI implementation, simplified-card policy, every UI surface,
+test campaigns, screenshots, export probes, provenance and source-only delivery.
+This source update also includes the previously uncommitted Homelands work.
+Generated ZIPs, downloaded art and local evidence remain outside Git; no new
+release or release assets are published. Exact commands and limitations are
+in the pack audit.
+
+Final combined regression: **6,857/6,857 tests / 270,559 assertions / 412 GUT
+scripts**, strict wrapper exit 0 in 316.875 seconds; **256 Python tests**, one
+platform skip. The ledger's missing individual-file markers were corrected
+before this clean run; the earlier failed run is not counted as acceptance.

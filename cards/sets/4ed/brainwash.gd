@@ -32,6 +32,7 @@ static func _tax(game: MtgGame, source: CardInstance) -> void:
 		return
 	host.cur_attack_costs.append({
 		"desc": "its controller pays {3}",
+		"generic_mana": 3,
 		"can_pay": _can_pay,
 		"pay": _pay,
 	})

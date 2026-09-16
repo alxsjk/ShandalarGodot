@@ -41,6 +41,8 @@ const DECK_LAB_FLAG := "--deck-lab"
 const VERIFY_PACK_1_FLAG := "--verify-pack-1"
 const VERIFY_PACK_2_FLAG := "--verify-pack-2"
 const VERIFY_PACK_3_FLAG := "--verify-pack-3"
+const VERIFY_PACK_4_FLAG := "--verify-pack-4"
+const VERIFY_PACK_5_FLAG := "--verify-pack-5"
 
 ## The corner line that reports a skin zip on its way (web builds).
 var _fetching: Label
@@ -65,6 +67,12 @@ func _ready() -> void:
 		return
 	if OS.get_cmdline_user_args().has(VERIFY_PACK_3_FLAG):
 		_verify_exported_pack_3()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_4_FLAG):
+		_verify_exported_pack_4()
+		return
+	if OS.get_cmdline_user_args().has(VERIFY_PACK_5_FLAG):
+		_verify_exported_pack_5()
 		return
 	CardRegistry.ensure_loaded()
 	var title_bg := GameSkin.texture("title_background")
@@ -314,9 +322,9 @@ func _refresh_version() -> void:
 		return
 	var version := String(ProjectSettings.get_setting(
 		"application/config/version", "dev"))
-	if CardRegistry.optional_pack_enabled():
-		_version_label.text = "v%s · %s set entries · %d unique cards" % [version,
-			_grouped(CardRegistry.named_set_entry_count()), CardRegistry.size()]
+	if CardRegistry.optional_pack_enabled() or not CardRegistry.extra_set_order().is_empty():
+		_version_label.text = "v%s · %s set entries · %s unique cards" % [version,
+			_grouped(CardRegistry.named_set_entry_count()), _grouped(CardRegistry.size())]
 	else:
 		_version_label.text = "v%s · %d cards" % [version, CardRegistry.size()]
 
@@ -577,6 +585,91 @@ func _verify_exported_pack_3() -> void:
 		get_tree().quit(0)
 	else:
 		for why in failures: printerr("PACK 3 EXPORT VERIFY FAILED: " + why)
+		get_tree().quit(2)
+
+
+## Real external ZIP and trusted dormant rules in an actual exported binary.
+func _verify_exported_pack_4() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	var art_count := 0
+	if not CardPacks.has_pack(HomelandsPack.ID):
+		failures.append("the exact Pack 4 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [HomelandsPack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 1012 or CardRegistry.names_in_set("hml").size() != 115:
+			failures.append("expected 1,012 identities including 115 Homelands names")
+		for name in HomelandsPack.names():
+			var card := CardRegistry.get_card(name)
+			if card == null:
+				failures.append("missing card: " + name)
+				continue
+			if card.cast_condition.is_valid() and card.cast_condition.get_method() == "_pending": failures.append("unfinished rules: " + name)
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "hml", full)
+				var picture := Image.load_from_file(path) if path != "" else null
+				if picture == null or picture.is_empty(): failures.append("missing artwork: " + name)
+				else: art_count += 1
+		for row in HomelandsPack.scripts():
+			if not ResourceLoader.exists(String(row.path)) or load(String(row.path)) == null: failures.append("missing dormant script: " + String(row.name))
+		for key in ["set_icon_hml", "filter_hml_on", "filter_hml_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty(): failures.append("missing UI texture: " + key)
+		var abbot := CardRegistry.get_card("Hazduhr the Abbot")
+		if abbot == null or not abbot.activated_abilities[0].effects[0] is CreatureRedirectEffect: failures.append("typed damage-redirection effect failed to load")
+		var oyster := CardRegistry.get_card("Giant Oyster")
+		if oyster == null or oyster.activated_abilities[0].effects[0].ai_role != &"sustained_lock": failures.append("public AI effect metadata failed to load")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 4 EXPORT RESOURCES OK — 1,012 identities, 115 Homelands names/dormant scripts, %d decoded artwork files, 3 UI textures; zero pending rules" % art_count)
+		get_tree().quit(0)
+	else:
+		for why in failures: printerr("PACK 4 EXPORT VERIFY FAILED: " + why)
+		get_tree().quit(2)
+
+
+func _verify_exported_pack_5() -> void:
+	var before := Settings.enabled_card_packs()
+	var failures: Array[String] = []
+	var art_count := 0
+	if not CardPacks.has_pack(AlliancesPack.ID):
+		failures.append("the exact Pack 5 ZIP was not discovered or validated")
+	else:
+		Settings.set_value("enabled_card_packs", [AlliancesPack.ID], false)
+		CardPacks._configure_registry()
+		CardRegistry.ensure_loaded()
+		if CardRegistry.size() != 1041 or CardRegistry.names_in_set("all").size() != 144:
+			failures.append("expected 1,041 identities including 144 Alliances names")
+		for name in AlliancesPack.names():
+			var card := CardRegistry.get_card(name)
+			if card == null:
+				failures.append("missing card: " + name)
+				continue
+			if card.cast_condition.is_valid() and card.cast_condition.get_method() == "_pending": failures.append("unfinished rules: " + name)
+			for full in [false, true]:
+				var path := CardPacks.art_path(name, "all", full)
+				var picture := Image.load_from_file(path) if path != "" else null
+				if picture == null or picture.is_empty(): failures.append("missing artwork: " + name)
+				else: art_count += 1
+		for row in AlliancesPack.scripts():
+			if not ResourceLoader.exists(String(row.path)) or load(String(row.path)) == null: failures.append("missing dormant script: " + String(row.name))
+		for key in ["set_icon_all", "filter_all_on", "filter_all_off"]:
+			var symbol := GameSkin.our_art(key)
+			if symbol == null or symbol.get_image().is_empty(): failures.append("missing UI texture: " + key)
+		var force := CardRegistry.get_card("Force of Will")
+		if force == null or force.modes.size() != 2: failures.append("pitch payment modes failed to load")
+		var browse := CardRegistry.get_card("Browse")
+		if browse == null or browse.activated_abilities[0].effects[0].ai_role != &"library_selection": failures.append("public AI effect metadata failed to load")
+	Settings.set_value("enabled_card_packs", before, false)
+	CardPacks._configure_registry()
+	if failures.is_empty():
+		print("PACK 5 EXPORT RESOURCES OK — 1,041 identities, 144 Alliances names/dormant scripts, %d decoded artwork files, 3 UI textures; zero pending rules" % art_count)
+		get_tree().quit(0)
+	else:
+		for why in failures: printerr("PACK 5 EXPORT VERIFY FAILED: " + why)
 		get_tree().quit(2)
 
 

@@ -46,9 +46,9 @@ static func block_fee(g: MtgGame, blocks: Dictionary) -> int:
 	var total := 0
 	for id in blocks:
 		var i := g.find_instance(id)
-		if i.cur_block_power_tax <= 0: continue
 		for target in blocks[id]:
 			var a := g.find_instance(target)
+			if a != null: total += a.cur_blocked_by_tax
 			if a != null and a.cur_power >= i.cur_block_power_tax_threshold: total += i.cur_block_power_tax
 	return total
 

@@ -16,6 +16,12 @@ var _second_disable: Button
 var _third_status: Label
 var _third_enable: Button
 var _third_disable: Button
+var _fourth_status: Label
+var _fourth_enable: Button
+var _fourth_disable: Button
+var _fifth_status: Label
+var _fifth_enable: Button
+var _fifth_disable: Button
 
 
 func _ready() -> void:
@@ -109,11 +115,44 @@ func _ready() -> void:
 	_third_disable.pressed.connect(_request_disable.bind(IceAgePack.ID))
 	third_actions.add_child(_third_disable)
 	content.add_child(third_actions)
+	content.add_child(UiChrome.body_label("4-HML — Pack 4: Homelands", 18))
+	_fourth_status = UiChrome.body_label("", 14)
+	_fourth_status.name = "Pack4Status"
+	_fourth_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(_fourth_status)
+	var fourth_actions := HBoxContainer.new()
+	fourth_actions.add_theme_constant_override("separation", 10)
+	_fourth_enable = UiChrome.menu_button("Enable", Vector2(120, 34), 13)
+	_fourth_enable.name = "EnablePack4"
+	_fourth_enable.pressed.connect(CardPacks.set_enabled.bind(HomelandsPack.ID, true))
+	fourth_actions.add_child(_fourth_enable)
+	_fourth_disable = UiChrome.menu_button("Disable", Vector2(120, 34), 13)
+	_fourth_disable.name = "DisablePack4"
+	_fourth_disable.pressed.connect(_request_disable.bind(HomelandsPack.ID))
+	fourth_actions.add_child(_fourth_disable)
+	content.add_child(fourth_actions)
+
+	content.add_child(UiChrome.body_label("5-ALL — Pack 5: Alliances", 18))
+	_fifth_status = UiChrome.body_label("", 14)
+	_fifth_status.name = "Pack5Status"
+	_fifth_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(_fifth_status)
+	var fifth_actions := HBoxContainer.new()
+	fifth_actions.add_theme_constant_override("separation", 10)
+	_fifth_enable = UiChrome.menu_button("Enable", Vector2(120, 34), 13)
+	_fifth_enable.name = "EnablePack5"
+	_fifth_enable.pressed.connect(CardPacks.set_enabled.bind(AlliancesPack.ID, true))
+	fifth_actions.add_child(_fifth_enable)
+	_fifth_disable = UiChrome.menu_button("Disable", Vector2(120, 34), 13)
+	_fifth_disable.name = "DisablePack5"
+	_fifth_disable.pressed.connect(_request_disable.bind(AlliancesPack.ID))
+	fifth_actions.add_child(_fifth_disable)
+	content.add_child(fifth_actions)
 
 	var local_only := UiChrome.body_label(
 		"Packs are not distributed with the game. Build them locally with "
 		+ "tools/pack_1_dotp_complete.py, tools/pack_2_fallen_empires.py, "
-		+ "or tools/pack_3_ice_age.py, "
+		+ "tools/pack_3_ice_age.py, tools/pack_4_homelands.py or tools/pack_5_alliances.py, "
 		+ "place the exact ZIP here, then Rescan.", 13)
 	local_only.name = "LocalOnly"
 	local_only.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -151,6 +190,26 @@ func _ready() -> void:
 
 
 func _refresh() -> void:
+	var fifth := CardPacks.status(AlliancesPack.ID)
+	_fifth_enable.disabled = not fifth.available or fifth.enabled
+	_fifth_disable.disabled = not fifth.available or not fifth.enabled
+	if fifth.available:
+		_fifth_status.text = "Status: %s — Version: %s — Minimum game: %s\n" % [
+			"Enabled" if fifth.enabled else "Disabled", fifth.version, fifth.minimum_game_version]
+		_fifth_status.text += "144 names · 199 printings · 144 new identities\nDeck Builder filter: Extras > Alliances"
+	else:
+		_fifth_status.text = "Status: Not available\nExpected: %s\nReason: %s" % [
+			AlliancesPack.FILE_NAME, fifth.rejection]
+	var fourth := CardPacks.status(HomelandsPack.ID)
+	_fourth_enable.disabled = not fourth.available or fourth.enabled
+	_fourth_disable.disabled = not fourth.available or not fourth.enabled
+	if fourth.available:
+		_fourth_status.text = "Status: %s — Version: %s — Minimum game: %s\n" % [
+			"Enabled" if fourth.enabled else "Disabled", fourth.version, fourth.minimum_game_version]
+		_fourth_status.text += "115 names · 140 printings · 115 new identities\nDeck Builder filter: Extras > Homelands"
+	else:
+		_fourth_status.text = "Status: Not available\nExpected: %s\nReason: %s" % [
+			HomelandsPack.FILE_NAME, fourth.rejection]
 	var third := CardPacks.status(IceAgePack.ID)
 	_third_enable.disabled = not third.available or third.enabled
 	_third_disable.disabled = not third.available or not third.enabled

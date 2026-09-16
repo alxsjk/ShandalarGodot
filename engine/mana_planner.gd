@@ -85,7 +85,7 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 		for color in pool._restricted[key]:
 			for unit in int(pool._restricted[key][color]):
 				out.append([null, unit, int(color), 1, false, String(key), 0, 0])
-	for inst in game.players[pid].battlefield:
+	for inst in game.players[pid].battlefield + game.players[pid].hand:
 		if inst.cur_mana_abilities.is_empty():
 			continue
 		if excluded.has(inst.id):
@@ -95,6 +95,8 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 		var holds := holds_untapped(inst)
 		for index in inst.cur_mana_abilities.size():
 			var ability: ManaAbility = inst.cur_mana_abilities[index]
+			if not ability.object_costs.is_empty(): continue # not free, must be chosen explicitly
+			if inst.zone != ability.activation_zone: continue
 			# Sacrificing a Swamp is never an implicit auto-tap. A player may
 			# activate it explicitly; planners must not count its output free.
 			if game.BLACK_SYMBOL_COST.amount(game, ability.cost) > 0: continue
@@ -150,7 +152,7 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 					if trigger.mana_bonus_color == color and restriction == ability.restriction_key: amount += bonus
 					else: bonuses.append([trigger.mana_bonus_color, bonus, restriction])
 			var row: Array = [inst, index, color,
-				amount, ability.sacrifice_source, ability.restriction_key,
+				amount, ability.sacrifice_source or ability.exile_source, ability.restriction_key,
 				ability.pain if mind_pain else 0, holds]
 			if ability.planner_counter_cost and not ability.taps_source:
 				# Finite counter fuel, never a reusable free source. Search
@@ -279,6 +281,8 @@ static func plan(game: MtgGame, pid: int, cost: ManaCost, x_value: int,
 ## May the source [param s] pay for something with [param usage_keys]?
 ## Unrestricted mana always; restricted mana only for its own key.
 static func source_usable(s: Array, usage_keys: Array) -> bool:
+	# A card being cast cannot exile itself to fund its own spell.
+	if s[0] != null and usage_keys.has("spell_instance:%d" % s[0].id): return false
 	var key: String = String(s[5]) if s.size() > 5 else ""
 	return key == "" or usage_keys.has(key)
 

@@ -132,6 +132,8 @@ var graveyard_entry: int = 0
 ## Each real entry to exile creates a new object, including re-exiling a
 ## card after it returned to a hand or graveyard.
 var exile_entry: int = 0
+## Permission is attached to this exile incarnation, not to ownership.
+var exile_visible_to := -1
 var exile_playable_by: int = -1
 ## -1 = no time limit; otherwise expire as that player's next upkeep begins.
 var exile_play_until_upkeep_of: int = -1
@@ -166,6 +168,10 @@ var damage_origins_this_turn: Dictionary = {}
 ## the next destruction with tap + clear damage + leave combat. Created by
 ## RegenerateEffect, consumed by MtgGame.destroy, expired at cleanup.
 var regeneration_shields: int = 0
+var regenerations_this_turn := 0
+## Shield index -> {beneficiary, controller}; only the consumed shield's
+## delayed draw triggers. Other shields remain independently selectable.
+var regeneration_draws: Dictionary = {}
 
 ## "This creature can't be regenerated this turn" (Hurr Jackal,
 ## Whippoorwill). MtgGame.destroy ignores every shield while this is set;
@@ -189,6 +195,7 @@ var cur_min_block_group := 1
 var cur_attack_land_sacrifices := 0
 var cur_block_power_tax_threshold := 0
 var cur_block_power_tax := 0
+var cur_blocked_by_tax := 0
 
 ## Derived land-mana replacement choices, collected by continuous effects.
 var cur_land_mana_replacements: Array[int] = []
@@ -296,6 +303,9 @@ var damage_redirect_sources: Array[int] = []
 ## Cleared at cleanup and when the card leaves the battlefield.
 var damage_point_redirect_to: int = -1
 var damage_point_redirects: int = 0
+## Individually metered redirects to another battlefield incarnation.
+## Each row is {destination, stamp, remaining}; expires at cleanup.
+var creature_damage_redirects: Array[Dictionary] = []
 
 ## "This creature attacks this turn if able" (Nettling Imp, Siren's Call).
 ## declare_attackers refuses a declaration that leaves it at home; cleared
@@ -406,6 +416,9 @@ var ability_uses: Dictionary = {}
 ## One-shot "doesn't untap during its controller's NEXT untap step"
 ## (Barl's Cage) — consumed and cleared by that untap step.
 var skip_next_untap: bool = false
+## "Your next untap step" fixes the player when the effect resolves;
+## changing this creature's controller does not change that player.
+var skip_untap_for: Array[int] = []
 
 ## "Doesn't untap during its controller's next N untap steps"
 ## (Telekinesis: two). Decremented by each of those untap steps.
@@ -435,10 +448,15 @@ var cur_toughness: int = 0
 ## as a creature dying, and [member last_colors] is why a Deathlaced bear
 ## does not.
 var last_power: int = 0
+var last_counters: Dictionary = {}
+var last_blocked_this_turn := false
+var last_regenerations_this_turn := 0
 var last_toughness: int = 0
 var last_types: int = 0
 var last_colors: int = 0
 var last_subtypes: Array[String] = []
+## Attachment at departure, for simultaneous leaves-the-battlefield triggers.
+var last_attached_to: int = -1
 ## Effects that may deal damage after this incarnation leaves opt in to
 ## retaining an immutable source snapshot. Old records survive a blink;
 ## ordinary permanents do not allocate them. Never register these copies
@@ -507,6 +525,7 @@ var cur_rampage: int = 0
 ## and cleared with everything else by the face-down branch below.
 var cur_cant_be_blocked_by: Array[String] = []
 var cur_cant_block_power_ge: int = 0
+var cur_cant_block_power_ge_toughness := false
 var cur_min_blockers: int = 1
 var cur_cant_block_filter: Callable = Callable()
 var cur_cant_be_blocked_by_power_ge: int = 0
@@ -589,6 +608,9 @@ var cur_must_be_blocked_filter: Callable = Callable()
 ## SHROUD: "can't be the target of spells or abilities" (Spectral Cloak).
 ## Set by statics each recalculation; TargetSpec refuses every source.
 var cur_shroud: bool = false
+## Autumn Willow grants individual players permission to ignore this
+## permanent's shroud, without removing shroud or other targeting bans.
+var cur_shroud_ignored_by: Array[int] = []
 
 ## "Can't be enchanted by other Auras" (Anti-Magic Aura's second clause).
 ## Set by statics; TargetSpec refuses AURA sources other than the one
@@ -687,6 +709,7 @@ func reset_characteristics() -> void:
 	cur_rampage = data.rampage
 	cur_cant_be_blocked_by.assign(data.cant_be_blocked_by)
 	cur_cant_block_power_ge = data.cant_block_power_ge
+	cur_cant_block_power_ge_toughness = false
 	cur_cant_be_blocked_by_power_ge = data.cant_be_blocked_by_power_ge
 	cur_extra_blocks = data.extra_blocks
 	cur_subtypes.assign(data.subtypes)
@@ -712,11 +735,13 @@ func reset_characteristics() -> void:
 	cur_attack_land_sacrifices = 0
 	cur_block_power_tax_threshold = 0
 	cur_block_power_tax = 0
+	cur_blocked_by_tax = 0
 	cur_attacks_as_if_hasty = false
 	cur_abilities_silenced = false
 	cur_prevent_damage_from_creatures = false
 	cur_cant_be_spell_target = false
 	cur_shroud = false
+	cur_shroud_ignored_by.clear()
 	cur_cant_be_aura_target = false
 	cur_prevent_all_damage_dealt = false
 	cur_must_be_blocked = false
@@ -927,10 +952,14 @@ func clear_battlefield_state() -> void:
 	capture_departure_source = false
 	# LAST KNOWN INFORMATION (CR 608.2h) must be captured BEFORE the wipe.
 	last_power = cur_power
+	last_counters = counters.duplicate()
+	last_blocked_this_turn = blocked_this_turn
+	last_regenerations_this_turn = regenerations_this_turn
 	last_toughness = cur_toughness
 	last_types = cur_types
 	last_colors = cur_colors
 	last_subtypes = cur_subtypes.duplicate()
+	last_attached_to = attached_to
 	tapped = false
 	damage = 0
 	summoning_sick = false
@@ -947,6 +976,8 @@ func clear_battlefield_state() -> void:
 	tracked_prevention.clear()
 	damaged_players_this_turn.clear()
 	regeneration_shields = 0
+	regenerations_this_turn = 0
+	regeneration_draws.clear()
 	destruction_shields = 0
 	damage_eats_counters = ""
 	damage_all_redirect_to = -1
@@ -967,6 +998,7 @@ func clear_battlefield_state() -> void:
 	damage_redirect_sources.clear()
 	damage_point_redirect_to = -1
 	damage_point_redirects = 0
+	creature_damage_redirects.clear()
 	removed_keywords.clear()
 	added_keywords.clear()
 	added_types = 0
@@ -981,6 +1013,7 @@ func clear_battlefield_state() -> void:
 	ability_uses.clear()
 	memory.clear()
 	skip_next_untap = false
+	skip_untap_for.clear()
 	skip_untaps = 0
 	controller_id = owner_id
 	reset_characteristics()

@@ -334,7 +334,11 @@ func test_the_pool_has_one_counter_eater_and_one_point_redirect() -> void:
 	var pools := _cards_containing("PreventDamageEffect")
 	# Eleven original files plus Fallen Empires' shared rules (Balm and Medic).
 	# Ice Age adds the shared Aura, creature and common-card modules.
-	assert_eq(pools.size(), 16, "the prevention-pool family including Sacred Boon: %s" % [pools])
+	# Homelands adds Samite Alchemist and Serra Paladin in _resources.gd.
+	# Alliances adds Wandering Mage, Scars and Thought Lash in three shared
+	# modules. Scars reuses the metered receipt gate (Sacred Boon), while
+	# ordinary pools/floors retain the affected player's CR 616.1 ordering.
+	assert_eq(pools.size(), 20, "the prevention-pool family through Alliances: %s" % [pools])
 	assert_has(pools, "_rules.gd")
 
 

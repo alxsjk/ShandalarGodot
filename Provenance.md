@@ -659,6 +659,63 @@ changed what ships cannot pass quietly.
 
 ---
 
+## Homelands Pack 4 (2026-09-15)
+
+The 140-printing/115-name snapshot in `packaging/card_packs/pack_4_homelands/`
+comes from Scryfall's `set:hml` catalogue and Oracle text. `set.json` records
+the fetch and source URLs. `tools/pack_4_homelands.py` fetches the chosen
+illustration crop and full-card scan for local use; neither artwork nor
+the constructed ZIP is distributed. The two image forms are not two
+different illustrations. The globe and stone UI medallions are original
+procedural drawings in `tools/draw_our_art.gd`, not downloaded set-symbol files.
+
+`engine/core/creature_types.gd` records the Scryfall creature-type catalogue
+(350 entries, retrieved 2026-09-15) for unrestricted type choices. Oracle
+and Wizards rulings supplied by the Scryfall API are the rules reference.
+Forge's card definitions at local revision
+`b09a3d3f0093b7ba26a0debc82d80996b8826b37` were cross-checked for Giant Oyster,
+Timmerian Fiends, Rysorian Badger, Orcish Mine, Funeral March, Mammoth Harness,
+Hazduhr the Abbot, Daughter of Autumn, An-Zerrin Ruins, Irini Sengir and
+Autumn Willow. Giant Oyster's independent lock/release decomposition is
+marked `[forge]` in `_oyster_redirect.gd`; the port uses this engine's own
+journal, incarnation stamps, delayed triggers and damage packets. No Java
+implementation or Forge artwork is embedded. Forge's GPL terms are covered
+by the source register above.
+
+Pack 4's new AI descriptions live with the card definitions in
+`cards/sets/hml/_effect_shapes.gd`; `engine/ai/homelands_tactics.gd` makes
+shape-based decisions from public state and the pilot's own hand. It adds
+no privileged hidden-card access. Timmerian Fiends' exclusion of token
+ownership exchanges is explicitly recorded in its rules text, manifest,
+Help and the simplified-card ledger.
+
+## Alliances Pack 5 (2026-09-16)
+
+The 199-printing/144-name snapshot in `packaging/card_packs/pack_5_alliances/`
+is Scryfall's `set:all` catalogue and Oracle text. The dedicated Python builder
+uses the rate-limited Scryfall helpers for metadata and selected-printing crop
+and full scan downloads. All downloaded art and ZIPs remain local. The gold
+forked banner and stone medallions are original drawings in `draw_our_art.gd`;
+their hashes and GPL provenance are in `game/art/README.md`.
+
+Rules were checked against those Oracle clauses and Wizards' June 19, 2026
+Comprehensive Rules, particularly alternative/additional payments, reflexive
+triggers, target choices, replacement ordering and cleanup (CR 118.9, 601.2,
+603.12, 616.1, 514). Forge's card definitions for Force of Will, Bounty of the
+Hunt, Gorilla Shaman, Thought Lash and Phyrexian Portal were cross-checked at
+`b09a3d3f0093b7ba26a0debc82d80996b8826b37`: alternate-cost separation,
+cleanup-counter expiry, double-X payment, unpaid-upkeep triggering and hidden
+pile separation respectively. Forge `CounterAi.java`'s cost-aware counter
+discussion informed the review; its card-name/rand-chance policy was not copied.
+The implementation uses this engine's own journals, forecasts and held-choice
+funnel. No Java implementation or Forge artwork is included.
+
+The new semantic-role AI policies are original extensions of the existing
+public-information reader, not claims of a verbatim Forge AI port. Opponent-mode
+timing and cleanup-priority adaptations are explicit in Help, the manifest,
+card rules text and `docs/simplified-cards.md`. The reusable construction
+workflow is documented in `docs/adding-card-packs.md`.
+
 ## Where the citations live
 
 This file is the register; the citations themselves are in the work.

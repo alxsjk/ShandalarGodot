@@ -60,12 +60,16 @@ func discover() -> void:
 	_available.clear()
 	_rejections.clear()
 	_art_cache.clear()
-	for path in candidate_paths() + candidate_paths(FallenEmpiresPack.ID) + candidate_paths(IceAgePack.ID):
+	for path in candidate_paths() + candidate_paths(FallenEmpiresPack.ID) + candidate_paths(IceAgePack.ID) + candidate_paths(HomelandsPack.ID) + candidate_paths(AlliancesPack.ID):
 		if not FileAccess.file_exists(path):
 			continue
 		var id := FallenEmpiresPack.ID if path.get_file() == FallenEmpiresPack.FILE_NAME else ID
 		if path.get_file() == IceAgePack.FILE_NAME:
 			id = IceAgePack.ID
+		if path.get_file() == HomelandsPack.FILE_NAME:
+			id = HomelandsPack.ID
+		if path.get_file() == AlliancesPack.FILE_NAME:
+			id = AlliancesPack.ID
 		if _available.has(id):
 			continue
 		var report := inspect(path)
@@ -121,6 +125,10 @@ static func candidate_paths(id := ID) -> Array[String]:
 ## metadata-only build is accepted only by the isolated test profile; a pack a
 ## player can enable carries the exact 754 expected image paths and still no code.
 static func inspect(path: String) -> Dictionary:
+	if path.get_file() == HomelandsPack.FILE_NAME:
+		return HomelandsPack.inspect(path)
+	if path.get_file() == AlliancesPack.FILE_NAME:
+		return AlliancesPack.inspect(path)
 	if path.get_file() == IceAgePack.FILE_NAME:
 		return IceAgePack.inspect(path)
 	if path.get_file() == FallenEmpiresPack.FILE_NAME:
@@ -428,6 +436,10 @@ func art_path(card_name: String, set_code: String, full_card := false) -> String
 	var id := FallenEmpiresPack.ID if set_code == "fem" else ID
 	if set_code == "ice":
 		id = IceAgePack.ID
+	if set_code == "hml":
+		id = HomelandsPack.ID
+	if set_code == "all":
+		id = AlliancesPack.ID
 	if not is_enabled(id) or set_code == "":
 		return ""
 	var report: Dictionary = _available[id]
@@ -438,6 +450,10 @@ func art_path(card_name: String, set_code: String, full_card := false) -> String
 	var prefix := FallenEmpiresPack.PREFIX if id == FallenEmpiresPack.ID else PREFIX
 	if id == IceAgePack.ID:
 		prefix = IceAgePack.PREFIX
+	if id == HomelandsPack.ID:
+		prefix = HomelandsPack.PREFIX
+	if id == AlliancesPack.ID:
+		prefix = AlliancesPack.PREFIX
 	var path := "res://%sart/%s/%s%s" % [prefix, set_code,
 		_snake(card_name), suffix]
 	return path if FileAccess.file_exists(path) else ""
@@ -472,6 +488,10 @@ func current_deck_conflicts(id: String) -> Array[String]:
 	var names: Array = FallenEmpiresPack.names() if id == FallenEmpiresPack.ID else ADDED_NAMES
 	if id == IceAgePack.ID:
 		names = IceAgePack.new_names()
+	if id == HomelandsPack.ID:
+		names = HomelandsPack.new_names()
+	if id == AlliancesPack.ID:
+		names = AlliancesPack.new_names()
 	for name in names:
 		if _current_deck_names.has(name):
 			found.append(name)
@@ -491,6 +511,8 @@ func packs_required_by(names: Array[String]) -> Array[String]:
 	var ids: Array[String] = []
 	var second := FallenEmpiresPack.names()
 	var third := IceAgePack.new_names()
+	var fourth := HomelandsPack.new_names()
+	var fifth := AlliancesPack.new_names()
 	for name in names:
 		if ADDED_NAMES.has(name) and not ids.has(ID):
 			ids.append(ID)
@@ -498,11 +520,19 @@ func packs_required_by(names: Array[String]) -> Array[String]:
 			ids.append(FallenEmpiresPack.ID)
 		if third.has(name) and not ids.has(IceAgePack.ID):
 			ids.append(IceAgePack.ID)
+		if fourth.has(name) and not ids.has(HomelandsPack.ID):
+			ids.append(HomelandsPack.ID)
+		if fifth.has(name) and not ids.has(AlliancesPack.ID):
+			ids.append(AlliancesPack.ID)
 	ids.sort()
 	return ids
 
 
 static func file_name_for(id: String) -> String:
+	if id == AlliancesPack.ID:
+		return AlliancesPack.FILE_NAME
+	if id == HomelandsPack.ID:
+		return HomelandsPack.FILE_NAME
 	if id == IceAgePack.ID:
 		return IceAgePack.FILE_NAME
 	return FallenEmpiresPack.FILE_NAME if id == FallenEmpiresPack.ID else FILE_NAME
@@ -531,7 +561,7 @@ func _configure_registry() -> void:
 	var sets := {}
 	var scripts: Array = []
 	var records: Array = []
-	for contract in [FallenEmpiresPack, IceAgePack]:
+	for contract in [FallenEmpiresPack, IceAgePack, HomelandsPack, AlliancesPack]:
 		if is_enabled(contract.ID):
 			var report: Dictionary = _available[contract.ID]
 			sets.merge(report.catalog.sets)

@@ -181,6 +181,8 @@ const TYPE_LABELS := {
 const SET_LABELS := {
 	"fem": "Fallen Empires",
 	"ice": "Ice Age",
+	"hml": "Homelands",
+	"all": "Alliances",
 	"2ed": "Unlimited",
 	"arn": "Arabian nights",
 	"atq": "Antiquities",
