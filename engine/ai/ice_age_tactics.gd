@@ -7,6 +7,7 @@ static func option(g: MtgGame, pilot, s: CardInstance, index: int, window: Strin
 	if s.data.set_code != "ice": return null
 	var pid: int = pilot.pid
 	var a: ActivatedAbility = s.cur_activated_abilities[index]
+	if a.effects.is_empty(): return null    # a granted, effect-less ability is not ours to score
 	var effect: EffectBase = a.effects[0]
 	var reacting := window in ["RESPONSE", "COMBAT"]
 	var name := s.data.card_name
@@ -110,7 +111,7 @@ static func option(g: MtgGame, pilot, s: CardInstance, index: int, window: Strin
 			elif CombatState.attack_illegality(g, i, 1 - pid) != "": continue
 			var blocked := false
 			for enemy in g.players[1 - pid].battlefield:
-				if enemy.is_creature() and CombatState.block_illegality(g, enemy, i, 1 - pid) == "": blocked = true
+				if enemy.is_creature() and CombatState.block_illegality(g, enemy, i, 1 - pid, true, pid) == "": blocked = true
 			if blocked: rows.append({"ref": ref, "power": i.cur_power})
 		rows.sort_custom(func(left: Dictionary, right: Dictionary) -> bool: return int(left.power) > int(right.power))
 		var targets: Array = []
@@ -346,7 +347,7 @@ static func melee_blocks(g: MtgGame, pilot) -> Dictionary:
 		for id in g.combat.attackers:
 			var a := g.find_instance(id)
 			if a.cur_min_blockers > 1 or b.cur_min_block_group > 1: continue
-			if CombatState.block_illegality(g, b, a, b.controller_id) != "": continue
+			if CombatState.block_illegality(g, b, a, b.controller_id, true, pilot.pid) != "": continue
 			if b.cur_block_power_tax > 0 and a.cur_power >= b.cur_block_power_tax_threshold: continue
 			var proposed := blocks.duplicate(true)
 			proposed[b.id] = [id]
@@ -418,7 +419,7 @@ static func spell_choice(g: MtgGame, pilot, s: CardInstance, max_x: int, mode: i
 			if CombatState.attack_illegality(g, i, 1 - pid) != "": continue
 			var blockable := false
 			for other in g.players[1 - pid].battlefield:
-				if other.is_creature() and CombatState.block_illegality(g, other, i, 1 - pid) == "": blockable = true
+				if other.is_creature() and CombatState.block_illegality(g, other, i, 1 - pid, true, pid) == "": blockable = true
 			if blockable: continue
 			for victim in g.players[1 - pid].battlefield:
 				if victim.is_creature() and not victim.cur_indestructible and victim.cur_toughness - victim.damage <= i.cur_power and (g.damage_source_colors(i) & victim.cur_protection) == 0:

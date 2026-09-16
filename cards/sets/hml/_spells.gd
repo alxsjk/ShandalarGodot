@@ -2,7 +2,7 @@ extends RefCounted
 ## Homelands spell compositions. Choices pass through the resolving agent;
 ## zone changes, randomness, damage and costs use journaled engine helpers.
 const F := preload("res://cards/sets/fem/_rules.gd")
-const TYPES := ["plains", "island", "swamp", "mountain", "forest"]
+const TYPES: Array[String] = ["plains", "island", "swamp", "mountain", "forest"]
 
 static func configure(c: CardData) -> bool:
 	match c.card_name:

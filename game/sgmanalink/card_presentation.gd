@@ -32,6 +32,11 @@ static func make(card: Dictionary, seat: int, zone: int, existing: CardInstance 
 	instance.cur_rampage = int(card.rampage)
 	instance.counters = card.counters.duplicate()
 	instance.prevention = int(card.prevention)
+	# The definition the shield came from, so the board can fan its reminder
+	# behind the creature exactly as the local duel does. A name only: the
+	# host's own CardInstance and its Callables never cross the wire.
+	instance.prevention_source = CardRegistry.get_card(card.shield) \
+		if CardRegistry.has_card(card.shield) else null
 	instance.regeneration_shields = int(card.regeneration)
 	instance.face_down = card.masked
 	var effects: Array = card.text_effects.duplicate(true)

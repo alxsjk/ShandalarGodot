@@ -19,8 +19,9 @@ extends RefCounted
 ##
 ## WHAT IS DERIVED, AND FROM WHAT. The composition is ours; the material
 ## is not. The plate is painted at the graveyard plate's own size (61x91,
-## a 1px white border around 59x89 of art, exactly as `Grave_*.pic.png` is
-## built) and EVERY COLOUR IS SAMPLED FROM THAT SEAT'S OWN GRAVE PLATE —
+## a 1px frame around 59x89 of art, exactly as `Grave_*.pic` is built —
+## the frame in the plate's own frame colour, see `_paint`) and EVERY
+## COLOUR IS SAMPLED FROM THAT SEAT'S OWN GRAVE PLATE —
 ## the five originals are tiny-palette woodcuts (Green has four art
 ## colours, Red nine), so borrowing their palette wholesale is what keeps
 ## the pair looking like two halves of one 1997 asset instead of a period
@@ -65,7 +66,7 @@ static func plate(seat_color: String) -> Texture2D:
 
 
 ## The seat's palette, darkest first: the art colours of its grave plate
-## (the 1px white border is skipped), keeping only those that carry at
+## (the 1px frame is skipped), keeping only those that carry at
 ## least 3% of the art — the rare speckle colours in a dithered 1997 image
 ## are noise, and picking one for the card face gives a red plate a pink
 ## card. A plate with fewer than three body colours (none of the five, but
@@ -129,7 +130,14 @@ static func _paint(src: Image) -> Image:
 	var pale := _step(palette, 0.72)
 	var rim := _step(palette, 1.0)
 	var img := Image.create_empty(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color.WHITE)   # the 1px border every Grave_* plate wears
+	# The 1px frame every Grave_* plate wears, IN THE PLATE'S OWN COLOUR.
+	# That frame is palette index 0 in the raw 1997 file, a slot
+	# `Duelpalall.tr` never names: a 1997 import renders it BLACK (the
+	# Windows static entry; tools/import_original.py, "INDEX 0"), while
+	# the s30-era conversions this plate was first drawn beside rendered
+	# it white. Sampling the corner keeps the pair matched either way;
+	# `Color.WHITE` here put a white frame beside a black one (2026-09-16).
+	img.fill(src.get_pixel(0, 0))
 
 	var cx := w * 0.5
 	var card_x0 := int(w * 0.18)

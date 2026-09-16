@@ -4,18 +4,23 @@ extends GutTest
 
 const DECK_PATH := "user://pack_1_requirement_test.deck"
 
-var _was_enabled := false
+## EVERY enabled pack, not only Pack 1: a test here may reach for an
+## expansion, and one that fails halfway must not hand the next script a
+## different card pool.
+var _was_enabled: Array[String] = []
 
 
 func before_each() -> void:
-	_was_enabled = CardPacks.is_enabled(CardPacks.ID)
+	_was_enabled = Settings.enabled_card_packs()
 	CardPacks.set_enabled(CardPacks.ID, false)
 	CardPacks.set_current_deck_names([])
 
 
 func after_each() -> void:
 	CardPacks.set_current_deck_names([])
-	CardPacks.set_enabled(CardPacks.ID, _was_enabled)
+	Settings.set_enabled_card_packs(_was_enabled)
+	CardPacks._configure_registry()
+	CardRegistry.ensure_loaded()
 	if FileAccess.file_exists(DECK_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(DECK_PATH))
 
@@ -101,6 +106,62 @@ func test_loading_a_disabled_pack_deck_offers_enable_then_reloads_it() -> void:
 	assert_eq(builder.deck.deck_name, "Orbital")
 	assert_eq(builder.deck.count_of("Chaos Orb"), 1)
 	assert_false(builder.deck.has_proxies())
+
+
+## A drafted deck routinely spans two expansions. Enabling the first one
+## must hand the second requirement its own question instead of closing
+## the door on a deck that was never loaded.
+func test_a_deck_needing_two_packs_asks_for_each_in_turn() -> void:
+	for id in [IceAgePack.ID, AlliancesPack.ID]:
+		CardPacks.set_enabled(id, false)
+	var file := FileAccess.open(DECK_PATH, FileAccess.WRITE)
+	file.store_string("# requires-pack: pack-3\n# requires-pack: pack-5\n"
+		+ "name: Two Packs\n1 Ashen Ghoul\n1 Force of Will\n")
+	file.close()
+	var builder := await _screen(
+		"res://game/deck_builder/deck_builder_screen.tscn") as DeckBuilderScreen
+	builder._load_deck(DECK_PATH)
+	await get_tree().process_frame
+	assert_true(is_instance_valid(builder._pack_requirement_notice))
+	_button(builder._pack_requirement_notice, "EnablePack3").pressed.emit()
+	await get_tree().process_frame
+	assert_true(CardPacks.is_enabled(IceAgePack.ID))
+	assert_true(is_instance_valid(builder._pack_requirement_notice),
+		"the second missing pack must get its own question")
+	assert_ne(builder.deck.deck_name, "Two Packs",
+		"the deck is not loaded while a requirement is still disabled")
+	_button(builder._pack_requirement_notice, "EnablePack5").pressed.emit()
+	await get_tree().process_frame
+	assert_true(CardPacks.is_enabled(AlliancesPack.ID))
+	assert_eq(builder.deck.deck_name, "Two Packs")
+	assert_eq(builder.deck.count_of("Ashen Ghoul"), 1)
+	assert_eq(builder.deck.count_of("Force of Will"), 1)
+	assert_false(builder.deck.has_proxies())
+
+
+## The requirement popup is a modal veil, not an OriginalDialog, so the
+## builder's own key handler used to run under it: Enter added the
+## Inventory's first card to the very deck the question was about, and
+## the focused button never fired.
+func test_the_requirement_popup_keeps_the_builders_keys_out() -> void:
+	var file := FileAccess.open(DECK_PATH, FileAccess.WRITE)
+	file.store_string("# requires-pack: pack-1\nname: Orbital\n1 Chaos Orb\n")
+	file.close()
+	var builder := await _screen(
+		"res://game/deck_builder/deck_builder_screen.tscn") as DeckBuilderScreen
+	builder._load_deck(DECK_PATH)
+	await get_tree().process_frame
+	assert_true(is_instance_valid(builder._pack_requirement_notice))
+	var before := builder.deck.total()
+	for code in [KEY_ENTER, KEY_RIGHT, KEY_BACKSPACE]:
+		var key := InputEventKey.new()
+		key.keycode = code
+		key.pressed = true
+		builder._input(key)
+		await get_tree().process_frame
+	assert_eq(builder.deck.total(), before,
+		"no builder key may reach the board under the requirement modal")
+	assert_true(is_instance_valid(builder._pack_requirement_notice))
 
 
 func test_disabling_warns_when_the_current_deck_needs_pack_one() -> void:

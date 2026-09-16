@@ -103,7 +103,14 @@ func test_the_unlit_column_is_keyed_to_black_and_the_lit_cell_is_not() -> void:
 	var probe := Vector2i(int(CombatBar.CELL_X) + 3, int(CombatBar.SLOT_Y[0]) + 3)
 	var raw: Color = sheet.get_image().get_pixel(
 		int(CombatBar.SEAT_PITCH) + probe.x, probe.y)
-	assert_gte(raw.r, CombatBar.WHITE_KEY, "the sheet draws that pixel white")
+	# That ground is palette index 0 of Winbk_Phasecombat.pic, a slot the
+	# duel palette never names: a 1997 import renders it BLACK (the Windows
+	# static entry — tools/import_original.py, "INDEX 0"), the s30-era
+	# conversions rendered it WHITE, and the key turns either into black.
+	# The lit cell never needed the key: its white ground is index 191, real
+	# white, in the sheet's own HIGHLIGHTED sub-column (ACTIVE_X).
+	assert_true(raw.r >= CombatBar.WHITE_KEY or raw == Color.BLACK,
+		"the sheet draws that pixel white (s30-era) or black (1997 import), got %s" % raw)
 	assert_eq(img.get_pixel(probe.x, probe.y), Color.BLACK,
 		"and the keyed ground draws it black")
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import tempfile
 import json
+import unittest.mock
 import shutil
 import unittest
 import zipfile
@@ -86,6 +87,64 @@ class PackOneTests(unittest.TestCase):
                 zf.writestr("outside.txt", "no")
             with self.assertRaisesRegex(ValueError, "unexpected ZIP entries"):
                 pack.verify(good, require_art=False)
+
+    def test_verify_rejects_a_duplicate_entry(self):
+        # `zipfile` resolves a repeated name to the LAST entry; a reader
+        # that walks the central directory in order (Godot's ZIPReader)
+        # takes the FIRST. So a forged copy appended BEFORE the genuine
+        # one passed every checksum here while being what the game read.
+        with tempfile.TemporaryDirectory() as tmp:
+            good = Path(tmp) / pack.FILE_NAME
+            pack.build(good, include_art=False)
+            with zipfile.ZipFile(good) as source:
+                entries = [(info.filename, source.read(info.filename))
+                           for info in source.infolist()]
+            forged = Path(tmp) / "forged" / pack.FILE_NAME
+            forged.parent.mkdir()
+            target = pack.PREFIX + "cards.json"
+            with zipfile.ZipFile(forged, "w") as out:
+                for name, payload in entries:
+                    if name == target:
+                        pack.write_entry(out, name, b'[{"name": "Evil", "set": "2ed"}]')
+                    pack.write_entry(out, name, payload)
+            with zipfile.ZipFile(forged) as built:
+                self.assertEqual(len(built.namelist()), len(entries) + 1)
+            with self.assertRaisesRegex(ValueError, "duplicate"):
+                pack.verify(forged, require_art=False)
+
+    def test_a_failed_build_leaves_the_previous_pack_untouched(self):
+        # Pack 1 used to write straight to the target: one raise while the
+        # entries were going in (a full disk is the ordinary way) truncated
+        # a verified pack to an unreadable stub, and rebuilding it means
+        # fetching 746 images again. Packs 2-5 already staged and replaced.
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / pack.FILE_NAME
+            pack.build(out, include_art=False)
+            before = out.read_bytes()
+            calls = []
+            real = pack.write_entry
+
+            def failing(zf, name, payload):
+                calls.append(name)
+                if len(calls) == 3:
+                    raise OSError("No space left on device")
+                real(zf, name, payload)
+
+            with unittest.mock.patch.object(pack, "write_entry", failing):
+                with self.assertRaises(OSError):
+                    pack.build(out, include_art=False)
+            self.assertEqual(out.read_bytes(), before)
+            self.assertEqual(pack.verify(out, require_art=False)["counts"],
+                             pack.EXPECTED)
+            self.assertEqual([p.name for p in out.parent.iterdir()],
+                             [pack.FILE_NAME])
+
+    def test_build_refuses_a_wrong_output_name_before_writing_anything(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wrong = Path(tmp) / "my-pack.zip"
+            with self.assertRaisesRegex(ValueError, "named exactly"):
+                pack.build(wrong, include_art=False)
+            self.assertEqual(list(Path(tmp).iterdir()), [])
 
     def test_verify_rejects_tampered_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:

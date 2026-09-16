@@ -1823,11 +1823,12 @@ func _on_graveyard_card(inst: CardInstance) -> void:
 	if mode != Mode.TARGETING:
 		if _card_preview != null:
 			_card_preview.show_card(inst)
-		if game.can_play_from_exile(_human_seat(), inst) and game.priority_player == _human_seat():
+		var seat := _viewing_seat()
+		if game.can_play_from_exile(seat, inst) and game.priority_player == seat:
 			_close_graveyard()
 			_click_hand_card(inst)
 			return
-		if inst.zone == Mtg.Zone.GRAVEYARD and inst.owner_id == _human_seat() and game.priority_player == inst.owner_id:
+		if inst.zone == Mtg.Zone.GRAVEYARD and inst.owner_id == seat and game.priority_player == inst.owner_id:
 			for ability in inst.cur_activated_abilities:
 				if ability.activation_zone == Mtg.Zone.GRAVEYARD:
 					_close_graveyard()
@@ -2260,7 +2261,11 @@ func _auto_x_budget() -> int:
 		cost = _pending_card.cur_activated_abilities[_pending_ability_index].cost
 		surcharge = game.ability_surcharge(_pending_pid, _pending_card)
 		usage = game.ability_mana_usage_keys(_pending_card)
-	return _x_budget(cost, surcharge, usage, _no_auto_tap)
+	var budget := _x_budget(cost, surcharge, usage, _no_auto_tap)
+	if _pending_ability_index < 0 and _pending_card.data.repeated_additional_cost != "":
+		# The spin counts PAYMENTS for this card, as the window's does.
+		budget = _repeat_budget(budget, _no_auto_tap)
+	return budget
 
 
 ## THE ONE X BUDGET, shared by the window and the double-click so the two
@@ -2283,6 +2288,27 @@ func _x_budget(cost: ManaCost, surcharge: int, usage: Array,
 			src, cost, surcharge + budget + 1, usage).is_empty():
 		budget += 1
 	return budget
+
+
+## The X of a REPEATED additional cost (Taste of Paradise's *"pay an
+## additional {1}{G} any number of times"*) counts PAYMENTS, not mana, so
+## the generic [param budget] is only a ceiling on it: count up the
+## payments the same sources (minus [param excluded]) still plan for,
+## each priced by the engine's own bill ([method MtgGame.spell_payment]).
+## Shared by the window and the double-click for [method _x_budget]'s
+## reason — before it was, the gesture handed the spin the raw generic
+## budget, and seven Forests bought "3 additional payments" of a ten-mana
+## bill the auto-tapper could not meet.
+func _repeat_budget(budget: int, excluded: Dictionary) -> int:
+	var src := _pending_payment_sources(excluded)
+	var repeat_count := 0
+	while repeat_count <= budget:
+		var payment := game.spell_payment(_pending_pid, _pending_card.data,
+			repeat_count + 1, 1, _pending_card, _pending_mode)
+		if ManaPlanner.plan_from(src, payment.cost, payment.extra, payment.usage).is_empty():
+			break
+		repeat_count += 1
+	return repeat_count
 
 
 ## Tap what the pending cast costs and submit it. The plan is built against
@@ -4733,12 +4759,7 @@ func _open_x_dialog() -> void:
 	# on it"* — and this window is answered by hand.
 	var budget := _x_budget(cost, surcharge, usage, {})
 	if _pending_ability_index < 0 and _pending_card.data.repeated_additional_cost != "":
-		var repeat_count := 0
-		while repeat_count <= budget:
-			var payment := game.spell_payment(_pending_pid, _pending_card.data, repeat_count + 1, 1, _pending_card, _pending_mode)
-			if ManaPlanner.plan(game, _pending_pid, payment.cost, payment.extra, payment.usage).is_empty(): break
-			repeat_count += 1
-		budget = repeat_count
+		budget = _repeat_budget(budget, {})
 		label += " — number of additional " + _pending_card.data.repeated_additional_cost + " payments"
 	var life_x := _pending_ability_index < 0 and _pending_card.data.additional_life_is_x
 	if life_x: budget = maxi(0, game.players[_pending_pid].life)
@@ -5087,7 +5108,7 @@ func _refresh() -> void:
 				var top_gone: CardInstance = gone[-1]
 				# A card exiled FACE DOWN (Knowledge Vault) shows nothing:
 				# nobody may look at it, so the pile keeps its plate.
-				if not top_gone.face_down or top_gone.exile_visible_to == _human_seat():
+				if not top_gone.face_down or top_gone.exile_visible_to == _viewing_seat():
 					exile_face = GameSkin.card_scan(top_gone.data.card_name)
 					if exile_face == null:
 						exile_face = GameSkin.card_art(top_gone.data.card_name)
@@ -5205,8 +5226,9 @@ func _exile_tooltip(pid: int) -> String:
 	if gone.is_empty():
 		return "%s exiled cards (out of play) — empty" % whose
 	var names := PackedStringArray()
+	var seat := _viewing_seat()
 	for card in gone:
-		names.append("(face down)" if card.face_down and card.exile_visible_to != _human_seat() else card.data.card_name)
+		names.append("(face down)" if card.face_down and card.exile_visible_to != seat else card.data.card_name)
 	return "%s exiled cards (out of play)\n%s" % [whose, "\n".join(names)]
 
 
@@ -5377,6 +5399,20 @@ func _make_hotseat_hand(pid: int) -> HotseatHand:
 ## when deciding whether the spectator may take an action.
 func _human_seat() -> int:
 	return 1 if not _is_human(0) and _is_human(1) else 0
+
+
+## THE SEAT THE SCREEN IS SERVING — not the perspective it draws from.
+## [method _human_seat] is a viewing perspective and is ALWAYS seat 0 at a
+## private hotseat, so anything a rule shows to ONE player, or lets ONE
+## player act on, has to ask this instead: a face-down exiled card only
+## its exiler may look at (Gustha's Scepter), a graveyard ability only its
+## owner may activate (Ashen Ghoul), a card exile gave one player leave to
+## play (Ice Cauldron). Reading `_human_seat()` there named the top seat's
+## secret to the bottom seat and refused the top seat its own ability.
+func _viewing_seat() -> int:
+	if game != null and config != null and config.private_hotseat():
+		return _private_decision_seat()
+	return _human_seat()
 
 
 ## The board's rectangle — both halves together. The Combat window is laid

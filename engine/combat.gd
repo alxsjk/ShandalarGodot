@@ -291,6 +291,13 @@ static func attack_illegality(game: MtgGame, inst: CardInstance, defender_pid: i
 	# taking the player's real attackers down with it.
 	if inst.zone != Mtg.Zone.BATTLEFIELD:
 		return "%s is not on the battlefield" % inst.data.card_name
+	# The turn-wide ban (Festival) is a creature's answer too (2026-09-16):
+	# [method MtgGame.declare_attackers] refused the declaration as a
+	# whole, and the seats that only ever ask this predicate — the
+	# SGManalink client's "attackable" lane — offered attackers a Festival
+	# turn could not have.
+	if game.no_attacks_this_turn:
+		return "creatures can't attack this turn"
 	if inst.tapped:
 		return "tapped creatures can't attack"
 	# HASTE, or "can attack as though it had haste" (Instill Energy) — the
@@ -390,8 +397,17 @@ static func bands_with_among(blockers: Array) -> bool:
 
 
 ## Can [param blocker] block [param attacker]? "" when legal, else reason.
+##
+## [param viewer] (2026-09-16) — the seat asking, when it is not the
+## defender: the blocking taxes below are then priced from the defender's
+## PUBLIC mana alone, never a hidden Elvish Spirit Guide in their hand
+## ([method ManaPlanner.sources], rule 8). The engine's own declaration
+## check leaves it -1 and stays rules-exact — the defender may exile the
+## Guide to pay. Every AI read of the OTHER seat's blocks passes its own
+## seat here; its read of its own blocks is its own hand and passes none.
 static func block_illegality(game: MtgGame, blocker: CardInstance,
-		attacker: CardInstance, defender_pid: int, check_group := true) -> String:
+		attacker: CardInstance, defender_pid: int, check_group := true,
+		viewer := -1) -> String:
 	if not blocker.is_creature():
 		return "not a creature"
 	# CR 509.1a: a blocking creature is one the defending player controls
@@ -472,9 +488,9 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 		if not cb.call(blocker):
 			return "can't be blocked except by: %s" % String(restriction["desc"])
 	if blocker.cur_block_power_tax > 0 and attacker.cur_power >= blocker.cur_block_power_tax_threshold \
-			and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % blocker.cur_block_power_tax)):
+			and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % blocker.cur_block_power_tax), [], viewer):
 		return "can't afford the blocking cost"
-	if attacker.cur_blocked_by_tax > 0 and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % attacker.cur_blocked_by_tax)):
+	if attacker.cur_blocked_by_tax > 0 and not game.can_afford_cost(defender_pid, ManaCost.parse("{%d}" % attacker.cur_blocked_by_tax), [], viewer):
 		return "can't afford the cost to block this attacker"
 	if check_group and blocker.cur_min_block_group > 1:
 		if game.max_blockers > 0 and game.max_blockers < blocker.cur_min_block_group: return "not enough permitted blockers"
@@ -482,7 +498,7 @@ static func block_illegality(game: MtgGame, blocker: CardInstance,
 		for other in game.players[defender_pid].battlefield:
 			for id in game.combat.attackers:
 				var target := game.find_instance(id)
-				if target != null and block_illegality(game, other, target, defender_pid, false) == "":
+				if target != null and block_illegality(game, other, target, defender_pid, false, viewer) == "":
 					possible += 1
 					break
 		if possible < blocker.cur_min_block_group: return "not enough other creatures can block"

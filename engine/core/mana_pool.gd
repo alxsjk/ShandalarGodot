@@ -141,6 +141,14 @@ func can_pay(cost: ManaCost, x_value: int = 0, usage_keys: Array = [],
 	return leftover >= ordinary
 
 
+## The order a restricted-X requirement ("X mana of any of these types",
+## Soul Burn's {B}/{R}, Primitive Justice's {R}/{G}) is spent in. Shared
+## with [ManaPlanner], which has to tap for the SAME mixture this spends,
+## so the two can never disagree about which colour a plan owed.
+const RESTRICTED_SPEND_ORDER: Array[int] = [Mtg.ManaColor.B, Mtg.ManaColor.R,
+	Mtg.ManaColor.W, Mtg.ManaColor.U, Mtg.ManaColor.G, Mtg.ManaColor.C]
+
+
 ## Pay [param cost] from the pool. Callers must check [method can_pay]
 ## first; paying an unpayable cost is a programming error and asserts.
 ## See [method can_pay] for the optional arguments.
@@ -166,7 +174,7 @@ func pay(cost: ManaCost, x_value: int = 0, usage_keys: Array = [],
 	var remaining := cost.restricted_x_due(x_value)
 	# Auto-payment favors black for Soul Burn's life gain. The player can
 	# float a different legal mixture; only actual mana spent is recorded.
-	for c in [Mtg.ManaColor.B, Mtg.ManaColor.R, Mtg.ManaColor.W, Mtg.ManaColor.U, Mtg.ManaColor.G, Mtg.ManaColor.C]:
+	for c in RESTRICTED_SPEND_ORDER:
 		if (c & cost.restricted_x_mask) == 0: continue
 		var next := _take(c, remaining, usage_keys)
 		if next < remaining: restricted_spent[c] = remaining - next

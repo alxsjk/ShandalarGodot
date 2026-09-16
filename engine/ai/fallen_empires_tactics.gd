@@ -13,6 +13,7 @@ static func option(game: MtgGame, pilot, source: CardInstance, index: int,
 	var me := game.players[pid]
 	var combat := game.current_step() == Mtg.Step.DECLARE_BLOCKERS
 	var reacting := window == "RESPONSE" or window == "COMBAT"
+	if ability.effects.is_empty(): return null    # a granted, effect-less ability is not ours to score
 	var effect: EffectBase = ability.effects[0]
 	var spec := effect.target_spec
 	var name := source.data.card_name
@@ -31,7 +32,7 @@ static func option(game: MtgGame, pilot, source: CardInstance, index: int,
 			var ground := false
 			var air := false
 			for blocker in game.players[enemy].battlefield:
-				if not blocker.is_creature() or CombatState.block_illegality(game, blocker, body, enemy) != "": continue
+				if not blocker.is_creature() or CombatState.block_illegality(game, blocker, body, enemy, true, pid) != "": continue
 				ground = true
 				if blocker.has_keyword(Mtg.Keyword.FLYING) or blocker.has_keyword(Mtg.Keyword.REACH): air = true
 			if not ground or air: continue
@@ -51,7 +52,7 @@ static func option(game: MtgGame, pilot, source: CardInstance, index: int,
 			if not game.combat.attackers.has(attacker.id) or attacker.cur_assigns_no_combat_damage: continue
 			var can_block := false
 			for enemy in game.players[game.opponent_of(pid)].battlefield:
-				if enemy.is_creature() and CombatState.block_illegality(game, enemy, attacker, enemy.controller_id) == "": can_block = true
+				if enemy.is_creature() and CombatState.block_illegality(game, enemy, attacker, enemy.controller_id, true, pid) == "": can_block = true
 			if can_block: continue
 			var gain: float = float(attacker.cur_power) * pilot._life_price(me.life) if name == "Delif's Cone" else 4.0
 			gain -= float(attacker.cur_power) * 0.75
@@ -59,7 +60,7 @@ static func option(game: MtgGame, pilot, source: CardInstance, index: int,
 		return best
 	if name == "Heroism":
 		if not reacting or not combat or game.active_player == pid: return {}
-		if not ManaPlanner.plan(game, game.active_player, ManaCost.parse("{2}{R}"), 0).is_empty(): return {}
+		if not ManaPlanner.plan(game, game.active_player, ManaCost.parse("{2}{R}"), 0, [], {}, pid).is_empty(): return {}
 		var gain := 0.0
 		for id in game.combat.attackers:
 			var attacker := game.find_instance(id)
@@ -86,7 +87,7 @@ static func option(game: MtgGame, pilot, source: CardInstance, index: int,
 		# opponent's public mana sources, not their hand or future choices.
 		for cost in [effect.first, effect.second]:
 			if cost == "": continue
-			if not ManaPlanner.plan(game, top.controller, ManaCost.parse(cost), 0).is_empty(): return {}
+			if not ManaPlanner.plan(game, top.controller, ManaCost.parse(cost), 0, [], {}, pid).is_empty(): return {}
 		var value := Evaluator.card_value(top.card.data)
 		for target in top.targets:
 			if target.is_player: continue
@@ -125,7 +126,7 @@ static func option(game: MtgGame, pilot, source: CardInstance, index: int,
 		return {}
 	if name == "Tidal Flats":
 		if not reacting or not combat or game.active_player == pid: return {}
-		if not ManaPlanner.plan(game, game.active_player, ManaCost.parse("{1}"), 0).is_empty(): return {}
+		if not ManaPlanner.plan(game, game.active_player, ManaCost.parse("{1}"), 0, [], {}, pid).is_empty(): return {}
 		var gain := 0.0
 		for id in game.combat.attackers:
 			var attacker := game.find_instance(id)

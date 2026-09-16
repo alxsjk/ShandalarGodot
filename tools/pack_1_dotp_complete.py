@@ -17,7 +17,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
+import tempfile
 import urllib.parse
 import zipfile
 from pathlib import Path
@@ -263,6 +265,8 @@ def fetch_art(art_dir: Path) -> None:
 
 
 def build(out: Path, art_dir: Path = DEFAULT_ART, include_art: bool = True) -> None:
+    if out.name != FILE_NAME:
+        raise ValueError("pack must be named exactly %s" % FILE_NAME)
     manifest, catalog, additions, readme = assembled()
     art = art_targets(art_dir) if include_art else []
     missing = [path for path, _row, _variant in art if not path.is_file()]
@@ -293,13 +297,22 @@ def build(out: Path, art_dir: Path = DEFAULT_ART, include_art: bool = True) -> N
         },
     }
     out.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(out, "w") as zf:
-        write_entry(zf, "manifest.json", json_bytes(manifest))
-        for name, payload in metadata.items():
-            write_entry(zf, name, payload)
-        for name, payload in artwork:
-            write_entry(zf, name, payload)
-    report = verify(out, require_art=include_art)
+    # A failed build must never damage an existing pack — the same guard
+    # packs 2-5 carry. Writing straight to `out` truncated a verified
+    # 75 MB Pack 1 to an unreadable stub the moment the write raised
+    # (a full disk is the ordinary way), and the art fetch that built it
+    # is an hour of Scryfall calls. Stage beside the target, verify the
+    # staged file, then replace in one step.
+    with tempfile.TemporaryDirectory(prefix=".pack-1-", dir=out.parent) as tmp:
+        staged = Path(tmp) / FILE_NAME
+        with zipfile.ZipFile(staged, "w") as zf:
+            write_entry(zf, "manifest.json", json_bytes(manifest))
+            for name, payload in metadata.items():
+                write_entry(zf, name, payload)
+            for name, payload in artwork:
+                write_entry(zf, name, payload)
+        report = verify(staged, require_art=include_art)
+        os.replace(staged, out)
     print("pack: %s" % out)
     print("Pack 1: %(pack_card_entries)d card entries · %(reprint_entries)d reprints · "
           "%(new_rules_identities)d new rules identities" % report["counts"])
@@ -317,7 +330,16 @@ def verify(path: Path, require_art: bool = True) -> dict:
         PREFIX + "cards.json", PREFIX + "README.txt",
     }
     with zipfile.ZipFile(path) as zf:
-        names = set(zf.namelist())
+        listed = zf.namelist()
+        # A NAME MAY APPEAR ONCE. `zipfile` resolves a repeated name to the
+        # LAST entry while a reader that walks the central directory in
+        # order — Godot's `ZIPReader`, minizip under it — takes the FIRST,
+        # so a second copy appended after a genuine one let a forged
+        # `cards.json` pass every checksum below. Packs 2-5 refuse this;
+        # collapsing the list into a set here is what hid it.
+        if len(listed) != len(set(listed)):
+            raise ValueError("duplicate ZIP entries")
+        names = set(listed)
         metadata = {
             "catalog.json": zf.read(PREFIX + "catalog.json"),
             "cards.json": zf.read(PREFIX + "cards.json"),

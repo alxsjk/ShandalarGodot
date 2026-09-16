@@ -51,23 +51,29 @@ func test_the_derived_plate_only_uses_the_grave_plates_own_colours() -> void:
 				% [seat_color, strangers])
 
 
-func test_the_derived_plate_wears_the_originals_white_border() -> void:
-	# Grave_*.pic.png is 59x89 of art inside a 1px white frame; the plate
-	# beside it has to be built the same way or the pair does not match.
+func test_the_derived_plate_wears_the_originals_frame() -> void:
+	# Grave_*.pic is 59x89 of art inside a 1px frame; the plate beside it
+	# has to be built the same way, IN THE SAME COLOUR, or the pair does
+	# not match. The frame is palette index 0 — black on a 1997 import,
+	# white in the s30-era conversions — so the colour is read off the
+	# grave plate's own corner, never assumed (2026-09-16).
 	if not _skin_present():
 		return
+	var frame: Color = GameSkin.texture("grave_panel_red").get_image().get_pixel(0, 0)
+	assert_true(frame == Color.WHITE or frame == Color.BLACK,
+		"the 1997 frame is index 0: white (s30-era) or black (1997 import), got %s" % frame)
 	var img := ExilePlate.plate("red").get_image()
 	var w := img.get_width()
 	var h := img.get_height()
 	var gaps := 0
 	for x in w:
-		gaps += int(img.get_pixel(x, 0) != Color.WHITE)
-		gaps += int(img.get_pixel(x, h - 1) != Color.WHITE)
+		gaps += int(img.get_pixel(x, 0) != frame)
+		gaps += int(img.get_pixel(x, h - 1) != frame)
 	for y in h:
-		gaps += int(img.get_pixel(0, y) != Color.WHITE)
-		gaps += int(img.get_pixel(w - 1, y) != Color.WHITE)
-	assert_eq(gaps, 0, "the 1px white frame runs all the way round")
-	assert_ne(img.get_pixel(w / 2, h / 2), Color.WHITE, "and only the frame")
+		gaps += int(img.get_pixel(0, y) != frame)
+		gaps += int(img.get_pixel(w - 1, y) != frame)
+	assert_eq(gaps, 0, "the 1px frame runs all the way round in the plate's colour")
+	assert_ne(img.get_pixel(w / 2, h / 2), frame, "and only the frame")
 
 
 func test_there_is_no_exile_plate_without_the_original_skin() -> void:

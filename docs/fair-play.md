@@ -20,7 +20,11 @@ to your cards.
 It does not use your unrevealed hand, a face-down creature's hidden printed
 identity, either library's secret order, or the random generator's state to
 choose a play. Open mana is a public threat; it is not proof that you hold
-a particular counterspell or combat trick.
+a particular counterspell or combat trick. Mana that lives IN a hand
+(Elvish Spirit Guide's "exile this card from your hand: add {G}") is part
+of that hand: the computer's count of what you can pay — a blocking tax, a
+spell tax, the mana a counter must beat — takes only the Guides you have
+revealed, while the rules themselves still let you exile a hidden one.
 
 The game's existing **card-naming menus** use registered decklists for both
 human and computer players. That shared naming rule is not a peek into the

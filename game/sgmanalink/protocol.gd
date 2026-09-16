@@ -3,8 +3,8 @@ extends RefCounted
 ## [QoL] Unrated loopback/LAN protocol. Data only; no Variant object decoding or RPC.
 ## Version this independently from the application release and future rated protocol.
 
-const VERSION := 13
-const SUBPROTOCOL := "sgmanalink-local-v13"
+const VERSION := 14
+const SUBPROTOCOL := "sgmanalink-local-v14"
 const NICKNAME_LIMIT := 20
 const MAX_BYTES := 2097152
 const MAX_COMMAND_BYTES := 32768

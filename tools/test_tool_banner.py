@@ -56,6 +56,18 @@ PY_TOOLS = ["build_card_packs", "fetch_card_art", "fetch_cards",
 SH_TOOLS = ["build_release.sh", "deck_convert.sh", "duel_soak.sh",
             "run_tests.sh", "DeckLab/deck_lab.sh"]
 
+## THE TOOLS THAT ARRIVED WITH THE NUMBERED CARD PACKS. They are NOT in
+## PY_TOOLS: five of them carry a four-line HINT and no EPILOG attribute
+## (their examples block is the argparse epilog itself), and
+## package_release.py has no module-level CAPTION/HINT at all, so the
+## banner-family shape tests above do not describe them. What DOES apply
+## is the rule that would actually hurt — `-h` and `--version` answer,
+## and neither puts a wordmark glyph in stdout, because every one of
+## these is run through a pipe by a release script.
+PACK_TOOLS = ["pack_1_dotp_complete", "pack_2_fallen_empires",
+              "pack_3_ice_age", "pack_4_homelands", "pack_5_alliances",
+              "package_release"]
+
 ## The four Python tools build_release.sh copies into a package, plus the
 ## module they import. See test_the_package_ships_the_module_its_tools_import.
 SHIPPED_TOOLS = ["mtg_assets.py", "import_original.py", "fetch_card_art.py",
@@ -646,6 +658,29 @@ class EveryToolAnswersTest(unittest.TestCase):
     def test_every_python_tool_has_a_help_and_a_version(self):
         version = tool_banner.project_version(ROOT)
         for name in PY_TOOLS:
+            script = "tools/%s.py" % name
+            for flag in ("-h", "--help"):
+                done = self.run_tool([sys.executable, script, flag])
+                self.assertEqual(done.returncode, 0, script + " " + flag)
+                self.assertIn("usage:", done.stdout, script)
+                self.assertIn(tool_banner.NO_BANNER_ENV, done.stdout,
+                              "%s: -h must name the opt-out" % script)
+                self.assert_no_artwork(done.stdout, script + " " + flag)
+            for flag in ("-V", "--version"):
+                done = self.run_tool([sys.executable, script, flag])
+                self.assertEqual(done.returncode, 0, script + " " + flag)
+                self.assertEqual(done.stdout.strip(),
+                                 "%s.py — Shandalar %s" % (name, version))
+                self.assert_no_artwork(done.stdout, script + " " + flag)
+
+    def test_every_pack_tool_has_a_help_and_a_version(self):
+        # The six tools commit 08ae6e4 added were outside every list in
+        # this file, so nothing held them to the one rule that breaks a
+        # caller: `build_release.sh` pipes package_release.py, and
+        # `run_tests.sh` reads the pack builders' stdout with >/dev/null
+        # around a non-zero exit.
+        version = tool_banner.project_version(ROOT)
+        for name in PACK_TOOLS:
             script = "tools/%s.py" % name
             for flag in ("-h", "--help"):
                 done = self.run_tool([sys.executable, script, flag])

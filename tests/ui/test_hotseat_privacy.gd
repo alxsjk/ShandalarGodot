@@ -180,6 +180,55 @@ func _hand(pid: int) -> HotseatHand:
 	return screen._hand_rows[1 - pid] as HotseatHand
 
 
+func _exile(pid: int, card_name: String, viewer: int) -> CardInstance:
+	var inst := CardInstance.new(CardRegistry.get_card(card_name),
+		screen.game._next_instance_id, pid)
+	screen.game._next_instance_id += 1
+	screen.game._instances[inst.id] = inst
+	inst.zone = Mtg.Zone.EXILE
+	inst.face_down = true
+	inst.exile_visible_to = viewer
+	screen.game.players[pid].exile.append(inst)
+	return inst
+
+
+## A card exiled face down belongs to the one seat a rule let look at it
+## (Gustha's Scepter). The pile read its viewer off `_human_seat()`, which
+## is always seat 0 in a hotseat, so the OTHER player — sitting at the very
+## same screen on their own turn — read the name off the pile's tooltip.
+func test_a_face_down_exile_is_hidden_from_the_seat_it_is_not_shown_to() -> void:
+	_exile(0, "Lightning Bolt", 0)
+	_stand(1)
+	assert_false(screen._exile_tooltip(0).contains("Lightning Bolt"),
+		"the seat the card was not shown to reads only (face down)")
+	assert_string_contains(screen._exile_tooltip(0), "(face down)")
+	_stand(0)
+	assert_string_contains(screen._exile_tooltip(0), "Lightning Bolt",
+		"the seat a rule did show it to still reads it")
+
+
+## The graveyard view is opened by whichever seat is deciding, so the card
+## it hands back is theirs. Reading the owner off `_human_seat()` meant the
+## top seat could look at Ashen Ghoul's ability and never activate it.
+func test_the_deciding_seat_can_open_a_graveyard_ability() -> void:
+	var data := CardData.new("Probe Revenant", "{B}", Mtg.CardType.CREATURE) \
+		.activated(ActivatedAbility.new("{B}", false, [],
+			"return this card from your graveyard to the battlefield") \
+			.from_graveyard())
+	var inst := CardInstance.new(data, screen.game._next_instance_id, 1)
+	screen.game._next_instance_id += 1
+	screen.game._instances[inst.id] = inst
+	inst.zone = Mtg.Zone.GRAVEYARD
+	screen.game.players[1].graveyard.append(inst)
+	_stand(1)
+	screen._ability_menu.clear()
+	screen._on_graveyard_card(inst)
+	assert_gt(screen._ability_menu.item_count, 0,
+		"the seat whose turn it is must reach its own graveyard ability")
+	assert_eq(int(screen._ability_menu.get_meta("instance_id", -1)), inst.id)
+	screen._ability_menu.hide()
+
+
 func test_hotseat_show_hide_is_private_for_either_seat(pid = use_parameters([0, 1])) -> void:
 	_stand(pid)
 	var hand := _hand(pid)

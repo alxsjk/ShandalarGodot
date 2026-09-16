@@ -71,8 +71,18 @@ extends RefCounted
 ## [param mind_pain] — off, and a source that hurts to tap sorts like any
 ## other (the planner as it was before 2026-09-06). It is the Deck Lab's
 ## null for [member AiProfile.minds_pain]; nothing else turns it off.
+##
+## [param viewer] — the seat ASKING, when it is not [param pid]'s own
+## (2026-09-16). A mana source in the HAND (Elvish Spirit Guide's "exile
+## this card from your hand") is hidden information, and rule 8 of
+## CONTRIBUTING.md forbids the computer opponent to read the other seat's
+## hand for anything — so an opponent's count of what this seat can pay
+## (a blocking tax, a spell tax, the open mana a counter must beat) takes
+## only the hand cards that are already revealed. The default, -1, is the
+## seat's own full knowledge: the engine paying for its player, the AI
+## planning its own casts.
 static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
-		mind_pain := true) -> Array:
+		mind_pain := true, viewer := -1) -> Array:
 	var out: Array = []   # [inst, index, color, amount, sacrifice, key, pain, holds]
 	# Mana already floating (a resolved Dark Ritual) is a source that costs
 	# nothing to "tap": a null instance the executors skip. Without it the
@@ -90,6 +100,9 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 			continue
 		if excluded.has(inst.id):
 			continue          # `Don't auto tap this card`
+		if inst.zone == Mtg.Zone.HAND and viewer >= 0 and viewer != pid \
+				and not inst.revealed_in_hand:
+			continue          # another seat's hidden card (rule 8)
 		# Read once per instance, not once per comparison: the sort asks for
 		# it O(n log n) times and the answer is the same every time.
 		var holds := holds_untapped(inst)
@@ -204,19 +217,26 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 static func plan_from(src: Array, cost: ManaCost, x_value: int,
 		usage_keys: Array = []) -> Array:
 	if cost.restricted_x_amount > 0:
-		# Enumerate Soul Burn's B/R mixtures, preserving coupled sources
-		# and restrictions in the ordinary planner. Prefer life-gaining B.
-		if cost.restricted_x_mask != (Mtg.ManaColor.B | Mtg.ManaColor.R): return []
+		# Enumerate the mixtures the restriction allows, preserving coupled
+		# sources and restrictions in the ordinary planner. The palette is
+		# ManaPool's own spending order, so the colours a plan taps for are
+		# the colours the payment then spends: Soul Burn's life-gaining {B}
+		# first, and every other mask (Primitive Justice's {R}/{G}) the
+		# same way. Until 2026-09-16 only the {B}/{R} mask planned at all
+		# and every other one reported the cast as unpayable, which is what
+		# left the duel screen unable to auto-tap a second target for it.
 		var restricted_due := cost.restricted_x_due(x_value)
-		for black in range(restricted_due, -1, -1):
-			var concrete := cost.minus_generic(0)
-			concrete.restricted_x_mask = 0
-			concrete.restricted_x_amount = 0
-			concrete = concrete.plus_colored(Mtg.ManaColor.B, black)
-			concrete = concrete.plus_colored(Mtg.ManaColor.R, restricted_due - black)
-			var possible := plan_from(src, concrete, maxi(-cost.generic, x_value), usage_keys)
-			if not possible.is_empty(): return possible
-		return []
+		var palette: Array[int] = []
+		for color in ManaPool.RESTRICTED_SPEND_ORDER:
+			if (color & cost.restricted_x_mask) != 0:
+				palette.append(color)
+		if palette.is_empty():
+			return []
+		var concrete := cost.minus_generic(0)
+		concrete.restricted_x_mask = 0
+		concrete.restricted_x_amount = 0
+		return _plan_restricted(src, concrete, palette, restricted_due,
+			maxi(-cost.generic, x_value), usage_keys)
 	var converts := false
 	for row in src:
 		if row.size() > 8:
@@ -231,6 +251,24 @@ static func plan_from(src: Array, cost: ManaCost, x_value: int,
 	if not simple.is_empty() or (cost.mana_value() + x_value == 0):
 		return simple
 	return preload("res://engine/mana_conversion_planner.gd").plan(src, cost, x_value, usage_keys)
+
+
+## One restricted-X mixture at a time: the earliest colour of
+## [param palette] takes as much of [param due] as it can, and the search
+## backs off a point at a time until a plan comes out. The recursion is one
+## level per colour in the mask and at most `due + 1` branches each, which
+## is a handful for the two-colour masks this pool prints.
+static func _plan_restricted(src: Array, base: ManaCost, palette: Array[int],
+		due: int, x_value: int, usage_keys: Array) -> Array:
+	if palette.size() == 1:
+		return plan_from(src, base.plus_colored(palette[0], due), x_value, usage_keys)
+	var rest: Array[int] = palette.slice(1)
+	for take in range(due, -1, -1):
+		var possible := _plan_restricted(src, base.plus_colored(palette[0], take),
+			rest, due - take, x_value, usage_keys)
+		if not possible.is_empty():
+			return possible
+	return []
 
 
 static func _plan_free_sources(src: Array, cost: ManaCost, x_value: int,
@@ -274,8 +312,8 @@ static func _plan_free_sources(src: Array, cost: ManaCost, x_value: int,
 
 ## [method plan_from] against a source list built on the spot.
 static func plan(game: MtgGame, pid: int, cost: ManaCost, x_value: int,
-		usage_keys: Array = [], excluded: Dictionary = {}) -> Array:
-	return plan_from(sources(game, pid, excluded), cost, x_value, usage_keys)
+		usage_keys: Array = [], excluded: Dictionary = {}, viewer := -1) -> Array:
+	return plan_from(sources(game, pid, excluded, true, viewer), cost, x_value, usage_keys)
 
 
 ## May the source [param s] pay for something with [param usage_keys]?

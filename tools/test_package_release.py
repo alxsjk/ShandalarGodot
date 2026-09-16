@@ -217,6 +217,22 @@ class PackageReleaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must not be released"):
             self.build("macos")
 
+    def test_card_art_inside_mac_app_is_refused(self):
+        # The macOS payload is the only one gathered by rglob, so a ZIP
+        # dropped where the README says not to ("Keep skin/ BESIDE
+        # Shandalar.app") rode into both release ZIPs and their
+        # SHA256SUMS. The card art is the one file this project never
+        # publishes (licence), so it must stop the package.
+        for name in ("cardart.zip", "original_skin.zip", "my_pictures.zip"):
+            with self.subTest(name=name):
+                self.make_export("macos")
+                path = self.folder / "Shandalar.app/Contents/Resources" / name
+                path.write_bytes(b"pictures that are not ours to publish")
+                with self.assertRaisesRegex(ValueError, "must not be released"):
+                    self.build("macos")
+                self.assertFalse(self.out.exists())
+                path.unlink()
+
     def test_home_path_in_binary_is_refused(self):
         self.make_export("linux64")
         (self.folder / "Shandalar.x86_64").write_bytes(str(Path.home()).encode())

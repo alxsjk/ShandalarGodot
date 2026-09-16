@@ -14077,6 +14077,79 @@ settings remain outside that cleanup; no release or tag is published.
 Browser gameplay, native Windows/Linux and physical multi-computer LAN
 playtests remain release checks, as recorded in the integration reports.
 
+## 2026-09-16 — Post-release bug hunt
+
+A read of the 43 commits that landed 0.31.0 (`59dc81b..08ae6e4`), one hunt
+per layer, each finding reproduced by a failing test before its fix. 0.31.0
+is already released, so everything here lands after it; matching LAN peers
+now need protocol **14** and rules revision `sgmanalink-packs-2026-09-16-3`.
+
+**Engine and AI.** `ManaPlanner` enumerated a restricted-X mixture (*"spend
+only black and/or red mana on X"*) for Soul Burn's mask alone and called
+every other unpayable — Primitive Justice's {R}-or-{G} per extra target
+tapped nothing and dropped the player out of the cast — and
+`spell_payment` sized the reduction by the same hard-coded pair; the
+planner now walks any mask in `ManaPool.RESTRICTED_SPEND_ORDER`, the order
+the pool itself spends. Mana that lives IN a hand (Elvish Spirit Guide)
+was counted by the computer when it read the OTHER seat's blocking taxes,
+open mana and payable costs — a rule 8 leak: `ManaPlanner.sources`/`plan`,
+`MtgGame.can_afford_cost`/`_payment_plan` and `CombatState.block_illegality`
+take a `viewer` seat, the AI passes its own, and a hidden Guide is skipped
+unless revealed while the engine's own check stays rules-exact (Awesome
+Presence on Grizzly Bears is the reproduction; `docs/fair-play.md` says so).
+Festival's *"creatures can't attack this turn"* lived only in
+`declare_attackers`, so the per-creature predicate — and the SGManalink
+"attackable" lane built on it — still offered attackers on a Festival turn.
+A search a strategy opened from INSIDE the engine's pre-flight probe
+(`answer_option`, `cumulative_upkeep_hint` value the board) handed the game
+back unprobed: `make_mark` now remembers the probe it found and
+`end_search` gives it back, so a rewound run's log lines no longer reach
+the duel screen twice. Tidal Influence's cast rider had three parameters
+where `cast_condition` passes two — every planning pass printed a script
+error and a second Influence was castable; an arity sweep now pins every
+card-authored predicate across all five packs.
+
+**Cards.** Jinx, Barbarian Guides and Mystic Compass built their land-type
+question from an untyped array and never asked it; Nature's Blessing, an
+enchantment, carried a printed FIRST_STRIKE so the Deck Builder listed it
+as natively first-striking.
+
+**Duel screen and Deck Builder.** The double-click on Taste of Paradise
+handed the X spin the raw generic budget — seven Forests bought "3
+additional payments" of a ten-mana bill — while the window counted
+payments; both now share `_repeat_budget`. Three new private-hotseat reads
+asked `_human_seat()` (always seat 0): a face-down exile shown to one seat
+was named to the other, and the top seat could not open a graveyard
+ability or play from exile — `_viewing_seat()` at all three. A drafted deck
+naming two packs was never loaded (the second requirement's question was
+suppressed by the first popup's veil), and that popup did not own the
+keyboard, so Enter added a card to the deck the question was about.
+
+**SGManalink and tools.** Only an Aura's own end of an attachment was
+linked at the client, so an enchanted creature's Aura sat on nobody's
+board; the prevention shield's source now crosses the wire as a name so the
+reminder fans behind the creature as it does locally (protocol 14). The
+exile plate's 1px frame was painted white beside a black 1997 grave plate;
+it samples the plate's own corner. `pack_1_dotp_complete.py` wrote straight
+to the pack it was replacing (a failed write truncated a verified 75 MB
+pack) and collapsed the ZIP listing into a set, hiding a duplicate
+`cards.json` a first-entry reader would take; `package_release.py` refuses
+any archive inside an export payload — `cardart.zip` is never released —
+and the six pack tools now answer `-h`/`--version` without a wordmark.
+
+Left for the owner, unreproduced: Demonic Consultation names from the
+whole registry rather than the decklist (the 2026-09-07 prompt-list
+ruling); `CumulativeUpkeep` pays nothing if the sacrifice choice comes back
+null after agreeing to pay (the affordability pre-check makes it
+unreachable); two tactics lines pay mana before a refusal they cannot
+provoke; `DraftSetup`'s verify overlay stacks per press.
+
+Gate: **7,223/7,223 tests / 324,028 assertions / 449 scripts**, strict exit
+**0** in **912.28 seconds**; **267 Python tests**; boot smoke clean; both
+soaks and the Pack 4/5 AI audits (18 full duels each) clean. Version stays
+0.31.0 in `project.godot` — the bump is the owner's call; no release, no
+art.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

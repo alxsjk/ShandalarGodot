@@ -120,6 +120,15 @@ def payload(folder: Path, platform: str) -> dict[str, Path]:
         name = path.relative_to(folder).as_posix()
         if re.fullmatch(r"Pack-[0-9]+-.+\.zip", path.name):
             raise ValueError(f"Local card-pack artifact must not be released: {name}")
+        if path.suffix == ".zip":
+            # NO ARCHIVE RIDES INSIDE A PAYLOAD. An export is an engine, a
+            # .pck and the bundle around them; a ZIP among them is art or a
+            # skin someone dropped where the README says not to ("Keep skin/
+            # BESIDE Shandalar.app"). `cardart.zip` is the one file this
+            # project never publishes, and the macOS payload — the only one
+            # gathered by rglob — carried it into both release ZIPs and
+            # their SHA256SUMS.
+            raise ValueError(f"An archive inside the export must not be released: {name}")
         if path.is_symlink() or any(part.startswith(".") for part in Path(name).parts):
             raise ValueError(f"Unexpected link or hidden export file: {name}")
         if path.name == "override.cfg" or path.suffix in (".log", ".pdb"):

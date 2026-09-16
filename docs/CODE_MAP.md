@@ -150,8 +150,9 @@ needed); card files have NO class_name (they register by name instead);
   options, name ownership, consensus and referee trust, privacy, recovery
   and verification gates; documentation only, no selected implementation.
 - `game/sgmanalink/protocol.gd` (`SgProtocol`): bounded ASCII JSON and exact
-  command schemas; bounded temporary nicknames, version-13 handshake (public
-  hack reminders) and separate message limits from per-seat view nesting.
+  command schemas; bounded temporary nicknames, version-14 handshake (public
+  hack reminders, named damage shields) and separate message limits from
+  per-seat view nesting.
 - `game/sgmanalink/practice_match.gd` (`SgPracticeMatch`): server-side full-pool
   referee, explicit player actions, public/seat-private views and retiring hidden-zone
   handles; retains the Forest practice list as an optional default fixture.
@@ -172,7 +173,8 @@ needed); card files have NO class_name (they register by name instead);
   bounded untrusted host listings, unicast replies, expiry and secret exclusion.
 - `game/sgmanalink/view_protocol.gd` (`SgViewProtocol`): exact bounded host
   response/room/game/card schemas and consistent card/combat references before
-  a client UI sees remote values; bounded, allowlisted public text-effect records.
+  a client UI sees remote values; bounded, allowlisted public text-effect records
+  and a named damage shield only where one is left to spend.
 - `game/sgmanalink/local_server.gd` (`SgLocalServer`): loopback or TLS LAN service,
   room membership, ephemeral capabilities, sequencing/deduplication and
   seat resumption; disambiguated guest labels, bounded in-memory state,
@@ -194,7 +196,8 @@ needed); card files have NO class_name (they register by name instead);
 - `game/sgmanalink/card_presentation.gd` (`SgCardPresentation`): detached
   render-only cards for the full registered pool, built from disclosed card DTOs and
   local printed definitions; public hack reminders carried in presentation-only
-  metadata, no referee instances or client game simulation.
+  metadata and the named shield resolved locally, no referee instances or client
+  game simulation.
 - `game/sgmanalink/duel_view.gd` (`SgDuelView`): extends the actual `DuelScreen`;
   acknowledgement-aware casting/payment, authoritative target candidates, remote
   stable opening/choice answers, event delivery, deck-based palette, defeat
@@ -205,8 +208,9 @@ needed); card files have NO class_name (they register by name instead);
   status; acknowledged introduction and persistent information beside mulligans.
 - `game/sgmanalink/duel_projection.gd` (`SgDuelProjection`): render-only `MtgGame`
   interface populated solely from a validated seat view. Stable UI-local card
-  objects, empty-identity hidden-zone placeholders, fixed local-seat mapping and
-  outbound action messages; never runs setup, resolution or a client simulation.
+  objects, empty-identity hidden-zone placeholders, both ends of every attachment,
+  fixed local-seat mapping and outbound action messages; never runs setup,
+  resolution or a client simulation.
 - `game/sgmanalink/duel_presentation.gd` (`SgDuelPresentation`): referee-side
   allowlist for public characteristics, opaque references, combat/response hints,
   payment reachability, fixed public deck-colour metadata, stack/animation data
@@ -222,7 +226,8 @@ needed); card files have NO class_name (they register by name instead);
   combat declarations and click damage, authorized choices/reveals, opening order,
   duplicate-input guards, public card continuity, hidden-identity retirement,
   mana-burn sounds, animated lands, Jaguar reminders and prevention markers;
-  all four hack reminders through JSON for either seat, removed on leaving play.
+  all four hack reminders through JSON for either seat, removed on leaving play;
+  an enchanted creature's Aura and shield reminder fanned behind their host.
 - `tests/ui/test_sgmanalink_visual_parity.gd`: deck-colour/seat mapping,
   retained combat instructions during connection waits, stable opening controls,
   live connection details, previous-life/result sequencing and restored-combat
@@ -405,6 +410,15 @@ per-card reveals and is respected by network views and fair observations.
   with fewer than three picks, ordering answers and the next draws.
 - `docs/pack-5-alliances.md`: construction, adaptations, audits and acceptance.
 - `docs/adding-card-packs.md`: future-pack end-to-end contributor checklist.
+- `tests/unit/test_festival_predicate_2026_09_16.gd`: Festival's turn-wide
+  ban answered by `CombatState.attack_illegality` itself, so the seats that
+  only ask the predicate (the SGManalink "attackable" lane) offer no
+  attacker on a Festival turn; the ban lifts with the turn.
+- `tests/unit/test_restricted_x_planning_2026_09_16.gd`: the restricted-X
+  mask (`ManaCost.restricted_x_mask`) planned for ANY colour set, not only
+  Soul Burn's {B}/{R} — Primitive Justice's per-target {R}-or-{G} pip taps,
+  pays and still refuses a board that cannot make it. `ManaPlanner` walks
+  `ManaPool.RESTRICTED_SPEND_ORDER`, so a plan taps what the payment spends.
 
 The Deck Builder keeps its original eight-medallion strip. Extras sits just
 left of the compact Stats button and opens six centered source rows;
@@ -459,7 +473,10 @@ and Elo. `docs/manalink-planning.md` records scope, references and validation.
 | `engine/ai/combat_study.gd` (`AiCombatStudy`) | Coordinated forward gangs, whole block assignments, own-hand pump alternatives and bounded survivor counterattack. Uses the existing `CombatSearch` resolver. |
 | `tests/ai/test_ai_deck_study.gd` | Own-deck roles, curves, colours, synergies and profile gating. |
 | `tests/ai/test_ai_fair_planning.gd` | Hidden-information invariance, targets/X/evaluation, bounded sequencing and safe cache reuse/invalidation. |
+| `tests/ai/test_ai_fair_hand_mana_2026_09_16.gd` | Rule 8 for mana in the hand: the AI's read of the other seat's blocking taxes, open mana and payable costs (`ManaPlanner.sources`/`plan`, `MtgGame.can_afford_cost`, `CombatState.block_illegality`, all with a `viewer` seat) ignores a hidden Elvish Spirit Guide and counts a revealed one; the engine's own check stays rules-exact. |
 | `tests/ai/test_ai_combat_study.gd` | Joint blocks, casualties, first strike, trample, danger defence, single-trick accounting, hidden-state invariance and specialised fallbacks. |
+| `tests/ai/test_ai_probe_nesting_2026_09_16.gd` | A search a strategy opens from inside the engine's own pre-flight probe must hand probe mode back — else the rewound run's log lines and signals reach the duel screen. |
+| `tests/ai/test_ai_cast_gate_2026_09_16.gd` | Arity sweep over every card-authored predicate the planner and the engine call ("cast only if ...", announcement, sacrifice, activator, X and the cost filters). |
 | `tests/cards/test_card_naming_fairness.gd` | Card-naming hints may not read hidden library contents or face-down identities. |
 | `tools/bench_planning.gd` | Repeatable combat-decision latency and per-study leaf-budget probe on small, wide and fallback boards; `--unfair` measures the separate known-hand response study. |
 | `docs/fair-play.md` | Player-facing fair-information contract. |
@@ -4746,6 +4763,13 @@ shandalar/
 │    charge at the step change; and the legal gestures unmoved (instant,
 │    targeted instant, creature and Aura in the main phase, and the X
 │    double-click still spending everything available);
+│    tests/ui/test_double_click_repeated_cost_2026_09_16.gd — the double-
+│    click on a REPEATED additional cost (Taste of Paradise, {3}{G} plus
+│    {1}{G} any number of times): the gesture counts PAYMENTS, not generic
+│    mana, through the same DuelScreen._repeat_budget the window prints
+│    — eight Forests buy two, seven buy one with the seventh left
+│    untapped — and a locked land stays out of the gesture's count while
+│    the window still offers it;
 │    tests/ui/test_counter_marks.gd — THE COUNTER STONES: the cue line
 │    by card and by kind, the generic fallback, the stone cut from the
 │    strip's column, one chip per KIND with its count, the row left of

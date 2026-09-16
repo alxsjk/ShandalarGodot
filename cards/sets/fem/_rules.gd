@@ -447,7 +447,9 @@ static func _tide_static(g: MtgGame, source: CardInstance) -> void:
 				if inst.is_creature() and _color(inst, Mtg.ManaColor.U):
 					inst.cur_power += delta * 2
 
-static func _one_influence(g: MtgGame, _pid: int, _card: CardData) -> String:
+## CardData.cast_condition is called as func(game, pid) — a third parameter
+## makes every announcement of the card fail the call and skip the rider.
+static func _one_influence(g: MtgGame, _pid: int) -> String:
 	for player in g.players:
 		for inst in player.battlefield:
 			if inst.data.card_name == "Tidal Influence":

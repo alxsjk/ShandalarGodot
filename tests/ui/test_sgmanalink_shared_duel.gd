@@ -575,3 +575,41 @@ func test_damage_prevention_markers_and_circle_target_use_host_packets() -> void
 	assert_eq(refusals, [])
 	assert_eq(g.stack.size(), 1)
 	if not g.stack.is_empty(): assert_true(g.stack[0].targets[0].is_damage)
+
+
+## THE FAN READS BOTH ENDS of what it draws, and neither end survived the
+## wire. An aura's own `attached_to` costs it its slot on the board; what
+## draws it again is its HOST's `attachments`, which the projection never
+## filled — so an enchanted creature's Aura was on nobody's board at either
+## seat. The shield reminder is the definition the engine recorded in
+## `prevention_source`, which no card DTO carried at all.
+func test_attachments_and_shields_are_fanned_behind_their_host_online() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var bear := put_battlefield(0, "Grizzly Bears")
+	var healer := put_battlefield(0, "Samite Healer")
+	var aura := give_hand(0, "Holy Strength")
+	add_mana(0, Mtg.ManaColor.W)
+	assert_ok(g.cast_spell(0, aura, [TargetRef.card(bear)]))
+	resolve_stack()
+	assert_ok(g.activate_ability(0, healer, 0, [TargetRef.card(bear)]))
+	resolve_stack()
+	g.recalculate()
+	assert_eq(bear.cur_power, 3)
+	assert_gt(bear.prevention, 0)
+	for seat in 2:
+		var screen := _screen(seat)
+		await _pump()
+		var host := _local(screen, bear)
+		var enchantment := _local(screen, aura)
+		assert_eq(enchantment.attached_to, host.id, "seat %d links the aura to its host" % seat)
+		assert_eq(Array(host.attachments), [enchantment.id], "seat %d host lists its aura" % seat)
+		assert_eq(host.cur_power, 3)
+		assert_eq(screen._fan_steps(host), 2, "seat %d fans the aura and the shield" % seat)
+		var drawn := PackedStringArray()
+		for card in screen.find_children("*", "MiniCard", true, false):
+			if card.instance != null: drawn.append(card.instance.data.card_name)
+		assert_has(drawn, "Holy Strength", "seat %d draws the aura on the board" % seat)
+		assert_eq(screen.find_children("ShieldGhost*", "", true, false).size(), 1,
+			"seat %d draws the shield reminder" % seat)
+		assert_eq(screen._shield_ghost_data(host).card_name, "Samite Healer")
+		assert_true(host.memory.is_empty(), "no private host memory crosses the wire")

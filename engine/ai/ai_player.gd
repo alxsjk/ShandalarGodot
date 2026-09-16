@@ -6725,9 +6725,12 @@ static func _unless_price(data: CardData) -> int:
 ## costs a counter rather than a game — the price we name is one they
 ## might just cover — and the alternative is a second mana model beside
 ## the one this whole file already shares.
+##
+## It is read through OUR seat ([method ManaPlanner.sources]'s viewer): a
+## Spirit Guide hidden in their hand is not open mana we may know about.
 func _their_open_mana(game: MtgGame, who: int) -> int:
 	var total := 0
-	for source in ManaPlanner.sources(game, who):
+	for source in ManaPlanner.sources(game, who, {}, true, pid):
 		total += int(source[3])
 	return total
 
@@ -8889,7 +8892,7 @@ func _damage_through_blocks(game: MtgGame, candidates: Array[CardInstance],
 		for blocker in blockers:
 			if used.has(blocker.id):
 				continue
-			if CombatState.block_illegality(game, blocker, inst, defender) != "":
+			if CombatState.block_illegality(game, blocker, inst, defender, true, pid) != "":
 				continue
 			used[blocker.id] = true
 			stopped_by = blocker
@@ -8922,7 +8925,7 @@ func _attack_risk(game: MtgGame, inst: CardInstance,
 	if profile.reads_gaze and _taps_into_execution(game, inst, defender):
 		worst_loss = my_value
 	for blocker in blockers:
-		if CombatState.block_illegality(game, blocker, inst, defender) != "":
+		if CombatState.block_illegality(game, blocker, inst, defender, true, pid) != "":
 			continue
 		worst_loss = maxf(worst_loss, 0.0)
 		# THEIR PUMPS ARE PUBLIC (2026-09-10, [member
@@ -9102,7 +9105,7 @@ func _build_combat_model(game: MtgGame, mine: Array[CardInstance],
 		for j in m:
 			var cell := i * m + j
 			search.block_ours[cell] = 1 if CombatState.block_illegality(
-				game, theirs[j], mine[i], defender) == "" else 0
+				game, theirs[j], mine[i], defender, true, pid) == "" else 0
 			search.block_theirs[cell] = 1 if CombatState.block_illegality(
 				game, mine[i], theirs[j], pid) == "" else 0
 			search.we_kill[cell] = 1 if _dies_to(game, theirs[j], mine[i]) else 0
@@ -9310,7 +9313,7 @@ func _cohort_value(game: MtgGame, group: Array[CardInstance],
 	var pairs: Array = []
 	for blocker in blockers:
 		for attacker in group:
-			if CombatState.block_illegality(game, blocker, attacker, defender) != "":
+			if CombatState.block_illegality(game, blocker, attacker, defender, true, pid) != "":
 				continue
 			var soaked := attacker.cur_power
 			if attacker.has_keyword(Mtg.Keyword.TRAMPLE):

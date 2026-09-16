@@ -104,8 +104,9 @@ static func _gaze_damage(g: MtgGame, s: CardInstance, _e: GameEvent) -> void:
 	if origin == null: return
 	var power := origin.cur_power
 	var victim := g.find_instance(targets[0].instance_id)
+	if victim == null: return    # the target is gone; nothing to name in the question
 	var pid: int = ctx.pid
-	var hint := victim != null and victim.controller_id != pid and power >= victim.cur_toughness - victim.damage
+	var hint := victim.controller_id != pid and power >= victim.cur_toughness - victim.damage
 	if not g.agents[pid].choose_yes_no(g, pid, "Gaze of Pain: deal damage to %s instead of assigning combat damage?" % victim.data.card_name, hint): return
 	# If the original object left, its trigger still deals damage using
 	# last-known power, but never suppresses its returned incarnation.

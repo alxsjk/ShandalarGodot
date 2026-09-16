@@ -2926,7 +2926,17 @@ func open_dialogs() -> Array[OriginalDialog]:
 ## could reach. Some openers checked and some did not, so a second click
 ## on `Stats`, on the Deck Header or on `Load deck` stacked a second copy.
 func _dialog_busy() -> bool:
-	return not open_dialogs().is_empty()
+	return not open_dialogs().is_empty() or _notice_open()
+
+
+## The pack-requirement question is a [method UiChrome.action_popup] veil,
+## not an [OriginalDialog], so [method open_dialogs] never saw it and the
+## screen's own key handler went on running underneath: Enter added the
+## Inventory's first card to the very deck the question was about
+## ([method _input]), and the popup's focused button never fired.
+func _notice_open() -> bool:
+	return is_instance_valid(_pack_requirement_notice) \
+		and not _pack_requirement_notice.is_queued_for_deletion()
 
 
 ## PUT A DIALOG UP, MODALLY. [OriginalDialog] is a panel and nothing more —
@@ -3845,7 +3855,7 @@ func _load_deck(path: String) -> void:
 ## pack, or cancel without changing the current deck.
 func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
 		pack_id: String) -> void:
-	if is_instance_valid(_pack_requirement_notice):
+	if _notice_open():
 		return
 	var available := CardPacks.has_pack(pack_id)
 	var refusal := CardPacks.change_refusal()
@@ -3867,12 +3877,24 @@ func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
 				"callable": _finish_load.bind(loaded, report)},
 			{"label": "Cancel", "name": "Cancel"},
 		], 600.0)
-	_pack_requirement_notice.tree_exited.connect(
-		func() -> void: _pack_requirement_notice = null)
+	var notice := _pack_requirement_notice
+	# Identity-checked: a notice that has already handed the slot on must
+	# not clear the reference to the one that replaced it.
+	notice.tree_exited.connect(func() -> void:
+		if _pack_requirement_notice == notice:
+			_pack_requirement_notice = null)
 
 
+## A drafted deck routinely names two packs. The popup that called this is
+## freed only after this returns, so the slot is handed over HERE — without
+## it the second requirement's question was suppressed and the deck was
+## never loaded, with nothing on screen to say why.
 func _enable_pack_and_reload(pack_id: String, path: String) -> void:
 	if CardPacks.set_enabled(pack_id, true):
+		var stale := _pack_requirement_notice
+		_pack_requirement_notice = null
+		if is_instance_valid(stale) and not stale.is_queued_for_deletion():
+			stale.queue_free()
 		_load_deck(path)
 	elif not CardPacks.change_refusal().is_empty():
 		_say(CardPacks.change_refusal(), true)

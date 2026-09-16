@@ -655,3 +655,24 @@ func test_bound_forest_effect_does_not_follow_a_bounced_land_back() -> void:
 	g._put_on_battlefield(island, 1)
 	assert_true(island.cur_subtypes.has("island"))
 	assert_false(island.cur_subtypes.has("forest"))
+
+func test_tidal_influence_refuses_a_second_copy_instead_of_erroring() -> void:
+	# "Cast this spell only if no permanents named Tidal Influence are on
+	# the battlefield." The rider is a cast_condition, which the engine
+	# calls as func(game, pid) — a third parameter made every announcement
+	# of the card raise a script error and skip the restriction.
+	put_battlefield(1, "Tidal Influence")
+	var second := give_hand(0, "Tidal Influence")
+	advance_to_step(Mtg.Step.MAIN1)
+	add_mana(0, Mtg.ManaColor.U, 3)
+	assert_refused(g.cast_spell(0, second), "already on the battlefield")
+	assert_eq(second.zone, Mtg.Zone.HAND)
+
+func test_tidal_influence_casts_when_no_other_copy_is_out() -> void:
+	var first := give_hand(0, "Tidal Influence")
+	advance_to_step(Mtg.Step.MAIN1)
+	add_mana(0, Mtg.ManaColor.U, 3)
+	assert_ok(g.cast_spell(0, first))
+	resolve_stack()
+	assert_eq(first.zone, Mtg.Zone.BATTLEFIELD)
+	assert_eq(int(first.counters.get("tide", 0)), 1)

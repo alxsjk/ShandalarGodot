@@ -143,7 +143,7 @@ static func option(g: MtgGame, pilot, s: CardInstance, index: int, window: Strin
 			s.cur_can_attack_with_defender = true
 			var legal := CombatState.attack_illegality(g, s, 1 - pid) == ""
 			for blocker in g.players[1 - pid].battlefield:
-				if blocker.is_creature() and CombatState.block_illegality(g, blocker, s, 1 - pid) == "": legal = false
+				if blocker.is_creature() and CombatState.block_illegality(g, blocker, s, 1 - pid, true, pid) == "": legal = false
 			var lethal := DAMAGE.damage_through(g, s, TargetRef.player(1 - pid), maxi(0, s.cur_power)) >= g.players[1 - pid].life
 			g.unmake_to(mark)
 			if not nested: g.end_search()
@@ -262,7 +262,7 @@ static func evasion(g: MtgGame, pilot, s: CardInstance, e: EffectBase) -> Dictio
 		var blocked := false
 		var still_blocked := false
 		for other in g.players[1 - pid].battlefield:
-			if not other.is_creature() or CombatState.block_illegality(g, other, body, 1 - pid) != "": continue
+			if not other.is_creature() or CombatState.block_illegality(g, other, body, 1 - pid, true, pid) != "": continue
 			blocked = true
 			if bool(e.ai_parameters.get("walls_only", false)) and other.has_subtype("wall"): still_blocked = true
 		if not blocked or still_blocked: continue
@@ -339,7 +339,7 @@ static func spell_shape(g: MtgGame, pilot, s: CardInstance, e: EffectBase) -> Va
 			refs.sort_custom(func(a: TargetRef, b: TargetRef) -> bool: return pilot._victim_value(g, g.find_instance(a.instance_id)) > pilot._victim_value(g, g.find_instance(b.instance_id)))
 			if refs.size() >= 2: return result(pilot._victim_value(g, g.find_instance(refs[1].instance_id)) + 2.0, [refs[0], refs[1]])
 		&"chain_tap_untap":
-			if not ManaPlanner.plan(g, 1 - pid, ManaCost.parse("{2}{U}"), 0).is_empty(): return {}
+			if not ManaPlanner.plan(g, 1 - pid, ManaCost.parse("{2}{U}"), 0, [], {}, pid).is_empty(): return {}
 			var victim: CardInstance = pilot._best_tap_victim(g, s, e.target_spec)
 			if victim != null and victim.controller_id != pid and not victim.tapped: return result(pilot._victim_value(g, victim), [TargetRef.card(victim)])
 		&"blocking_first_strike":

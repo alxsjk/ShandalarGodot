@@ -99,9 +99,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([0.31.0 integration](docs/ROADMAP.md#2026-09-16--0310-main-integration)):
-**7,157 GUT tests / 321,854 assertions**, plus **256 Python tests** (one
-platform skip).
+Latest local verification ([post-release bug hunt](docs/ROADMAP.md#2026-09-16--post-release-bug-hunt)):
+**7,223 GUT tests / 324,028 assertions**, plus **267 Python tests**.
 
 ## Art and skins
 

@@ -127,10 +127,10 @@ BACKDROPS
 
   The title screen, stretched to the window. The menu is drawn over its right-
   hand side.
-    title_background.png               640 x 480 px, palette
+    title_background.png               640 x 480 px, RGB
 
   Behind the Options, Deck Builder and Gauntlet screens.
-    menu_background.png                640 x 480 px, palette
+    menu_background.png                640 x 480 px, RGB
 
   Imported from the 1997 game (Advfac64.pic) for the day the character screen
   is built. NOT READ by the game yet.
@@ -142,122 +142,122 @@ THE DUEL TABLE
   The table under each player's cards, one per deck colour: a wallpaper that
   repeats. Which of the three the table wears is the player's choice (Options
   > Territory); the opponent's side always matches its deck colour.
-    duel_pattern_white.png             721 x 381 px, palette
-    duel_pattern_blue.png              721 x 381 px, palette
-    duel_pattern_black.png             888 x 381 px, palette
-    duel_pattern_red.png               888 x 381 px, palette
-    duel_pattern_green.png             721 x 381 px, palette
+    duel_pattern_white.png             721 x 381 px, RGBA
+    duel_pattern_blue.png              721 x 381 px, RGBA
+    duel_pattern_black.png             888 x 381 px, RGBA
+    duel_pattern_red.png               888 x 381 px, RGBA
+    duel_pattern_green.png             721 x 381 px, RGBA
 
   The second territory choice, a picture: its middle is stretched rather than
   repeated, keeping its own aspect.
-    duel_picture_white.png             888 x 381 px, palette
-    duel_picture_blue.png              721 x 381 px, palette
-    duel_picture_black.png             888 x 381 px, palette
-    duel_picture_red.png               721 x 381 px, palette
-    duel_picture_green.png             888 x 381 px, palette
+    duel_picture_white.png             888 x 381 px, RGBA
+    duel_picture_blue.png              721 x 381 px, RGBA
+    duel_picture_black.png             888 x 381 px, RGBA
+    duel_picture_red.png               721 x 381 px, RGBA
+    duel_picture_green.png             888 x 381 px, RGBA
 
   The third territory choice, a repeating mana-symbol wallpaper.
-    duel_mana_white.png                721 x 381 px, palette
-    duel_mana_blue.png                 721 x 381 px, palette
-    duel_mana_black.png                721 x 381 px, palette
-    duel_mana_red.png                  721 x 381 px, palette
-    duel_mana_green.png                721 x 381 px, palette
+    duel_mana_white.png                721 x 381 px, RGBA
+    duel_mana_blue.png                 721 x 381 px, RGBA
+    duel_mana_black.png                721 x 381 px, RGBA
+    duel_mana_red.png                  721 x 381 px, RGBA
+    duel_mana_green.png                721 x 381 px, RGBA
 
 CARDS
 -----
 
   The back of every face-down card: the library, a hidden hand.
-    card_back.png                      228 x 323 px, palette
+    card_back.png                      228 x 323 px, RGBA
 
   The enlarged card's frame, one per colour, plus gold (multicolour), artifact
   and one land frame per colour. Name, cost, text and art are drawn on top at
   fixed anchors, so the layout must match the 1997 frame: art window at the
   top, text box below.
-    card_frame_white.png               228 x 325 px, palette
-    card_frame_blue.png                228 x 325 px, palette
-    card_frame_black.png               228 x 325 px, palette
-    card_frame_red.png                 228 x 325 px, palette
-    card_frame_green.png               228 x 325 px, palette
-    card_frame_gold.png                228 x 325 px, palette
-    card_frame_artifact.png            228 x 325 px, palette
-    card_frame_land_white.png          228 x 325 px, palette
-    card_frame_land_blue.png           228 x 325 px, palette
-    card_frame_land_black.png          228 x 325 px, palette
-    card_frame_land_red.png            228 x 325 px, palette
-    card_frame_land_green.png          228 x 325 px, palette
+    card_frame_white.png               228 x 325 px, RGBA
+    card_frame_blue.png                228 x 325 px, RGBA
+    card_frame_black.png               228 x 325 px, RGBA
+    card_frame_red.png                 228 x 325 px, RGBA
+    card_frame_green.png               228 x 325 px, RGBA
+    card_frame_gold.png                228 x 325 px, RGBA
+    card_frame_artifact.png            228 x 325 px, RGBA
+    card_frame_land_white.png          228 x 325 px, RGBA
+    card_frame_land_blue.png           228 x 325 px, RGBA
+    card_frame_land_black.png          228 x 325 px, RGBA
+    card_frame_land_red.png            228 x 325 px, RGBA
+    card_frame_land_green.png          228 x 325 px, RGBA
 
 THE LIFE PANELS
 ---------------
 
   Each duelist's life plaque at the table's edge, in the deck's colour; the
   life total is printed on it.
-    life_panel_white.png               120 x 88 px, palette
-    life_panel_blue.png                120 x 88 px, palette
-    life_panel_black.png               120 x 88 px, palette
-    life_panel_red.png                 120 x 88 px, palette
-    life_panel_green.png               120 x 88 px, palette
+    life_panel_white.png               120 x 88 px, RGBA
+    life_panel_blue.png                120 x 88 px, RGBA
+    life_panel_black.png               120 x 88 px, RGBA
+    life_panel_red.png                 120 x 88 px, RGBA
+    life_panel_green.png               120 x 88 px, RGBA
 
   The portrait's frame beside the life plaque, one per colour.
-    duelist_face_white.png             120 x 88 px, palette
-    duelist_face_blue.png              120 x 88 px, palette
-    duelist_face_black.png             120 x 88 px, palette
-    duelist_face_red.png               120 x 88 px, palette
-    duelist_face_green.png             120 x 88 px, palette
+    duelist_face_white.png             120 x 88 px, RGBA
+    duelist_face_blue.png              120 x 88 px, RGBA
+    duelist_face_black.png             120 x 88 px, RGBA
+    duelist_face_red.png               120 x 88 px, RGBA
+    duelist_face_green.png             120 x 88 px, RGBA
 
 WINDOWS AND PANELS
 ------------------
 
   The stone slab most windows sit on (Options, the Deck Builder's menus,
   prompts); tiled, with a 5 px margin.
-    panel_stone.png                    400 x 350 px, palette
+    panel_stone.png                    400 x 350 px, RGBA
 
   The opening window (the two duelists face to face) — a picture, so its
   middle is stretched, not tiled.
-    versus_background.png              659 x 394 px, palette
+    versus_background.png              659 x 394 px, RGBA
 
   The 'versus' splash inside the opening window.
-    versus_splash.png                  500 x 400 px, palette
+    versus_splash.png                  500 x 400 px, RGBA
 
   The darker slab: the match and gauntlet screens between duels.
-    panel_dark_stone.png               289 x 274 px, palette
+    panel_dark_stone.png               289 x 274 px, RGBA
 
   The knotwork slab behind text-change prompts.
-    panel_knot.png                     481 x 323 px, palette
+    panel_knot.png                     481 x 323 px, RGBA
 
   The end-of-duel window's ground.
-    panel_end_duel.png                 272 x 422 px, palette
+    panel_end_duel.png                 272 x 422 px, RGBA
 
   The combat window's ground, drawn with a ruled border.
-    attack_panel.png                   888 x 316 px, palette
+    attack_panel.png                   888 x 316 px, RGBA
 
   The mana pool window's ground.
-    mana_pool_panel.png                128 x 188 px, palette
+    mana_pool_panel.png                128 x 188 px, RGBA
 
   The 1997 spell-chain window's ground. NOT READ by the game yet — the stack
   is drawn its own way.
-    spell_chain_panel.png              139 x 200 px, palette
+    spell_chain_panel.png              139 x 200 px, RGBA
 
   The one-line message strip at the bottom of the table.
-    message_panel.png                  600 x 35 px, palette
+    message_panel.png                  600 x 35 px, RGBA
 
   Behind the enlarged card.
-    big_card_panel.png                 552 x 402 px, palette
+    big_card_panel.png                 552 x 402 px, RGBA
 
 BUTTONS
 -------
 
   The stone button every window uses, at rest. Its top two pixel rows are the
   bevel; text is centred on it.
-    button_normal.png                  131 x 36 px, palette
+    button_normal.png                  131 x 36 px, RGBA
 
   The same button pressed.
-    button_pressed.png                 131 x 36 px, palette
+    button_pressed.png                 131 x 36 px, RGBA
 
   The same button greyed out.
-    button_disabled.png                131 x 36 px, palette
+    button_disabled.png                131 x 36 px, RGBA
 
   The 1997 statistics buttons sheet. NOT READ by the game yet.
-    stat_buttons.png                   768 x 48 px, palette
+    stat_buttons.png                   768 x 48 px, RGBA
 
 THE PHASE BARS
 --------------
@@ -266,47 +266,47 @@ THE PHASE BARS
   the unlit state), rows of 41 px, each cell's picture 35x40 at x offset 2.
   Eight slots top to bottom: untap, upkeep, draw, main, combat, second main,
   end, cleanup.
-    phase_bar.png                      82 x 760 px, palette
+    phase_bar.png                      82 x 760 px, RGBA
 
   The combat steps, same rows: two seats of 82 px (attacker's and defender's),
   each a lit and an unlit column of 41 px, cell 35x40 at x offset 3.
-    combat_bar.png                     164 x 760 px, palette
+    combat_bar.png                     164 x 760 px, RGBA
 
 THE COMBAT WINDOW'S SPRITES
 ---------------------------
 
   The minimised combat window's tab.
-    attack_min.png                     39 x 70 px, palette
+    attack_min.png                     39 x 70 px, RGBA
 
   The attacker's sword: an IMAGE+MASK pair, the picture in the left half and
   its mask in the right half (see 'Masks' above).
-    attack_sword.png                   56 x 132 px, palette
+    attack_sword.png                   56 x 132 px, RGBA
 
   The blocker's shield, image+mask left/right.
-    attack_shield.png                  44 x 128 px, palette
+    attack_shield.png                  44 x 128 px, RGBA
 
   The bone strip between attackers and blockers, image+mask TOP over BOTTOM.
-    attack_bones.png                   777 x 70 px, palette
+    attack_bones.png                   777 x 70 px, RGBA
 
 THE HAND
 --------
 
   The hand's plaque, one per deck colour.
-    hand_panel_white.png               145 x 51 px, palette
-    hand_panel_blue.png                145 x 51 px, palette
-    hand_panel_black.png               145 x 51 px, palette
-    hand_panel_red.png                 145 x 51 px, palette
-    hand_panel_green.png               145 x 51 px, palette
+    hand_panel_white.png               145 x 51 px, RGBA
+    hand_panel_blue.png                145 x 51 px, RGBA
+    hand_panel_black.png               145 x 51 px, RGBA
+    hand_panel_red.png                 145 x 51 px, RGBA
+    hand_panel_green.png               145 x 51 px, RGBA
 
 GRAVEYARDS
 ----------
 
   The graveyard and exile plates beside the table, one per colour.
-    grave_panel_white.png              61 x 91 px, palette
-    grave_panel_blue.png               61 x 91 px, palette
-    grave_panel_black.png              61 x 91 px, palette
-    grave_panel_red.png                61 x 91 px, palette
-    grave_panel_green.png              61 x 91 px, palette
+    grave_panel_white.png              61 x 91 px, RGBA
+    grave_panel_blue.png               61 x 91 px, RGBA
+    grave_panel_black.png              61 x 91 px, RGBA
+    grave_panel_red.png                61 x 91 px, RGBA
+    grave_panel_green.png              61 x 91 px, RGBA
 
 MARKS ON A CARD
 ---------------
@@ -314,27 +314,27 @@ MARKS ON A CARD
   The diagonal mana stripes on a card's title bar: six rows of 21 px in the
   order W U B R G, then colourless. Each stripe is cut 17x16 and drawn 9 px
   apart so they interleave.
-    mana_stripes.png                   54 x 126 px, palette
+    mana_stripes.png                   54 x 126 px, RGBA
 
   The summoning-sickness spiral drawn over a creature that cannot attack yet:
   image+mask left/right.
-    summon_sick.png                    194 x 97 px, palette
+    summon_sick.png                    194 x 97 px, RGBA
 
   The cracks over a creature that is about to die (image+mask).
-    state_dying.png                    194 x 97 px, palette
+    state_dying.png                    194 x 97 px, RGBA
 
   The 'cannot be targeted' mark (image+mask).
-    state_cant_target.png              130 x 65 px, palette
+    state_cant_target.png              130 x 65 px, RGBA
 
   The 'will untap' mark (image+mask).
-    state_will_untap.png               110 x 59 px, palette
+    state_will_untap.png               110 x 59 px, RGBA
 
   The keyword badges on a card, ONE COLUMN of 18 square cells (22x22). Cells
   used: 5 protection from green, 6 red, 7 blue, 8 black, 9 white, 10
   protection from artifacts, 11 flying, 12 trample, 13 banding, 14 first
   strike, 15 regeneration, 16 reach. Cell 17 is blank in the original and
   stays blank.
-    ability_icons.png                  22 x 396 px, palette
+    ability_icons.png                  22 x 396 px, RGBA
 
   The dagger on a wounded creature, image+mask left/right; the damage count is
   printed beside it. THE GAME SHIPS ONE OF ITS OWN (64x40, real alpha, no mask
@@ -346,11 +346,11 @@ MARKS ON A CARD
   lightning bolts, a gear, five ankhs, yin-yangs in five colours, grapes, a
   bird, tombstones, a drone, a whirl) and the one mask they share in the 25th;
   a permanent wears one per kind of counter with the count beside it.
-    card_counters.png                  24 x 750 px, palette
+    card_counters.png                  24 x 750 px, RGBA
 
   The mouse cursor while a target is being chosen: image+mask left/right, the
   hotspot at the arrow's tip.
-    target_cursor.png                  122 x 61 px, palette
+    target_cursor.png                  122 x 61 px, RGBA
 
 SYMBOLS
 -------
@@ -364,21 +364,21 @@ SYMBOLS
   GAME SHIPS SIX OF ITS OWN (48x48, gold glyph, transparent ground, nothing to
   cut): leave these out and those stand, supply them and yours are used
   instead.
-    set_icon_atq.png                   35 x 36 px, RGBA
-    set_icon_arn.png                   35 x 36 px, RGBA
-    set_icon_past.png                  35 x 36 px, RGBA
-    set_icon_drk.png                   35 x 36 px, RGBA
-    set_icon_4ed.png                   35 x 36 px, RGBA
-    set_icon_leg.png                   35 x 36 px, RGBA
+    set_icon_atq.png                   40 x 40 px, RGBA
+    set_icon_arn.png                   40 x 40 px, RGBA
+    set_icon_past.png                  40 x 40 px, RGBA
+    set_icon_drk.png                   40 x 40 px, RGBA
+    set_icon_4ed.png                   40 x 40 px, RGBA
+    set_icon_leg.png                   40 x 40 px, RGBA
 
   The set symbol printed on the enlarged card: five 33x15 cells at a 66 px
   pitch, left to right The Dark, Legends, Arabian Nights, Antiquities, Astral.
-    card_set_symbols.png               330 x 15 px, palette
+    card_set_symbols.png               330 x 15 px, RGBA
 
   Every mana symbol in one row of 19 square cells (18x18): cell 0 {X}, cells
   1-11 {0}-{10}, 12 {W}, 13 {R}, 14 {U}, 15 {B}, 16 {G}, 17 {T} (tap). Cells
   sit on opaque black; the symbols are round.
-    mana_symbols.png                   342 x 18 px, palette
+    mana_symbols.png                   342 x 18 px, RGBA
 
 THE DECK BUILDER
 ----------------
@@ -394,25 +394,25 @@ THE DECK BUILDER
   filename order. The _hover and _pressed sheets are OURS, not the original's:
   1997 ships one state per medallion, so those two are this one scaled to 1.26
   and 0.5.
-    filter_icons.png                   360 x 120 px, palette
-    filter_icons_hover.png             360 x 120 px, RGBA
-    filter_icons_pressed.png           360 x 120 px, RGBA
+    filter_icons.png                   360 x 120 px, RGB
+    filter_icons_hover.png             360 x 120 px, RGB
+    filter_icons_pressed.png           360 x 120 px, RGB
 
   The empty deck slot watermarks: 5 columns of 117 px x 2 rows of 100 px, in
   the order black, white, red, green, blue.
-    deck_slot_plaques.png              585 x 200 px, palette
+    deck_slot_plaques.png              585 x 200 px, RGB
 
   The slab the deck's name sits on.
-    deck_title_slab.png                291 x 73 px, palette
+    deck_title_slab.png                291 x 73 px, RGBA
 
   The ground under the Deck Builder's bottom bar.
-    deck_bar_ground.png                1006 x 198 px, palette
+    deck_bar_ground.png                1006 x 198 px, RGBA
 
   The olive tile of the 1997 Deck Builder. NOT READ by the game yet.
-    deck_tile_olive.png                32 x 32 px, palette
+    deck_tile_olive.png                32 x 32 px, RGBA
 
   The Deck Builder's tiling ground (32x32, repeats).
-    deck_tile_slate.png                32 x 32 px, palette
+    deck_tile_slate.png                32 x 32 px, RGBA
 
 FONTS
 -----

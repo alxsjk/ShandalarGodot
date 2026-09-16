@@ -2,7 +2,7 @@ extends RefCounted
 const F := preload("res://cards/sets/fem/_rules.gd")
 const C := preload("res://cards/sets/ice/_creatures.gd")
 const M := preload("res://cards/sets/ice/_more.gd")
-const TYPES := ["plains", "island", "swamp", "mountain", "forest"]
+const TYPES: Array[String] = ["plains", "island", "swamp", "mountain", "forest"]
 
 static func configure(c: CardData) -> bool:
 	match c.card_name:

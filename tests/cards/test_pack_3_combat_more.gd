@@ -151,3 +151,30 @@ func test_venom_deduplicates_previous_and_current_blocks() -> void:
 	resolve_stack()
 	assert_eq(blocker.zone, Mtg.Zone.BATTLEFIELD)
 	assert_eq(blocker.regeneration_shields, 0)
+
+## Answers every option question with a fixed index.
+class OptionSeat extends DecisionAgent:
+	var index := 0
+	func answer_option(_game: MtgGame, _pid: int, _prompt: String,
+			_options: Array[String], _hint: int) -> int:
+		return index
+
+func test_barbarian_guides_asks_for_the_land_type_and_returns_the_creature() -> void:
+	# "Choose a land type. Target creature you control gains snow landwalk
+	# of the chosen type until end of turn." The type list reaches
+	# DecisionAgent.choose_option, whose options parameter is
+	# Array[String]; an untyped constant made the call fail and the
+	# landwalk fall back to the first entry with no question asked.
+	var seat := OptionSeat.new()
+	seat.index = 4   # forest
+	g.set_agent(0, seat)
+	var guides := put_battlefield(0, "Barbarian Guides")
+	var bear := put_battlefield(0, "Grizzly Bears")
+	advance_to_step(Mtg.Step.MAIN1)
+	add_mana(0, Mtg.ManaColor.R, 3)
+	assert_ok(g.activate_ability(0, guides, 0, [TargetRef.card(bear)]))
+	resolve_stack()
+	assert_true(bear.cur_landwalk.has("snow forest"), "the chosen type was applied")
+	assert_eq(g.choice_log.size(), 1, "the type question is on the record")
+	advance_to_next_turn()
+	assert_eq(bear.zone, Mtg.Zone.HAND, "returned at the next end step")

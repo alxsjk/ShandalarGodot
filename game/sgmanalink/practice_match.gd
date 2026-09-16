@@ -159,6 +159,8 @@ func _cards(pid: int, list: Array) -> Array:
 			"protection": card.cur_protection, "landwalk": Array(card.cur_landwalk),
 			"rampage": card.cur_rampage, "prevention": card.prevention,
 			"regeneration": card.regeneration_shields, "chosen": chosen,
+			"shield": "" if card.prevention <= 0 or card.prevention_source == null \
+				else card.prevention_source.card_name,
 			"text_effects": [] if masked else _text_effects(card),
 			"attached": "" if card.attached_to < 0 or game.find_instance(card.attached_to) == null \
 				else _handle(pid, game.find_instance(card.attached_to)),
@@ -171,6 +173,7 @@ func _cards(pid: int, list: Array) -> Array:
 			for key in ["types", "colors", "power", "toughness", "protection", "rampage", "prevention", "regeneration", "damage"]: hidden[key] = 0
 			for key in ["keywords", "subtypes", "landwalk"]: hidden[key] = []
 			hidden.counters = {}
+			hidden.shield = ""
 			hidden.land = false
 			hidden.creature = false
 	return out

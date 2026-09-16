@@ -91,9 +91,18 @@ func ingest(room: Dictionary) -> void:
 		var card := find_instance(local_id(row.id))
 		if card == null: continue
 		for key in SgDuelPresentation.FLAGS: card.set(key, row.flags[key])
+	# BOTH ENDS of every attachment, because the board reads both: a card
+	# whose attached_to is set gets no slot of its own, and what draws it
+	# again is its HOST's `attachments`. Linking only the aura's own end
+	# left an enchanted creature's Aura on nobody's board at either seat.
 	for key in faces:
 		var card := find_instance(local_id(key))
+		card.attachments.clear()
 		card.attached_to = local_id(faces[key].attached)
+	for key in faces:
+		var card := find_instance(local_id(key))
+		var host := find_instance(card.attached_to)
+		if host != null and host != card: host.attachments.append(card.id)
 	stack.clear()
 	for i in view.stack.size():
 		var item := StackItem.new()

@@ -111,3 +111,26 @@ func test_gorilla_shaman_matches_x_and_pays_twice_x_plus_one() -> void:
 	assert_eq(g.players[0].mana_pool.total(), 0)
 	resolve_stack()
 	assert_eq(ring.zone, Mtg.Zone.GRAVEYARD)
+
+## Answers every option question with a fixed index.
+class OptionSeat extends DecisionAgent:
+	var index := 0
+	func answer_option(_game: MtgGame, _pid: int, _prompt: String,
+			_options: Array[String], _hint: int) -> int:
+		return index
+
+func test_mystic_compass_asks_for_the_land_type_and_applies_the_answer() -> void:
+	# "{1}, {T}: Target land becomes the basic land type of your choice
+	# until end of turn." Shares Jinx's type list, which reaches
+	# DecisionAgent.choose_option's Array[String] parameter.
+	var seat := OptionSeat.new()
+	seat.index = 1   # island
+	g.set_agent(0, seat)
+	var compass := put_battlefield(0, "Mystic Compass")
+	var swamp := put_battlefield(1, "Swamp")
+	add_mana(0, Mtg.ManaColor.C)
+	assert_ok(g.activate_ability(0, compass, 0, [TargetRef.card(swamp)]))
+	resolve_stack()
+	assert_true(swamp.has_subtype("island"), "the chosen type was applied")
+	assert_false(swamp.has_subtype("swamp"), "the old type is gone (CR 305.7)")
+	assert_eq(g.choice_log.size(), 1, "the type question is on the record")

@@ -238,7 +238,7 @@ follow the target through tapping, combat and spell resolution, persist at
 cleanup, and disappear when the recorded effect is cleared on leaving play.
 Online duels use the same display from bounded public effect records; private
 card memory and hidden-card history are never sent. This requires matching
-protocol-13 builds on both ends. Reminders are hidden while the target is
+protocol-14 builds on both ends. Reminders are hidden while the target is
 face-down so their text cannot reveal its printed identity.
 
 ### 3.7 What is deliberately NOT on a small card

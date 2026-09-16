@@ -84,9 +84,10 @@ static func cards(value: Variant) -> bool:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "cost", "land",
 			"power", "toughness", "tapped", "sick", "damage", "attacking", "blocking", "playable",
 			"creature", "owner", "controller", "masked", "types", "colors", "keywords", "subtypes", "counters",
-			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "attached", "actions", "exile_playable", "text_effects"]) \
+			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "shield", "attached", "actions", "exile_playable", "text_effects"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card_name(card.name) \
 			or not text(card.rules, 4096) or not text(card.cost, 128) \
+			or not text(card.shield, 128) \
 			or not text(card.blocking, 16) \
 			or (card.blocking != "" and not SgProtocol.short_text(card.blocking, 16)) \
 			or not text(card.chosen, 128) or not text(card.attached, 16) \
@@ -105,6 +106,9 @@ static func cards(value: Variant) -> bool:
 		for keyword in card.keywords:
 			if not SgProtocol.integer(keyword, 0, Mtg.Keyword.size() - 1): return false
 		if not SgProtocol.integer(card.owner, 0, 1) or not SgProtocol.integer(card.controller, 0, 1): return false
+		# A named shield without a shield left to spend is not a state the
+		# referee can be in; the board would draw a reminder for nothing.
+		if card.shield != "" and int(card.prevention) <= 0: return false
 	return true
 
 

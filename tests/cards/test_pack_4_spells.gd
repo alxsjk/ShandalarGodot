@@ -144,3 +144,24 @@ func test_renewal_requires_a_land_cost_and_searches_untapped_basic() -> void:
 	resolve_stack()
 	assert_eq(g.players[0].battlefield.size(), 1)
 	assert_false(g.players[0].battlefield[0].tapped)
+
+## Answers every option question with a fixed index.
+class OptionSeat extends DecisionAgent:
+	var index := 0
+	func answer_option(_game: MtgGame, _pid: int, _prompt: String,
+			_options: Array[String], _hint: int) -> int:
+		return index
+
+func test_jinx_asks_for_the_land_type_and_applies_the_answer() -> void:
+	# "Target land becomes the basic land type of your choice until end of
+	# turn." The five type names are handed to DecisionAgent.choose_option,
+	# whose options parameter is Array[String]: an untyped constant made
+	# the call fail and the card silently fall back to the first entry.
+	var seat := OptionSeat.new()
+	seat.index = 3   # mountain
+	g.set_agent(0, seat)
+	var forest := put_battlefield(1, "Forest")
+	cast("Jinx", [TargetRef.card(forest)])
+	assert_true(forest.has_subtype("mountain"), "the chosen type was applied")
+	assert_false(forest.has_subtype("forest"), "the old type is gone (CR 305.7)")
+	assert_eq(g.choice_log.size(), 1, "the type question is on the record")

@@ -434,6 +434,10 @@ var awaiting_choice: PlayerChoice = null
 var _probing := false
 ## Presentation-only scratch during preflight, not rules state or an AI input.
 var _probe_information: Array = []
+## The two above as [method make_mark] found them when it allocated the
+## journal, so [method end_search] can hand an outer probe back untouched.
+var _search_outer_probing := false
+var _search_outer_information: Array = []
 
 ## THE SEARCH JOURNAL, or null — and null is the default, so a normal duel
 ## pays one reference comparison per instrumented write and nothing else.
@@ -690,6 +694,16 @@ func make_mark() -> int:
 	if undo_log == null:
 		undo_log = UndoLog.new()
 		continuous.journal = undo_log
+		# A SEARCH CAN START INSIDE THE PRE-FLIGHT'S OWN PROBE. The probe
+		# asks the seat's agent (`cumulative_upkeep_hint`, `answer_option`
+		# …) and a strategy answers by valuing the board, which opens a
+		# search of its own — with [member _probing] ALREADY true and no
+		# journal yet. [method end_search] throws the journal away rather
+		# than replaying it, so the flag it found is kept here instead:
+		# without it the outer probe finished unprobed and its rewound log
+		# lines, state signals and reveals reached the duel screen.
+		_search_outer_probing = _probing
+		_search_outer_information = _probe_information
 	var m := undo_log.mark(self)
 	# A search node IS a probe: its log lines never happened, its signals
 	# must not reach a UI, and its questions must not hold a resolution
@@ -724,16 +738,21 @@ func unmake_to(mark: int) -> void:
 
 
 ## Hand the game back after a search: drop the journal so a normal duel
-## stops recording, and stop probing. Unwind to the ROOT mark first —
-## `end_search` throws the journal away rather than replaying it, so
-## anything still outstanding is lost, not undone.
+## stops recording, and give probe mode back to whoever held it when the
+## journal was allocated — normally nobody, but a pre-flight probe that
+## asked an agent is still running underneath (see [method make_mark]).
+## Unwind to the ROOT mark first — `end_search` throws the journal away
+## rather than replaying it, so anything still outstanding is lost, not
+## undone.
 func end_search() -> void:
 	if undo_log != null:
 		undo_log.clear()
 		undo_log = null
 	continuous.journal = null
-	_probing = false
-	_probe_information = []
+	_probing = _search_outer_probing
+	_probe_information = _search_outer_information
+	_search_outer_probing = false
+	_search_outer_information = []
 
 ## How many of the current item's questions the player had answered the
 ## last time the engine held it open, -1 before the first hold. If a probe
@@ -6711,8 +6730,12 @@ func _spell_target_specs(data: CardData, mode := 0) -> Array[TargetSpec]:
 
 ## Can [param pid] cover [param cost] right now? (Pure check — the hint
 ## for choose_yes_no offers, and the duel screen's activatable highlight.)
-func can_afford_cost(pid: int, cost: ManaCost, usage_keys: Array = []) -> bool:
-	return _payment_plan(pid, cost, usage_keys) != null
+## [param viewer] is the seat asking when it is not [param pid]: the
+## answer then counts no hidden hand card of theirs (see [method
+## ManaPlanner.sources]) — how the AI reads an opponent's blocking tax.
+func can_afford_cost(pid: int, cost: ManaCost, usage_keys: Array = [],
+		viewer := -1) -> bool:
+	return _payment_plan(pid, cost, usage_keys, viewer) != null
 
 
 ## Attempt to actually pay [param cost]. Returns true and pays, tapping
@@ -6755,7 +6778,8 @@ func try_pay(pid: int, cost: ManaCost, usage_keys: Array = []) -> bool:
 ## LIVE mana abilities throughout, never the printed list: under Blood
 ## Moon / Conversion / Evil Presence a land taps for something else
 ## entirely, and tap_for_mana indexes `cur_mana_abilities`.
-func _payment_plan(pid: int, cost: ManaCost, usage_keys: Array = []) -> Variant:
+func _payment_plan(pid: int, cost: ManaCost, usage_keys: Array = [],
+		viewer := -1) -> Variant:
 	# A free cost plans as [] in the planner's vocabulary and so does "no
 	# plan" ([method ManaPlanner.cost_is_free] is why every executor asks
 	# this first); this method's callers tell the two apart by null, so the
@@ -6763,7 +6787,7 @@ func _payment_plan(pid: int, cost: ManaCost, usage_keys: Array = []) -> Variant:
 	if ManaPlanner.cost_is_free(cost):
 		return []
 	var src: Array = []
-	for s in ManaPlanner.sources(self, pid):
+	for s in ManaPlanner.sources(self, pid, {}, true, viewer):
 		if s[0] != null and _mana_ability_asks(s[0], int(s[1])):
 			continue
 		src.append(s)
@@ -6899,7 +6923,11 @@ func spell_payment(pid: int, data: CardData, x_value := 0,
 	var base := data.payment_base(mode)
 	var total_cost := spell_cost_for(pid, data, x_value, mode)
 	var x_paid: int = 0 if data.x_color != 0 else x_value * base.x_count
-	var restricted_generic_x := x_value * base.x_count if data.x_color == (Mtg.ManaColor.B | Mtg.ManaColor.R) else 0
+	# A multi-colour X ("X mana of any of these types", Soul Burn) is
+	# RESTRICTED mana in [method ManaCost.plus_colored]'s own terms — the
+	# same test it applies — and a reduction may eat into it as into
+	# generic; a single-colour X (Drain Life) is coloured pips and may not.
+	var restricted_generic_x := x_value * base.x_count if (data.x_color & (data.x_color - 1)) != 0 else 0
 	var surcharge: int = maxi(spell_surcharge(pid, data),
 		-(total_cost.generic + x_paid + restricted_generic_x))
 	if data.extra_cost_per_target > 0:
