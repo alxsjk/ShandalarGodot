@@ -32,7 +32,7 @@ config/name="Shandalar"
 ; [QoL] macOS ignores XDG_DATA_HOME. Test wrappers enable this editor-only
 ; runtime feature so their user:// never reads or writes the player's profile.
 config/name.shandalar_test="Shandalar Tests"
-config/version="0.20.0"
+config/version="0.30.0"
 config/description="Open-source remake of MicroProse's 1997 Magic: The Gathering (Shandalar), with a modular GDScript MTG rules engine."
 run/main_scene="res://game/main.tscn"
 ; THE PROJECT'S OWN MARK. Godot draws this in the editor, on the window

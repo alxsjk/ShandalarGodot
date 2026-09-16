@@ -13815,6 +13815,31 @@ with one Linux-only check skipped on macOS. The regression fixture matches the
 supplied file after line-ending normalisation. No commit, push, binary export
 or release replacement was performed for this addition.
 
+## 2026-09-16 — Development version 0.30.0
+
+Set the single version source, `project.godot`, to **0.30.0** as requested.
+Menu labels, tool banners, draft receipts and future package names read it
+directly. SGManalink's compatibility stamp includes this value, so new builds
+must use matching versions for LAN play; the wire protocol remains version 11.
+
+README now identifies the merged features as development work on `main`, not
+the deleted `sgmanalink` branch. Published v0.20.0 download links and historical
+release documents remain intact. Previously exported local binaries are not
+rewritten by this source version change. No tag or GitHub release is created.
+
+Verification: title-screen tests **29/29**, SGManalink unit tests **12/12**,
+both wrapper exits **0**; Python tools **227 tests**, exit **0**, one Linux-only
+skip on macOS. Build, converter, test and packaging version commands all report
+**0.30.0**. The pre-commit full gameplay gate also passed: **6,550 tests /
+280,026 assertions / 389 scripts**, wrapper exit **0**, in **452.128 seconds**.
+
+The local Intel Mac and Raspberry Pi 5/500 ARM64 packages were re-exported
+with this embedded version and fresh ZIP checksums. Both packed catalogues
+contain 897 cards and 319 decks and produce the same LAN compatibility stamp.
+Intel startup and four duels passed under Rosetta; the Pi pack passed startup
+and four duels in the native Mac runtime. Actual Intel hardware and Pi Linux
+graphics/runtime validation remain playtest steps, not claims of these checks.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

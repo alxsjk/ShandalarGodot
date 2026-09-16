@@ -51,7 +51,9 @@ opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
 sideboarding. The Deck Builder supports large cards, live filters and
 keyboard browsing. Adventure and online multiplayer are still to come.
 
-**LAN development:** the `sgmanalink` branch adds local-network duels and
+## Development — 0.30.0
+
+The current source on `main` includes local-network duels and
 [random-draw knockout tournaments](docs/sgmanalink-tournaments.md), including
 up to **20 players**, configurable match lengths and deck policies, an
 organiser's Master Panel, graphical advancement and final standings.
@@ -60,7 +62,7 @@ opponents and separate Unfair challenge; choose how many to add to a tournament.
 Use matching development builds; these features are not in the 0.20.0 downloads.
 Internet play, permanent accounts and MElo are parked for now.
 
-This branch also adds an in-game [Booster Draft](docs/booster-draft.md): choose
+The development build also includes an in-game [Booster Draft](docs/booster-draft.md): choose
 sets/cards, open random packs, and build against a countdown with automatic saves.
 Find it under Options; no command-line launcher is needed.
 
@@ -129,12 +131,12 @@ The [DeckLab manual](DeckLab/README.md) has examples and all options.
 
 ## Future roadmap
 
-Planned features, not part of 0.20.0:
+Future work beyond the current development build:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
-- [ ] **SGManalink** — LAN duels and tournaments are the current focus on
-  the dedicated branch. Tournament-integrated booster opening and drafting
-  remain later work; the timed standalone draft builder is available here.
+- [ ] **SGManalink** — tournament-integrated booster opening and drafting.
+  LAN duels, tournaments and the timed standalone draft builder are already
+  available on `main`.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
 - [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
 - [ ] **Internet play and community MElo (Magic Elo)** — parked until
