@@ -1,18 +1,23 @@
 class_name CardPackBadges
-extends HBoxContainer
-## Small numbered gameplay-pack buttons beside the title's set badges.
+extends GridContainer
+## Compact numbered pack buttons below the title's original set strip.
+## Five per line keeps future packs out of the main menu column. [QoL]
 
 signal pack_clicked(id: String)
 
 # Match the compact set plaque; a square pack button used to stretch the
 # entire bottom-left strip to 72 px tall.
 const SIZE := Vector2(72, 38)
+const COLUMNS := 5
 
 
 func _ready() -> void:
-	add_theme_constant_override("separation", 6)
+	columns = COLUMNS
+	add_theme_constant_override("h_separation", 6)
+	add_theme_constant_override("v_separation", 6)
 	rebuild()
 	CardPacks.changed.connect(_on_pack_changed)
+	CardPacks.rescanned.connect(rebuild)
 
 
 func rebuild() -> void:
@@ -20,6 +25,9 @@ func rebuild() -> void:
 		child.free()
 	for id in CardPacks.available_ids():
 		add_child(_badge(id))
+	# Keep the row alive for a later Rescan, but reserve no gap/height when
+	# no ZIPs are present. Disabled-but-present packs still have a grey dot.
+	visible = get_child_count() > 0
 
 
 func _badge(id: String) -> Button:

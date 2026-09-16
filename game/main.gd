@@ -93,6 +93,7 @@ func _ready() -> void:
 	# painting's title text ends around y=400 of 800, so eight buttons,
 	# their gaps and the bottom inset have to fit in what is below it.
 	var box := VBoxContainer.new()
+	box.name = "MenuColumn"
 	box.add_theme_constant_override("separation", MENU_GAP)
 	box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -252,6 +253,7 @@ func _ready() -> void:
 	# The column grows UP and RIGHT from the bottom-left corner, the mirror
 	# of the button column's up-and-left.
 	var corner := VBoxContainer.new()
+	corner.name = "CatalogueCorner"
 	corner.add_theme_constant_override("separation", 8)
 	corner.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	corner.grow_horizontal = Control.GROW_DIRECTION_END
@@ -283,23 +285,30 @@ func _ready() -> void:
 	# and mini lore info"). SetBadges knows the facts; the shell decides
 	# where the window opens, which is what the signal is for.
 	var row := SetBadges.new()
+	row.name = "OriginalSets"
 	row.set_clicked.connect(func(code: String) -> void:
 		var facts := SetBadges.facts_for(code)
 		UiChrome.explain_popup(self, String(facts.get("name", code)),
 			SetBadges.describe(code), 520.0))
 	var badges := UiChrome.panel_around(row, 8.0)
+	badges.name = "OriginalSetPlaque"
 	badges.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	badges.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var pool_row := HBoxContainer.new()
+	# [QoL] Numbered packs now have their own line below the original
+	# plaque, not an ever-widening extension of the 1997 set strip.
+	var pool_row := VBoxContainer.new()
 	pool_row.name = "CardPool"
-	pool_row.add_theme_constant_override("separation", 8)
+	pool_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	pool_row.add_theme_constant_override("separation", 6)
 	pool_row.add_child(badges)
-	if not CardPacks.available_ids().is_empty():
-		var packs := CardPackBadges.new()
-		packs.pack_clicked.connect(_open_pack_notice)
-		pool_row.add_child(packs)
+	var packs := CardPackBadges.new()
+	packs.name = "PackBadges"
+	packs.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	packs.pack_clicked.connect(_open_pack_notice)
+	pool_row.add_child(packs)
 	corner.add_child(pool_row)
 	CardPacks.changed.connect(_on_card_pack_changed)
+	CardPacks.rescanned.connect(_refresh_version)
 
 	# THE TITLE SCREEN HAS MUSIC, and it is the SHELL'S — one bed, looping,
 	# held by the `ShellMusic` autoload so it carries on unbroken into

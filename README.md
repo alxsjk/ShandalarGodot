@@ -82,8 +82,9 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification (Alliances integration): **6,857 GUT tests /
-270,559 assertions**, plus **256 Python tests** (one platform skip).
+Latest local verification ([pack-menu/no-pack audit](docs/pack-menu-no-packs-audit.md)):
+**6,867 GUT tests / 270,667 assertions**, plus **256 Python tests** (one
+platform skip).
 
 ## Art and skins
 

@@ -161,7 +161,7 @@ func _ready() -> void:
 	var back := UiChrome.menu_button("Back", Vector2(180, 40))
 	back.name = "Back"
 	back.pressed.connect(func() -> void:
-		get_tree().change_scene_to_file("res://game/options.tscn"))
+		get_tree().change_scene_to_file("res://game/options_screen.tscn"))
 	var back_row := HBoxContainer.new()
 	back_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	back_row.add_child(back)

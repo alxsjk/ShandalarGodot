@@ -392,6 +392,7 @@ func _ready() -> void:
 	_refresh_inventory()
 	_start_music()
 	CardPacks.changed.connect(_on_card_packs_changed)
+	CardPacks.rescanned.connect(_on_card_packs_changed.bind("", false))
 	set_process(true)
 
 
@@ -962,6 +963,11 @@ func _extra_source_row(body: VBoxContainer, id: String, title: String,
 
 
 func _on_card_packs_changed(_id: String, _enabled: bool) -> void:
+	var shown_name := ""
+	if _proxy_showcase.visible:
+		shown_name = _proxy_showcase.proxy_name
+	elif _showcase._shown != null:
+		shown_name = _showcase._shown.data.card_name
 	_pool.clear()
 	for name in CardRegistry.all_names():
 		_pool.append(CardRegistry.get_card(name))
@@ -970,6 +976,13 @@ func _on_card_packs_changed(_id: String, _enabled: bool) -> void:
 			filter.sets[code] = true
 	_drawn_revision = -1
 	_refresh_inventory()
+	# A registry change also changes whether saved names are playable.
+	# Rebind both piles and the preview, without editing the name-based deck.
+	_side_signature = "-"
+	refresh()
+	if shown_name != "":
+		_show_in_showcase(CardRegistry.get_card(shown_name)
+			if CardRegistry.has_card(shown_name) else ProxyCard.data_for(shown_name))
 
 
 ## [QoL] One deck-slot button. LETTERED, not glyphed: `Dekbtn1-3` is the

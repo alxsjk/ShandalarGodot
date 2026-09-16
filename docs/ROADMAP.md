@@ -13214,3 +13214,34 @@ Final combined regression: **6,857/6,857 tests / 270,559 assertions / 412 GUT
 scripts**, strict wrapper exit 0 in 316.875 seconds; **256 Python tests**, one
 platform skip. The ledger's missing individual-file markers were corrected
 before this clean run; the earlier failed run is not counted as acceptance.
+
+## 2026-09-16 — Pack row and absent-pack audit
+
+The five numbered pack buttons now sit **below** the original bottom-left
+set strip. Their compact grid wraps after five buttons and disappears
+without leaving a gap when no ZIPs are available. Native captures verify
+all five at 1280×800 and 800×600, one pack, and none.
+
+The [no-pack audit](pack-menu-no-packs-audit.md) began with five reproduced
+failures: sideways/never-wrapping badges, stale menu badges/count on
+Rescan, stale Deck Builder inventory, and Card Packs' nonexistent Back
+destination. A tenth regression subsequently reproduced stale deck and
+sideboard faces, preview and legality after removing an enabled pack.
+All are repaired; name-based decks remain intact as cards become proxies
+or become available again. The ten focused tests pass 108 assertions.
+
+A fresh macOS export with a separately named profile, no numbered ZIPs
+and no imported skin exposes the original **897 cards**. All **157 original
+decks** load successfully, missing packs cannot be enabled, and Options,
+its Back button and Extras behave correctly. Saved missing-pack decks
+offer explicit proxy loading or cancellation rather than silently losing
+names. The same export completed **12 stock-deck duels** across Modern
+and Fifth Edition rules with no stalls or errors; this is a smoke check,
+not an AI-strength campaign. Its ad-hoc signature verifies after removing
+the temporary profile override, and player settings remain byte-identical.
+
+Final full regression: **6,867/6,867 tests / 270,667 assertions / 413 GUT
+scripts**, strict wrapper exit 0 in 316.308 seconds; **256 Python tests**,
+one platform skip. The pack-authoring guide now records the new layout
+and live-refresh contracts. No pack ZIPs or art are distributed and no
+release is published by this update.

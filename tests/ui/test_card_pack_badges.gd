@@ -31,16 +31,16 @@ func test_present_pack_keeps_the_set_strip_compact() -> void:
 	assert_lt(pack.size.y, pack.size.x, "the pack badge is rectangular")
 	assert_eq(pack.text, "1-tDotP")
 	assert_string_contains(pack.tooltip_text, "disabled")
-	var pool := title.find_child("CardPool", true, false) as HBoxContainer
+	var pool := title.find_child("CardPool", true, false) as VBoxContainer
 	assert_not_null(pool)
 	var plaque := pool.get_child(0) as Control
 	assert_almost_eq(plaque.size.y, plaque.get_combined_minimum_size().y, 1.0,
 		"the pack button does not stretch the set plaque vertically")
-	assert_lte(pool.size.y, plaque.get_combined_minimum_size().y,
-		"the pack keeps the strip at the original set plaque's natural height")
-	assert_true(pack.get_global_rect().position.x >
-		plaque.get_global_rect().end.x,
-		"the numbered badge sits beside the set plaque")
+	assert_gt(pack.get_global_rect().position.y, plaque.get_global_rect().end.y,
+		"numbered packs have their own row beneath the natural-height plaque")
+	assert_almost_eq(pack.get_global_rect().position.x,
+		plaque.get_global_rect().position.x, 1.0,
+		"the numbered row starts at the same left edge as the original strip")
 
 
 func test_popup_explains_the_pack_and_has_enable_disable_buttons() -> void:

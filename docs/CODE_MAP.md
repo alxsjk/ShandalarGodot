@@ -14,8 +14,14 @@ needed); card files have NO class_name (they register by name instead);
   deck-requirement tracking, and registry configuration.
 - `game/card_packs_screen.gd`: Options → Card Packs management, including
   Open Folder, Rescan, versions, enabled state and readable rejection reasons.
-- `game/card_pack_badges.gd`: the compact `1-tDotP`, `2-FEM`, `3-ICE` and `4-HML` status buttons beside the
-  title-screen set badges.
+- `game/card_pack_badges.gd`: compact `1-tDotP`, `2-FEM`, `3-ICE`, `4-HML`
+  and `5-ALL` status buttons below the title-screen original set strip;
+  five per row, hidden when absent, refreshed by Rescan.
+- `tests/ui/test_pack_menu_absence.gd`: pack-row geometry/wrapping, no-pack
+  catalogue and controls, missing-deck consent, and live registry refresh
+  of inventory, deck/sideboard faces, preview and legality.
+- `docs/pack-menu-no-packs-audit.md`: reproduced shell defects, no-pack
+  behavior, native layout checks and isolated desktop export evidence.
 - `cards/optional/pack_1/*.gd`: four trusted dormant digital adaptations;
   pack archives never provide executable code.
 - `engine/effects/random_destroy_effect.gd`, `coin_flip_damage_effect.gd`,
