@@ -91,3 +91,39 @@ func test_snow_basics_use_the_common_sheet_without_changing_frozen_recipe_land_s
 	var pool := DraftRecipe.deal(DraftPoolConfig.defaults(), DraftPoolConfig.selected(), "b".repeat(64))
 	assert_not_null(pool, "all enabled packs must support a valid ordinary draft")
 	if pool != null: assert_true(DraftRecipe.reconstruct(pool.draft_recipe).ok)
+
+func test_saving_visible_draft_choices_preserves_temporarily_disabled_pack_choices() -> void:
+	Settings.set_value(DraftPoolConfig.SETTING, ["Forest", "Force of Will"], false)
+	CardPacks.set_enabled("pack-5", false)
+	var panel := DraftPoolDialog.new()
+	add_child_autofree(panel)
+	panel.choose(["Island"])
+	panel._save()
+	assert_eq(DraftPoolConfig.selected(), ["Island"] as Array[String])
+	CardPacks.set_enabled("pack-5", true)
+	assert_eq(DraftPoolConfig.selected(), ["Force of Will", "Island"] as Array[String])
+	var enabled_panel := DraftPoolDialog.new()
+	add_child_autofree(enabled_panel)
+	enabled_panel.choose(["Island"])
+	enabled_panel._save()
+	assert_eq(DraftPoolConfig.selected(), ["Island"] as Array[String], "visible unchecked cards are deliberately removed")
+
+func test_deck_requirement_popup_explains_a_live_catalogue_lock() -> void:
+	CardPacks.set_enabled("pack-5", false)
+	var server := SgLocalServer.new()
+	add_child_autofree(server)
+	assert_eq(server.start_local(0), OK)
+	var builder = load("res://game/deck_builder/deck_builder_screen.tscn").instantiate()
+	add_child_autofree(builder)
+	var deck := DeckModel.new()
+	deck.add_proxy("Force of Will")
+	deck.required_packs.assign(["pack-5"])
+	builder._offer_required_pack("user://unused-test.deck", deck, [], "pack-5")
+	var notice: Control = builder._pack_requirement_notice
+	var enable := notice.find_child("EnablePack5", true, false) as Button
+	assert_not_null(enable)
+	if enable != null: assert_true(enable.disabled)
+	var text := ""
+	for label in notice.find_children("*", "Label", true, false): text += label.text
+	assert_string_contains(text, "stop hosting")
+	server.stop()

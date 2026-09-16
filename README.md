@@ -97,8 +97,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([packs + SGManalink integration](docs/packs-sgmanalink-integration.md)):
-**7,144 GUT tests / 321,964 assertions**, plus **256 Python tests** (one
+Latest local verification ([post-integration bug campaign](docs/integration-bug-campaign-2026-09-16.md)):
+**7,157 GUT tests / 322,040 assertions**, plus **256 Python tests** (one
 platform skip).
 
 ## Art and skins

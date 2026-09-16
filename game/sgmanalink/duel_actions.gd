@@ -31,7 +31,7 @@ static func options(card: CardInstance, pid: int) -> Array:
 		for mode in card.data.modes:
 			modes.append(String(mode.get("label", mode.get("name", "Mode"))))
 		result.append({"kind": "spell", "index": 0, "label": "Cast " + card.data.card_name,
-			"x": card.data.cost.has_x, "modes": modes})
+			"x": card.data.cost.has_x or not card.data.repeated_additional_cost.is_empty(), "modes": modes})
 	if (card.zone == Mtg.Zone.BATTLEFIELD and card.controller_id == pid) or (card.zone == Mtg.Zone.HAND and card.owner_id == pid):
 		for i in card.cur_mana_abilities.size():
 			if card.cur_mana_abilities[i].activation_zone != card.zone: continue
@@ -76,12 +76,15 @@ func clear() -> void:
 
 
 func auto_prepare(pid: int, card: CardInstance, action: Dictionary, excluded: Dictionary) -> String:
+	# Auto-cast may spend mana, never choose how much life the player loses.
+	if card != null and action.kind == "spell" and card.data.additional_life_is_x:
+		return "Choose the life payment explicitly."
 	var request_data := action.duplicate()
 	request_data.x = 0
 	var error := prepare(pid, card, request_data)
 	if not error.is_empty(): return error
 	var cost: ManaCost = card.data.payment_base(draft.mode) if draft.kind == "spell" else card.cur_activated_abilities[draft.index].cost
-	if cost.has_x:
+	if cost.has_x or (draft.kind == "spell" and not card.data.repeated_additional_cost.is_empty()):
 		draft.x = SgPayment.budget(game, pid, card, draft.kind, draft.index, ManaPlanner.sources(game, pid, excluded), action.count, draft.mode)
 	return autopay(pid, excluded, action.count)
 
@@ -220,7 +223,7 @@ func autopay(pid: int, excluded: Dictionary, count: int) -> String:
 func payment_reachable() -> bool:
 	var due := payment(int(draft.get("count", 1)))
 	if due.is_empty(): return true
-	return game.players[draft.pid].mana_pool.can_pay(due.cost, int(due.extra), due.usage) \
+	return SgPayment.can_pay_now(game, draft.pid, due, draft.kind) \
 		or not ManaPlanner.plan(game, draft.pid, due.cost, int(due.extra), due.usage).is_empty()
 
 

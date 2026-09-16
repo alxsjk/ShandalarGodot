@@ -63,3 +63,33 @@ func test_alliances_gold_emblem_and_two_stone_faces_ship() -> void:
 		var texture := GameSkin.our_art(key)
 		assert_not_null(texture, key)
 		if texture != null: assert_eq(texture.get_size(), Vector2(48, 48))
+
+func test_local_cast_retries_after_red_to_black_mana_conversion() -> void:
+	var screen: DuelScreen = load("res://game/duel/duel_screen.tscn").instantiate()
+	add_child_autofree(screen)
+	await get_tree().process_frame
+	screen.set_process(false)
+	screen._toss_active = false
+	var g := screen.game
+	g.active_player = 0
+	g.priority_player = 0
+	g._step_index = Mtg.STEP_ORDER.find(Mtg.Step.MAIN1)
+	g.awaiting_attackers = false
+	g.awaiting_blockers = false
+	g.players[0].hand.clear()
+	g.players[0].battlefield.clear()
+	g.players[0].mana_pool.clear()
+	var agent := CardInstance.new(CardRegistry.get_card("Agent of Stromgald"), 95001, 0)
+	var ritual := CardInstance.new(CardRegistry.get_card("Dark Ritual"), 95002, 0)
+	for card in [agent, ritual]: g._instances[card.id] = card
+	g._put_on_battlefield(agent, 0)
+	ritual.zone = Mtg.Zone.HAND
+	g.players[0].hand.append(ritual)
+	g.players[0].mana_pool.add(Mtg.ManaColor.R)
+	screen.mode = DuelScreen.Mode.NORMAL
+	screen._click_hand_card(ritual)
+	assert_eq(screen.mode, DuelScreen.Mode.PAYING)
+	screen._tap_for_payment(agent)
+	assert_eq(ritual.zone, Mtg.Zone.STACK)
+	assert_eq(g.players[0].mana_pool.total(), 0)
+	assert_eq(screen.mode, DuelScreen.Mode.NORMAL)

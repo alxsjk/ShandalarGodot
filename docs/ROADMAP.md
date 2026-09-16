@@ -14034,6 +14034,26 @@ and physical multi-machine LAN checks remain release playtests. The attempted
 browser smoke stalled and is not counted as passed. Player settings remain
 byte-identical; no generated pack/art ZIPs or release assets are published.
 
+## 2026-09-16 — Post-integration bug find/fix campaign
+
+The [follow-up campaign](integration-bug-campaign-2026-09-16.md) reproduced and
+fixed six more boundary defects: missing Taste of Paradise repeat payments in
+LAN play, Fire Covenant's incorrect life-X chooser/auto-selection, local and
+LAN casts stalled by same-total mana conversion, floating-mana substitution
+estimates, draft saves dropping disabled-pack choices, and required-pack load
+prompts ignoring live catalogue locks. Thirteen new regressions and positive
+controls cover the fixes. Protocol stays 12; matching updated peers use rules
+revision `sgmanalink-packs-2026-09-16-2`.
+
+Final strict gate: **7,157/7,157 tests / 322,040 assertions / 439 scripts**,
+exit 0 in **576.881 seconds**; **256 Python tests**, one platform skip. Fresh
+campaigns complete **162 expansion AI duels** and **24 live-screen duels**
+under both rulesets with no errors, warnings or stalls. A fresh macOS export
+boots and passes all five real local-ZIP probes; its cleaned bundle passes
+signature verification. These checks do not establish new AI strength or
+replace native cross-platform and physical LAN playtests. Main, the original
+pack checkout and player settings remain untouched; no release or art is published.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

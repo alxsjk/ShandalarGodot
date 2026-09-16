@@ -2084,7 +2084,7 @@ func _submit_pending() -> void:
 	if MtgGame.is_unpaid_refusal(err) and _pending_is_reachable():
 		mode = Mode.PAYING
 		_set_target_cursor(false)
-		_paying_pool = game.players[_pending_pid].mana_pool.total()
+		_paying_pool = _payment_pool_state()
 		_set_prompt(GRAB_MANA_PROMPT % _pending_card.data.card_name)
 		return
 	# A cast that WENT THROUGH keeps its tutor pick: the search happens
@@ -2133,9 +2133,14 @@ func _pending_is_reachable() -> bool:
 		int(payment["extra"]), payment["usage"]).is_empty()
 
 
-## The floating total the held-open cast was last priced against, so the
-## retry below costs nothing until the player actually produces mana.
-var _paying_pool := -1
+## The floating composition the held-open cast was last priced against.
+## Converters can change colors/restrictions without changing the total.
+var _paying_pool: Array = []
+
+
+func _payment_pool_state() -> Array:
+	var pool := game.players[_pending_pid].mana_pool
+	return [pool._mana.duplicate(), pool._restricted.duplicate(true)]
 
 
 # ------------------------------------------- THE AUTO-CAST (§6.20c) --
@@ -2289,7 +2294,7 @@ func _auto_tap_for_pending() -> void:
 func _retry_payment() -> void:
 	if mode != Mode.PAYING or _pending_card == null:
 		return
-	var now: int = game.players[_pending_pid].mana_pool.total()
+	var now := _payment_pool_state()
 	if now == _paying_pool:
 		return
 	_paying_pool = now
@@ -2506,7 +2511,7 @@ func _clear_pending(cast := false) -> void:
 	_pending_targets = []
 	_pending_mode = 0
 	_pending_target_count = -1
-	_paying_pool = -1
+	_paying_pool = []
 	# A parked-but-uncast tutor pick must not leak into the next search.
 	if not cast and _humans.has(_pending_pid):
 		_humans[_pending_pid].preselect("")

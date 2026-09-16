@@ -189,3 +189,70 @@ func test_network_bot_scheduler_lets_melee_attacker_choose_opposing_blocks() -> 
 	SgBotPlayer.step(duel, pilot)
 	assert_false(g.awaiting_blockers)
 	assert_eq(g.combat.blocks.get(blocker.id), attacker.id)
+
+func test_repeated_additional_payment_is_an_announced_variable() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var spell := give_hand(0, "Taste of Paradise")
+	add_mana(0, Mtg.ManaColor.G, 3)
+	add_mana(0, Mtg.ManaColor.C, 5)
+	var duel := referee()
+	assert_true(SgDuelActions.options(spell, 0)[0].x)
+	assert_eq(SgPayment.budget(g, 0, spell, "spell", 0, ManaPlanner.sources(g, 0)), 2)
+	var error := duel.act(0, {"op": "prepare", "card": duel._handle(0, spell), "kind": "spell", "index": 0, "x": 2, "mode": 0})
+	assert_ok(error)
+	if not error.is_empty(): return
+	assert_ok(duel.act(0, {"op": "submit", "targets": []}))
+	assert_eq(g.players[0].mana_pool.total(), 0)
+	resolve_stack()
+	assert_eq(g.players[0].life, 29)
+
+func test_life_x_is_bounded_and_never_auto_announced() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	g.players[0].life = 17
+	var spell := give_hand(0, "Fire Covenant")
+	for color in [Mtg.ManaColor.B, Mtg.ManaColor.R, Mtg.ManaColor.C]: add_mana(0, color)
+	var duel := referee()
+	assert_eq(SgPayment.budget(g, 0, spell, "spell", 0, ManaPlanner.sources(g, 0)), 17)
+	assert_refused(duel.act(0, {"op": "autoprepare", "card": duel._handle(0, spell), "kind": "spell", "index": 0, "mode": 0, "excluded": [], "count": 1}))
+	assert_true(duel.actions.draft.is_empty())
+	assert_eq(g.players[0].life, 17)
+	assert_eq(g.players[0].mana_pool.total(), 3)
+
+func test_floating_mana_substitutions_reach_the_host_payment_budget() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	put_battlefield(0, "Sunglasses of Urza")
+	var spell := give_hand(0, "Disintegrate")
+	add_mana(0, Mtg.ManaColor.W, 5)
+	var duel := referee()
+	assert_eq(SgPayment.budget(g, 0, spell, "spell", 0, ManaPlanner.sources(g, 0)), 4)
+	assert_ok(duel.act(0, {"op": "prepare", "card": duel._handle(0, spell), "kind": "spell", "index": 0, "x": 4, "mode": 0}))
+	assert_true(duel.actions.payment_reachable())
+
+func test_auto_repetitions_respect_reserved_colored_sources() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var spell := give_hand(0, "Taste of Paradise")
+	var reserved: Array[CardInstance] = []
+	for i in 3:
+		var forest := put_battlefield(0, "Forest")
+		if i < 2: reserved.append(forest)
+	for i in 5: put_battlefield(0, "Mountain")
+	var duel := referee()
+	var excluded: Array = []
+	for land in reserved: excluded.append(duel._handle(0, land))
+	assert_ok(duel.act(0, {"op": "autoprepare", "card": duel._handle(0, spell), "kind": "spell", "index": 0, "mode": 0, "excluded": excluded, "count": 1}))
+	assert_eq(duel.actions.draft.x, 0, "no spare green after the base payment")
+	for land in reserved: assert_false(land.tapped)
+	assert_ok(duel.act(0, {"op": "submit", "targets": []}))
+	resolve_stack()
+	assert_eq(g.players[0].life, 23)
+
+func test_north_star_floating_permission_is_for_spells_not_abilities() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	g.players[0].any_color_spells = 1
+	add_mana(0, Mtg.ManaColor.G, 3)
+	var spell := give_hand(0, "Disintegrate")
+	var shade := put_battlefield(0, "Frozen Shade")
+	assert_eq(SgPayment.budget(g, 0, spell, "spell", 0, ManaPlanner.sources(g, 0)), 2)
+	assert_true(SgPayment.can_pay_now(g, 0, SgPayment.due(g, 0, spell, "spell", 0, 2), "spell"))
+	assert_false(SgPayment.can_pay_now(g, 0, SgPayment.due(g, 0, shade, "ability", 0, 0), "ability"))
+	assert_eq(g.players[0].any_color_spells, 1, "an estimate never consumes the charge")

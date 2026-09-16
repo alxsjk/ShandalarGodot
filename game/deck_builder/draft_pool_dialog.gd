@@ -24,7 +24,7 @@ func _ready() -> void:
 		saved.assign(CardRegistry.all_names())
 	for card_name in saved:
 		selected_cards[card_name] = true
-	var intro := OriginalDialog.label("Choose whole sets or expand a set to choose individual cards. Only checked cards can be dealt. Changes here do not limit ordinary duels.", 15)
+	var intro := OriginalDialog.label("Choose whole sets or expand a set to choose individual cards. Only checked cards can be dealt. Choices for disabled packs are kept until those packs return. Changes here do not limit ordinary duels.", 15)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body().add_child(intro)
 	var search := OriginalDialog.text_field()
@@ -136,6 +136,14 @@ func _save() -> void:
 		summary.text = "Choose at least one card before saving."
 		return
 	var names := selected_cards.keys()
+	# Editing the visible pool must not erase choices temporarily hidden by
+	# a missing/disabled pack. Only retain known pack identities, not junk.
+	var saved: Variant = Settings.get_value(DraftPoolConfig.SETTING, [])
+	if saved is Array or saved is PackedStringArray:
+		for card_name in saved:
+			if card_name is String and not rows.has(card_name) and not names.has(card_name) \
+					and not CardPacks.packs_required_by([card_name]).is_empty():
+				names.append(card_name)
 	names.sort()
 	Settings.set_value(DraftPoolConfig.SETTING, names)
 	if Settings.is_dirty():

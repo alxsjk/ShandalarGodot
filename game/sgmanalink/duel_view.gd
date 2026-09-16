@@ -229,7 +229,7 @@ func _click_hand_card(inst: CardInstance) -> void:
 
 func _continue_cast_chain() -> void:
 	# Searches wait for a rule-authorized question from the referee.
-	if _pending_card.data.cost.has_x: _open_x_dialog()
+	if _pending_card.data.cost.has_x or not _pending_card.data.repeated_additional_cost.is_empty(): _open_x_dialog()
 	else: _prepare()
 
 
@@ -319,7 +319,7 @@ func show_notice(message: String) -> void:
 	projection.locked = false
 	if _sent_op == "submit" and MtgGame.is_unpaid_refusal(message) and _pending_card != null:
 		mode = Mode.PAYING
-		_paying_pool = game.players[0].mana_pool.total()
+		_paying_pool = _payment_pool_state()
 		_set_target_cursor(false)
 		_set_prompt(GRAB_MANA_PROMPT % _pending_card.data.card_name)
 		return
@@ -344,6 +344,7 @@ func _auto_cast(inst: CardInstance) -> void:
 		_click_hand_card(inst)
 	if _pending_card != inst: return
 	if _x_dialog != null:
+		if _pending_ability_index < 0 and _pending_card.data.additional_life_is_x: return
 		var count := int(_x_dialog.get_meta("targets").value) if _x_dialog.has_meta("targets") else 1
 		_pending_target_count = count if _pending_card.data.extra_cost_per_target > 0 else -1
 		_x_dialog.dismiss()
@@ -387,9 +388,14 @@ func _open_x_dialog() -> void:
 	var cost := ManaCost.parse(option.get("cost", ""))
 	var per_x := maxi(1, cost.x_count)
 	var per_target := _pending_card.data.extra_cost_per_target if _pending_ability_index < 0 else 0
+	var life_x := _pending_ability_index < 0 and _pending_card.data.additional_life_is_x
+	var prompt := "Life to pay (X):" if life_x else FireballDialog.ASK_MANA
+	if _pending_ability_index < 0 and not _pending_card.data.repeated_additional_cost.is_empty():
+		prompt = "Number of additional %s payments:" % _pending_card.data.repeated_additional_cost
 	# The referee reports maximum X; the shared dialog dials X payment units.
-	_x_dialog = FireballDialog.window(_pending_card.data.card_name, int(option.get("budget", 0)) * per_x, per_target, SgProtocol.MAX_CARDS, per_x)
+	_x_dialog = FireballDialog.window(_pending_card.data.card_name, int(option.get("budget", 0)) * per_x, per_target, SgProtocol.MAX_CARDS, per_x, prompt)
 	_x_spin = _x_dialog.get_meta("mana")
+	if life_x: _x_spin.value = 0
 	_x_dialog.add_button("OK").pressed.connect(_on_x_confirmed)
 	_x_dialog.add_button("Cancel").pressed.connect(_on_x_canceled)
 	add_child(_x_dialog)

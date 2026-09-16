@@ -84,7 +84,9 @@ func test_hand_mana_menu_exiles_spirit_guide() -> void:
 	advance_to_step(Mtg.Step.MAIN1)
 	var guide := give_hand(0, "Elvish Spirit Guide")
 	var screen := _screen()
-	screen._open_ability_menu(_local(screen, guide), true)
+	screen._open_card_menu(_local(screen, guide), Vector2(200, 200))
+	assert_gte(screen._card_menu.get_item_index(DuelScreen.CARD_MENU_HAND_MANA), 0)
+	screen._on_card_menu_chosen(DuelScreen.CARD_MENU_HAND_MANA)
 	await _pump()
 	assert_eq(refusals, [])
 	assert_eq(guide.zone, Mtg.Zone.EXILE)
@@ -112,3 +114,97 @@ func test_melee_player_selects_enemy_blockers_in_shared_screen() -> void:
 	assert_eq(refusals, [])
 	assert_false(g.awaiting_blockers)
 	assert_eq(g.combat.blocks.get(blocker.id), attacker.id)
+
+func test_taste_of_paradise_opens_repeat_count_and_casts_paid_repetitions() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var spell := give_hand(0, "Taste of Paradise")
+	add_mana(0, Mtg.ManaColor.G, 3)
+	add_mana(0, Mtg.ManaColor.C, 5)
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, spell))
+	assert_not_null(screen._x_dialog)
+	if screen._x_dialog == null: return
+	assert_eq(int(screen._x_spin.max_value), 2)
+	screen._x_spin.value = 2
+	screen._on_x_confirmed()
+	await _pump()
+	assert_eq(refusals, [])
+	assert_eq(spell.zone, Mtg.Zone.STACK)
+	assert_eq(g.stack.back().x_value, 2)
+	resolve_stack()
+	assert_eq(g.players[0].life, 29)
+
+func test_fire_covenant_double_click_preserves_explicit_safe_life_choice() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	g.players[0].life = 17
+	var spell := give_hand(0, "Fire Covenant")
+	for color in [Mtg.ManaColor.B, Mtg.ManaColor.R, Mtg.ManaColor.C]: add_mana(0, color)
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, spell))
+	assert_not_null(screen._x_dialog)
+	if screen._x_dialog == null: return
+	assert_eq(int(screen._x_spin.max_value), 17)
+	assert_eq(int(screen._x_spin.value), 0)
+	var asks_life := false
+	for node in screen._x_dialog.body().get_children():
+		if node is Label and node.text == "Life to pay (X):": asks_life = true
+	assert_true(asks_life)
+	screen._auto_cast(_local(screen, spell))
+	await _pump()
+	assert_not_null(screen._x_dialog)
+	assert_true(referee.actions.draft.is_empty())
+	assert_eq(g.players[0].life, 17)
+	assert_eq(g.players[0].mana_pool.total(), 3)
+
+func test_manual_mana_conversion_retries_a_waiting_cast_with_unchanged_total() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var agent := put_battlefield(0, "Agent of Stromgald")
+	var ritual := give_hand(0, "Dark Ritual")
+	add_mana(0, Mtg.ManaColor.R)
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, ritual))
+	await _pump()
+	assert_eq(screen.mode, DuelScreen.Mode.PAYING)
+	screen._on_card_clicked(_local(screen, agent))
+	await _pump()
+	assert_eq(ritual.zone, Mtg.Zone.STACK, "red to black must retry although both pools total one")
+	assert_eq(g.players[0].mana_pool.total(), 0)
+	assert_eq(screen.mode, DuelScreen.Mode.NORMAL)
+
+func test_taste_of_paradise_double_click_buys_available_repetitions() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var spell := give_hand(0, "Taste of Paradise")
+	for i in 3: put_battlefield(0, "Forest")
+	for i in 5: put_battlefield(0, "Mountain")
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, spell))
+	screen._auto_cast(_local(screen, spell))
+	await _pump()
+	assert_eq(refusals, [])
+	assert_eq(spell.zone, Mtg.Zone.STACK)
+	assert_eq(g.stack.back().x_value, 2)
+	assert_eq(g.players[0].mana_pool.total(), 0)
+	resolve_stack()
+	assert_eq(g.players[0].life, 29)
+
+func test_fire_covenant_spends_only_explicit_life_and_damage_points() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	g.players[0].life = 17
+	var spell := give_hand(0, "Fire Covenant")
+	var victim := put_battlefield(1, "Hill Giant")
+	for color in [Mtg.ManaColor.B, Mtg.ManaColor.R, Mtg.ManaColor.C]: add_mana(0, color)
+	var screen := _screen()
+	screen._on_card_clicked(_local(screen, spell))
+	screen._x_spin.value = 3
+	screen._on_x_confirmed()
+	await _pump()
+	assert_eq(g.players[0].life, 17, "aiming is not payment")
+	for i in 3: screen._on_card_clicked(_local(screen, victim))
+	await _pump()
+	assert_eq(refusals, [])
+	assert_eq(spell.zone, Mtg.Zone.STACK)
+	assert_eq(g.stack.back().x_value, 3)
+	assert_eq(g.players[0].life, 14)
+	assert_eq(g.players[0].mana_pool.total(), 0)
+	resolve_stack()
+	assert_eq(victim.zone, Mtg.Zone.GRAVEYARD)

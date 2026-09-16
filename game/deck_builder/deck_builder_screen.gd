@@ -3833,6 +3833,7 @@ func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
 	if is_instance_valid(_pack_requirement_notice):
 		return
 	var available := CardPacks.has_pack(pack_id)
+	var refusal := CardPacks.change_refusal()
 	var pack_label := CardPacks.label_for(pack_id)
 	var body := "%s requires %s, which is disabled." % [loaded.deck_name, pack_label]
 	if not available:
@@ -3841,10 +3842,11 @@ func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
 			CardPacks.file_name_for(pack_id)
 	else:
 		body += " Enable it now and reload this deck?"
+	if not refusal.is_empty(): body += "\n\n" + refusal
 	_pack_requirement_notice = UiChrome.action_popup(self,
 		"This deck requires " + pack_label, body, [
 			{"label": "Enable " + pack_label, "name": "Enable" + pack_label.replace(" ", ""),
-				"disabled": not available,
+				"disabled": not available or not refusal.is_empty(),
 				"callable": _enable_pack_and_reload.bind(pack_id, path)},
 			{"label": "Load as proxies", "name": "LoadAsProxies",
 				"callable": _finish_load.bind(loaded, report)},
@@ -3857,6 +3859,8 @@ func _offer_required_pack(path: String, loaded: DeckModel, report: Array,
 func _enable_pack_and_reload(pack_id: String, path: String) -> void:
 	if CardPacks.set_enabled(pack_id, true):
 		_load_deck(path)
+	elif not CardPacks.change_refusal().is_empty():
+		_say(CardPacks.change_refusal(), true)
 
 
 func _finish_load(loaded: DeckModel, report: Array) -> void:

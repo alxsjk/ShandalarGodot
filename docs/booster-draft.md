@@ -8,10 +8,15 @@ editing stays intact when you visit draft setup and return.
 ## Choose a pool and launch
 
 **Card pool…** lets you check entire implemented sets or expand a set and
-check individual cards. Search finds names and sets. All and None affect the
-whole pool, not just search results. **Save pool** remembers this selection;
-Cancel leaves it unchanged. These choices do not restrict ordinary duels.
+check individual cards. Search finds names and sets. All and None affect all
+currently available cards, not just search results. **Save pool** remembers this
+selection; Cancel leaves it unchanged. These choices do not restrict ordinary duels.
 Original-skin and card-art ZIPs supply pictures, not additional playable cards.
+
+Disabled or missing numbered packs cannot contribute to a new deal. Their
+previously saved card choices are retained when editing the available pool and
+return when those packs are enabled again. To remove such a choice permanently,
+enable the pack, uncheck the card and save the pool.
 
 Set the numbers of:
 

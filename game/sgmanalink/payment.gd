@@ -7,15 +7,25 @@ static func due(g: MtgGame, pid: int, card: CardInstance, kind: String, index: i
 	return g.spell_payment(pid, card.data, x, count, card, mode) if kind == "spell" else g.ability_payment(pid, card, index, x)
 
 static func budget(g: MtgGame, pid: int, card: CardInstance, kind: String, index: int, sources: Array, count := 1, mode := 0) -> int:
+	if kind == "spell" and card.data.additional_life_is_x:
+		return clampi(g.players[pid].life, 0, 1000)
 	var low := 0
 	var high := 1000
 	while low < high:
 		var middle := (low + high + 1) / 2
 		var cost := due(g, pid, card, kind, index, middle, count, mode)
-		if g.players[pid].mana_pool.can_pay(cost.cost, cost.extra, cost.usage) \
+		if can_pay_now(g, pid, cost, kind) \
 			or not ManaPlanner.plan_from(sources, cost.cost, cost.extra, cost.usage).is_empty(): low = middle
 		else: high = middle - 1
 	return low
+
+
+## Use the same floating-pool permissions as the referee's final payment.
+## North Star applies to spells only; Sunglasses also applies to abilities.
+static func can_pay_now(g: MtgGame, pid: int, payment: Dictionary, kind: String) -> bool:
+	var p := g.players[pid]
+	return p.mana_pool.can_pay(payment.cost, payment.extra, payment.usage,
+		p.mana_substitutions, kind == "spell" and p.any_color_spells > 0)
 
 
 ## Public affordance, not permission to cast. The real cast still validates

@@ -1,5 +1,10 @@
 # Packs + SGManalink integration — 2026-09-16
 
+This records the initial integration at `10295ee`. The subsequent
+[bug campaign](integration-bug-campaign-2026-09-16.md) adds six repairs,
+updates the verification totals and advances the rules fingerprint to
+`sgmanalink-packs-2026-09-16-2`; the historical results below are retained.
+
 ## Scope and merge basis
 
 Dedicated branch `integration/packs-sgmanalink` combines `main` at

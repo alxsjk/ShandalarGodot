@@ -11,14 +11,19 @@ needed); card files have NO class_name (they register by name instead);
 
 - `docs/packs-sgmanalink-integration.md`: merge basis, reproduced boundary
   defects, compatibility decisions and combined verification evidence.
+- `docs/integration-bug-campaign-2026-09-16.md`: follow-up payment, draft and
+  catalogue-lock reproductions, regression gates, fresh duels and export checks.
 - `tests/unit/test_sgmanalink_packs.gd`: catalogue fingerprints, pitch costs,
-  graveyard activation, exile privacy/play permission and Melee seat projection.
+  graveyard activation, exile privacy/play permission, Melee seat projection,
+  repeated payments, explicit life-X and floating-mana permissions.
 - `tests/ui/test_sgmanalink_pack_sessions.gd`: independent host/client catalogue
   locks, rescan protection and connect-time compatibility stamps.
 - `tests/ui/test_sgmanalink_pack_ui.gd`: actual shared-screen exile casting,
-  graveyard/hand-mana menus and opposing-blocker selection.
+  graveyard/hand-mana menus, opposing-blocker selection, repeated/life costs
+  and retrying payment after same-total mana conversion.
 - `tests/ui/test_pack_draft_integration.gd`: expansion pool selection, frozen
-  recipes, native saves, imports, copies, proxy preservation and Clear.
+  recipes, native saves, imports, copies, proxy preservation, disabled-pack
+  selection retention, locked-catalogue load notices and Clear.
 
 ## Plain-text deck imports (2026-09-16)
 

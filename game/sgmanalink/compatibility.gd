@@ -4,7 +4,7 @@ extends RefCounted
 ## Bump RULES_REVISION whenever engine/card behavior changes without a release
 ## version change. The catalogue digest additionally pins printed definitions.
 
-const RULES_REVISION := "sgmanalink-packs-2026-09-16-1"
+const RULES_REVISION := "sgmanalink-packs-2026-09-16-2"
 static var _fingerprint := ""
 static var _cache_key := ""
 

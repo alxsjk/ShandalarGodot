@@ -1,7 +1,8 @@
 # SGManalink LAN playtest
 
-Development branch: `sgmanalink`. A desktop LAN full-pool duel milestone, not the
-public Internet release. No Nakama, account service, central directory or
+Integrated development branch: `integration/packs-sgmanalink`. A desktop LAN
+full-pool duel milestone, not the public Internet release. No Nakama, account
+service, central directory or
 MElo is required. Offline duels, hotseat, demonstration and Deck Builder
 retain their existing code paths.
 
@@ -9,12 +10,15 @@ The **Tournament** tab adds [LAN knockout events](sgmanalink-tournaments.md)
 with 2–20 entrants, a separate or participating organiser, first to 1/2/3 wins,
 fixed/approved/own deck policies, a live Master Panel, an advancement diagram
 and final standings. [Computer opponents](sgmanalink-computer-players.md) can fill
-duel rooms and a chosen number of tournament seats. Protocol **10** requires
-matching updated builds on every computer; old LAN development builds cannot join.
+duel rooms and a chosen number of tournament seats. Protocol **12** and the
+current rules fingerprint require matching updated builds and enabled card
+catalogues on every computer; old LAN development builds cannot join.
 Internet play and MElo are parked.
 
-The [latest gameplay review](sgmanalink-gameplay-parity-2026-09-15.md) records
-the match introduction, tested gameplay boundaries and remaining manual checks.
+The [gameplay review](sgmanalink-gameplay-parity-2026-09-15.md) records the match
+introduction and manual checks. The [pack integration](packs-sgmanalink-integration.md)
+and [follow-up bug campaign](integration-bug-campaign-2026-09-16.md) record the
+current pack support, compatibility rules and payment regressions.
 
 For repeatable automated network play, see the
 [network campaign](sgmanalink-network-campaign.md). It runs two fair-information
@@ -79,6 +83,14 @@ choosing another name.
 Auto-payment pauses for a mana source's colour/cost question and resumes after
 your answer. Automatic X respects **Don't auto tap** marks, coloured X costs,
 cost modifiers and target-count charges. You can still select X and tap manually.
+Repeated additional costs, such as Taste of Paradise, have an explicit payment
+count. Life-X, such as Fire Covenant, starts at zero and must be chosen manually;
+double-click never chooses a life payment for you.
+
+Pack enabling/disabling and rescanning are locked while hosting, connected or
+waiting to reconnect. Close/forget connections and stop hosting before changing
+the catalogue. A deck needing a disabled pack explains this lock; it can still
+be loaded as proxies. Deck Builder's cosmetic source filters remain available.
 
 The normal **L** duel log now shows a filtered online history. It records public
 actions and information your seat was allowed to see, including private looks;
