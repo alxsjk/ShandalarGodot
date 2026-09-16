@@ -3,8 +3,8 @@ extends RefCounted
 ## [QoL] Unrated loopback/LAN protocol. Data only; no Variant object decoding or RPC.
 ## Version this independently from the application release and future rated protocol.
 
-const VERSION := 7
-const SUBPROTOCOL := "sgmanalink-local-v7"
+const VERSION := 11
+const SUBPROTOCOL := "sgmanalink-local-v11"
 const NICKNAME_LIMIT := 20
 const MAX_BYTES := 2097152
 const MAX_COMMAND_BYTES := 32768
@@ -23,6 +23,15 @@ const FIELDS := {
 	"autopay": ["excluded", "count"],
 	"autoprepare": ["card", "kind", "index", "mode", "excluded", "count"],
 	"remove_guest": [],
+	"add_bot": ["bot", "deck"], "remove_bot": [],
+	"t_bots": ["event", "count", "bot", "deck"],
+	"t_join": ["event"], "t_ready": ["event", "value", "round", "game"],
+	"t_deck": ["event", "name", "cards", "sideboard"], "t_choose": ["event", "index"],
+	"t_start": ["event"], "t_next": ["event"], "t_return": ["event"],
+	"t_withdraw": ["event"], "t_remove": ["event", "player"],
+	"t_recover": ["event", "code"], "t_cancel": ["event"], "t_retry": ["event"],
+	"t_clear": ["event"],
+	"t_close": ["event"],
 }
 static var _unicode_pattern: RegEx
 
@@ -125,7 +134,14 @@ static func valid(message: Dictionary) -> bool:
 		return false
 	if not exact(action, ["op"] + FIELDS[op]):
 		return false
+	if op.begins_with("t_") and not token(action.event): return false
 	match op:
+		"add_bot", "t_bots":
+			return SgBotPlayer.valid(action.bot) and SgTournament.valid_deck(action.deck) \
+				and (op == "add_bot" or integer(action.count, 1, SgTournament.MAX_PLAYERS))
+		"t_recover": return token(action.code)
+		"t_remove": return integer(action.player, 1)
+		"t_choose": return integer(action.index, 0, 15)
 		"order": return action.play is bool
 		"mana": return short_text(action.card, 16) and integer(action.index, 0, 63)
 		"autopay": return handles(action.excluded) and integer(action.count, 1, MAX_CARDS)
@@ -134,7 +150,7 @@ static func valid(message: Dictionary) -> bool:
 				and integer(action.index, 0, 63) and integer(action.mode, 0, 63) \
 				and handles(action.excluded) and integer(action.count, 1, MAX_CARDS)
 		"special": return integer(action.index, 0, MAX_CARDS)
-		"deck":
+		"deck", "t_deck":
 			return SgViewProtocol.text(action.name, 128) and not action.name.strip_edges().is_empty() \
 				and names(action.cards, 250) and names(action.sideboard, 250)
 		"prepare":
@@ -156,6 +172,7 @@ static func valid(message: Dictionary) -> bool:
 		"host": return short_text(action.name)
 		"join": return short_text(action.room, 16)
 		"ready": return action.value is bool
+		"t_ready": return action.value is bool and integer(action.round, 0, SgTournament.MAX_ROUNDS) and integer(action.game, 0, SgTournament.MAX_GAMES)
 		"play", "tap": return short_text(action.card, 16)
 		"attack", "discard":
 			if not action.cards is Array or action.cards.size() > MAX_CARDS:

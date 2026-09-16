@@ -41,8 +41,10 @@ host referee would not test a remote client's action path; attaching it directly
 to the render-only projection would not give it a rules simulator. This driver
 therefore has its own small, deterministic coverage policy. It is not a new
 difficulty, does not change the offline demo, and does not claim expert combat
-evaluation. A future visible online AI demo needs an asynchronous decision/action
-adapter; keep its observation boundary separate from the host referee.
+evaluation. [Host-managed computer seats](sgmanalink-computer-players.md) now
+use the actual local players and have a separate eight-Wizard campaign. Their
+decisions execute at the referee, not through a remote client command stream;
+a remote Wizard would still need an asynchronous decision/action adapter.
 
 ## Run it
 

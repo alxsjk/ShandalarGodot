@@ -51,7 +51,13 @@ func advertise(advert: Dictionary, discovery_port := PORT) -> Error:
 
 func update_rooms(count: int) -> void:
 	if advertising:
-		_advert.rooms = clampi(count, 0, 8)
+		_advert.rooms = clampi(count, 0, SgLocalServer.MAX_ROOMS)
+
+
+func update_tournament(tournament_name: String) -> void:
+	if not advertising: return
+	if tournament_name.is_empty(): _advert.erase("tournament")
+	elif SgProtocol.short_text(tournament_name): _advert.tournament = tournament_name
 
 
 func stop() -> void:
@@ -80,11 +86,15 @@ func query(destination := "255.255.255.255", discovery_port := PORT) -> void:
 
 
 static func valid_advert(data: Dictionary) -> bool:
-	return SgProtocol.exact(data, ["address", "port", "name", "fingerprint", "rooms"]) \
+	var fields := ["address", "port", "name", "fingerprint", "rooms"]
+	if data.has("tournament"):
+		fields.append("tournament")
+		if not SgProtocol.short_text(data.tournament): return false
+	return SgProtocol.exact(data, fields) \
 		and SgLanInvite.address(data.get("address")) \
 		and SgProtocol.integer(data.get("port"), 1, 65535) \
 		and SgProtocol.short_text(data.get("name"), SgProtocol.NICKNAME_LIMIT) \
-		and SgProtocol.token(data.get("fingerprint")) and SgProtocol.integer(data.get("rooms"), 0, 8)
+		and SgProtocol.token(data.get("fingerprint")) and SgProtocol.integer(data.get("rooms"), 0, SgLocalServer.MAX_ROOMS)
 
 
 func accept_reply(data: Dictionary, source: String, now: int) -> bool:

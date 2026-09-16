@@ -4,9 +4,9 @@ extends Node
 ## Access and resume capabilities live in memory, never game settings or duel logs.
 ## LAN binds one private IPv4 address, uses TLS, and never opens router ports.
 
-const MAX_CONNECTIONS := 8
-const MAX_SESSIONS := 16
-const MAX_ROOMS := 8
+const MAX_CONNECTIONS := SgTournament.MAX_PLAYERS + 4
+const MAX_SESSIONS := SgTournament.MAX_PLAYERS * 2 + 8
+const MAX_ROOMS := SgTournament.MAX_PLAYERS / 2
 const ACK_WINDOW := 128
 const RECONNECT_GRACE_MS := 300000
 const LOBBY_GRACE_MS := 30000
@@ -29,6 +29,41 @@ var _tls_options: TLSOptions
 var _view_cache: Dictionary = {}
 var _pending_publish: Dictionary = {}
 var _flush_queued := false
+var tournament: SgTournamentHost
+var _bot_due: Dictionary = {}
+var _bot_cursor := 0
+# Test-only pacing override; never accepted from a network command.
+var bot_pace_override := -1
+
+
+## Local organiser entry point, deliberately not a remote command. A visitor
+## knowing the shared invitation does not acquire organiser authority.
+func open_tournament(options: Dictionary, resume_code: String, folder: String, restore_path := "") -> String:
+	var sid := int(_tokens.get(resume_code.sha256_text(), 0))
+	if not _connected(sid): return "Connect the organiser to this host first."
+	if not _rooms.is_empty() or (tournament != null and tournament.event.phase in ["registration", "running"]):
+		return "Finish or cancel the existing tables and tournament first."
+	var candidate := SgTournament.new()
+	var error := candidate.configure(options) if restore_path.is_empty() \
+		else candidate.restore(SgTournamentStore.read_checkpoint(restore_path))
+	if not error.is_empty(): return error
+	var bot_seats := 0
+	for player: Dictionary in candidate.entrants:
+		if player.has("bot") and not player.withdrawn: bot_seats += 1
+	if _sessions.size() + bot_seats > MAX_SESSIONS:
+		return "Not enough free host seats to restore every computer player. Close unused guest connections and try again."
+	if SgTournamentStore.save(candidate, folder) != OK: return "Cannot save tournament progress. Check the tournaments folder."
+	if tournament != null:
+		remove_child(tournament)
+		tournament.queue_free()
+	tournament = SgTournamentHost.new()
+	tournament.event = candidate
+	tournament.organiser = sid
+	tournament.folder = folder
+	add_child(tournament)
+	tournament.restore_bots()
+	_publish()
+	return ""
 
 
 func start_lan(address: String, requested_port := 17897, visible := true, nickname := "") -> Error:
@@ -92,6 +127,10 @@ func start_local(requested_port := 17897) -> Error:
 
 func stop() -> void:
 	_listener.stop()
+	if tournament != null:
+		remove_child(tournament)
+		tournament.queue_free()
+		tournament = null
 	if discovery != null:
 		discovery.stop()
 		discovery.queue_free()
@@ -104,6 +143,7 @@ func stop() -> void:
 	_rooms.clear()
 	_view_cache.clear()
 	_pending_publish.clear()
+	_bot_due.clear()
 	_flush_queued = false
 	access_code = ""
 	port = 0
@@ -129,6 +169,8 @@ func poll() -> void:
 	_expire_disconnected(now)
 	if discovery != null:
 		var available := 0
+		discovery.update_tournament("" if tournament == null else String(tournament.event.config.name))
+		if tournament != null and tournament.event.phase == "registration": available += 1
 		for room: Dictionary in _rooms.values():
 			if room.match == null and room.seats[1] == 0 and _connected(room.seats[0]):
 				available += 1
@@ -190,6 +232,7 @@ func poll() -> void:
 				_drop(id)
 				break
 			_receive(id, message)
+	_poll_bots(now)
 	_flush_publish()
 
 
@@ -215,6 +258,8 @@ func _reject(id: int, reason: String) -> void:
 
 func _expire_disconnected(now: int) -> void:
 	for sid in _sessions.keys():
+		if _is_bot(sid): continue
+		if tournament != null and tournament.holds(sid): continue
 		var session: Dictionary = _sessions[sid]
 		var grace := LOBBY_GRACE_MS if session.room.is_empty() else RECONNECT_GRACE_MS
 		if session.peer == 0 and now - int(session.disconnected_at) >= grace: _abandon(sid)
@@ -225,6 +270,9 @@ func _abandon(sid: int) -> void:
 	var session: Dictionary = _sessions[sid]
 	var room_id: String = session.room
 	var room: Dictionary = _rooms.get(room_id, {})
+	if tournament != null and tournament.member(sid) != 0:
+		tournament.departed(sid)
+		room = {}
 	if not room.is_empty():
 		var seat: int = room.seats.find(sid)
 		if seat >= 0:
@@ -277,6 +325,7 @@ func _receive(id: int, message: Dictionary) -> void:
 			# Reclaim only disconnected, roomless guests under capacity pressure.
 			if _sessions.size() >= MAX_SESSIONS:
 				for candidate in _sessions.keys():
+					if tournament != null and tournament.holds(candidate): continue
 					if not _connected(candidate) and _sessions[candidate].room.is_empty():
 						_abandon(candidate)
 						break
@@ -346,7 +395,7 @@ func _receive(id: int, message: Dictionary) -> void:
 
 
 func action_changes_listings(op: String) -> bool:
-	return op in ["host", "join", "leave", "ready", "remove_guest", "concede"]
+	return op in ["host", "join", "leave", "ready", "remove_guest", "concede", "add_bot", "remove_bot"]
 
 
 func _bump_room(room_id: String) -> void:
@@ -355,13 +404,83 @@ func _bump_room(room_id: String) -> void:
 
 
 func _connected(sid: int) -> bool:
-	return sid != 0 and _sessions.has(sid) and int(_sessions[sid].peer) != 0
+	return sid != 0 and _sessions.has(sid) and (_is_bot(sid) or int(_sessions[sid].peer) != 0)
+
+
+func _is_bot(sid: int) -> bool:
+	return _sessions.has(sid) and _sessions[sid].has("bot")
+
+
+func _new_bot(options: Dictionary, nickname: String) -> int:
+	if not SgBotPlayer.valid(options) or _sessions.size() >= MAX_SESSIONS: return 0
+	var sid := _next_session
+	_next_session += 1
+	# No resume token or socket: a human cannot claim a computer seat.
+	_sessions[sid] = {"peer": 0, "room": "", "seq": 0, "acks": {}, "nickname": nickname,
+		"disconnected_at": 0, "token_hash": "", "bot": options.duplicate(true)}
+	return sid
+
+
+func _attach_bots(room: Dictionary) -> void:
+	for seat in 2:
+		if _is_bot(room.seats[seat]): room.match.set_bot(seat, _sessions[room.seats[seat]].bot)
+
+
+func _poll_bots(now: int) -> void:
+	# One decision per table per poll, with round-robin fairness and a soft
+	# 12ms frame budget. A single bounded Wizard decision is not preemptible.
+	if tournament != null:
+		if not tournament.save_error.is_empty(): return
+		tournament.prepare_bots()
+		# Automatic return/readiness can itself fail to save this frame.
+		if not tournament.save_error.is_empty(): return
+	var room_ids := _rooms.keys()
+	var started := Time.get_ticks_msec()
+	for offset in room_ids.size():
+		var index := (_bot_cursor + offset) % room_ids.size()
+		var room: Dictionary = _rooms.get(room_ids[index], {})
+		if room.is_empty() or room.match == null or room.match.game.game_over: continue
+		if not _connected(room.seats[0]) or not _connected(room.seats[1]): continue
+		var match_game: SgPracticeMatch = room.match
+		var actor := int(match_game.decision_state().actor)
+		if not match_game.bots.has(actor) or now < int(_bot_due.get(room.id, 0)): continue
+		var pace := int(match_game.bot_options[actor].pace_ms) if bot_pace_override < 0 else bot_pace_override
+		_bot_due[room.id] = now + pace
+		SgBotPlayer.step(match_game, match_game.bots[actor])
+		room.revision += 1
+		if tournament != null: tournament.collect_result(room)
+		_publish(room.id, 0, match_game.game.game_over)
+		if tournament != null and not tournament.save_error.is_empty(): break
+		if Time.get_ticks_msec() - started >= 12:
+			_bot_cursor = index + 1
+			break
+	# Human departure must not leave a bot-only ordinary room or a session
+	# occupying capacity forever. Tournament bots remain registered instead.
+	for room_id in _rooms.keys():
+		var room: Dictionary = _rooms[room_id]
+		if room.has("t_pair"): continue
+		if room.seats.all(func(sid: int) -> bool: return sid == 0 or _is_bot(sid)):
+			for sid: int in room.seats:
+				if _is_bot(sid): _sessions[sid].room = ""
+			_rooms.erase(room_id)
+			_view_cache.erase(room_id)
+	for sid in _sessions.keys():
+		if _is_bot(sid) and _sessions[sid].room.is_empty() and (tournament == null or not tournament.holds(sid)):
+			_sessions.erase(sid)
+	for room_id in _bot_due.keys():
+		if not _rooms.has(room_id): _bot_due.erase(room_id)
 
 
 func _command(sid: int, action: Dictionary, revision: int) -> String:
 	var session: Dictionary = _sessions[sid]
 	var op := String(action.op)
 	var room: Dictionary = _rooms.get(session.room, {})
+	if op.begins_with("t_"):
+		return "No tournament is hosted here." if tournament == null else tournament.command(sid, action, revision)
+	if tournament != null:
+		if op in ["host", "join", "deck", "ready", "remove_guest", "leave", "add_bot", "remove_bot"]:
+			return "Use the Tournament Hall while this host runs a tournament."
+		if not tournament.save_error.is_empty(): return tournament.save_error
 	if not room.is_empty() and revision != int(room.revision):
 		return "The room changed. Please try again."
 	if op == "host":
@@ -390,6 +509,25 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 	var seat := int(room.seats.find(sid))
 	if seat < 0:
 		return "Seat unavailable."
+	if op in ["add_bot", "remove_bot"]:
+		if seat != 0 or room.match != null: return "Only the room host can change computer seats before play."
+		if op == "remove_bot":
+			if not _is_bot(room.seats[1]): return "No computer seat to remove."
+			_sessions.erase(room.seats[1])
+			room.seats[1] = 0
+			room.decks[1] = {}
+			room.ready = [false, false]
+		else:
+			if room.seats[1] != 0: return "The opponent's seat is occupied."
+			if not SgBotPlayer.valid(action.bot) or not SgTournament.valid_deck(action.deck): return "Choose a computer level and valid deck."
+			var bot_sid := _new_bot(action.bot, SgBotPlayer.label(action.bot) + " bot")
+			if bot_sid == 0: return "Host is full."
+			room.seats[1] = bot_sid
+			_sessions[bot_sid].room = room.id
+			room.decks[1] = action.deck.duplicate(true)
+			room.ready = [false, true]
+		room.revision += 1
+		return ""
 	if op == "remove_guest":
 		if seat != 0 or room.match != null or room.seats[1] == 0 or _connected(room.seats[1]):
 			return "Only the room host can remove a disconnected guest before the duel starts."
@@ -418,7 +556,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		var error := SgDeckCatalog.validate(action.cards, action.sideboard)
 		if not error.is_empty(): return error
 		room.decks[seat] = {"name": action.name, "cards": action.cards.duplicate(), "sideboard": action.sideboard.duplicate()}
-		room.ready = [false, false]
+		room.ready = [_is_bot(room.seats[0]), _is_bot(room.seats[1])]
 		room.revision += 1
 		return ""
 	if op == "ready":
@@ -427,6 +565,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		room.ready[seat] = action.value
 		if room.ready == [true, true] and _connected(room.seats[0]) and _connected(room.seats[1]):
 			room.match = _create_match(room.decks, [_guest_name(room.seats[0]), _guest_name(room.seats[1])])
+			_attach_bots(room)
 		room.revision += 1
 		return ""
 	if room.match == null:
@@ -440,6 +579,9 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 	# multi-step payments can also change rules state before a later refusal.
 	if error.is_empty() or generation != room.match.state_generation or draft != room.match.actions.draft:
 		room.revision += 1
+	if tournament != null:
+		var storage_error := tournament.collect_result(room)
+		if not storage_error.is_empty(): return storage_error
 	return error
 
 
@@ -453,6 +595,7 @@ func _guest_name(sid: int) -> String:
 	if not _sessions.has(sid):
 		return "Empty seat"
 	var nickname: String = _sessions[sid].nickname
+	if _is_bot(sid): return nickname
 	# Display only. Seat authority always comes from the secret session capability.
 	return "Guest %d" % sid if nickname.is_empty() else "%s (Guest %d)" % [nickname, sid]
 
@@ -473,7 +616,17 @@ func _state(sid: int) -> Dictionary:
 			"deck_names": [own.decks[0].get("name", "Forest practice"), own.decks[1].get("name", "Forest practice")],
 			"deck": own.decks[seat].duplicate(true),
 			"game": _room_game(own, seat)}
-	return {"type": "state", "rooms": rooms, "room": view}
+		if _is_bot(own.seats[0]) or _is_bot(own.seats[1]):
+			view.bots = []
+			for sid_value: int in own.seats:
+				view.bots.append(_sessions[sid_value].bot.duplicate(true) if _is_bot(sid_value) else {})
+		if own.has("t_pair") and tournament != null:
+			view.tournament = tournament.context(own)
+			view.names = []
+			for pid: int in tournament.event.pairing(own.t_pair).players: view.names.append(tournament.event.entrant(pid).name)
+	var result := {"type": "state", "rooms": rooms, "room": view}
+	if tournament != null: result.tournament = tournament.view(sid)
+	return result
 
 
 func _room_game(room: Dictionary, seat: int) -> Dictionary:
@@ -493,8 +646,9 @@ func _publish(changed_room := "*", requester := 0, listings := true) -> void:
 	if refresh_all: _view_cache.clear()
 	elif not changed_room.is_empty(): _view_cache.erase(changed_room)
 	for sid: int in _sessions:
-		if _connected(sid):
-			if refresh_all or sid == requester or (not changed_room.is_empty() and _sessions[sid].room == changed_room) or listings:
+		if _connected(sid) and not _is_bot(sid):
+			if refresh_all or sid == requester or (tournament != null and sid == tournament.organiser) \
+				or (not changed_room.is_empty() and _sessions[sid].room == changed_room) or listings:
 				_pending_publish[sid] = true
 	if not _flush_queued:
 		_flush_queued = true
@@ -506,4 +660,4 @@ func _flush_publish() -> void:
 	var pending := _pending_publish.keys()
 	_pending_publish.clear()
 	for sid in pending:
-		if _connected(sid): _send(_sessions[sid].peer, _state(sid))
+		if _connected(sid) and not _is_bot(sid): _send(_sessions[sid].peer, _state(sid))

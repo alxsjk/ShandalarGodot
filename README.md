@@ -37,6 +37,19 @@ opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
 sideboarding. The Deck Builder supports large cards, live filters and
 keyboard browsing. Adventure and online multiplayer are still to come.
 
+**LAN development:** the `sgmanalink` branch adds local-network duels and
+[random-draw knockout tournaments](docs/sgmanalink-tournaments.md), including
+up to **20 players**, configurable match lengths and deck policies, an
+organiser's Master Panel, graphical advancement and final standings.
+[Computer seats](docs/sgmanalink-computer-players.md) use the same four local
+opponents and separate Unfair challenge; choose how many to add to a tournament.
+Use matching development builds; these features are not in the 0.20.0 downloads.
+Internet play, permanent accounts and MElo are parked for now.
+
+This branch also adds an in-game [Booster Draft](docs/booster-draft.md): choose
+sets/cards, open random packs, and build against a countdown with automatic saves.
+Find it under Options; no command-line launcher is needed.
+
 ## Philosophy
 
 **The limitation is the feature.** Preserve the finite early-Magic pool
@@ -105,15 +118,16 @@ The [DeckLab manual](DeckLab/README.md) has examples and all options.
 Planned features, not part of 0.20.0:
 
 - [ ] **Adventure** — the Shandalar world, quests and campaign.
-- [ ] **Manalink** — first, browse, host and join individual online duels;
-  later, host complete tournaments, including booster opening and drafting.
+- [ ] **SGManalink** — LAN duels and tournaments are the current focus on
+  the dedicated branch. Tournament-integrated booster opening and drafting
+  remain later work; the timed standalone draft builder is available here.
 - [ ] **Commander mode** — dedicated rules and deck-building support.
 - [ ] **Cardpacks** — optional card-set expansions, separate from the core pool.
-- [ ] **Community MElo (Magic Elo)** — a big long-term wish: a simple,
-  elegant global player rating and ranking system for the community. :)
+- [ ] **Internet play and community MElo (Magic Elo)** — parked until
+  resources allow. No authentication or ranking service is required for LAN play.
 
 Experienced multiplayer, networking and backend developers are especially
-welcome to help bring Manalink, tournaments and community rankings to life.
+welcome to help improve LAN play and explore those longer-term ideas.
 
 See the [development roadmap](docs/ROADMAP.md#major-features-for-the-future)
 for the longer record.

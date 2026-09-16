@@ -5,6 +5,17 @@ public Internet release. No Nakama, account service, central directory or
 MElo is required. Offline duels, hotseat, demonstration and Deck Builder
 retain their existing code paths.
 
+The **Tournament** tab adds [LAN knockout events](sgmanalink-tournaments.md)
+with 2–20 entrants, a separate or participating organiser, first to 1/2/3 wins,
+fixed/approved/own deck policies, a live Master Panel, an advancement diagram
+and final standings. [Computer opponents](sgmanalink-computer-players.md) can fill
+duel rooms and a chosen number of tournament seats. Protocol **10** requires
+matching updated builds on every computer; old LAN development builds cannot join.
+Internet play and MElo are parked.
+
+The [latest gameplay review](sgmanalink-gameplay-parity-2026-09-15.md) records
+the match introduction, tested gameplay boundaries and remaining manual checks.
+
 For repeatable automated network play, see the
 [network campaign](sgmanalink-network-campaign.md). It runs two fair-information
 coverage pilots over real TLS, including duplicate commands and reconnects.
@@ -40,7 +51,11 @@ builds do not contain this LAN milestone.
    shows an explanation. Both choose **Ready**.
    Changing either deck or replacing an opponent clears both Ready flags so
    both players can review again. Reconnecting the same seat preserves readiness.
-7. Play on the **same duel screen as an offline duel**. The coin-toss winner
+7. Review the **online match introduction**: both player/deck names, the actual
+   room rules, **Unrated** and **No ante**. Choose **Continue** when ready;
+   this appears once before the duel, not every turn. The information stays
+   beside your opening hand while you decide whether to keep or redraw.
+   Play on the **same duel screen as an offline duel**. The coin-toss winner
    chooses Play first or Draw first; keep or redraw when prompted. Click a hand
    card, choose any mode/X, then click its targets on the table, portraits, spell
    chain or public pile. If mana is needed, tap sources without cancelling the
@@ -100,6 +115,9 @@ free combat-damage assignment. The referee flips the coin; its winner chooses
 whether to play or draw first.
 There is no between-games sideboarding, match series or ante in this milestone.
 
+That paragraph describes an ordinary duel room. Tournament pairings support
+multi-game series but retain locked decks, no sideboarding and no ante.
+
 Online play subclasses the existing `DuelScreen`, rather than maintaining a
 second approximation. The same battlefield layout, full-size preview, draggable
 hand, portraits, phase/combat bars, Combat window, spell chain, target arrows,
@@ -142,7 +160,8 @@ representative mechanic tests are not an exhaustive online playtest of every car
   seconds. Each host replies directly to the querying computer; there is
   no shared directory. Listings expire after seven seconds without replies.
 - Listings contain a temporary host name, address, game port, public
-  certificate fingerprint and open-room count. They contain no invitations,
+  certificate fingerprint, open-room count and, when present, tournament name.
+  They contain no invitations,
   access/resume secrets, private keys, hands or decks. Discovery is not an
   identity guarantee; the separately shared invitation pins the TLS host.
 - Default gameplay port: **TCP 17897**, or the port selected by the host.
@@ -216,12 +235,17 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   disconnected guests expire after 30 seconds and may be reclaimed sooner
   when capacity is needed. Before the duel starts, the room host can choose
   **Remove disconnected guest**. Connected guests cannot be removed this way.
+  Tournament entrants are an exception: their entries are reserved, not
+  automatically forfeited. The organiser explicitly withdraws absent entrants;
+  the separate recovery code can reclaim an entry after closing the application.
 - Closing the client lobby forgets its seat; it cannot be recovered by
   reopening. Departure requests release it immediately; if the request cannot
   reach the host, the disconnect grace applies. Concede before intentionally
   leaving a running match. Host shutdown loses all room/session state;
-  there is no durable match journal.
-- Limits: eight connections, sixteen guest sessions, eight rooms per host;
+  there is no durable live-duel journal. Tournament pairings and completed game
+  scores have private checkpoints; interrupted games restart, not resume.
+- Limits: twenty-four connections (twenty entrants, organiser and reconnect headroom),
+  forty-eight guest sessions, ten rooms per host;
   bounded JSON nesting, arrays, bytes, command queues and acknowledgements;
   32 KiB commands, 2 MiB views and a 512-card limit per transmitted collection
   (legal-block adjacency is bounded separately by rows and columns);
@@ -234,10 +258,10 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   dispatch. Duplicate/contradictory card locations, absent combat-card references
   and unknown keyword values are rejected before replacing the client view.
   Seat authorization comes from the connection, not a player
-  number submitted by the client. The data protocol is version 7 (both players
-  need this updated build, including the public cosmetic palette field);
+  number submitted by the client. The data protocol is version 11 (all players
+  need this updated build, including computer seats and tournament welcome messages);
   the invitation keeps the `sglan1:` envelope prefix and carries the same
-  protocol-7 compatibility check inside it. A handshake fingerprint additionally
+  protocol-11 compatibility check inside it. A handshake fingerprint additionally
   checks the release version, maintained rules revision and printed card catalogue.
   It detects incompatible builds, not modified-client cheating or player identity.
   Invalid invitations, expired seats, incompatible builds and full hosts report
@@ -307,9 +331,9 @@ reproductions, recovery checks and verification results.
 The [visual parity review](sgmanalink-visual-parity-2026-09-15.md) records the
 matched native-rendering checks and subsequent presentation corrections.
 
-Next: two-computer full-deck playtests; then
-Internet invitations and decentralized public discovery. Account providers,
-MElo and tournaments are parked future options, not prerequisites for LAN
-play. See [the design](sgmanalink-design.md), the
+Next: two-computer full-deck and tournament playtests. Internet invitations,
+public discovery, account providers and MElo are parked; none is required for
+LAN play. See [the tournament guide](sgmanalink-tournaments.md),
+[the design](sgmanalink-design.md), the
 [authentication options](sgmanalink-authentication.md) and
 [block-MElo exploration](block-MElo.md).

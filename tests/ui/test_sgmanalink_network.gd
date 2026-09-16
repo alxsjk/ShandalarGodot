@@ -515,6 +515,8 @@ func test_two_network_clients_finish_a_duel_using_only_their_views() -> void:
 			if not peer.state.room.is_empty():
 				screen.present(peer.state.room, peer.online, peer.busy()))
 		screen.present(peer.state.room, peer.online, peer.busy())
+		assert_not_null(screen._intro_overlay)
+		screen._intro_overlay.go_pressed.emit()
 		screens.append(screen)
 	var played_land: Dictionary = {}
 	var commands := 0

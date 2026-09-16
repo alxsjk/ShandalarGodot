@@ -209,7 +209,7 @@ const MENU_COMMANDS: Array[String] = [
 ## the game HAS, so it had nothing to stand in for a card it did not.
 const EXTRA_COMMANDS: Array[String] = [
 	"Undo", "Big cards", "Filters", "Add basic land", "Add proxy card", "Copy deck to",
-	"Deck notes", "Sideboard", "Import deck", "Export deck",
+	"Deck notes", "Sideboard", "Import deck", "Export deck", "Booster Draft",
 ]
 
 ## [QoL] The heading over the format analysis, in the three places that
@@ -1702,6 +1702,7 @@ func _run_command(label: String) -> void:
 		"Sideboard": _open_sideboard_dialog()
 		"Import deck": _open_import_dialog()
 		"Export deck": _open_export_dialog()
+		"Booster Draft": DraftSetup.open_on(self)
 
 
 # ------------------------------------------------- [QoL] the deck slots --
@@ -1925,7 +1926,7 @@ const SEALED_BRIEF := "Make the most of the random selection, and make yourself 
 ## ceiling. The captions are the owner's pack shapes verbatim.
 const SEALED_ROWS: Array = [
 	["Booster packs", "boosters",
-		"15 cards — 1 rare or legend, 3 uncommons, 1 land, 10 commons",
+		"15 cards — 1 rare, 3 uncommons, 1 land, 10 commons",
 		SealedPool.MOST_PACKS],
 	["Starter packs", "starters",
 		"the tournament pack: 60 cards — 3 rares, 9 uncommons, 26 commons, 22 lands",
@@ -2827,8 +2828,12 @@ func _open_mini_menu() -> void:
 	# the Cancel button and the gap above it — measured, because a fixed
 	# 430 put the last two entries under the button when the menu grew.
 	var labels := _command_labels()
+	# Keep a growing command list on the viewport. The draft entry pushed
+	# the old 8px-gap menu four pixels beyond each edge at 1280×800.
+	var gap := 4.0 if 72.0 + 32.0 * labels.size() > size.y - 24.0 else 8.0
 	var dialog := OriginalDialog.create("",
-		Vector2(380, 72.0 + 32.0 * labels.size()))
+		Vector2(380, 72.0 + (24.0 + gap) * labels.size()))
+	dialog.body().add_theme_constant_override("separation", int(gap))
 	for label in labels:
 		var line := _menu_line(_menu_text(label))
 		line.pressed.connect(func() -> void:

@@ -688,7 +688,8 @@ func test_manalink_opens_a_closeable_local_lobby_without_connecting() -> void:
 			ok = node
 	assert_string_contains(explanation, "Manalink")
 	assert_string_contains(explanation, "Full implemented card pool")
-	assert_string_contains(explanation, "Internet discovery and MElo are future features.")
+	assert_string_contains(explanation, "LAN tournaments are in Tournament.")
+	assert_string_contains(explanation, "Internet play and MElo are parked.")
 	assert_true(notice is SgLobby)
 	assert_false((notice as SgLobby).client.online)
 	assert_null((notice as SgLobby).service, "opening the globe starts no listener")

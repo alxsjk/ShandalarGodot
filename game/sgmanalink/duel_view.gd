@@ -6,6 +6,8 @@ extends DuelScreen
 signal action_requested(action: Dictionary)
 signal reconnect_requested
 signal exit_requested
+signal hall_requested
+signal tournament_requested
 
 var projection := SgDuelProjection.new()
 var _room: Dictionary = {}
@@ -21,15 +23,17 @@ var _auto_pay_requested := false
 var _last_cue := -1
 var _last_visual_event := -1
 var _network_badge: Button
-var _network_opening: OpeningWindow
+var _network_opening: SgDuelOpening
 var _network_dialog: OriginalDialog
 var _connection_status: Label
 var _opening_snapshot: Dictionary = {}
 var _opening_started := false
+var _intro_seen := false
 var _shown_choice: Dictionary = {}
 var _result_seen := false
 var _hosting := false
 var _announcement_refused := false
+var _tournament_panel_open := false
 
 
 func _ready() -> void:
@@ -48,7 +52,8 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 	_presenting = true
 	_room = room.duplicate(true)
 	if _awaiting_ack and int(room.revision) > _sent_revision and not busy: _awaiting_ack = false
-	projection.locked = not online or busy or _awaiting_ack or not (room.connected[0] and room.connected[1])
+	projection.locked = not online or busy or _awaiting_ack or not (room.connected[0] and room.connected[1]) \
+		or bool(room.get("tournament", {}).get("paused", false))
 	projection.ingest(_room)
 	hidden_hands.assign([] if projection.players[1].hand_revealed else [1])
 	if not _built:
@@ -59,6 +64,11 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 			config.player_names[pid] = room.names[remote]
 			config.deck_names[pid] = room.deck_names[remote]
 			config.panel_colors[pid] = room.game.presentation.players[remote].color
+			var bot: Dictionary = room.get("bots", [{}, {}])[remote]
+			if not bot.is_empty():
+				# Presentation metadata only. No computer player runs on a client.
+				config.pilots[pid] = SgBotPlayer.create(pid, bot).profile
+				config.unfair[pid] = bot.unfair
 		config.decks[0] = room.deck.cards.duplicate() if not room.deck.is_empty() else []
 		_humans[0] = HumanAgent.new()
 		projection.action_requested.connect(_dispatch)
@@ -80,13 +90,13 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 		# The shared death countdown starts from the last PAINTED life.
 		# A refresh here would overwrite it with the final remote total.
 		_on_game_over(game.winner)
+		if is_instance_valid(_intro_overlay): _intro_overlay.go_pressed.emit()
 	_refresh()
 	_present_cues()
-	if game.mulligan_open and not _opening_started:
+	if game.mulligan_open and not game.game_over and not _opening_started:
 		_opening_started = true
-		_toss_active = true
-		if DisplayServer.get_name() == "headless": _run_opening_hand(projection.local_seat(int(room.game.presentation.toss)))
-		else: _run_coin_toss(projection.local_seat(int(room.game.presentation.toss)))
+		_play_sfx("sfx_shuffle")
+		_run_coin_toss(projection.local_seat(int(room.game.presentation.toss)))
 	_update_opening()
 	_presenting = false
 
@@ -137,17 +147,18 @@ func _refresh() -> void:
 	# Transport state belongs beside the table controls, never on top of a
 	# combat/target/payment instruction. Even a brief ACK wait used to flash
 	# over the phase message on every action.
-	_network_badge.text = "Online"
+	_network_badge.text = "Tournament" if _room.has("tournament") else "Online"
 	if not _online: _network_badge.text = "Reconnect"
 	elif not _room.connected[0] or not _room.connected[1]: _network_badge.text = "Suspended"
 	elif _busy or _awaiting_ack: _network_badge.text = "Sending…"
-	_network_badge.tooltip_text = _connection_message() + "\nClick for connection controls.\n" \
+	_network_badge.tooltip_text = _connection_message() + ("\nClick for the Tournament Hall and duel controls.\n" if _room.has("tournament") else "\nClick for connection controls.\n") \
 		+ "Friendly, unrated player-hosted duel. Hidden opponent cards are not sent to this client; the host runs the referee."
 	if is_instance_valid(_connection_status): _connection_status.text = _connection_message()
 
 
 func _connection_message() -> String:
 	if not _online: return "Reconnecting to the host. Your last confirmed table is shown."
+	if bool(_room.get("tournament", {}).get("paused", false)): return "Tournament paused: the organiser must retry saving progress."
 	if not _room.connected[int(_room.seat)]:
 		return "Restoring your seat. The duel is suspended."
 	if not _room.connected[1 - int(_room.seat)]:
@@ -481,13 +492,36 @@ func _on_choice_option(index: int) -> void:
 		_build_choice_overlay(game.awaiting_choice)
 
 
-## Keep the shared splash, but never navigate into the offline setup from
-## an online session. The child-owned wait also ends safely on disconnect.
+func _run_coin_toss(first: int) -> void:
+	_toss_active = true
+	await _run_intro()
+	if not is_inside_tree(): return
+	# A restored snapshot or an opponent conceding may finish the opening
+	# while this player reads. Never replay it over an active/finished duel.
+	if game.mulligan_open and not game.game_over and DisplayServer.get_name() != "headless":
+		_play_sfx("sfx_toss")
+		var toss := CoinToss.new()
+		toss.z_index = 250
+		if _audio != null: toss.video_skipped.connect(_audio.stop.bind("sfx_toss"))
+		add_child(toss)
+		_toss_overlay = toss
+		await toss.run(config, first, _is_human(first), _human_seat())
+		if is_instance_valid(toss): toss.queue_free()
+		_toss_overlay = null
+	if game.mulligan_open and not game.game_over: _run_opening_hand(first)
+	_toss_active = false
+	_refresh()
+
+
+## Once per new duel; reconnecting an active table never replays the intro.
 func _run_intro() -> void:
-	var intro := DuelIntro.new()
+	if _intro_seen: return
+	_intro_seen = true
+	var intro := SgDuelOpening.new()
 	intro.z_index = 260
 	add_child(intro)
-	intro.build(config, "Leave duel")
+	intro.build_match(config, game.rules, _room.get("tournament", {}))
+	intro.show_introduction()
 	_intro_overlay = intro
 	intro.reconfigure_pressed.connect(_request_exit)
 	await intro.go_pressed
@@ -497,23 +531,23 @@ func _run_intro() -> void:
 
 func _run_opening_hand(_winner: int) -> void:
 	_opening_snapshot.clear()
-	_network_opening = OpeningWindow.new()
+	_network_opening = SgDuelOpening.new()
 	_network_opening.z_index = 230
 	add_child(_network_opening)
+	_network_opening.build_match(config, game.rules, _room.get("tournament", {}))
 	_network_opening.answered.connect(_opening_answer)
 	_update_opening()
 	_toss_active = false
 
 
 func _update_opening() -> void:
+	for row in _hand_rows: row.visible = not game.mulligan_open and not _toss_active
 	if _network_opening == null: return
-	for row in _hand_rows: row.visible = not game.mulligan_open
 	if not game.mulligan_open or game.game_over:
 		_network_opening.close()
 		_network_opening = null
 		return
 	var deciding := projection.local_seat(int(projection.view.actor)) == 0
-	_network_opening.show_antes(game, 0)
 	var hand_view := {"cards": projection.view.hand, "color": config.panel_colors[0]}
 	if hand_view != _opening_snapshot:
 		_network_opening.show_hand(game, 0, config.panel_colors[0])
@@ -528,7 +562,8 @@ func _update_opening() -> void:
 
 
 func _opening_answer(answer: int) -> void:
-	if projection.locked: return
+	if _intro_overlay != null or _toss_active or not is_instance_valid(_network_opening): return
+	if int(projection.view.actor) != projection.seat or projection.locked: return
 	if not projection.presentation.order: _send({"op": "order", "play": answer == 0})
 	else: _send({"op": "mulligan" if answer == 0 else "keep"})
 
@@ -565,7 +600,9 @@ func _build_network_controls() -> void:
 	OriginalDialog.dress_bar_button(_network_badge)
 	_network_badge.position = Vector2(4, 4)
 	_network_badge.tooltip_text = "Unrated player-hosted duel. Your opponent's hidden hand and library are not sent to this client. The host runs the referee."
-	_network_badge.pressed.connect(_show_connection)
+	_network_badge.pressed.connect(func() -> void:
+		if _room.has("tournament"): tournament_requested.emit()
+		else: _show_connection())
 	_qol_reserve.add_child(_network_badge)
 
 
@@ -642,7 +679,7 @@ func _network_window(title: String) -> OriginalDialog:
 
 
 func _modal_open() -> bool:
-	return is_instance_valid(_network_dialog) or is_instance_valid(_network_opening) or super._modal_open()
+	return _tournament_panel_open or is_instance_valid(_intro_overlay) or is_instance_valid(_network_dialog) or is_instance_valid(_network_opening) or super._modal_open()
 
 
 func toggle_menu() -> void:
@@ -661,6 +698,22 @@ func _on_pause_chosen(action: int) -> void:
 
 
 func _request_exit() -> void:
+	if _room.has("tournament"):
+		var dialog := _network_window("Tournament duel")
+		var info := OriginalDialog.label("A concession ends this game, not the entire series. To withdraw from the tournament, use the Tournament Hall. The organiser must keep the host running.", 16)
+		info.position = Vector2(24, 60)
+		info.size = Vector2(510, 180)
+		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		dialog.add_child(info)
+		dialog.add_button("Tournament").pressed.connect(func() -> void:
+			dialog.dismiss()
+			tournament_requested.emit())
+		if not game.game_over:
+			dialog.add_button("Concede game").pressed.connect(func() -> void:
+				dialog.dismiss()
+				_send({"op": "concede"}))
+		else: dialog.add_button("Return to hall").pressed.connect(hall_requested.emit)
+		return
 	var dialog := _network_window("Leave SGManalink?")
 	var label := OriginalDialog.label("Closing the host disconnects both players and ends this hosted session." if _hosting else "Closing forgets this seat. Concede first if you want to record a result.", 16)
 	label.position = Vector2(24, 60)
@@ -672,4 +725,5 @@ func _request_exit() -> void:
 
 func _on_game_over_dismissed() -> void:
 	super._on_game_over_dismissed()
-	exit_requested.emit()
+	if _room.has("tournament"): hall_requested.emit()
+	else: exit_requested.emit()

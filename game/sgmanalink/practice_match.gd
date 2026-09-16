@@ -27,6 +27,17 @@ var panel_colors: Array[String] = ["green", "green"]
 var _zones: Array = [{}, {}]
 var journal: SgJournal
 var state_generation := 0
+var bot_options: Array = [{}, {}]
+var bots: Dictionary = {}
+
+
+func set_bot(pid: int, options: Dictionary) -> bool:
+	if pid not in [0, 1] or not game.mulligan_open or not SgBotPlayer.valid(options): return false
+	var pilot := SgBotPlayer.create(pid, options)
+	bot_options[pid] = options.duplicate(true)
+	bots[pid] = pilot
+	game.set_agent(pid, pilot)
+	return true
 
 
 func _init(seed_value := -1, decks: Array = [{}, {}], names: Array = ["Player 1", "Player 2"]) -> void:

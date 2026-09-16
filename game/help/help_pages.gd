@@ -1061,7 +1061,17 @@ static func _page_builder() -> Dictionary:
 			+ "Stats, Music, Sound Effects, Exit deck builder, Extra "
 			+ "Cards, Move by color out of deck, Undo, Big cards, Filters, Add basic land, Add proxy card, "
 			+ "Copy deck to, Deck notes, Sideboard, Import deck and Export "
-			+ "deck."),
+			+ "deck, plus Booster Draft."),
+		_text("Booster Draft opens a timed, sealed-style challenge. Choose "
+			+ "eligible sets and cards, pack counts, extra lands, random extras, "
+			+ "a time limit and a save folder, then Launch draft. It is also in "
+			+ "Options. The top-right countdown starts after the opening animation. "
+			+ "Done or time up saves the deck and dealt pool, even if your deck "
+			+ "is unfinished. Menus do not pause the timer; only dealt cards can "
+			+ "be added. On web, use the results screen's download buttons for "
+			+ "external copies. Verify saved deck compares main deck and sideboard "
+			+ "with a saved pool. For fair play, the organiser should keep the original "
+			+ "pool before building; local files can be edited."),
 		_text("Big cards switches the Showcase to the dueling "
 			+ "table's full card size and widens the left column. Its "
 			+ "checkmark is remembered for the next startup; untick it to "

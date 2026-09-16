@@ -1,4 +1,10 @@
-# SGManalink: online play and MElo
+# SGManalink: LAN duels and tournaments
+
+**Current decision, 2026-09-15:** focus this repository's multiplayer work on
+desktop LAN play and [local tournaments](sgmanalink-tournaments.md).
+Internet hosting/discovery, permanent identities and MElo are parked for lack
+of resources. The account and public-service proposals below are retained as
+design history, not a dependency or an implementation commitment.
 
 Status: design and staged implementation, 2026-09-14. Development branch:
 `sgmanalink`, starting at `5b0b037`. The first

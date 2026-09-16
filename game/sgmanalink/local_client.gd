@@ -153,6 +153,18 @@ func command(action: Dictionary) -> bool:
 	var message := {"v": SgProtocol.VERSION, "type": "command", "seq": _seq,
 		"room": String(state.room.get("id", "")),
 		"revision": int(state.room.get("revision", 0)), "action": action.duplicate(true)}
+	if String(action.get("op", "")).begins_with("t_"):
+		message.revision = int(state.get("tournament", {}).get("revision", 0))
+	if action.get("op", "") == "t_ready":
+		var event: Dictionary = state.get("tournament", {})
+		var rounds: Array = event.get("rounds", [])
+		var game_number := 0
+		if not rounds.is_empty():
+			for pair: Dictionary in rounds.back():
+				if int(pair.players[0]) == int(event.get("you", 0)) or int(pair.players[1]) == int(event.get("you", 0)):
+					game_number = int(pair.game)
+		message.action["round"] = action.get("round", rounds.size())
+		message.action["game"] = action.get("game", game_number)
 	if not SgProtocol.valid(message):
 		command_error = "This action is not supported."
 		return false

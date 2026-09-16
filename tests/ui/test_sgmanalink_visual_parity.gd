@@ -85,6 +85,7 @@ func test_result_runs_before_refresh_overwrites_the_previous_life_total() -> voi
 func test_opening_buttons_survive_snapshot_and_busy_updates() -> void:
 	referee = SgPracticeMatch.new(42)
 	var screen := _screen()
+	screen._intro_overlay.go_pressed.emit()
 	var opening := screen._network_opening
 	assert_not_null(opening)
 	var first: Button = opening._buttons[0]
@@ -96,6 +97,77 @@ func test_opening_buttons_survive_snapshot_and_busy_updates() -> void:
 	screen.present(_room(), true, false)
 	assert_same(opening._buttons[0], first)
 	assert_same(opening._buttons[1], second)
+
+
+func test_online_introduction_precedes_the_opening_decision() -> void:
+	referee = SgPracticeMatch.new(42)
+	var screen := _screen()
+	assert_not_null(screen._intro_overlay, "online match information must precede play/draw and mulligans")
+	assert_null(screen._network_opening, "opening decisions wait until the introduction is acknowledged")
+	assert_true(screen._toss_active)
+	assert_eq(screen._audio.recent.count("sfx_shuffle"), 1, "a new online duel keeps the local shuffle cue")
+	var intro := screen._intro_overlay
+	assert_true(screen._modal_open())
+	assert_null(intro._hand, "reviewing public match information does not reveal the opening hand")
+	for row in screen._hand_rows: assert_false(row.visible)
+	var text := ""
+	for label in intro.find_children("*", "Label", true, false): text += label.text + "\n"
+	for expected in ["Azure Fox", "Amber Owl", "SGManalink", "Unrated", "Unrestricted", "Mana burn: On"]:
+		assert_string_contains(text, expected)
+	watch_signals(screen)
+	screen._on_done()
+	screen._opening_answer(0)
+	assert_signal_not_emitted(screen, "action_requested")
+	screen.present(_room(), false, false)
+	assert_same(screen._intro_overlay, intro, "a disconnect does not rebuild the introduction")
+	screen.present(_room(), true, false)
+	intro.go_pressed.emit()
+	assert_null(screen._intro_overlay)
+	assert_not_null(screen._network_opening)
+	screen.present(_room(), true, false)
+	assert_null(screen._intro_overlay, "snapshots never replay a read introduction")
+	assert_eq(screen._audio.recent.count("sfx_shuffle"), 1, "reconnecting must not replay opening audio")
+
+
+func test_online_opening_has_no_fake_ante_cards() -> void:
+	referee = SgPracticeMatch.new(42)
+	var screen := _screen()
+	screen._intro_overlay.go_pressed.emit()
+	var opening := screen._network_opening
+	assert_not_null(opening)
+	for card in opening._cards:
+		assert_false(card.is_visible_in_tree(), "a no-ante online duel must not display two unexplained stakes")
+	assert_not_null(opening._hand, "the player's actual opening hand still appears")
+
+
+func test_online_introduction_maps_both_players_and_contains_long_deck_names() -> void:
+	referee = SgPracticeMatch.new(42)
+	referee.deck_names = ["White Knights ".repeat(6).strip_edges(), "Black-Red Raiders ".repeat(5).strip_edges()]
+	var screen := _screen(1)
+	for i in 8: await get_tree().process_frame
+	var intro := screen._intro_overlay
+	assert_eq(screen.config.player_names, ["Amber Owl", "Azure Fox"])
+	assert_eq(screen.config.deck_names, [referee.deck_names[1], referee.deck_names[0]])
+	var rect: Rect2 = intro._dialog.get_global_rect()
+	for label in intro.find_children("*", "Label", true, false):
+		if not label.is_visible_in_tree(): continue
+		assert_true(rect.encloses(label.get_global_rect()), label.text)
+	assert_null(intro._hand)
+	for card in intro._cards: assert_false(card.is_visible_in_tree())
+
+
+func test_finished_snapshot_during_the_introduction_preserves_the_result() -> void:
+	referee = SgPracticeMatch.new(42)
+	var screen := _screen()
+	assert_not_null(screen._intro_overlay)
+	referee.game.adjust_life(1, -22)
+	assert_true(referee.game.game_over)
+	screen.present(_room(), true, false)
+	assert_null(screen._intro_overlay)
+	assert_null(screen._network_opening)
+	assert_false(screen._toss_active)
+	assert_true(screen._result_seen)
+	assert_eq(screen.life_before_result[1], 20, "closing the introduction must not refresh away the previous life total")
 
 func test_public_palette_is_stable_and_rejects_unknown_skin_values() -> void:
 	var original: Array = referee.view(0).presentation.players.duplicate(true)

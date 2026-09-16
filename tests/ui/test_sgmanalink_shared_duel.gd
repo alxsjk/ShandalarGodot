@@ -391,6 +391,15 @@ func test_opening_order_and_network_exit_are_explicit() -> void:
 	referee = SgPracticeMatch.new(42)
 	var winner := referee.toss_winner
 	var screen := _screen(winner)
+	var intro: SgDuelOpening = screen._intro_overlay
+	intro.reconfigure_pressed.emit()
+	assert_gt(screen._network_dialog.z_index, intro.z_index)
+	assert_true(is_instance_valid(screen._intro_overlay), "leave needs confirmation, not offline navigation")
+	watch_signals(screen)
+	assert_signal_not_emitted(screen, "exit_requested")
+	for button in screen._network_dialog.find_children("*", "Button", true, false):
+		if button.text == "Close": button.pressed.emit()
+	intro.go_pressed.emit()
 	assert_not_null(screen._network_opening)
 	assert_eq(screen._network_opening.button_labels(), PackedStringArray(["Play first", "Draw first"]))
 	screen._opening_answer(1)
@@ -398,15 +407,8 @@ func test_opening_order_and_network_exit_are_explicit() -> void:
 	assert_eq(referee.first_player, 1 - winner)
 	assert_true(referee.order_chosen)
 	assert_eq(screen._network_opening.button_labels(), PackedStringArray(["Take mulligan", "Start the duel"]))
-	screen._run_intro()
-	var intro: DuelIntro = screen._intro_overlay
-	intro.reconfigure_pressed.emit()
-	assert_gt(screen._network_dialog.z_index, intro.z_index)
-	assert_true(is_instance_valid(screen._intro_overlay), "leave needs confirmation, not offline navigation")
-	watch_signals(screen)
-	assert_signal_not_emitted(screen, "exit_requested")
-	intro.go_pressed.emit()
 	assert_null(screen._intro_overlay)
+	screen._request_exit()
 	for button in screen._network_dialog.find_children("*", "Button", true, false):
 		if button.text == "Confirm close": button.pressed.emit()
 	assert_signal_emitted(screen, "exit_requested")
@@ -464,3 +466,74 @@ func test_revealed_hand_and_information_before_a_question_remain_visible() -> vo
 	for label in screen._choice_overlay.find_children("*", "Label", true, false): shown += label.text
 	assert_string_contains(shown, "Lightning Bolt")
 	assert_true(referee.view(1).choice.is_empty())
+
+
+func test_mana_burn_life_and_original_cue_reach_both_seats_once() -> void:
+	g.rules.mana_burn = true
+	advance_to_step(Mtg.Step.MAIN1)
+	var screens := [_screen(), _screen(1)]
+	add_mana(0, Mtg.ManaColor.R, 3)
+	assert_ok(g.pass_priority(0))
+	assert_ok(g.pass_priority(1))
+	assert_eq(g.players[0].life, 17)
+	revision += 1
+	for seat in 2:
+		var screen: SgDuelView = screens[seat]
+		screen.present(_room(seat), true, false)
+		assert_eq(screen.game.players[screen.projection.local_seat(0)].life, 17)
+		assert_eq(screen._audio.recent.count("sfx_mana_burn"), 1)
+		screen.present(_room(seat), true, false)
+		assert_eq(screen._audio.recent.count("sfx_mana_burn"), 1)
+
+
+func test_animated_lands_and_jaguar_reminders_match_local_card_widgets() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var swamp := put_battlefield(1, "Swamp")
+	put_battlefield(0, "Kormus Bell")
+	var jaguar := put_battlefield(1, "Aswan Jaguar")
+	resolve_stack()
+	g.recalculate()
+	for seat in 2:
+		var screen := _screen(seat)
+		var land := _local(screen, swamp)
+		assert_true(land.is_creature())
+		assert_eq(land.cur_power, 1)
+		assert_eq(land.cur_toughness, 1)
+		var reminder := screen._chosen_ghost_data(_local(screen, jaguar))
+		assert_not_null(reminder)
+		assert_eq(reminder.card_name, "No creatures")
+		assert_eq(screen.config.decks[1], [], "cosmetic reminders do not copy the opponent's deck")
+
+
+func test_damage_prevention_markers_and_circle_target_use_host_packets() -> void:
+	g.rules.damage_prevention_window = true
+	advance_to_step(Mtg.Step.MAIN1)
+	var circle := put_battlefield(0, "Circle of Protection: Red")
+	var first := put_battlefield(1, "Hill Giant")
+	var second := put_battlefield(1, "Gray Ogre")
+	add_mana(0, Mtg.ManaColor.W, 2)
+	g.deal_damage(first, TargetRef.player(0), 3)
+	g.deal_damage(second, TargetRef.player(0), 2)
+	for i in 4:
+		if g.awaiting_damage_prevention: break
+		assert_ok(g.pass_priority(g.priority_player))
+	assert_true(g.awaiting_damage_prevention)
+	# Entering the next step emptied the earlier floating pool.
+	add_mana(0, Mtg.ManaColor.W, 2)
+	var screen := _screen()
+	assert_eq(screen._damage_markers.markers().size(), 2)
+	assert_string_contains(screen._prompt_label.text, "Damage prevention")
+	screen._on_card_clicked(_local(screen, circle))
+	screen._on_ability_chosen(0)
+	await _pump()
+	assert_eq(screen.mode, DuelScreen.Mode.TARGETING)
+	var spec: SgTargetSpec = screen._pending_slots[0].spec
+	assert_eq(spec.kind, TargetSpec.Kind.DAMAGE)
+	assert_eq(spec.candidates.size(), 2)
+	# The same physical marker signal used by the local duel.
+	var marker = screen._damage_markers.markers()[0]
+	marker.pressed.emit()
+	await _pump()
+	assert_eq(refusals, [])
+	assert_eq(g.stack.size(), 1)
+	if not g.stack.is_empty(): assert_true(g.stack[0].targets[0].is_damage)

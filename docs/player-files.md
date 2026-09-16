@@ -10,7 +10,7 @@ your file manager names them.
 It is where the game WRITES, with one exception asked for by name: the
 running duel log, `duel_log.txt`, is kept beside the executable so it is
 where you look for it (and under `user://` instead when that directory
-cannot be written). Nothing else is written outside your home directory.
+cannot be written). Draft and tournament saves can also use a folder you explicitly choose.
 
 In configurable paths, `~` uses `HOME`, or `USERPROFILE` when `HOME` is
 absent (a native Windows launch). If neither is known, the spelling is
@@ -74,6 +74,47 @@ to the running `duel_log.txt` (the raw referee log can contain hidden informatio
 The normal log window's **Save** button explicitly saves only your received history
 to `user://duel_log_<ms>.txt`. Such a saved log can include private looks that card
 rules authorized for your seat; consider that before sharing it.
+
+### Private LAN tournament progress
+
+The organiser's checkpoints live in **`user://tournaments/`**, or the folder
+selected in **Tournament setup → Save folder** (the optional
+`tournaments_folder` settings key). Browse, type a path or restore Default;
+the saved-event list follows the chosen folder. Existing saves are not moved
+and the path is never sent to other players. Each tournament has
+a random filename ending in `.json`, with a last-good `.json.bak` backup; a
+`.json.tmp` may remain after an interrupted write. **Keep these files private:**
+they contain registered decklists, names, the welcome message, pairings, scores and recovery-code
+hashes. They contain no live hands, library order, duel seeds, TLS private keys,
+invitations or plaintext recovery codes. Nothing is uploaded.
+
+Players can explicitly copy their own recovery code from the Tournament Hall
+and save it privately. The game does not put plaintext codes in settings or
+logs; clipboard history may retain a copied code. Reopening an application
+requires the current host invitation and this code to recover the entry.
+Restoring a tournament on the host preserves completed scores but restarts
+interrupted games. Use the same build for checkpoint recovery.
+Tournament welcome support uses protocol 11. Earlier protocol-8/9/10 checkpoints are
+not migrated or deleted; they require their original compatible build to recover.
+Computer entries also save their level, separate Unfair flag, pace and deck;
+their seats are recreated without issuing player recovery codes.
+
+### Booster Draft decks and dealt pools
+
+**Options → Booster Draft** saves to `user://decks` by default, or an explicitly
+chosen `drafts_folder`. Each session creates a unique `draft-….deck` plus a
+`draft-….pool.json` receipt of all dealt cards. Recovery writes use `.pending`
+files; successful writes replace them. `draft_pool_cards` and `draft_options`
+remember eligibility and launch settings in `settings.cfg`. No directory is
+created and no default key is written merely by opening setup.
+
+Desktop results can open the save folder. Web keeps the files in browser storage
+and offers Download deck/Download pool for external copies. See
+[Booster Draft](booster-draft.md) for timer, pack and recovery behavior.
+The pool receipt is written before building. **Verify saved deck…** in draft
+setup compares main deck plus sideboard quantities against an original receipt,
+without changing either file. Organisers should keep that original themselves;
+player-editable files are not tamper-proof.
 
 ## What ships inside the pack (read-only)
 

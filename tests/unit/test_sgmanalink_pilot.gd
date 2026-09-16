@@ -86,6 +86,51 @@ func test_no_target_cancels_before_tapping_mana() -> void:
 	assert_eq(terror.zone, Mtg.Zone.HAND)
 
 
+func test_network_pilot_waits_for_mana_tap_triggers_and_reuses_floating_mana() -> void:
+	# Eight-player campaign, draw seed 4250, semifinal game seed 4255:
+	# "Giant Spider can only be cast in your main phase with an empty stack".
+	# The local Wizard already waits here; the DTO-only test pilot did not.
+	advance_to_step(Mtg.Step.MAIN1)
+	var spider := give_hand(0, "Giant Spider")
+	for i in 6: put_battlefield(0, "Forest")
+	put_battlefield(1, "Manabarbs")
+	var referee := _referee()
+	var pilot := Pilot.new()
+	assert_ok(referee.act(0, pilot.choose(referee.view(0), 0)))
+	assert_ok(referee.act(0, pilot.choose(referee.view(0), 0)))
+	assert_eq(g.stack.size(), 4)
+	var decision: Dictionary = pilot.choose(referee.view(0), 0)
+	assert_eq(decision.op, "cancel", "wait for the tap triggers before attempting a sorcery-speed cast")
+	if decision.op != "cancel": return
+	assert_ok(referee.act(0, decision))
+	var turn := g.turn_number
+	for i in 40:
+		if spider.zone == Mtg.Zone.BATTLEFIELD: break
+		var seat: int = referee.decision_state().actor
+		var action: Dictionary = pilot.choose(referee.view(0), 0) if seat == 0 else {"op": "pass"}
+		assert_ok(referee.act(seat, action))
+	assert_eq(spider.zone, Mtg.Zone.BATTLEFIELD, "a temporary delay must not blacklist the spell for the whole phase")
+	assert_eq(g.turn_number, turn)
+	assert_eq(g.players[0].life, 16, "exactly four taps, with no duplicate payment")
+	assert_eq(g.players[0].battlefield.filter(func(card: CardInstance) -> bool: return card.is_land() and not card.tapped).size(), 2)
+
+
+func test_network_pilot_can_still_submit_an_instant_over_mana_tap_triggers() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	give_hand(0, "Lightning Bolt")
+	put_battlefield(0, "Mountain")
+	put_battlefield(1, "Manabarbs")
+	var referee := _referee()
+	var pilot := Pilot.new()
+	assert_ok(referee.act(0, pilot.choose(referee.view(0), 0)))
+	assert_ok(referee.act(0, pilot.choose(referee.view(0), 0)))
+	assert_eq(g.stack.size(), 1)
+	var decision: Dictionary = pilot.choose(referee.view(0), 0)
+	assert_eq(decision.op, "submit", "instant timing is still legal over the trigger")
+	assert_ok(referee.act(0, decision))
+	assert_eq(g.stack.size(), 2)
+
+
 func test_public_oracle_normalizes_handles_but_detects_target_changes() -> void:
 	advance_to_step(Mtg.Step.MAIN1)
 	# Give seat zero an extra private capability before shared ones are issued.

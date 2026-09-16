@@ -27,8 +27,12 @@ static func valid(message: Dictionary) -> bool:
 		"fatal":
 			return SgProtocol.exact(message, ["type", "error"]) and text(message.error, 512)
 		"state":
-			if not SgProtocol.exact(message, ["type", "rooms", "room"]) \
-				or not message.rooms is Array or message.rooms.size() > 8 or not room(message.room):
+			var fields := ["type", "rooms", "room"]
+			if message.has("tournament"):
+				fields.append("tournament")
+				if not SgTournamentProtocol.view(message.tournament): return false
+			if not SgProtocol.exact(message, fields) \
+				or not message.rooms is Array or message.rooms.size() > SgLocalServer.MAX_ROOMS or not room(message.room):
 				return false
 			for item in message.rooms:
 				if not item is Dictionary or not SgProtocol.exact(item, ["id", "name", "host", "open"]) \
@@ -53,7 +57,16 @@ static func room(value: Variant) -> bool:
 		return false
 	if value.is_empty():
 		return true
-	if not SgProtocol.exact(value, ["id", "name", "seat", "names", "revision", "ready", "connected", "game", "deck_names", "deck"]) \
+	var fields := ["id", "name", "seat", "names", "revision", "ready", "connected", "game", "deck_names", "deck"]
+	if value.has("bots"):
+		fields.append("bots")
+		if not value.bots is Array or value.bots.size() != 2: return false
+		for bot in value.bots:
+			if not bot is Dictionary or (not bot.is_empty() and not SgBotPlayer.valid(bot)): return false
+	if value.has("tournament"):
+		fields.append("tournament")
+		if not SgTournamentProtocol.context(value.tournament): return false
+	if not SgProtocol.exact(value, fields) \
 		or not SgProtocol.short_text(value.id, 16) or not SgProtocol.short_text(value.name) \
 		or not SgProtocol.integer(value.seat, 0, 1) or not SgProtocol.integer(value.revision) \
 		or not pair(value.names) or not pair(value.ready, true) or not pair(value.connected, true) \

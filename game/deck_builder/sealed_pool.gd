@@ -27,7 +27,7 @@ extends RefCounted
 ## yourself a min 40 card deck"*. The tournament ladder is not here.
 ##
 ## THE PACKS are the era's own shapes, given by the owner and matching the
-## printed product: a BOOSTER is fifteen cards — one rare or legend, three
+## pack shape: a BOOSTER is fifteen cards — one rare, three
 ## uncommons, one basic land, ten commons — and a STARTER (the 1997
 ## strings' word; the owner's "tournament pack") is sixty — three rares,
 ## nine uncommons, twenty-six commons and twenty-two basic lands. On top
@@ -36,15 +36,11 @@ extends RefCounted
 ## is never the reason a pool is unplayable) and, the owner's own addition,
 ## a handful of cards drawn from the whole library with no rarity at all.
 ##
-## THE SHEETS a slot draws from are the four rarity tiers the deck builder
-## already letters cards with ([method DeckStats.rarity_tier]): the rare
-## slot takes the R and L sheets together — *"1 rare or legendary"* is the
-## brief, and it is also the printed fact, since the sixty-one legends were
-## printed at rare and uncommon both and the tier says what a card IS —
-## the uncommon slot the U sheet, the common slot the C sheet with the
-## basic lands lifted out of it (they have their own slot), and the land
-## slot the five basics. A card the data cannot place (a proxy, a printing
-## outside the eight sets) is on no sheet.
+## THE SHEETS use printed rarity from DeckStats.rarity_of, NOT the decorative
+## L marker: legendary is a supertype, and uncommon legends belong in the
+## uncommon sheet. Basic lands have their own sheet. The game's canonical
+## rarity per name is used across eligible sets, not factory/set-specific
+## collation. A card the data cannot place is on no sheet.
 ##
 ## WITHIN ONE PACK a sheet is drawn without replacement — a booster does
 ## not hold two Craw Wurms — and across packs the sheets are whole again,
@@ -120,14 +116,9 @@ static func sheets(library: Array) -> Dictionary:
 	for data in library:
 		if data == null:
 			continue
-		if (data.supertypes & Mtg.Supertype.BASIC) != 0:
-			out["land"].append(data.card_name)
-			continue
-		var tier := DeckStats.rarity_tier(data)
-		if tier == "legendary":
-			tier = "rare"
+		var tier := "land" if (data.supertypes & Mtg.Supertype.BASIC) != 0 else DeckStats.rarity_of(data.card_name)
 		if out.has(tier):
-			out[tier].append(data.card_name)
+			if not out[tier].has(data.card_name): out[tier].append(data.card_name)
 	for slot in out:
 		out[slot].sort()
 	return out
@@ -236,8 +227,8 @@ static func slot_of(card_name: String) -> String:
 		return ""
 	if (data.supertypes & Mtg.Supertype.BASIC) != 0:
 		return "land"
-	var tier := DeckStats.rarity_tier(data)
-	return "rare" if tier == "legendary" else tier
+	var tier := DeckStats.rarity_of(card_name)
+	return tier if SLOT_ORDER.has(tier) else ""
 
 
 ## The tally in a sentence: "105 cards — 6 rare, 18 uncommon, 56 common,

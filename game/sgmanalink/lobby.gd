@@ -53,6 +53,13 @@ var _deck_selected: Dictionary = {}
 var _deck_submission: Dictionary = {}
 var _deck_status: Label
 var _content_scroll: ScrollContainer
+var _tournament_panel: SgTournamentPanel
+var _tournament_pending: Dictionary = {}
+var _tournament_id := ""
+var _master_overlay: Control
+var _master_panel: SgTournamentPanel
+var _expand_tournament: Button
+var _bot_draft: Dictionary = {}
 
 
 func _ready() -> void:
@@ -86,13 +93,13 @@ func _ready() -> void:
 	heading.add_child(masthead)
 	_title = SgLobbyStyle.label("SGManalink", 30, true)
 	masthead.add_child(_title)
-	masthead.add_child(SgLobbyStyle.label("A familiar table. A new opponent.", 16, true))
+	masthead.add_child(SgLobbyStyle.label("Local network only", 16, true))
 	_close_button = _button("Close", _close, Vector2(120, 38))
 	_close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	heading.add_child(_close_button)
 	var navigation := SgLobbyStyle.row(column)
 	_navigation_bar = navigation
-	for entry in [["Overview", "home"], ["Identity", "identity"], ["Host Game", "host"], ["Game Browser", "browser"]]:
+	for entry in [["Overview", "home"], ["Identity", "identity"], ["Host Game", "host"], ["Game Browser", "browser"], ["Tournament", "tournament"]]:
 		var button := _button(entry[0], _show_page.bind(entry[1]), Vector2(100, 36))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.toggle_mode = true
@@ -108,7 +115,7 @@ func _ready() -> void:
 	_connection_controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_connection_controls.add_theme_constant_override("separation", 14)
 	_content_scroll.add_child(_connection_controls)
-	for key in ["home", "identity", "host", "browser"]:
+	for key in ["home", "identity", "host", "browser", "tournament"]:
 		var page := VBoxContainer.new()
 		page.name = key.capitalize() + "Window"
 		page.add_theme_constant_override("separation", 14)
@@ -118,13 +125,19 @@ func _ready() -> void:
 	_build_identity(_pages.identity)
 	_build_host(_pages.host)
 	_build_browser(_pages.browser)
+	_expand_tournament = SgLobbyStyle.button("Expand Tournament Hall", _open_master)
+	_pages.tournament.add_child(_expand_tournament)
+	_tournament_panel = SgTournamentPanel.new()
+	_tournament_panel.host_requested.connect(_host_tournament)
+	_tournament_panel.action_requested.connect(_send)
+	_pages.tournament.add_child(_tournament_panel)
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", 12)
 	_connection_controls.add_child(_body)
 	_notice = SgLobbyStyle.label("", 15, true)
 	_notice.custom_minimum_size.y = 20
 	column.add_child(_notice)
-	var footer := SgLobbyStyle.label("DESKTOP LAN  /  FRIENDLY DUELS  /  UNRATED", 13, true)
+	var footer := SgLobbyStyle.label("DESKTOP LAN  /  DUELS & TOURNAMENTS  /  UNRATED", 13, true)
 	footer.add_theme_color_override("font_color", SgLobbyStyle.GOLD)
 	column.add_child(footer)
 	resized.connect(_layout_window)
@@ -167,7 +180,8 @@ func _build_home(page: VBoxContainer) -> void:
 	guide.add_child(_label("In the room, choose your decks and select Ready. Both players must be ready to begin.", 17))
 	var note := SgLobbyStyle.column(page, "", false)
 	note.add_child(SgLobbyStyle.label("Play with a host you trust. Their computer runs the referee and must stay open.", 15, true))
-	note.add_child(SgLobbyStyle.label("No account required. Temporary names are not reserved.\nInternet discovery and MElo are future features.", 15, true))
+	note.add_child(SgLobbyStyle.label("No account required. Temporary names are not reserved.\nLAN tournaments are in Tournament. Internet play and MElo are parked.", 15, true))
+	note.add_child(SgLobbyStyle.label("Host up to 20 tournament players. Follow the advancement diagram, live results and final standings in the Tournament Hall.", 15, true))
 
 func _build_identity(page: VBoxContainer) -> void:
 	var body := SgLobbyStyle.column(page, "Your name at the table")
@@ -310,7 +324,7 @@ func _save_identity() -> void:
 
 
 func _show_page(page: String) -> void:
-	if page not in ["home", "identity", "host", "browser", "room"]:
+	if page not in ["home", "identity", "host", "browser", "room", "tournament"]:
 		return
 	if page == "identity" and (client.has_session() or client.online or client.connecting() or service != null):
 		_notice.text = "Your current guest name stays fixed until you disconnect."
@@ -342,7 +356,9 @@ func _restore_focus() -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if is_instance_valid(_deck_picker):
+		if is_instance_valid(_master_overlay):
+			_close_master()
+		elif is_instance_valid(_deck_picker):
 			_close_decks()
 		elif is_instance_valid(_duel):
 			_duel.toggle_menu()
@@ -371,6 +387,66 @@ func _host_game() -> void:
 	_start_lan()
 	if service == null:
 		_host_pending = false
+
+
+func _host_tournament(options: Dictionary, restore_path: String) -> void:
+	if client.busy(): return
+	_tournament_pending = {"options": options.duplicate(true), "path": restore_path,
+		"folder": GamePaths.tournaments_folder()}
+	if service == null:
+		if client.has_session() or client.online or client.connecting():
+			_notice.text = "Disconnect from the other host before hosting your own tournament."
+			_tournament_pending.clear()
+			return
+		_start_lan()
+		if service == null: _tournament_pending.clear()
+	_queue_refresh()
+
+
+func _close_master() -> void:
+	if is_instance_valid(_master_overlay):
+		_master_overlay.get_parent().remove_child(_master_overlay)
+		_master_overlay.queue_free()
+	_master_overlay = null
+	_master_panel = null
+	if is_instance_valid(_duel):
+		_duel._tournament_panel_open = false
+		_duel.focus_action()
+
+
+func _open_master() -> void:
+	if client.state.get("tournament", {}).is_empty(): return
+	_close_master()
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.025, 0.02, 1.0)
+	dim.z_index = 500
+	add_child(dim)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_master_overlay = dim
+	var margin := MarginContainer.new()
+	dim.add_child(margin)
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for edge in ["left", "right", "top", "bottom"]: margin.add_theme_constant_override("margin_" + edge, 24)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 14)
+	margin.add_child(column)
+	var toolbar := SgLobbyStyle.row(column)
+	toolbar.add_child(SgLobbyStyle.button("Back to duel" if is_instance_valid(_duel) else "Back to hall", _close_master, true))
+	if is_instance_valid(_duel):
+		toolbar.add_child(SgLobbyStyle.button("Duel controls", func() -> void:
+			_close_master()
+			if is_instance_valid(_duel): _duel._show_connection()))
+	toolbar.add_child(SgLobbyStyle.button("Reconnect", client.reconnect))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	_master_panel = SgTournamentPanel.new()
+	_master_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_master_panel.action_requested.connect(_send)
+	scroll.add_child(_master_panel)
+	if is_instance_valid(_duel): _duel._tournament_panel_open = true
+	_master_panel.present(client.state.tournament, client.online, client.busy(), service != null)
 
 
 func _start_service() -> void:
@@ -487,17 +563,31 @@ func _refresh() -> void:
 	if not is_inside_tree():
 		return
 	var room: Dictionary = client.state.room
+	if not _tournament_pending.is_empty() and service != null and client.online and not client.busy():
+		var pending := _tournament_pending.duplicate(true)
+		_tournament_pending.clear()
+		var error := service.open_tournament(pending.options, client._resume, pending.folder, pending.path)
+		_notice.text = error if not error.is_empty() else "Tournament opened. Share the invitation; entrants should save their recovery codes."
+	var event: Dictionary = client.state.get("tournament", {})
+	if String(event.get("id", "")) != _tournament_id:
+		_tournament_id = String(event.get("id", ""))
+		_close_master()
+		if not event.is_empty(): _page = "tournament"
 	if _host_pending and client.online and not client.busy() and room.is_empty():
 		_host_pending = false
 		_send({"op": "host", "name": _room_draft.strip_edges()})
 	if not room.is_empty():
 		_page = "room"
 	elif not _room_id.is_empty():
-		_page = "browser"
+		_page = "tournament" if not event.is_empty() else "browser"
 	if is_instance_valid(_deck_picker) and (String(room.get("id", "")) != _deck_room_id or not room.get("game", {}).is_empty()):
 		_close_decks()
 	_room_id = String(room.get("id", ""))
 	var playing: bool = not room.is_empty() and not room.game.is_empty()
+	if is_instance_valid(_duel) and _duel._built and String(_duel._room.get("id", "")) != _room_id:
+		_duel.queue_free()
+		_duel = null
+		_close_master()
 	if playing:
 		_close_decks()
 		if not is_instance_valid(_duel):
@@ -506,10 +596,18 @@ func _refresh() -> void:
 			_duel.action_requested.connect(_send)
 			_duel.reconnect_requested.connect(client.reconnect)
 			_duel.exit_requested.connect(func() -> void: queue_free())
+			_duel.hall_requested.connect(func() -> void: _send({"op": "t_return", "event": client.state.tournament.id}))
+			_duel.tournament_requested.connect(_open_master)
 		_duel.present(room, client.online, client.busy(), service != null)
 	elif is_instance_valid(_duel):
 		_duel.queue_free()
 		_duel = null
+		_close_master()
+	if _page == "tournament":
+		_expand_tournament.visible = not event.is_empty()
+		_expand_tournament.text = "Expand Master Panel" if event.get("organiser", false) else "Expand Tournament Hall"
+		_tournament_panel.present(event, client.online, client.busy(), service != null or not (client.online or client.has_session() or client.connecting() or OS.has_feature("web")))
+	if is_instance_valid(_master_panel): _master_panel.present(event, client.online, client.busy(), service != null)
 	_shell.visible = not playing
 	_connection_controls.visible = not playing
 	_status.text = client.status + ("  ·  " + client.guest if client.online else "")
@@ -537,7 +635,7 @@ func _refresh() -> void:
 	_copy.disabled = _code.text.is_empty()
 	_close_button.text = "Confirm close" if _confirm_close else "Close"
 	_title.text = {"home": "SGManalink", "identity": "Identity", "host": "Host Game",
-		"browser": "Game Browser", "room": "Duel room"}[_page]
+		"browser": "Game Browser", "room": "Duel room", "tournament": "LAN Tournament"}[_page]
 	for key in _pages:
 		_pages[key].visible = key == _page
 		_navigation[key].set_pressed_no_signal(key == _page)
@@ -589,6 +687,8 @@ func _disconnect() -> void:
 	_code.text = ""
 	_selected_host.clear()
 	_host_pending = false
+	_tournament_pending.clear()
+	_tournament_id = ""
 	_show_page("home")
 
 
@@ -618,8 +718,24 @@ func _waiting_room(room: Dictionary) -> void:
 	actions.add_child(_network_button("Leave room", func() -> void: _send({"op":"leave"})))
 	if int(room.seat) == 0 and not room.connected[1] and room.names[1] != "Empty seat":
 		rules.add_child(_network_button("Remove disconnected guest", func() -> void: _send({"op":"remove_guest"})))
+	var bots: Array = room.get("bots", [{}, {}])
+	if not bots[1].is_empty():
+		rules.add_child(_label("Computer opponent: " + SgBotPlayer.label(bots[1]) \
+			+ (" — sees your current hand" if bots[1].unfair else " — fair information"), 17))
+		if int(room.seat) == 0:
+			rules.add_child(_network_button("Remove computer opponent", func() -> void: _send({"op": "remove_bot"})))
+	elif int(room.seat) == 0 and room.names[1] == "Empty seat":
+		var bot_body := SgLobbyStyle.column(_body, "Play against the computer")
+		var setup := SgBotSetup.new()
+		bot_body.add_child(setup)
+		if _catalog.is_empty(): _catalog = SgDeckCatalog.available()
+		setup.changed.connect(func(value: Dictionary) -> void: _bot_draft = value)
+		setup.submitted.connect(func(_count: int, options: Dictionary, deck: Dictionary) -> void:
+			_send({"op": "add_bot", "bot": options, "deck": deck}))
+		setup.build(1, _catalog, _bot_draft)
+		setup.find_child("AddBots", true, false).set_meta("network_action", true)
 	var note := SgLobbyStyle.column(_body, "", false)
-	note.add_child(SgLobbyStyle.label("Deck contents go to the referee, not your opponent. Changing a deck or opponent clears both Ready marks. Disconnected seats are held for 5 minutes.", 15, true))
+	note.add_child(SgLobbyStyle.label("Deck contents go to the referee, not your opponent. Changing a deck or opponent clears human Ready marks; computer seats stay ready. Disconnected human seats are held for 5 minutes.", 15, true))
 	note.add_child(SgLobbyStyle.label("Friendly and unrated. Play with a host you trust: their computer runs the referee.", 15, true))
 	if not client.online: note.add_child(_button("Reconnect", client.reconnect))
 
@@ -754,10 +870,16 @@ func _browser() -> void:
 			for key in keys:
 				var advert: Dictionary = _discovery.hosts[key].host
 				var row := SgLobbyStyle.row(nearby)
-				row.add_child(_label("%s\n%s:%d  ·  %d open room(s)" % [advert.name, advert.address, int(advert.port), int(advert.rooms)], 16))
+				row.add_child(_label("%s\n%s:%d  ·  %d open room(s)" % [advert.name, advert.address, int(advert.port), int(advert.rooms)] \
+					+ ("\nTournament: " + String(advert.tournament) if advert.has("tournament") else ""), 16))
 				row.add_child(_button("Select", func() -> void:
 					_selected_host = advert.duplicate(true)
 					_refresh(), Vector2(120,38)))
+		return
+	if not client.state.get("tournament", {}).is_empty():
+		var event := SgLobbyStyle.column(_body, client.state.tournament.config.name)
+		event.add_child(_label("This host is running a LAN tournament. Open the hall to register or follow the results.", 17))
+		event.add_child(_button("Open Tournament Hall", _show_page.bind("tournament")))
 		return
 	var rooms := SgLobbyStyle.column(_body, "Available duels")
 	if client.state.rooms.is_empty():

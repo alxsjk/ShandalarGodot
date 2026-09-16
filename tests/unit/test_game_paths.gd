@@ -9,7 +9,7 @@ extends GutTest
 ## Remembered and put back — never written back as a default.
 const KEYS: Array[String] = [GamePaths.KEY_SKIN_ZIP, GamePaths.KEY_USE_SKIN_FOLDER,
 	GamePaths.KEY_SKIN_FOLDER, GamePaths.KEY_CARDPACKS, GamePaths.KEY_PORTRAITS,
-	GamePaths.KEY_MUSIC]
+	GamePaths.KEY_MUSIC, GamePaths.KEY_TOURNAMENTS]
 
 var _saved: Dictionary = {}
 
@@ -52,6 +52,22 @@ func test_a_key_moves_its_place() -> void:
 	var home := GamePaths._home_dir()
 	assert_eq(GamePaths.music_folder(), home + "/Music/shandalar", "~ is the home folder")
 	assert_eq(GamePaths.skin_zip(), home + "/skins/mine.zip")
+
+
+func test_tournament_folder_is_an_explicit_local_choice_without_default_writes() -> void:
+	var writes := Settings.write_count
+	assert_eq(GamePaths.tournaments_folder(), GamePaths.DEFAULT_TOURNAMENTS)
+	assert_eq(GamePaths.set_tournaments_folder(""), "")
+	assert_eq(Settings.write_count, writes)
+	assert_false(Settings.has_value(GamePaths.KEY_TOURNAMENTS))
+	assert_eq(GamePaths.set_tournaments_folder("user://Private tournament saves/"), "")
+	assert_eq(GamePaths.tournaments_folder(), "user://Private tournament saves")
+	assert_true(Settings.has_value(GamePaths.KEY_TOURNAMENTS))
+	for invalid in ["relative/folder", "res://decks", "https://host/saves", "user://bad\nfolder"]:
+		assert_ne(GamePaths.set_tournaments_folder(invalid), "")
+		assert_eq(GamePaths.tournaments_folder(), "user://Private tournament saves")
+	assert_eq(GamePaths.set_tournaments_folder(GamePaths.DEFAULT_TOURNAMENTS), "")
+	assert_false(Settings.has_value(GamePaths.KEY_TOURNAMENTS))
 
 
 func test_an_empty_or_wrong_typed_key_is_the_built_in_place() -> void:

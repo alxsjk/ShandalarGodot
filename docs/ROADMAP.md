@@ -13480,6 +13480,267 @@ Final full gate: **6,421 tests / 250,340 assertions / 379 scripts**, wrapper exi
 remains hidden from the opposing client after reconnect. No release replacement
 or binary export was performed.
 
+## 2026-09-15 — LAN knockout tournaments and the Master Panel
+
+The `sgmanalink` branch now hosts LAN-only random-draw knockout events for
+2–8 entrants, with a separate organiser who may also enter. First to one,
+two or three wins; one fixed deck, a host-approved selection or entrants'
+own full-pool decks. Registration locks decks, each round gets one fresh
+random draw, and tables play concurrently through the existing duel screen.
+There is no ante, ranking, sideboarding or drafting.
+
+The graphical Master Panel shows pairings, series scores, draws, life totals,
+turns and connections. Organisers start and advance rounds, withdraw absent
+entrants with confirmation, cancel events and recover saved progress. They
+cannot submit an arbitrary winner: the game referee supplies results. The
+panel remains available during the organiser's own duel without exposing
+another player's hand or library order.
+
+Private checkpoints retain registered decks, pairings and completed scores;
+per-entrant recovery codes are hashed in the checkpoint. A restored host
+issues a fresh invitation and replays interrupted games from opening hands.
+Save failure pauses progression, connection loss does not automatically
+eliminate an entrant, and a damaged primary checkpoint can fall back to the
+last good backup. No seamless host migration is claimed.
+
+Wire protocol is now **8**; all clients must update. No engine/card rule or
+standard computer-player policy changes. Internet play, permanent accounts,
+MElo and web multiplayer remain outside this LAN implementation. Configuration,
+recovery instructions and the verification record are in the
+[tournament guide](sgmanalink-tournaments.md). This is development work, not
+an update to the public 0.20.0 release.
+
+## 2026-09-15 — Twenty-player tournaments, advancement and standings
+
+LAN tournaments now support 2–20 entrants and five rounds, with a separate or
+participating organiser. Twenty entrants produce twelve explicit first-round
+byes and nineteen played series; the largest simultaneous round has eight
+tables. Connection/session/room limits and exact wire schemas were expanded
+together. Protocol **9** requires matching builds; older development checkpoints
+remain untouched and require their original compatible build.
+
+The Master Panel and participant hall now have Overview, Advancement,
+Standings, Players and My entry sections. The zoomable, scrollable diagram
+connects actual published winners only, with whole-draw fitting and player-path
+focus preserved during updates. Final standings include every entrant, shared
+places by elimination round, played series/game scores, drawn games, byes and
+forfeits separately. No invented third-place match, tiebreaker or global ranking.
+
+The bug campaign reproduced these failures before fixing them:
+
+- Twenty-player configuration refused with “Choose a name, 2–8 players…”.
+- “an eliminated entrant has already finished”: a later withdrawal could
+  incorrectly relabel a completed elimination.
+- “all registered entrants must be accounted for”: a superficially valid saved
+  draw could omit entrants.
+- “capacity cleanup must preserve tournament authority”: session-cache pressure
+  could evict the disconnected organiser despite the ordinary expiry reservation.
+- “different entrants may register in the same frame”: unrelated joins/readiness
+  conflicted on the global revision. Per-entry operations now tolerate concurrent
+  entrants; Ready is bound to its round and game attempt, while destructive host
+  controls still require the current revision.
+
+Additional regressions reject phantom/never-started live tables and a twenty-first
+entrant, check all roster sizes 2–20 across four seeds, restore final results from
+JSON, and cover graph geometry, clipped long names, exploration persistence and
+small-window layout. The current verification record is in the
+[tournament guide](sgmanalink-tournaments.md). Engine/card rules and standard
+non-cheating computer-player policies are unchanged; Internet and MElo remain
+parked. No public release replacement is part of this work.
+
+Verification: **31 tournament tests / 15,229 assertions**, then an extended
+twenty-player real-TLS campaign completing **19 full games / 9,766 commands /
+29,693 assertions**, seed 4242. Final whole-project gate: **6,459 tests /
+266,328 assertions / 383 scripts**, wrapper exit **0**, 451.407 seconds.
+All wrappers exited 0. Real Godot source-scene previews with staged entrants
+were inspected at 1280×800 and 960×600, including setup, advancement and final
+standings. No new exports, commit or push in this pass. Physical, mixed-platform
+LAN testing remains separate from these single-Mac socket campaigns.
+
+## 2026-09-15 — Eight-player varied-deck network tournament
+
+Played one seeded eight-entrant knockout through nine real TLS clients,
+including a separate organiser, eight shipped decks, duplicate commands and
+lost acknowledgements. Draw seed 4250; game seeds 4250–4256. The automated
+players are the DTO-only coverage bots, not local Wizard agents. No production
+AI, card, engine, tournament or transport code was changed in this pass.
+
+The first run reproduced “Giant Spider can only be cast in your main phase
+with an empty stack” in a semifinal against Manabarbs. The test bot did not
+recheck timing after its own mana taps added triggers; the local AI already
+handles this. A regression first failed with “submit” where “cancel” was
+expected. The corrected bot waits, retries from floating mana and never
+silently skips a refusal. Seven instrument tests passed, 122 assertions,
+including same-turn completion, exact damage/tap counts and an instant control.
+
+The corrected run preserves the first 1,798 command/public-state entries
+before that failure, then takes the intended deferral. All seven games now
+finish: Blue Skies wins 3–0, Big Green finishes second, Mountain Artillery and
+Goblin Warlord share third. The campaign exercises 2,824 actions, 93 spell
+submissions, 15 blockers, 31 duplicates and 16 reconnects. All nine clients
+agree on the standings; rooms are reclaimed and sessions reused.
+
+A new save/reload comparison also needed JSON number normalization in the
+test; there was no lost score or advancement. The final replay passed 14,364
+assertions, wrapper exit 0, in 116.348 seconds. Both completed 2,833-entry
+journals match exactly. The [campaign report](sgmanalink-eight-player-campaign-2026-09-15.md)
+records results, coverage limits and the repeat command. No new production
+bug was reproduced in this event; physical LAN play and human GUI gestures
+remain separate checks. No export, commit, push or release replacement.
+
+Broader regression acceptance: all **166 SGManalink tests / 35,687 assertions**
+passed, wrapper exit **0**, in 201.337 seconds, including the ordinary paired
+baseline/fault games and the tournament, privacy and interface checks.
+
+## 2026-09-15 — Genuine computer players in LAN rooms and tournaments
+
+SGManalink now schedules the actual Apprentice, Magician, Sorcerer and Wizard
+players on the host, with a separately disclosed, opt-in Unfair challenge.
+Computer duel rooms offer the full implemented deck catalogue and three
+pacing choices. Tournament organisers can add a chosen number of bots in
+mixed batches of levels and decks, within the shared 2–20-player limit.
+Deck policies, series, pairing, byes and standings stay the same. Bots ready
+and return automatically; humans confirm their games and the organiser draws
+each new round. Saved tournaments recreate bots without human login tokens.
+
+Standard AI policies and the fair-information boundary are unchanged. Human
+clients retain their own filtered views; Unfair does not expose hands to the
+GUI. This is host-managed engine play, not a remote Wizard command adapter.
+The trusted LAN host still contains the authoritative game. Protocol/checkpoint
+version 10 requires matching builds and does not migrate older checkpoints.
+
+Reproduced and fixed two lifecycle defects: a failed automatic-readiness save
+allowed one more action at another table in the same poll, and restoring more
+bots than the host had free sessions installed a partial roster. Both now fail
+closed, with focused regression tests. The automated human click driver is
+paced below the existing command-rate limit; production safeguards were not
+relaxed to make the tests pass.
+
+The focused gate passed **16 tests / 620 assertions**, wrapper exit **0**.
+The whole-project gate passed **6,477 tests / 269,323 assertions / 386 scripts**,
+wrapper exit **0**, in **455.023 seconds**. The Python tools completed 227 tests
+with the one Linux-path check skipped on macOS.
+A genuine eight-Wizard tournament completed all seven games; Blue Skies won
+three series. Further checks cover mixed human/Wizard multi-game play,
+disconnection, save/retry, restart, capacity, deck policies and hidden-state
+substitution. Native source-scene controls were inspected at 1280×800 and
+960×600. See [computer-player support](sgmanalink-computer-players.md) for
+usage, reproducible checks and coverage limits. No export, commit or push.
+
+## 2026-09-15 — Tournament welcome and organiser save location
+
+The normal Game Browser discovers named tournaments; a real UDP/TLS GUI test
+now selects the discovery result, connects with the separately shared private
+invitation, opens the hall and registers a player. Discovery is not permission
+to join, and invitation-only hosts remain hidden. The SGManalink subtitle is
+now “Local network only”.
+
+Tournament setup labels the existing editable name and adds an optional
+280-character welcome message. Every visitor sees literal, wrapped text in
+the hall before and after registration. It persists through reconnect and
+checkpoint restore, without popups over duel phases or message broadcasts.
+Validation rejects oversized text, control/bidirectional formatting characters
+and excessive newlines. The protocol/checkpoint compatibility stamp is now 11;
+older development saves remain untouched and require their original build.
+
+The organiser can type or browse for a save folder and restore Default.
+The choice is remembered locally, refreshes the saved-event list and is fixed
+for that hosted event before connection setup completes. Existing saves are
+not moved; paths are never part of public configuration or discovery. Relative
+paths, resource/URL schemes and existing files are refused. Normal checkpoint
+write failures still pause play and require explicit recovery.
+
+Focused acceptance: welcome/discovery **4 tests / 47 assertions**, tournament
+panel **7 / 1,041**, game paths **15 / 93**, and the actual GUI-host/custom-folder
+flow **1 / 18**, each wrapper exit **0**. Native Godot source-scene previews
+were inspected at 1280×800 and 960×600 using staged setup/hall data, not a
+physical LAN event. The temporary capture helper was removed. No export,
+commit, push or release replacement.
+
+Final whole-project acceptance: **6,483 tests / 269,757 assertions / 386 scripts**,
+wrapper exit **0**, in **464.956 seconds**. Python tooling: **227 tests**, with
+the one Linux-path check skipped on macOS. No engine or card rules changed.
+
+## 2026-09-15 — In-game Booster Draft
+
+The requested draft launcher is an in-game workflow instead of a Python CLI,
+following the owner's revised direction. Options → Booster Draft opens setup;
+Deck Builder → Deck → Booster Draft reaches the same screen without discarding
+the existing unsaved deck. Whole implemented sets and individual cards can be
+enabled in a remembered searchable pool. Setup controls boosters, starter packs,
+extra basic lands of each type, random extras, time limit and save folder.
+
+Fresh operating-system random bytes seed the existing sealed-pack dealer.
+Rarity sheets are validated before dealing, so undersized selections refuse
+instead of silently producing short packs. An animated opening leads into the
+ordinary large-card builder, restricted to one dealt pool and one deck. The
+top-right monotonic countdown continues through dialogs and focus changes.
+Done, Save/Exit, expiry and window close freeze editing and save even a partial
+deck. Native output defaults to the ordinary deck collection, with unique deck
+and complete-pool filenames, two-second recovery checkpoints and final atomic
+writes. Web retains browser saves plus explicit download buttons.
+
+Regression tests cover exact rarity counts, duplicate rules, selected-card and
+quantity limits, save/cancel, bad settings and paths, actual launch/return,
+unsaved-deck preservation, countdown/input ordering, open-dialog expiry, close
+during opening, missing checkpoints, write failures and recovery. The campaign
+caught and corrected a zero-sized code-constructed builder, an Enter-at-expiry
+race, misleading failed-save wording, a deleted-checkpoint final save, menu
+overflow after the new entry, missing Help coverage and audio restarting during
+teardown. Targeted acceptance: draft **29 tests / 315 assertions**, layout
+**11 / 86**, Help **47 / 2,360**, all wrapper exit **0**. Python tooling remains
+**227 tests**, with the Linux-specific check skipped on macOS.
+
+Native source-scene previews were inspected at 1280×800 and 960×600, including
+setup, pool selection, opening, the actual builder with staged card choices and
+the save result. The final native run exited cleanly, with no errors, warnings
+or leaked playback instances. See [Booster Draft](booster-draft.md). This is
+local sealed-style construction, not pick-and-pass drafting or a secure
+multiplayer tournament referee. No engine/card rules changed; no export,
+commit, push or release replacement was performed.
+
+Final whole-project acceptance: **6,512 tests / 269,694 assertions / 387 scripts**,
+wrapper exit **0**, in **459.625 seconds**. The temporary capture helper was
+removed; screenshots and diagnostic logs remain outside the repository.
+
+## 2026-09-16 — Draft pool audit and printed-rarity collation
+
+The dealt-pool receipt is saved beside the deck before construction starts,
+including every pack and card quantity. It now also identifies the collation
+rule and pack shapes. Draft setup offers **Verify saved deck…**: choose an
+original receipt and a submitted native/Apprentice text deck, then compare the
+combined main-deck and sideboard counts. Duplicate lines are summed, foreign
+cards and excess copies are named, malformed/oversized input is refused and
+pack contents must agree with the receipt's totals. Verification never writes
+either file and does not certify deck-format legality.
+
+This is an audit aid, not an authentication service: an organiser must retain
+the original dealt pool before building. A player can alter local files or
+restart a draft; a self-supplied receipt cannot prove an honest deal or enforce
+the time limit. Help and the verification window state that boundary.
+
+The rarity review reproduced an uncommon legend entering the rare sheet:
+Tobias Andrion was classified by its decorative L marker. The shared sealed
+dealer now uses canonical printed rarity per card name, while retaining the
+builder's legendary marker. Boosters contain **1 rare / 3 uncommon / 10 common /
+1 basic land**; starters contain **3 / 9 / 26 / 22**. Extras are separate.
+Nonbasic draws are unique within each pack; basic lands draw with replacement.
+This is pooled-rarity collation, not a factory-specific sealed product.
+
+Focused acceptance: draft **37 tests / 8,317 assertions**, sealed deck **18 /
+322**, both wrapper exit **0**. Tests independently tally printed rarity across
+64 seeds, including maximum pack counts, and reject shortages in each sheet.
+Receipt tests cover pre-build saving, exact main/sideboard limits, inconsistent
+counts, malformed JSON and bounded parsing. Native source-scene setup and
+verification previews were inspected at 960×600 with staged verification data;
+the renderer exited cleanly with no errors, warnings or leaked objects.
+
+Final whole-project acceptance: **6,520 tests / 277,681 assertions / 387 scripts**,
+wrapper exit **0**, in **462.601 seconds**. Python tooling: **227 tests**, one
+Linux-only check skipped on macOS. The temporary visual helper was removed;
+captures and logs are outside the repository. No release assets were rebuilt
+or replaced in this pass.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

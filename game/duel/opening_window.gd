@@ -147,6 +147,7 @@ var _lead: Label = null
 var _status: Label = null
 var _captions: Array[Label] = []
 var _cards: Array[CardPreview] = []
+var _ante_row: HBoxContainer
 var _buttons: Array[Button] = []
 ## The deciding seat's hand window and the cards it was last shown — see
 ## [method show_hand]; null until a seat has a hand to show.
@@ -204,6 +205,7 @@ func _init() -> void:
 	# --- the two antes, side by side, each a full card ---
 	# PACKED LEFT, not centred: see [constant SIZE]'s note on the ground.
 	var antes := HBoxContainer.new()
+	_ante_row = antes
 	antes.alignment = BoxContainer.ALIGNMENT_BEGIN
 	antes.add_theme_constant_override("separation", int(CARD_GAP))
 	antes.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -232,6 +234,13 @@ func _init() -> void:
 		_cards.append(card)
 		antes.add_child(column)
 	_dialog.body().add_child(antes)
+
+
+## A match without stakes can use this space for public match information.
+## Keep the original ground, hand position and answer row unchanged.
+func replace_antes(content: Control) -> void:
+	for child in _ante_row.get_children(): child.hide()
+	_ante_row.add_child(content)
 
 
 ## Fill the two ante slots from [param viewer]'s point of view — the seat

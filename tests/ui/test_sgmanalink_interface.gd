@@ -142,7 +142,7 @@ func test_overview_gives_guidance_without_repeating_navigation() -> void:
 	var home: Control = lobby._pages.home
 	assert_eq(home.find_children("*", "Button", true, false).size(), 0,
 		"Overview explains the visit; navigation belongs only in the top tabs")
-	assert_eq(lobby._navigation.size(), 4)
+	assert_eq(lobby._navigation.size(), 5)
 	var explanation := ""
 	for label in home.find_children("*", "Label", true, false):
 		explanation += label.text + "\n"

@@ -22,6 +22,16 @@ func choose(view: Dictionary, seat: int) -> Dictionary:
 			for i in int(view.discard_count): cards.append(view.hand[i].id)
 			return {"op": "discard", "cards": cards}
 	if not view.announcement.is_empty():
+		# A mana tap can add Manabarbs/Psychic Venom triggers. The referee's
+		# live castability, not the pre-payment decision, controls submission.
+		# Cancel the draft, let those triggers resolve, then retry from the
+		# floating pool. Do not blacklist the spell or suppress a refusal.
+		var draft: Dictionary = view.presentation.draft
+		if _paid and draft.kind == "spell" and not view.stack.is_empty():
+			for row in view.presentation.cards:
+				if row.id == draft.card and not row.castable:
+					_attempted.erase("%d/%s/%s" % [int(view.turn), view.step, draft.card])
+					return {"op": "cancel"}
 		var targets: Variant = _targets(view, seat)
 		if targets == null or not view.presentation.draft.reachable:
 			return {"op": "cancel"}
