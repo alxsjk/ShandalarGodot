@@ -1,10 +1,9 @@
 # SGManalink LAN playtest
 
-Integrated development branch: `integration/packs-sgmanalink`. A desktop LAN
-full-pool duel milestone, not the public Internet release. No Nakama, account
-service, central directory or
-MElo is required. Offline duels, hotseat, demonstration and Deck Builder
-retain their existing code paths.
+Development source: `main`, version **0.31.0**. A desktop LAN full-pool duel
+milestone, not the public Internet release. No Nakama, account service, central
+directory or MElo is required. Offline duels, hotseat, demonstration and Deck
+Builder retain their existing code paths.
 
 The **Tournament** tab adds [LAN knockout events](sgmanalink-tournaments.md)
 with 2–20 entrants, a separate or participating organiser, first to 1/2/3 wins,

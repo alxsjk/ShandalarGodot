@@ -14054,6 +14054,29 @@ signature verification. These checks do not establish new AI strength or
 replace native cross-platform and physical LAN playtests. Main, the original
 pack checkout and player settings remain untouched; no release or art is published.
 
+## 2026-09-16 — 0.31.0 main integration
+
+Fast-forwarded local main to the complete integration at `59e5c04`, including
+the **0.31.0** version bump, Packs 1–5, LAN/tournaments, draft support and the
+post-integration fixes. No gameplay code changed after the bug campaign;
+the version comes from `project.godot`, including the LAN compatibility stamp.
+The live LAN instructions now point to main rather than the temporary branch.
+
+Fresh 0.31.0 gate: **7,157/7,157 tests / 321,854 assertions / 439 scripts**,
+strict exit **0**, **572.958 seconds**; **256 Python tests**, one platform skip.
+Existing GUT compatibility/deprecation and resource-UID warnings remain.
+A fresh Mac export built from the main checkout reports **0.31.0**, boots,
+and passes all five real local-pack ZIP probes without errors or warnings.
+Its temporary test-profile override is removed and the clean bundle's strict
+signature check passes. Main's ignored local export presets now include the
+trusted pack JSON metadata, with the previous presets backed up first.
+
+Full archives preserve both development worktrees and their ignored files
+before cleanup. The original artwork, pack ZIPs, build evidence and player
+settings remain outside that cleanup; no release or tag is published.
+Browser gameplay, native Windows/Linux and physical multi-computer LAN
+playtests remain release checks, as recorded in the integration reports.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.
