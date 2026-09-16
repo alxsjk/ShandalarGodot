@@ -57,9 +57,9 @@ online multiplayer are still to come.
 Pack 1's ZIP is intentionally not a release download. Build it—and fetch its
 art—locally from this source tree with `tools/pack_1_dotp_complete.py`.
 
-## Development — 0.30.0
+## Development — 0.31.0
 
-The current source on `main` includes local-network duels and
+The integrated development source includes local-network duels and
 [random-draw knockout tournaments](docs/sgmanalink-tournaments.md), including
 up to **20 players**, configurable match lengths and deck policies, an
 organiser's Master Panel, graphical advancement and final standings.
@@ -173,7 +173,7 @@ Work completed or planned after the 0.20.0 release:
   [Python builder](tools/pack_5_alliances.py), gold banner emblem, matching
   Extras medallions, expanded Help and [engine/AI integration](docs/pack-5-alliances.md).
   Build locally with `python3 tools/pack_5_alliances.py fetch-art`, then
-  `python3 tools/pack_5_alliances.py`. Included in the 0.30.0 development build;
+  `python3 tools/pack_5_alliances.py`. Included in the 0.31.0 development build;
   generated packs and card pictures are not distributed.
 - [ ] **Internet play and community MElo (Magic Elo)** — parked until
   resources allow. No authentication or ranking service is required for LAN play.
