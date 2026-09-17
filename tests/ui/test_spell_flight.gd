@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE SPELL-CAST ANIMATION — `docs/duel-todo.md` §2.4, s30
 ## `duel_spell_animation.go`.
 ##

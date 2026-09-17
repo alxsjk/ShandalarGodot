@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## TEXT MUST CONTRAST WITH THE THING IT IS DRAWN ON.
 ##
 ## The menus wear the original's `Winbk_Options` sandstone panel, whose

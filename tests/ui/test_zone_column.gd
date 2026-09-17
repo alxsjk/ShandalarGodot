@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE ZONE COLUMN — the library / graveyard / exile row in each seat's
 ## sidebar panel, its three counts, and the seat portrait beside them.
 ##

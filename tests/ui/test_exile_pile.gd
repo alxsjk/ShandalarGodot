@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE EXILE PILE — the plate to the right of the graveyard, and the
 ## derived art behind it (`game/duel/exile_plate.gd`).
 ##

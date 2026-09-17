@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE ENLARGED CARD'S LETTERING — `game/duel/card_preview.gd`.
 ##
 ## The owner's 2026-09-04 playtest: *"Large card generator: card text,

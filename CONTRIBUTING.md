@@ -32,6 +32,20 @@ or their own named project; changing XDG alone does not protect player data.
 
 - Test suite: `./run_tests.sh` (headless GUT; pinned binary `../tools/godot`).
   Single test: `./run_tests.sh -gunit_test_name=<name>`.
+  `SHARDS=4 ./run_tests.sh` runs the same suite over four Godot
+  processes at once (since 2026-09-17: 979 s in one process, ~210 s over
+  six on this desk); each shard has its own `user://` and its own gate
+  read, and the sum must add up to every `test_*.gd` on disk. The default
+  is half the cores on Linux and 1 on macOS, where Godot ignores XDG and
+  two processes would share one profile. NEVER edit a source file — nor
+  `run_tests.sh` itself, bash reads it as it runs — while a suite runs.
+  The same script runs on GitHub Actions for every push and pull request
+  (`.github/workflows/gate.yml`, `SHARD=i` of 4 per job); a red run there
+  is a red gate, read the job's log. No runner and no fresh clone has the
+  imported 1997 skin (`assets/original`), so the scripts that pin that
+  look are left out there BY NAME (17 on 2026-09-17, each marked
+  `## Needs the imported 1997 skin` on its first doc line, counted in the
+  last line of the log); a test that reads the skin must carry that line.
   TRUST ITS EXIT CODE, NOT THE PRINTED SUMMARY: GUT silently SKIPS a test
   script it cannot parse and still prints "All tests passed" (verified
   2026-08-31 — one broken file, summary read 1894/1894 passing while a

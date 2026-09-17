@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## OriginalDialog — the 1997 popup chrome (game/duel/original_dialog.gd).
 ##
 ## Like test_skin.gd these pass in BOTH states of the world: with the 1997

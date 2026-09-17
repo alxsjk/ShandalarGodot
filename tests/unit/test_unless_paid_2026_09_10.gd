@@ -1,4 +1,6 @@
 extends GameTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## "[DO SOMETHING] UNLESS [A PLAYER PAYS]" — CR 118.12, one mechanism —
 ## 2026-09-10.
 ##

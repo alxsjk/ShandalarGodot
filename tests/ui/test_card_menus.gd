@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE REST OF THE RIGHT-CLICK MENUS — `docs/duel-todo.md` §6.12, and the
 ## last live entries of `@MENU_TERRITORY` (§6.3).
 ##

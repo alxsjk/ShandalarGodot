@@ -15081,6 +15081,67 @@ face and ink, the gold is legible on the pressed face). No wire change.
 Gate on the tree as committed: 469 scripts, **7,378/7,378 tests, 328,741
 asserts**, exit 0 in 979 s; Python 277, exit 0; boot 0 errors.
 
+## 2026-09-17 — The gate in shards, and the gate on GitHub
+
+Two of the three items the owner picked off the improvement list (*"Do
+1. 2. And 6.! Go baby."*): the suite had grown to 469 scripts and 979 s
+in one headless Godot, and nothing ran it but this desk.
+
+THE GATE IN SHARDS. `SHARDS=N ./run_tests.sh` deals the scripts over N
+Godot processes that run at once, each in its own `user://` (`shard-N/`
+under the test profile, with its own `reset_test_packs` pass, engine log
+and JUnit file), and reads the gate twice: every shard's log through the
+same checks as the one run (timeout, parse error, `ERROR:` line, risky
+test, leak, a missing summary), then the sum against the count of
+scripts on disk — a shard that lost a script cannot add up. The default
+is half the cores (1..6) on Linux and 1 on macOS, where Godot ignores
+XDG and two processes would share one profile; any GUT argument on the
+command line also means one process, and the single-process path is what
+it was. The import step runs once, before the fan-out; every network test
+already bound port 0 and no test writes under `res://` (checked before a
+line of this was written).
+
+`tools/deal_tests.py` deals. With nothing known, every Nth script; with
+the JUnit files the LAST run left in the test profile, the slowest script
+first, each to the process with the least on it (longest processing time
+first), so the second sharded run on a desk is balanced by the first.
+Measured over six: 293 s wall dealt round-robin (the shards' own times
+104..280 s, the SGManalink network scripts stacked on one), **211 s**
+balanced (171..198 s), against 979 s in one — the same 469 scripts and
+7,378 tests each way, at 1.2 GB peak per process. The first wiring had
+the tool's two numbers reversed (`shard 6 of 3`) and dealt every shard
+empty; the gate read "GUT printed no summary" six times, which is the
+right answer, and the deal now happens in the parent before any shard
+starts and refuses an empty list itself.
+
+THE SUITE ON A BARE CLONE. The first run from a `--depth 1` clone of the
+tree — no `assets/`, no `.godot/` — was red in seventeen scripts, all of
+them pinning the 1997 look: the card frames, the grave plates, the button
+faces, the numerals, the stone panel. They can only be read against the
+skin `tools/import_original.py` copies out of a player's own copy of the
+game into `assets/original`, which is gitignored, never released and
+never on a runner. Each of the seventeen now says so on its first doc
+line (`## Needs the imported 1997 skin`), and where the folder is absent
+`run_tests.sh` leaves them out BY NAME — the first lines of the log list
+them, every count the gate holds the run to is of what is left, and the
+last line says "(17 left out: no 1997 skin)". Nothing is skipped
+silently: a script that needs the skin and does not say so goes red as it
+always did. From the clone: 452 scripts, 6,728 tests, exit 0 in 231 s.
+
+THE GATE ON GITHUB. `.github/workflows/gate.yml` runs the same script on
+every push to `main` and every pull request: four `SHARD=i` of 4 jobs on
+`ubuntu-latest`, and one job for the Python tests and the boot smoke. The
+engine is the official 4.7.2 Linux release, pinned by the SHA-256 of its
+zip and cached between runs; the binary inside is byte-identical to the
+pinned `../tools/godot`. Nothing is built and nothing is released from
+there — the artifacts are each shard's engine log and JUnit file for
+fourteen days — and no card art exists on a runner at all. The release
+stays a local build on the owner's word.
+
+Gate on the tree as committed: 469 scripts, **7,378/7,378 tests,
+328,652 asserts**, exit 0 in 197 s over 6 shards; Python 291
+(277 + 14 for the deal), exit 0; boot 0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

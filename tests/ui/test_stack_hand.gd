@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## StackHand + CardPreview: the original's hand window (a pile of full
 ## card faces offset by OVERLAP, last card fully visible — the owner's
 ## reference screenshots / s30 drawHandPanel) and the shared enlarged-card

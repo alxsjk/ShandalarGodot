@@ -1,4 +1,6 @@
 extends GameTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE UNTAP STEP'S QUESTIONS (CR 502.3), and the turn-based HOLD that puts
 ## them to a human seat. The pre-flight only wraps stack resolutions and the
 ## cost hold only wraps actions; an untap step is neither, so it re-uses the

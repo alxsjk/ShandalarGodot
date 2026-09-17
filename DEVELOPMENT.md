@@ -117,8 +117,28 @@ not their output.
 
 ```sh
 ./run_tests.sh                                  # the whole GUT suite, headless
+SHARDS=4 ./run_tests.sh                         # the same suite over four processes
 python3 -m unittest discover -s tools -p 'test_*.py'
 ```
+
+`SHARDS=N` (2026-09-17) deals the test scripts over N Godot processes that
+run at once, each in its own `user://` under the test profile; every
+shard's log is gated as a single run would be, then the sum of the shards
+must equal the count of `test_*.gd` files on disk. With the JUnit files a
+previous run left in the test profile the deal is balanced by measured
+time, so the second sharded run is the fast one (979 s in one process,
+~210 s over six on a twelve-core desk). Both commands also run on GitHub
+Actions for every push to `main` and every pull request
+(`.github/workflows/gate.yml`: the official 4.7.2 Linux binary, pinned by
+checksum, four shards plus the Python tests and the boot smoke) — the
+runners hold no card art and upload only logs. Without the imported 1997
+skin (`assets/original`, see `tools/import_original.py`) the seventeen
+scripts that pin that look are left out by name and counted as such —
+the log's first lines list them and its last line says "(17 left out: no
+1997 skin)". A fresh clone is therefore green at 452 scripts; the whole
+469 need the skin, and a script that needs it must say so on its first
+doc line (`## Needs the imported 1997 skin`) or it goes red where there
+is none.
 
 Measured counts and timings live in the dated verification records rather
 than another counter here: `docs/decklab-audit-2026-09-13.md` for the latest

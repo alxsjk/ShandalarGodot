@@ -1,4 +1,6 @@
 extends GameTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## Pack 2's separate pool and the first shared Fallen Empires mechanics.
 
 func before_each() -> void:

@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## The Deck Builder screen: that every 1997 region and command is really
 ## there, that the Inventory and the Deck are two views of the same
 ## filter + model, and that the main menu's entry points at a scene that

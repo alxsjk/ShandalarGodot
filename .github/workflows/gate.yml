@@ -1,0 +1,132 @@
+# The gate, on every push and pull request — the same three commands
+# CONTRIBUTING.md asks for before a commit, on GitHub's runners:
+#
+#   ./run_tests.sh              the GUT suite, here dealt over four runners
+#                               (SHARDS=4 SHARD=n — run_tests.sh's own deal,
+#                               so a shard on a runner is a shard on a desk)
+#   python3 -m unittest ...     the tool tests, from the project root
+#   godot --headless --quit-after 3   the boot smoke, with no ERROR line
+#
+# The Godot binary is the official 4.7.2 Linux release, pinned by the
+# SHA-256 of its zip: byte-identical to the ../tools/godot every local
+# gate runs (checked 2026-09-17), cached between runs. Nothing here is
+# released or uploaded anywhere but the run's own log artifacts; the
+# release itself stays a local build on the owner's word
+# (docs/release-builds.md). Card art and the 1997 skin are not in the
+# repository and never reach a runner: run_tests.sh builds the card packs
+# it needs from cards/data/, and leaves out BY NAME the scripts that pin
+# the 1997 look (seventeen of 469 on 2026-09-17, each marked "Needs the
+# imported 1997 skin") — those run on a desk that has imported it. The
+# gate here is 452 scripts, and the log's first lines name the rest.
+name: Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_ZIP_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+  SHANDALAR_NO_BANNER: 1
+
+jobs:
+  gut:
+    name: GUT shard ${{ matrix.shard }} of 4
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot ${{ env.GODOT_VERSION }} from the cache
+        id: godot
+        uses: actions/cache@v4
+        with:
+          path: godot.zip
+          key: godot-${{ env.GODOT_VERSION }}-stable-linux-x86_64
+
+      - name: Godot ${{ env.GODOT_VERSION }} from the official release
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+
+      - name: Pin and unpack
+        run: |
+          echo "${GODOT_ZIP_SHA256}  godot.zip" | sha256sum -c -
+          unzip -q godot.zip
+          mkdir -p ../tools
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" ../tools/godot
+          chmod +x ../tools/godot
+          ../tools/godot --version
+
+      - name: Shard ${{ matrix.shard }} of 4
+        env:
+          SHARDS: 4
+          SHARD: ${{ matrix.shard }}
+          SHANDALAR_TEST_DATA_HOME: ${{ runner.temp }}/shandalar-test-data
+        run: ./run_tests.sh
+
+      - name: Keep the engine log and the JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gut-shard-${{ matrix.shard }}
+          path: |
+            ${{ runner.temp }}/shandalar-test-data/gut-engine.log
+            ${{ runner.temp }}/shandalar-test-data/gut-junit.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  tools-and-boot:
+    name: Python tools and the boot smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python tool tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+
+      - name: Godot ${{ env.GODOT_VERSION }} from the cache
+        id: godot
+        uses: actions/cache@v4
+        with:
+          path: godot.zip
+          key: godot-${{ env.GODOT_VERSION }}-stable-linux-x86_64
+
+      - name: Godot ${{ env.GODOT_VERSION }} from the official release
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+
+      - name: Pin and unpack
+        run: |
+          echo "${GODOT_ZIP_SHA256}  godot.zip" | sha256sum -c -
+          unzip -q godot.zip
+          mkdir -p ../tools
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" ../tools/godot
+          chmod +x ../tools/godot
+
+      # The import once, then the boot: user:// is the runner's temp
+      # directory, the way every local probe isolates the player's file.
+      - name: Boot smoke
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/xdg
+        run: |
+          timeout -k 5 600 ../tools/godot --headless --import . >/dev/null 2>&1 </dev/null || true
+          status=0
+          timeout -k 5 100 ../tools/godot --headless --path . --quit-after 3 > boot.log 2>&1 </dev/null || status=$?
+          cat boot.log
+          if [ "$status" -ne 0 ]; then echo "boot exited $status"; exit "$status"; fi
+          if grep -qE '^(SCRIPT ERROR|ERROR|USER ERROR|USER SCRIPT ERROR):' boot.log; then
+            echo "the boot printed an error"; exit 1
+          fi

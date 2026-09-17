@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE SYMBOLS IN THE RULES TEXT — `game/duel/mana_text.gd`.
 ##
 ## The owner's 2026-09-04 playtest: *"The text has special symbols `{R}`,

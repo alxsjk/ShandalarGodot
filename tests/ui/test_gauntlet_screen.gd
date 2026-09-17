@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE GAUNTLET, RUNNING — [GauntletScreen] and [GauntletOptions]: the
 ## outer loop that owns [MatchScreen]s, the two windows, and the one new
 ## signal on the match screen that lets a match hand its result upward.

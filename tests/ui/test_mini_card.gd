@@ -1,4 +1,6 @@
 extends GameTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE SMALL CARD — `game/duel/mini_card.gd`, the single generator for every
 ## card on the table, in the hand pile, in the graveyard and exile views, in
 ## the deck builder and on the help screen's icon pages.

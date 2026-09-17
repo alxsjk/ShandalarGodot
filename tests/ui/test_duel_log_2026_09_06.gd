@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE DUEL LOG — `L` during a duel ([DuelLog], and § THE DUEL LOG in
 ## `game/duel/duel_screen.gd`). `[QoL]`: the engine's audit trail, in a
 ## window the player can read, drag, copy and save.

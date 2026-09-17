@@ -613,7 +613,24 @@ shandalar/
 │                              of the .example says why each
 ├── run_tests.sh             Headless test runner (uses ../tools/godot, GUT CLI);
 │                              times out (SUITE_TIMEOUT), fails on any ERROR:
-│                              line, a risky test or a leak — header says why
+│                              line, a risky test or a leak — header says why.
+│                              SHARDS=N (2026-09-17) deals the scripts over N
+│                              Godot processes at once, each in its own
+│                              user:// (shard-N/ under the test profile, its
+│                              own reset_test_packs pass, engine log and
+│                              JUnit file), gates every log and then the sum
+│                              against the count of scripts on disk;
+│                              SHARD=i runs one deal (one CI job each);
+│                              tools/deal_tests.py deals
+├── .github/workflows/
+│   └── gate.yml             The gate on GitHub's runners (2026-09-17): on
+│                              every push to main and every pull request, the
+│                              official 4.7.2 Linux binary pinned by its
+│                              zip's SHA-256 and cached, four `SHARD=i of 4`
+│                              GUT jobs plus one job for the Python tests
+│                              and the boot smoke. Uploads each shard's
+│                              engine log and JUnit file for fourteen days
+│                              and nothing else — no build, no art
 ├── .gitignore               Ignores .godot/ cache, *.import, assets/cardart/,
 │                              packs/ (build_card_packs.py --out packs)
 │
@@ -2752,6 +2769,21 @@ shandalar/
 │   │                          guard_private, pointed at the tree instead of
 │   │                          at a staged package), a private address or a
 │   │                          tool vendor. Skips outside a git checkout
+│   ├── deal_tests.py        The deal behind run_tests.sh's SHARDS=N
+│   │                          (2026-09-17): reads the sorted test scripts
+│   │                          on stdin and prints the i-th of N deals as
+│   │                          one -gtest= value. Every Nth script when
+│   │                          nothing is known; with the GUT JUnit files
+│   │                          the LAST run left in the test profile, the
+│   │                          slowest script first, each to the process
+│   │                          with the least on it (LPT), so the second
+│   │                          sharded run on a desk is balanced by the
+│   │                          first (979 s in one process → 211 s over six)
+│   ├── test_deal_tests.py   unittest: both deals, every script exactly
+│   │                          once, the LPT loads walked by hand, the
+│   │                          JUnit reader, the CLI (a shard past N is
+│   │                          exit 2 and an empty stdout, never a
+│   │                          traceback the wrapper could hand to GUT)
 │   ├── fetch_cards.py       Scryfall → cards/data/<set>.json for the 8-set
 │   │                          pool (base game + Duels of the Planeswalkers);
 │   │                          excludes Chaos Orb/Falling Star/Shahrazad/

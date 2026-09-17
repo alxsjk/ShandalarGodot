@@ -1,4 +1,6 @@
 extends GutTest
+## Needs the imported 1997 skin (assets/original) — run_tests.sh leaves this
+## script out, by name, where there is none.
 ## THE DUEL OPTIONS PANEL — `docs/duel-todo.md` §6.4.
 ##
 ## `@DIALOG_DUELOPTIONS` (`shandalar-src/Program/UIStrings.txt:598`) is

@@ -101,9 +101,10 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([The chosen mode wears gold](docs/ROADMAP.md#2026-09-17--the-chosen-mode-wears-gold)):
-**7,378 GUT tests / 328,741 assertions**, plus **277 Python tests**
-(one platform-specific skip).
+Latest local verification ([The gate in shards, and the gate on GitHub](docs/ROADMAP.md#2026-09-17--the-gate-in-shards-and-the-gate-on-github)):
+**7,378 GUT tests / 328,652 assertions**, plus **291 Python tests**
+(one platform-specific skip). The same gate runs on GitHub Actions for
+every push and pull request.
 
 ## Art and skins
 
@@ -228,7 +229,8 @@ build releases. Start with [DEVELOPMENT.md](DEVELOPMENT.md) and
 
 ```sh
 godot -e --path .
-./run_tests.sh
+./run_tests.sh              # the whole suite in one Godot
+SHARDS=4 ./run_tests.sh     # the same suite over four
 ```
 
 Explore the [architecture](docs/ARCHITECTURE.md),
