@@ -100,8 +100,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([post-release bug hunt](docs/ROADMAP.md#2026-09-16--post-release-bug-hunt)):
-**7,223 GUT tests / 324,028 assertions**, plus **267 Python tests**.
+Latest local verification ([second hunt over 0.32.0](docs/ROADMAP.md#2026-09-17--second-hunt-over-0320-and-the-sgmanalink-front-door)):
+**7,305 GUT tests / 325,655 assertions**, plus **273 Python tests**.
 
 ## Art and skins
 

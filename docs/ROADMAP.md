@@ -14396,6 +14396,12 @@ one bump at integration).
   tests and 24 risky ones fail there regardless of the change; a green
   gate needs the owner's art tree. The integration gate below ran with it.
 
+Gate: **7,305/7,305 tests / 325,655 assertions / 463 scripts**, strict exit
+**0** in **926.06 seconds** (one old pin repinned on the way: the title
+screen's test still expected the Overview's former prose); **273 Python
+tests**; boot smoke clean; both soaks clean. Version stays 0.32.0 in
+`project.godot`; no release, no art.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.
