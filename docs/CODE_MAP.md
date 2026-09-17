@@ -7,8 +7,10 @@ Conventions: engine classes use `class_name` (globally visible, no imports
 needed); card files have NO class_name (they register by name instead);
 `snake_case.gd` filenames throughout; tabs for indentation (Godot default).
 
-## 0.31.0 release packages
+## Release packages
 
+- `docs/releases/0.32.0.md`: prepared release highlights, organiser controls,
+  gameplay fixes, six-platform downloads and bundled construction tools.
 - `docs/releases/0.31.0.md`: concise release highlights, six architecture-specific
   targets, skin/pack setup and checksum instructions.
 - `docs/card-art-and-packs.md`: player commands for base artwork and all five
@@ -2721,6 +2723,8 @@ shandalar/
 │   ├── test_tool_banner.py  Banner/terminal contracts, including
 │   │                          RuntimeContractTest: missing explicit Godot
 │   │                          paths and soak-help engine failure status
+│   │                          Catalogue stdout is checked against the same
+│   │                          local inputs, including alternate RGB/RGBA skins
 │   ├── test_tracked_tree.py The two rules about the tracked tree itself
 │   │                          (2026-09-17, after eight source files were
 │   │                          found with no row): every file under engine/,

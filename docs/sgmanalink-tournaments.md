@@ -1,6 +1,6 @@
 # LAN tournaments
 
-Development implementation on `sgmanalink`. Internet play, permanent accounts,
+Development implementation on `main`, **0.32.0** (protocol **20**). Internet play, permanent accounts,
 MElo and tournament-integrated drafting are parked. A separate
 [timed draft builder](booster-draft.md) is available for local practice.
 Windows, Linux and macOS use the existing LAN
@@ -132,8 +132,8 @@ reconnect grace, and when the network is back each seat is where it was —
 same table, same hands, same controls. Only a host restart goes through the
 checkpoint and the recovery codes below.
 Recovery requires a matching build and the same enabled gameplay packs. Earlier
-protocol-8/9/10/11/12/13 development checkpoints remain untouched but are not migrated
-to the current protocol-14 compatibility contract.
+development checkpoints remain untouched but are not migrated across a changed
+build fingerprint. Use matching 0.32.0 builds and enabled packs for recovery.
 Computer entries retain their settings and are recreated without recovery codes.
 
 **Tournament setup → Save folder** offers a typed path, **Browse…** and
@@ -151,7 +151,7 @@ application cannot reclaim an entry by matching its nickname.
 
 ## Play on a LAN
 
-1. Use matching protocol-14 development builds and enabled card packs. Open the globe, choose a
+1. Use matching 0.32.0 builds (protocol 20) and enabled card packs. Open the globe, choose a
    temporary name, and select the appropriate LAN address/port in **Host Game**.
 2. Open **Tournament**. Name the event, optionally write a welcome message,
    choose the save folder, 2–20 maximum entrants, a

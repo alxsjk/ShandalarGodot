@@ -9,7 +9,7 @@ The **Tournament** tab adds [LAN knockout events](sgmanalink-tournaments.md)
 with 2–20 entrants, a separate or participating organiser, first to 1/2/3 wins,
 fixed/approved/own deck policies, a live Master Panel, an advancement diagram
 and final standings. [Computer opponents](sgmanalink-computer-players.md) can fill
-duel rooms and a chosen number of tournament seats. Protocol **12** and the
+duel rooms and a chosen number of tournament seats. Protocol **20** and the
 current rules fingerprint require matching updated builds and enabled card
 catalogues on every computer; old LAN development builds cannot join.
 Internet play and MElo are parked.
@@ -26,8 +26,8 @@ The offline AI-versus-AI demo by itself does not test LAN networking.
 
 ## Two computers on the same network
 
-Use the same current development build on both computers. Old release
-builds do not contain this LAN milestone.
+Use matching **0.32.0 development builds** and enabled packs on both computers. The older
+0.20.0 release does not contain this LAN milestone.
 
 1. Open the main-menu globe on both computers. In **Identity**, enter a name
    or **Generate name**, optionally tick **Remember this name on this device**,

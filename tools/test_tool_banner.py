@@ -25,7 +25,7 @@ the same rule with one more of its own: two or three lines under the
 banner, quoted out of the tool's own examples, and only for a BARE
 command line. `StdoutDidNotMoveTest` is the test that would actually
 catch the bug — `skin_catalogue.py --stdout` piped, redirected and
-`2>&1` is byte for byte the committed docs/skin-catalogue.txt.
+`2>&1` is byte for byte the undecorated catalogue of the selected local skin.
 """
 
 import io
@@ -832,8 +832,9 @@ class StdoutDidNotMoveTest(unittest.TestCase):
     existed, whatever is on the far end of it.
 
     `skin_catalogue.py --stdout` is the sharpest case in the family,
-    because its stdout IS a committed file — docs/skin-catalogue.txt — so
-    the comparison is against something outside this test. Four shapes,
+    because its stdout IS the generated catalogue. Its measurements depend
+    on the selected local skin, not the skin on the machine that last wrote
+    docs/skin-catalogue.txt. Four shapes,
     all of them real: both ends piped, a terminal on stderr, stdout
     redirected into a file, and `2>&1` into one file, which is what a
     script or an agent writes and where a stray byte would land."""
@@ -881,19 +882,39 @@ class StdoutDidNotMoveTest(unittest.TestCase):
         for glyph in EveryToolAnswersTest.WORDMARK_GLYPHS:
             self.assertNotIn(glyph.encode(), merged)
 
-    def test_the_catalogue_is_the_committed_file(self):
-        # The measurement needs the skin it measures. In a checkout
-        # without assets/original (a clean clone, a CI runner) the tool
-        # says "(not on this machine)" for the files it cannot see, which
-        # is a true catalogue of a different machine — so the comparison
-        # against the committed one is made where it means something.
-        if not (ROOT / "assets" / "original").is_dir():
-            self.skipTest("no assets/original to measure")
+    def test_the_catalogue_is_the_undecorated_local_measurement(self):
+        # Two valid imports can differ (palette PNG versus RGB, optional
+        # movies, portraits). Compare the CLI with the undecorated renderer
+        # using the SAME inputs, including on a clone with no local art.
+        # test_skin_catalogue still pins the committed guide to the manifest.
+        import skin_catalogue
         piped = subprocess.run(self.ARGV, cwd=str(ROOT), capture_output=True,
                                timeout=300, stdin=subprocess.DEVNULL,
                                env=env_without_optouts())
-        self.assertEqual(piped.stdout,
-                         (ROOT / "docs" / "skin-catalogue.txt").read_bytes())
+        self.assertEqual(piped.returncode, 0, piped.stderr)
+        self.assertEqual(piped.stdout, skin_catalogue.render(
+            skin_catalogue.DEFAULT_SKIN, skin_catalogue.DEFAULT_CARDART).encode())
+
+    def test_a_different_skin_is_measured_without_changing_the_committed_guide(self):
+        import skin_catalogue
+        from test_skin_catalogue import png_bytes
+        guide = ROOT / "docs/skin-catalogue.txt"
+        before = guide.read_bytes()
+        with tempfile.TemporaryDirectory() as tmp:
+            skin = Path(tmp)
+            art = skin / "absent-cardart"
+            for color_type, description in ((2, "RGB"), (6, "RGBA")):
+                with self.subTest(description=description):
+                    (skin / "card_back.png").write_bytes(png_bytes(7, 9, color_type))
+                    piped = subprocess.run(self.ARGV + ["--skin", str(skin),
+                                           "--cardart", str(art)], cwd=str(ROOT),
+                                           capture_output=True, timeout=300,
+                                           stdin=subprocess.DEVNULL,
+                                           env=env_without_optouts())
+                    self.assertEqual(piped.returncode, 0, piped.stderr)
+                    self.assertEqual(piped.stdout, skin_catalogue.render(skin, art).encode())
+                    self.assertIn(("7 x 9 px, " + description).encode(), piped.stdout)
+        self.assertEqual(guide.read_bytes(), before)
 
     def test_a_refusal_reaches_a_log_without_its_artwork(self):
         # The other half of the rule, on the tool that draws the most:
