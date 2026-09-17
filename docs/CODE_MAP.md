@@ -150,6 +150,8 @@ needed); card files have NO class_name (they register by name instead);
   `wss://`), with a mid-duel disconnect/resume, the host closing the table,
   and round-trip/message-size numbers. One computer cannot hear its own UDP
   broadcast, so the sweep falls back to a query addressed at the host.
+- `tools/test_lan_smoke_launcher.py`: launcher regression checks for distinct
+  Mac-compatible profiles, import failure and cleanup of only an owned child.
 - `docs/sgmanalink-network-campaign.md`: fair-information network self-play
   design, reproducible fault campaign, evidence and two-machine limitations.
 - `tests/support/sg_network_pilot.gd`: DTO-only coverage pilot and normalized

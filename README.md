@@ -38,14 +38,15 @@ engine, and the freedom to keep the game alive.
   <em>A spell chain in progress during a duel.</em>
 </p>
 
-## Development — 0.32.0
+## Play — 0.32.0
 
 **Duels, deck building, optional expansions, Booster Draft and LAN play.**
 
-The **0.32.0** release is in preparation for **Windows, Linux, Apple Silicon/Intel Mac,
-Raspberry Pi 5 ARM64 and web**; the [releases page](https://github.com/b0realis/ShandalarGodot/releases)
-carries launch instructions, standalone and original-skin packages, and SHA-256 checksums
-for every published version. Until then, run the source on `main` with Godot 4.7 (below).
+Download **[Shandalar 0.32.0](https://github.com/b0realis/ShandalarGodot/releases/tag/v0.32.0)**
+for **Windows, Linux, Apple Silicon/Intel Mac, Raspberry Pi 5 ARM64 and web**.
+Choose a standalone or original-skin package; the release includes launch
+instructions, a separate skin download and SHA-256 checksums. You can also
+run the source with Godot 4.7 (below).
 
 Play with an **897-card early-Magic core**, historic decks, four computer
 opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
@@ -100,8 +101,9 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([two calls on the last section](docs/ROADMAP.md#2026-09-17--two-calls-on-the-last-section-the-introduction-fits-the-organisers-chair)):
-**7,361 GUT tests / 327,204 assertions**, plus **273 Python tests**.
+Latest local verification ([0.32.0 release gate](docs/ROADMAP.md#2026-09-17--0320-release-gate)):
+**7,361 GUT tests / 326,964 assertions**, plus **277 Python tests**
+(one platform-specific skip).
 
 ## Art and skins
 
@@ -204,7 +206,7 @@ Work completed or planned after the 0.20.0 release:
   [Python builder](tools/pack_5_alliances.py), gold banner emblem, matching
   Extras medallions, expanded Help and [engine/AI integration](docs/pack-5-alliances.md).
   Build locally with `python3 tools/pack_5_alliances.py fetch-art`, then
-  `python3 tools/pack_5_alliances.py`. Included in the 0.32.0 development build;
+  `python3 tools/pack_5_alliances.py`. Included in 0.32.0;
   generated packs and card pictures are not distributed.
 - [ ] **Internet play and community MElo (Magic Elo)** — parked until
   resources allow. No authentication or ranking service is required for LAN play.

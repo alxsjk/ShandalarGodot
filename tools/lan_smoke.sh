@@ -27,10 +27,11 @@
 # this test's stand-in for the private message a player sends.
 #
 # TWO DATA HOMES, never the player's. Each process gets its own
-# `XDG_DATA_HOME` under the run directory, so the two have separate
-# settings, decks and enabled card packs and neither can touch the
-# owner's profile. Set LAN_SMOKE_DIR to put the run somewhere else;
-# --keep leaves it behind for reading.
+# `XDG_DATA_HOME` under the run directory and a distinct project name
+# (macOS ignores XDG), so neither can touch the owner's profile. Set
+# LAN_SMOKE_DIR to choose the PARENT of a fresh run directory; only that
+# owned child is removed. --keep leaves it behind for reading. macOS
+# keeps the uniquely named "Shandalar LAN Smoke ..." profiles separately.
 #
 # EXIT CODES are the two processes' own when either set one: 1 when a
 # check failed or a log was not clean, 2 when a run hit its deadline
@@ -79,7 +80,7 @@ Options (everything else is rejected):
 
 Environment:
   GODOT            the binary to run (default ../tools/godot)
-  LAN_SMOKE_DIR    where the two data homes and the logs go
+  LAN_SMOKE_DIR    parent folder for a fresh run directory and its logs
   SMOKE_TIMEOUT    whole-run guard in seconds (900)
 EOF
 }
@@ -124,9 +125,12 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
-dir="${LAN_SMOKE_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/shandalar-lan-smoke.XXXXXX")}"
+run_parent="${LAN_SMOKE_DIR:-${TMPDIR:-/tmp}}"
+mkdir -p "$run_parent" || exit 3
+dir="$(mktemp -d "$run_parent/shandalar-lan-smoke.XXXXXX")" || exit 3
+# Make all mirror paths and the invitation absolute, even with a relative parent.
+dir="$(cd "$dir" && pwd -P)" || exit 3
 mkdir -p "$dir/host" "$dir/guest" || exit 3
-rm -f "$dir/invite.txt" "$dir/invite.txt.part" "$dir/host.log" "$dir/guest.log"
 
 pids=()
 cleanup() {
@@ -139,12 +143,34 @@ trap cleanup EXIT
 
 # Warm the import cache with ONE process first: two cold Godots writing
 # the same .godot folder at once is a race nobody needs to debug.
-"$SHANDALAR_TIMEOUT" -k 5 900 "$GODOT" --headless --import . >/dev/null 2>&1 </dev/null || true
+(
+	shandalar_test_profile || exit $?
+	"$SHANDALAR_TIMEOUT" -k 5 900 "$GODOT" --headless --import .
+) > "$dir/import.log" 2>&1 </dev/null || {
+	echo "LAN SMOKE IS NOT CLEAN: import failed" >&2
+	cat "$dir/import.log" >&2
+	exit 1
+}
+
+# Share only the warmed resource cache, not project settings. Each role
+# gets its own override before autoloads start; no tracked file changes.
+for role in host guest; do
+	project="$dir/$role/project"
+	mkdir -p "$project" || exit 3
+	for source in "$PWD"/* "$PWD"/.[!.]* "$PWD"/..?*; do
+		[ -e "$source" ] || [ -L "$source" ] || continue
+		case "${source##*/}" in .git | override.cfg) continue ;; esac
+		ln -s "$source" "$project/${source##*/}" || exit 3
+	done
+	printf '[application]\nconfig/name="Shandalar LAN Smoke %s %s"\n' \
+		"${dir##*/}" "$role" > "$project/override.cfg"
+done
 
 run_role() {
 	local role="$1"; shift
-	XDG_DATA_HOME="$dir/$role" "$SHANDALAR_TIMEOUT" -k 5 "$SMOKE_TIMEOUT" \
-		"$GODOT" --headless --path . --log-file "$dir/$role/engine.log" \
+	GODOT_EDITOR_CUSTOM_FEATURES= XDG_DATA_HOME="$dir/$role" \
+		"$SHANDALAR_TIMEOUT" -k 5 "$SMOKE_TIMEOUT" \
+		"$GODOT" --headless --path "$dir/$role/project" --log-file "$dir/$role/engine.log" \
 		res://tools/lan_smoke.tscn -- --role "$role" --invite "$dir/invite.txt" \
 		"$@" > "$dir/$role.log" 2>&1 </dev/null
 }

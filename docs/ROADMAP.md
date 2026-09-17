@@ -14881,6 +14881,37 @@ Docs: `docs/sgmanalink-tournaments.md`, `docs/CODE_MAP.md` rows.
 Gate on the tree as committed: 467 scripts, **7,361/7,361 tests, 327,204
 asserts**, exit 0 in 968 s; Python 273; boot 0 errors.
 
+## 2026-09-17 — 0.32.0 release gate
+
+Reviewed main through `1756c53`, including protocol 20, the 40-card setup
+minimum, disabled-pack deck validation, public extra-land/damage/regeneration
+projection, stale-revision concessions, and tournament organiser recovery.
+No additional gameplay defect was reproduced in this integration pass.
+
+Two tooling corrections accompany the release. The banner's catalogue
+stdout test now compares the renderer against the same local skin, with an
+alternate RGB/RGBA fixture, instead of assuming every installed skin has the
+committed guide's image encoding. The two-process LAN launcher now gives
+each seat a uniquely named project as well as an XDG data directory: macOS
+ignores XDG. It also removes only its own fresh child directory, preserves
+an existing `LAN_SMOKE_DIR` parent, and stops on failed imports. Three
+launcher regressions cover isolation, retained logs and failure cleanup.
+
+Source gates: **7,361/7,361 GUT tests, 326,964 assertions, 467 scripts**,
+strict wrapper exit 0; **277 Python tests, one platform-specific skip**.
+Seed 4242 finished both demo and fuzzed-human rendered duels under fifth
+edition and modern rules, all four clean. Seed 4250 completed an encrypted
+two-process LAN duel with discovery and a mid-game disconnect/reconnect:
+both seats agreed on the winner, no refused commands or failed checks.
+The player's settings remained byte-identical. This is a single-machine
+LAN rehearsal, not a substitute for playtesting on two physical machines.
+
+The six-platform release uses plain and original-skin packages plus the
+separate skin ZIP. Every game package includes the artwork and Pack 1–5
+construction toolkit; downloaded card pictures and constructed packs remain
+local. Export, archive, extracted-tool and uploaded-checksum verification
+are separate release gates, as documented in `docs/release-builds.md`.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.
