@@ -1,6 +1,6 @@
 # Generate card artwork and optional card packs
 
-The current 0.31.0 packages for every platform include the Python tools,
+Packages from 0.32.0 on for every platform include the Python tools,
 their helper modules and the trusted card metadata. No source checkout,
 Godot editor or pip packages are needed. Install Python 3.10 or newer and
 run the commands below from the **extracted game folder** (the folder

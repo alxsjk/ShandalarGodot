@@ -1,6 +1,6 @@
 # SGManalink LAN playtest
 
-Development source: `main`, version **0.31.0**. A desktop LAN full-pool duel
+Development source: `main`, version **0.32.0**. A desktop LAN full-pool duel
 milestone, not the public Internet release. No Nakama, account service, central
 directory or MElo is required. Offline duels, hotseat, demonstration and Deck
 Builder retain their existing code paths.

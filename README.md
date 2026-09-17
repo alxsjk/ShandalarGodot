@@ -38,13 +38,14 @@ engine, and the freedom to keep the game alive.
   <em>A spell chain in progress during a duel.</em>
 </p>
 
-## Play — 0.31.0
+## Development — 0.32.0
 
 **Duels, deck building, optional expansions, Booster Draft and LAN play.**
 
-[Download Shandalar 0.31.0](https://github.com/b0realis/ShandalarGodot/releases/tag/v0.31.0)
-for **Windows, Linux, Apple Silicon/Intel Mac, Raspberry Pi 5 ARM64 or web**. The release page has launch
-instructions, standalone and original-skin packages, and SHA-256 checksums.
+The **0.32.0** release is in preparation for **Windows, Linux, Apple Silicon/Intel Mac,
+Raspberry Pi 5 ARM64 and web**; the [releases page](https://github.com/b0realis/ShandalarGodot/releases)
+carries launch instructions, standalone and original-skin packages, and SHA-256 checksums
+for every published version. Until then, run the source on `main` with Godot 4.7 (below).
 
 Play with an **897-card early-Magic core**, historic decks, four computer
 opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
@@ -67,7 +68,7 @@ up to **20 players**, configurable match lengths and deck policies, an
 organiser's Master Panel, graphical advancement and final standings.
 [Computer seats](docs/sgmanalink-computer-players.md) use the same four local
 opponents and separate Unfair challenge; choose how many to add to a tournament.
-Use matching 0.31.0 builds and enabled card catalogues on all participants.
+Use matching builds and enabled card catalogues on all participants.
 Internet play, permanent accounts and MElo are parked for now.
 
 The game also includes an in-game [Booster Draft](docs/booster-draft.md): choose
@@ -110,7 +111,7 @@ separately. Import packs through **Options → Skin**; on desktop they can
 also live in `skin/` beside the game.
 
 **Card pictures are not included in the repository or release downloads.**
-Current 0.31.0 packages for **all platforms** include the construction tools
+Packages from 0.32.0 on for **all platforms** include the construction tools
 and their required metadata in `tools/`, `cards/data/` and
 `packaging/card_packs/`; no source checkout is needed. Older 0.20.0 downloads
 do not include the numbered-pack builders. Use Python 3.10+ and run these
@@ -203,7 +204,7 @@ Work completed or planned after the 0.20.0 release:
   [Python builder](tools/pack_5_alliances.py), gold banner emblem, matching
   Extras medallions, expanded Help and [engine/AI integration](docs/pack-5-alliances.md).
   Build locally with `python3 tools/pack_5_alliances.py fetch-art`, then
-  `python3 tools/pack_5_alliances.py`. Included in the 0.31.0 development build;
+  `python3 tools/pack_5_alliances.py`. Included in the 0.32.0 development build;
   generated packs and card pictures are not distributed.
 - [ ] **Internet play and community MElo (Magic Elo)** — parked until
   resources allow. No authentication or ranking service is required for LAN play.
