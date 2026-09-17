@@ -523,6 +523,11 @@ emblems and On/Off captions below. Close is the only footer action. `original_ca
 `completion_pack_on` filter source membership without unloading packs or
 editing a deck. With 1997 hidden, Pack 1 still admits its added reprint pairs
 and chooses their artwork. `original_1997()` restores shipped memberships.
+Since 2026-09-17 the six switches are REMEMBERED (`EXTRAS_SETTING`,
+`deck_builder_extras`): written by `_remember_extras` from the Inventory
+refresh whenever they moved, read back by `_restore_extras` in `_ready`;
+only the expansions on offer are written, and a pack enabled later comes
+back on.
 Registry membership/printing APIs include enabled extras without changing the
 base `SET_ORDER`. Saved decks remain name-based and record required pack ids.
 
@@ -4284,7 +4289,15 @@ shandalar/
 │    deck>` seat NAMED BY THE DECK IT DREW (config.decks the strict load
 │    of that file, the other seat keeping its row's text, the seed
 │    replaying the name, a pooled `<random from …>` naming a deck under
-│    its pool) and the label rule one rule for the row and the duel;
+│    its pool) and the label rule one rule for the row and the duel; and
+│    since 2026-09-17 EVERY DECK ROW WEARS ITS COLOUR PIPS (the mask's
+│    cached ManaIcons.color_strip, five pips wide, the random rows bare)
+│    and the strip itself with and without the 1997 sheet;
+│    tests/ui/test_extras_remembered.gd — THE EXTRAS WINDOW REMEMBERS
+│    (2026-09-17): only-1997 is what the next opening shows and the
+│    latest word wins, Select All remembered too, a keystroke and an
+│    already-off switch write nothing, nothing or nonsense saved opens
+│    everything on, a pack enabled later comes back on;
 │    tests/ui/test_deck_layout.gd — optional duel-sized Showcase (2026-09-13):
 │    big-card default, saved classic choice, checked Big cards mini-menu,
 │    1:1 real/proxy previews,
@@ -5535,6 +5548,12 @@ shandalar/
 │   │                          the note and Go! name the pack, and
 │   │                          `<random deck>` skips it; the listed floor
 │   │                          is DeckModel.MIN_CARDS on every screen.
+│   │                          [QoL] Every deck row WEARS ITS COLOUR PIPS
+│   │                          (2026-09-17, "similarly as in Deck
+│   │                          builder"): `_deck_masks` from the scan,
+│   │                          ManaIcons.color_strip as the row's icon at
+│   │                          DECK_PIP = the Builder's LOAD_PIP; the
+│   │                          random rows wear none.
 │   ├── deck_groups.gd       class DeckGroups — WHERE A DECK CAME FROM,
 │   │                          the heading it appears under in the deck
 │   │                          list. `User-created` is DERIVED from the
@@ -6913,7 +6932,13 @@ shandalar/
 │       │                      antes put at z 0 under it. Seams:
 │       │                      hand_rect / hand_names / hand_window
 │       ├── mana_icons.gd    class ManaIcons — the mana-symbol glyphs the
-│       │                      mini cards and the preview draw
+│       │                      mini cards and the preview draw; since
+│       │                      2026-09-17 color_strip(mask, cell), ONE
+│       │                      TEXTURE of a deck's colour pips (WUBRG,
+│       │                      packed left, always strip_width wide; the
+│       │                      1997 symbol scaled, or a disc of INK
+│       │                      without the sheet) for the Battle-Setup
+│       │                      pickers' rows
 │       ├── mana_text.gd     class ManaText — WRAPPED RULES TEXT WITH THE
 │       │                      SYMBOLS SET INLINE (symbol_metrics measures
 │       │                      against the CELL, not the line box, since

@@ -9,6 +9,7 @@ func after_each() -> void:
 	for id in CardPacks.available_ids(): CardPacks.set_enabled(id, false)
 	CardPacks.set_current_deck_names([])
 	ShellMusic.stop()
+	Settings.clear_value(DeckBuilderScreen.EXTRAS_SETTING)   # remembered since 2026-09-17
 
 func test_main_menu_has_compact_pack_four_information_and_live_counts() -> void:
 	var title = load("res://game/main.tscn").instantiate()

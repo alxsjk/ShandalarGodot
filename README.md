@@ -101,8 +101,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([Fellwar Stone under the double-click](docs/ROADMAP.md#2026-09-17--fellwar-stone-under-the-double-click)):
-**7,371 GUT tests / 327,755 assertions**, plus **277 Python tests**
+Latest local verification ([Colour pips on the Battle-Setup pickers, and an Extras window that remembers](docs/ROADMAP.md#2026-09-17--colour-pips-on-the-battle-setup-pickers-and-an-extras-window-that-remembers)):
+**7,377 GUT tests / 329,625 assertions**, plus **277 Python tests**
 (one platform-specific skip).
 
 ## Art and skins

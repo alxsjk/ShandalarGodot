@@ -28,6 +28,21 @@ const CELL := {
 	"W": 12, "R": 13, "U": 14, "B": 15, "G": 16, "T": 17,
 }
 
+## [QoL] The five colours as flat ink — the pip a deck's row wears when
+## there is no 1997 sheet to cut a symbol from. The Deck Builder's bar
+## graph (`DeckBuilderScreen.MANA_BAR`) is drawn in the same five.
+const INK := {
+	Mtg.ManaColor.W: Color8(232, 226, 196),
+	Mtg.ManaColor.U: Color8(110, 158, 214),
+	Mtg.ManaColor.B: Color8(126, 118, 128),
+	Mtg.ManaColor.R: Color8(206, 102, 80),
+	Mtg.ManaColor.G: Color8(120, 168, 116),
+}
+const LETTER := {Mtg.ManaColor.W: "W", Mtg.ManaColor.U: "U",
+	Mtg.ManaColor.B: "B", Mtg.ManaColor.R: "R", Mtg.ManaColor.G: "G"}
+## A [method color_strip] is always this many pips wide, filled or not.
+const STRIP_PIPS := 5
+
 static var _atlas_cache: Dictionary = {}
 
 
@@ -88,3 +103,71 @@ static func cost_row(cost_text: String, icon_size := 14) -> HBoxContainer:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 		row.add_child(icon)
 	return row
+
+
+## Width of a [method color_strip] at [param cell]: five pips and the four
+## one-pixel gaps between them, whatever the mask.
+static func strip_width(cell: int) -> int:
+	return STRIP_PIPS * cell + STRIP_PIPS - 1
+
+
+## [QoL] ONE TEXTURE OF COLOUR PIPS for a deck's row in a list — a pip per
+## colour the deck plays, in WUBRG order, packed from the left on a strip
+## always [method strip_width] wide, so the titles after it line up down
+## the list whatever each deck casts (the Deck Builder's Load window has
+## worn the same pips since 2026-09-06; the Battle-Setup pickers asked for
+## them on 2026-09-17). The 1997 symbols where the skin is imported; a flat
+## disc of the colour's [constant INK] otherwise, so the row still reads
+## with no original files at all. Null for a mask with no colour in it — a
+## deck of artifacts has nothing to say here, and its row wears nothing.
+## A texture rather than a [method cost_row] because an [OptionButton]
+## takes a texture per row and not a control.
+static func color_strip(mask: int, cell := 14) -> Texture2D:
+	var key := "strip/%d/%d" % [mask, cell]
+	if _atlas_cache.has(key):
+		return _atlas_cache[key]
+	var result: Texture2D = null
+	var image: Image = null
+	var slot := 0
+	for color in Mtg.WUBRG:
+		if not (mask & color):
+			continue
+		if image == null:
+			image = Image.create_empty(strip_width(cell), cell, false, Image.FORMAT_RGBA8)
+		image.blend_rect(_pip(int(color), cell), Rect2i(0, 0, cell, cell),
+			Vector2i(slot * (cell + 1), 0))
+		slot += 1
+	if image != null:
+		result = ImageTexture.create_from_image(image)
+	_atlas_cache[key] = result
+	return result
+
+
+## One pip, [param cell] pixels square: the colour's 1997 symbol scaled to
+## fit, or the disc. Cached per colour and size, so the sheet is read back
+## from the texture five times at most.
+static func _pip(color: int, cell: int) -> Image:
+	var key := "pip/%d/%d" % [color, cell]
+	if _atlas_cache.has(key):
+		return _atlas_cache[key]
+	var pip: Image = null
+	var sym := symbol(LETTER[color])
+	if sym != null:
+		pip = sym.get_image().duplicate()
+		pip.resize(cell, cell, Image.INTERPOLATE_LANCZOS)
+	else:
+		pip = Image.create_empty(cell, cell, false, Image.FORMAT_RGBA8)
+		var ink: Color = INK[color]
+		var rim := ink.darkened(0.45)
+		var centre := (cell - 1) / 2.0
+		var radius := cell / 2.0
+		for y in cell:
+			for x in cell:
+				var dist := Vector2(x - centre, y - centre).length()
+				if dist >= radius:
+					continue
+				var px := rim if dist > radius - 1.5 else ink
+				px.a = minf(1.0, radius - dist)   # feather the last pixel
+				pip.set_pixel(x, y, px)
+	_atlas_cache[key] = pip
+	return pip

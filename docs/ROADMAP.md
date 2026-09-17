@@ -14991,6 +14991,68 @@ Gate on the tree as committed: 468 scripts, **7,371/7,371 tests, 327,755
 asserts**, exit 0 in 996 s; Python 277, exit 0; boot
 0 errors.
 
+## 2026-09-17 — Colour pips on the Battle-Setup pickers, and an Extras window that remembers
+
+THE OWNER'S PLAYTEST, two items: *"1. In the Magic duel, where you select
+decks / random decks to play — they should have deck-colour helper icons
+in the menu, similarly as in the Deck Builder. 2. Deck Builder Extras
+(extra card set) selections should be persistent across open/close or
+game restart. If the user selects only 1997, then on the next opening of
+the Deck Builder only 1997 should be selected."*
+
+**The pips.** The Deck Builder's Load window has worn a deck's colours
+since 2026-09-06 — `DeckStore.colors_of` as a row of the 1997 symbols,
+fourteen pixels each, on a strip five pips wide so the titles line up.
+The Battle-Setup pickers are `OptionButton`s, which take a TEXTURE per
+row and not a control, so the same row is now also a texture:
+`ManaIcons.color_strip(mask, cell)` composes one `ImageTexture`, a pip
+per colour in WUBRG order packed from the left, always
+`ManaIcons.strip_width(cell)` wide — the 1997 symbol scaled to the cell
+where the skin is imported, a flat disc of the colour's ink
+(`ManaIcons.INK`, the Deck Builder's bar-graph five) where it is not, so
+the row reads with no original files at all. Cached per mask and size.
+`SetupScreen._scan_decks` records the mask of every listed deck
+(`_deck_masks`, from the LENIENT load — a card not in the registry has no
+colour to count either way, so a proxy deck still shows the colours of the
+cards it does hold), and `_fill_deck_options` adds the deck rows with
+`add_icon_item`. The random rows — `<random deck>`, `<random from …>` —
+wear nothing: they are not decks. Godot sets every row's text past the
+widest icon in the popup, so the titles line up whether a row has pips or
+not; a deck with no colour in it (artifacts) gets no strip and no pip.
+`SetupScreen.DECK_PIP` is the Deck Builder's `LOAD_PIP`, pinned equal.
+
+**The memory.** The Extras window's switches live on `DeckFilter`
+(`original_cards_on`, `completion_pack_on`, `sets[code]` for each
+expansion) and were rebuilt from `reset()` on every opening. The screen
+now writes them to `Settings` under `DeckBuilderScreen.EXTRAS_SETTING`
+(`deck_builder_extras`: `{"original", "pack1", "sets": {code: bool}}`)
+and reads them back in `_ready` before the strip and the Inventory are
+built (`_restore_extras`). The write is in `_refresh_inventory`, behind
+the revision guard, and only when the state MOVED (`_remember_extras`
+compares against the last snapshot): so the Extras window, `Select All`
+on the strip and a pack turned on in Options all land in the file, and a
+type-ahead keystroke costs no write. Only the expansion codes ON OFFER are
+written — a pack that is off in Options has no switch to remember, and
+turned on again its cards come back on, as `_on_card_packs_changed` has
+always promised, whatever the window last said about them. Nothing saved,
+or a value of the wrong shape, opens as before: everything on. The 1997
+set strip (Alpha … Fourth) is a browsing filter like the colours and is
+NOT remembered — the owner's words were the Extras.
+
+Pinned by `tests/ui/test_setup_screen.gd` (+2: every deck row wears its
+mask's strip and the random rows none, five pips wide, the same cached
+texture per mask; the strip packs from the left with and without the
+sheet, null for no colour) and `tests/ui/test_extras_remembered.gd`
+(four: only-1997 is what the next opening shows and the latest word wins;
+`Select All` remembered too, a keystroke writes nothing, an already-off
+switch writes nothing; nothing or nonsense saved opens everything on, a
+partial dictionary honours what it has; a pack enabled later comes back
+on). The three suites that move the switches on a screen clear the
+setting in `after_each`. No wire change; `SgProtocol.VERSION` stays 20.
+
+Gate on the tree as committed: 469 scripts, **7,377/7,377 tests, 329,625
+asserts**, exit 0 in 1016 s; Python 277, exit 0; boot 0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

@@ -234,6 +234,13 @@ const SEALED_SETTINGS := {
 }
 ## Whether `Done` in the sealed window clears the deck first, remembered.
 const SEALED_FRESH_SETTING := "sealed_fresh_deck"
+## [QoL] The Extras window's switches — the 1997 originals, Pack 1 and
+## each expansion pack — remembered between visits and across restarts
+## the way the marks above are (2026-09-17 playtest: *"if user selects
+## only 1997, then in next opening of the deck builder only 1997 should
+## be selected"*). One dictionary, `{"original": bool, "pack1": bool,
+## "sets": {code: bool}}` — see [method _extras_state].
+const EXTRAS_SETTING := "deck_builder_extras"
 
 const MARGIN := 8.0
 const HEADER_H := 50.0
@@ -358,6 +365,9 @@ var _music: MusicPlayer
 ## The Q/Esc menu ([method _open_deck_menu]) while it is up.
 var _menu: OriginalDialog = null
 var _pack_requirement_notice: Control = null
+## The Extras switches as last written to [constant EXTRAS_SETTING], so a
+## refresh that moved none of them writes nothing — see [method _remember_extras].
+var _saved_extras: Dictionary = {}
 var _bar_ground: Control
 var _side_ground: Control
 var _status_timer := 0.0
@@ -369,6 +379,7 @@ func _ready() -> void:
 	CardRegistry.ensure_loaded()
 	for card_name in CardRegistry.all_names():
 		_pool.append(CardRegistry.get_card(card_name))
+	_restore_extras()
 	for _i in SLOTS:
 		_slots.append(DeckModel.new())
 		_slot_dirty.append(false)
@@ -960,6 +971,46 @@ func _extra_source_row(body: VBoxContainer, id: String, title: String,
 		choice.add_child(caption)
 		row.add_child(choice)
 	body.add_child(row)
+
+
+## The Extras switches as one dictionary — see [constant EXTRAS_SETTING].
+## Only the expansion codes on offer right now are written: a pack that is
+## off in Options has no switch to remember, and its cards come back on,
+## as [method _on_card_packs_changed] promises, when it is enabled again.
+func _extras_state() -> Dictionary:
+	var sets := {}
+	for code in CardRegistry.extra_set_order():
+		sets[code] = filter.set_on(code)
+	return {"original": filter.original_cards_on,
+		"pack1": filter.completion_pack_on, "sets": sets}
+
+
+## Put the remembered Extras switches back on [member filter], before the
+## strip and the Inventory are built from it. Nothing saved, or a value
+## of the wrong shape, leaves the opening state alone — everything on.
+func _restore_extras() -> void:
+	var saved: Variant = Settings.get_value(EXTRAS_SETTING, {})
+	if saved is Dictionary and not saved.is_empty():
+		filter.original_cards_on = bool(saved.get("original", true))
+		filter.completion_pack_on = bool(saved.get("pack1", true))
+		var sets: Variant = saved.get("sets", {})
+		if sets is Dictionary:
+			for code in CardRegistry.extra_set_order():
+				if sets.has(code) and filter.set_on(code) != bool(sets[code]):
+					filter.toggle_set(code)
+	_saved_extras = _extras_state()
+
+
+## Write the Extras switches out when a refresh finds them moved — by the
+## Extras window, by `Select All`, by a pack turned on — and only then, so
+## a type-ahead keystroke costs no write. Every path that moves them bumps
+## [member DeckFilter.revision], which is what brings the refresh here.
+func _remember_extras() -> void:
+	var state := _extras_state()
+	if state == _saved_extras:
+		return
+	_saved_extras = state
+	Settings.set_value(EXTRAS_SETTING, state)
 
 
 func _on_card_packs_changed(_id: String, _enabled: bool) -> void:
@@ -1693,6 +1744,7 @@ func _refresh_inventory(keep_scroll := false) -> void:
 	if filter.revision == _drawn_revision:
 		return
 	_drawn_revision = filter.revision
+	_remember_extras()
 	filter_passes += 1
 	var entries: Array = []
 	if sealed == null:

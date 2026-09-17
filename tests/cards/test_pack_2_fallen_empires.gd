@@ -9,6 +9,9 @@ func after_each() -> void:
 	g = null
 	CardPacks.set_enabled(FallenEmpiresPack.ID, false)
 	CardPacks.set_enabled(CardPacks.ID, false)
+	# The Extras switches are remembered across screens (2026-09-17); a
+	# test that moved them must not hand them to the next one.
+	Settings.clear_value(DeckBuilderScreen.EXTRAS_SETTING)
 
 func test_fallen_empires_is_complete_and_independent_of_pack_one() -> void:
 	assert_eq(CardRegistry.size(), 999)

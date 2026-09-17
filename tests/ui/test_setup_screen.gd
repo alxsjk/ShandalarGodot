@@ -124,6 +124,88 @@ func test_every_deck_row_carries_its_own_path() -> void:
 	assert_lte(screen._playable_paths.size(), screen._deck_paths.size())
 
 
+## [QoL] EVERY DECK ROW WEARS ITS COLOURS (2026-09-17 playtest — "deck
+## colors helper icons in the menu similarly as in Deck builder"): the
+## pips are the deck's `DeckStore.colors_of` mask, on a strip five pips
+## wide, and the random rows — which are not decks — wear none.
+func test_deck_rows_wear_their_colour_pips_and_the_random_rows_wear_none() -> void:
+	var picker: OptionButton = _deck_pickers()[0]
+	var pips := 0
+	for i in picker.item_count:
+		if picker.is_item_separator(i):
+			continue
+		var meta := str(picker.get_item_metadata(i))
+		if meta == "" or meta.begins_with(SetupScreen.GROUP_RANDOM):
+			assert_null(picker.get_item_icon(i), "row %d is a random pick, not a deck" % i)
+			continue
+		var mask := int(screen._deck_masks.get(meta, -1))
+		assert_gte(mask, 0, "row %d's deck was scanned for its colours" % i)
+		var icon := picker.get_item_icon(i)
+		if mask == 0:
+			assert_null(icon, "row %d casts no colour and wears no pip" % i)
+			continue
+		assert_not_null(icon, "row %d wears its pips" % i)
+		if icon == null:
+			continue
+		pips += 1
+		assert_eq(icon, ManaIcons.color_strip(mask, SetupScreen.DECK_PIP),
+			"one cached strip per mask")
+		assert_eq(icon.get_width(), ManaIcons.strip_width(SetupScreen.DECK_PIP),
+			"five pips wide whatever the deck casts, so the titles line up")
+		assert_eq(icon.get_height(), SetupScreen.DECK_PIP)
+	assert_gt(pips, 0, "the shipped decks are coloured")
+	assert_eq(SetupScreen.DECK_PIP, DeckBuilderScreen.LOAD_PIP,
+		"the same pip the Deck Builder's Load window wears")
+
+
+## The strip itself: a pip per colour in WUBRG order, packed from the
+## left on a fixed width, null with nothing to show — and the same with
+## the 1997 sheet taken away, when the pips are flat discs of ink.
+func test_the_colour_strip_packs_its_pips_from_the_left_with_or_without_the_sheet() -> void:
+	var saved: Variant = GameSkin._texture_cache.get("mana_symbols")
+	for with_sheet in [true, false]:
+		if not with_sheet:
+			GameSkin._texture_cache["mana_symbols"] = null
+		ManaIcons._atlas_cache.clear()
+		var label := "with the sheet" if with_sheet else "without the sheet"
+		assert_null(ManaIcons.color_strip(0, 14), "no colour, no strip " + label)
+		assert_null(ManaIcons.color_strip(Mtg.ManaColor.C, 14),
+			"colourless is not a colour " + label)
+		for mask in [Mtg.ManaColor.W, Mtg.ManaColor.G, Mtg.ManaColor.U | Mtg.ManaColor.R, 31]:
+			var strip := ManaIcons.color_strip(mask, 14)
+			assert_not_null(strip, label)
+			if strip == null:
+				continue
+			assert_eq(strip.get_width(), 74, label)
+			assert_eq(strip.get_height(), 14, label)
+			var image := strip.get_image()
+			var filled := 0
+			for slot in 5:
+				var inked := 0
+				for y in 14:
+					for x in 14:
+						if image.get_pixel(slot * 15 + x, y).a > 0.5:
+							inked += 1
+				if inked > 0:
+					filled += 1
+					assert_eq(filled, slot + 1, "pips pack from the left " + label)
+					assert_gt(inked, 100, "a pip is a filled disc " + label)
+			var expected := 0
+			for color in Mtg.WUBRG:
+				if mask & color:
+					expected += 1
+			assert_eq(filled, expected, "one pip per colour of %d " % mask + label)
+			if expected < 5:
+				for y in 14:
+					assert_eq(image.get_pixel(73, y).a, 0.0,
+						"the last slot is clear " + label)
+	if saved == null:
+		GameSkin._texture_cache.erase("mana_symbols")
+	else:
+		GameSkin._texture_cache["mana_symbols"] = saved
+	ManaIcons._atlas_cache.clear()
+
+
 func test_the_random_pick_repeats_on_the_same_seed() -> void:
 	var paths := screen._deck_paths
 	assert_gt(paths.size(), 1, "more than one deck, or there is nothing to pick")

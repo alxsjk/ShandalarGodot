@@ -96,6 +96,9 @@ var _playable_paths: Array[String] = []
 ## any. Worked out once in [method _scan_decks]; the picker's row text and
 ## its tooltip both read it, and so does the note.
 var _proxy_paths: Dictionary = {}
+## Deck path -> the colours its cards are ([method DeckStore.colors_of]),
+## for every listed deck. The picker rows wear them as pips.
+var _deck_masks: Dictionary = {}
 ## Deck path -> the pack ids its `# requires-pack:` lines declare that are
 ## not enabled. The Deck Builder acts on that line (it offers to enable
 ## the pack); this screen threw it away, so a Pack 3 deck with the pack
@@ -174,6 +177,9 @@ const RANDOM_DECK := "<random deck>"
 ## "any deck filed there". [method _row_of_deck] skips all three kinds of
 ## non-deck row.
 const GROUP_RANDOM := "group:"
+## [QoL] The size of one colour pip on a deck row — the Deck Builder's
+## `LOAD_PIP`, so the two lists wear the same pips.
+const DECK_PIP := 14
 
 ## The duelist portrait's own size — the 120x88 the original drew
 ## `Life_<colour>pict.pic` at, and the size of the life register it is the
@@ -274,6 +280,11 @@ func _scan_decks() -> void:
 		# leniently (the pack is where its cards live); either way the
 		# remedy is the pack, so the row says so and nothing else.
 		var lenient := DeckList.load_file(path, false)
+		# [QoL] THE PIPS ARE THE LENIENT LOAD'S: a card that is not in the
+		# registry has no colour to count either way, so the three rows
+		# below agree, and a deck listed for its proxies still shows the
+		# colours of the cards it does hold.
+		_deck_masks[path] = DeckStore.colors_of(lenient)
 		var missing := CardPacks.missing_requirements(lenient.required_packs)
 		if not missing.is_empty() and lenient.errors.is_empty() \
 				and lenient.cards.size() >= DeckModel.MIN_CARDS:
@@ -996,7 +1007,18 @@ func _fill_deck_options(option: OptionButton) -> void:
 				label += "  (needs %s)" % CardPacks.label_for(packs[0])
 			elif not proxies.is_empty():
 				label += "  (%d proxy)" % proxies.size()
-			option.add_item(label)
+			# [QoL] COLOUR PIPS BEFORE THE TITLE, as the Deck Builder's Load
+			# window wears them (2026-09-17 playtest — "similarly as in Deck
+			# builder"): three hundred titles do not say what they cast, and
+			# a player looking for the red-green deck reads five pips faster
+			# than any word. The random rows above wear none — they are not
+			# decks. Godot sets every row's text past the widest icon, so
+			# the titles line up whether a row has pips or not.
+			var pips := ManaIcons.color_strip(int(_deck_masks.get(path, 0)), DECK_PIP)
+			if pips == null:
+				option.add_item(label)
+			else:
+				option.add_icon_item(pips, label)
 			option.set_item_metadata(option.item_count - 1, path)
 			if not packs.is_empty():
 				option.set_item_tooltip(option.item_count - 1,

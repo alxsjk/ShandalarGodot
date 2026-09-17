@@ -196,6 +196,10 @@ unpayable choices. Include hidden-information permutation tests.
 - **Deck Builder:** independent Extras On/Off row, centered medallions, live
   source/set filtering, search, count and preview. Original 1997 cards also
   have an independent visibility toggle. Visibility is not global enabling.
+  The switches are remembered between visits and across restarts
+  (`deck_builder_extras` in `settings.cfg`, since 2026-09-17); a pack that
+  is off in Options has no switch to remember, and turned on again its
+  cards come back on.
 - **Deck storage:** decks stay name-based unless a printing is explicitly
   pinned. Save required-pack metadata; loading an unavailable/disabled-pack
   deck must explain it and offer the appropriate enable flow. Disabling a
