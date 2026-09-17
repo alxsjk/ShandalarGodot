@@ -45,9 +45,13 @@ func _ready() -> void:
 	var trust := OriginalDialog.label(DraftAudit.TRUST_NOTE, 14)
 	trust.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	window.body().add_child(trust)
-	window.add_button("Check deck").pressed.connect(verify)
+	var check := window.add_button("Check deck")
+	check.pressed.connect(verify)
 	window.add_button("Reconstruct deck").pressed.connect(reconstruct)
 	window.add_button("Back").pressed.connect(queue_free)
+	# Take the keyboard from the setup beneath: its Verify button would
+	# otherwise keep focus and answer the next Enter.
+	check.grab_focus()
 
 
 func _browse(kind: String) -> void:

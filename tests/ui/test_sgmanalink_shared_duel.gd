@@ -613,3 +613,32 @@ func test_attachments_and_shields_are_fanned_behind_their_host_online() -> void:
 			"seat %d draws the shield reminder" % seat)
 		assert_eq(screen._shield_ghost_data(host).card_name, "Samite Healer")
 		assert_true(host.memory.is_empty(), "no private host memory crosses the wire")
+
+
+func test_granted_and_silenced_abilities_badge_the_same_at_both_seats() -> void:
+	# The board's cost badge and regeneration mark read the LIVE ability
+	# list. Protocol 15 sends it as a cost and a flag per ability, so a
+	# Zombie Master's grant and a Titania's Song's silence show online as
+	# they do locally (until 2026-09-17 the guest badged the PRINTED list).
+	advance_to_step(Mtg.Step.MAIN1)
+	var zombie := put_battlefield(0, "Scathe Zombies")
+	put_battlefield(0, "Zombie Master")
+	var tome := put_battlefield(1, "Jayemdae Tome")
+	put_battlefield(1, "Titania's Song")
+	g.recalculate()
+	assert_eq(zombie.cur_activated_abilities.size(), 1, "the Master's regeneration, granted")
+	assert_true(tome.cur_activated_abilities.is_empty(), "the Song silenced the Tome")
+	for seat in 2:
+		var screen := _screen(seat)
+		await _pump()
+		var local_zombie := _local(screen, zombie)
+		var local_tome := _local(screen, tome)
+		assert_eq(local_zombie.cur_activated_abilities.size(), 1, "seat %d sees the granted ability" % seat)
+		assert_eq(local_zombie.cur_activated_abilities[0].cost.text, "{B}", "seat %d badges its cost" % seat)
+		assert_true(local_tome.cur_activated_abilities.is_empty(), "seat %d sees the Tome silenced" % seat)
+		for card in screen.find_children("*", "MiniCard", true, false):
+			if card.instance == local_zombie:
+				assert_true(card.regenerates_itself(), "seat %d marks the Zombie as regenerating" % seat)
+			elif card.instance == local_tome:
+				assert_false(card.regenerates_itself())
+		assert_true(local_zombie.memory.is_empty(), "no private host memory crosses the wire")

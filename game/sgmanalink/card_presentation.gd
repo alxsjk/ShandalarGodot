@@ -38,6 +38,14 @@ static func make(card: Dictionary, seat: int, zone: int, existing: CardInstance 
 	instance.prevention_source = CardRegistry.get_card(card.shield) \
 		if CardRegistry.has_card(card.shield) else null
 	instance.regeneration_shields = int(card.regeneration)
+	# The LIVE activated abilities, so the board's cost badges and its
+	# regeneration mark follow grants and silences (Zombie Master,
+	# Titania's Song) as they do locally. A cost and a flag each — the
+	# ability itself never crosses, and these are never activated here.
+	instance.cur_activated_abilities.clear()
+	for row in card.abilities:
+		var effects: Array = [RegenerateEffect.new()] if row.regen else []
+		instance.cur_activated_abilities.append(ActivatedAbility.new(String(row.cost), false, effects))
 	instance.face_down = card.masked
 	var effects: Array = card.text_effects.duplicate(true)
 	for effect in effects:

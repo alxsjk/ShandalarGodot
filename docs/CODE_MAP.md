@@ -67,6 +67,9 @@ needed); card files have NO class_name (they register by name instead);
   selectors, verification report and explicit organiser-copy trust boundary.
 - `game/deck_builder/draft_session.gd` (`DraftSession`, `PackArt`): animated pack
   opening, monotonic deadline, frozen completion, save recovery and web downloads.
+- `tests/ui/test_draft_setup_one_verifier_2026_09_17.gd`: Verify pressed twice
+  opens one verifier, a fresh one after Back, and the verifier takes keyboard
+  focus from the button beneath.
 - `tests/ui/test_booster_draft.gd`: pack composition, eligibility, setup lifecycle,
   pool enforcement, real input at expiry, layout, close handling and save recovery.
 
@@ -410,6 +413,10 @@ per-card reveals and is respected by network views and fair observations.
   with fewer than three picks, ordering answers and the next draws.
 - `docs/pack-5-alliances.md`: construction, adaptations, audits and acceptance.
 - `docs/adding-card-packs.md`: future-pack end-to-end contributor checklist.
+- `tests/cards/test_demonic_consultation_2026_09_17.gd`: Demonic Consultation
+  names from the caster's DECKLIST (Petra Sphinx's `RiddleEffect.nameable`,
+  the 2026-09-07 ruling) — not the whole pool; the likeliest name first,
+  and a name the library lacks runs it dry as the card reads.
 - `tests/unit/test_festival_predicate_2026_09_16.gd`: Festival's turn-wide
   ban answered by `CombatState.attack_illegality` itself, so the seats that
   only ask the predicate (the SGManalink "attackable" lane) offer no

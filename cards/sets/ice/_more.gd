@@ -205,13 +205,13 @@ static func _pox(g: MtgGame, _s: CardInstance, _pid: int, _t: TargetRef, _x: int
 		for i in chosen: g.sacrifice_permanent(i)
 		g.end_simultaneous()
 static func _consult(g: MtgGame, _s: CardInstance, pid: int, _t: TargetRef, _x: int) -> void:
-	var names: Array[String] = []
-	names.assign(CardRegistry.all_names())
-	names.sort()
-	var plausible: Array[String] = load("res://cards/sets/leg/petra_sphinx.gd").RiddleEffect.nameable(g, pid)
-	var hint := names.find(plausible[0]) if not plausible.is_empty() else 0
-	var choice := g.agents[pid].choose_option(g, pid, names, "Demonic Consultation: name a card", maxi(hint, 0))
-	var named := names[choice]
+	# Named from the caster's own DECKLIST, most copies unaccounted for
+	# first (the 2026-09-07 ruling: never every name in the pool). A bare
+	# game without a decklist names nothing and the search runs dry.
+	var names: Array[String] = load("res://cards/sets/leg/petra_sphinx.gd").RiddleEffect.nameable(g, pid)
+	var named := ""
+	if not names.is_empty():
+		named = names[g.agents[pid].choose_option(g, pid, names, "Demonic Consultation: name a card", 0)]
 	g.log_line("Demonic Consultation names " + named)
 	for _i in 6: _exile_top_face_up(g, pid)
 	while not g.players[pid].library.is_empty():

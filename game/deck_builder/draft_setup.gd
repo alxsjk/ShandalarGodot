@@ -125,7 +125,7 @@ func _ready() -> void:
 	window.add_button("Launch draft").pressed.connect(_launch)
 	var verify := window.add_button("Verify saved deck…")
 	verify.name = "VerifyDraftDeck"
-	verify.pressed.connect(func() -> void: add_child(DraftVerifier.new()))
+	verify.pressed.connect(_open_verifier)
 	window.add_button("Back").pressed.connect(close_setup)
 	_refresh()
 
@@ -154,6 +154,14 @@ func _open_pool() -> void:
 	var chooser := DraftPoolDialog.new()
 	add_child(chooser)
 	chooser.closed.connect(_refresh)
+
+
+## One verifier at a time: the button keeps keyboard focus under the
+## overlay, and Enter again would stack a second window on the first.
+func _open_verifier() -> void:
+	for child in get_children():
+		if child is DraftVerifier and not child.is_queued_for_deletion(): return
+	add_child(DraftVerifier.new())
 
 
 func _browse() -> void:

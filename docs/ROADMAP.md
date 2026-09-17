@@ -14150,6 +14150,38 @@ soaks and the Pack 4/5 AI audits (18 full duels each) clean. Version stays
 0.31.0 in `project.godot` — the bump is the owner's call; no release, no
 art.
 
+## 2026-09-17 — The hunt's leftovers, and 0.32.0 on main
+
+The 0.31.0 release and its tag were withdrawn on the owner's word; `main`
+carries **0.32.0** towards the next release, and the README points at the
+releases page rather than a version. Three of the 2026-09-16 "left for the
+owner" rows reproduced and are fixed, each with a test that fails on the
+old code:
+
+- **Demonic Consultation named from the whole pool.** The prompt listed
+  every registered name (Abomination, Abu Ja'far, …) and used the decklist
+  only for its default — against the 2026-09-07 ruling that Petra Sphinx
+  and Nebuchadnezzar already follow. It now names from
+  `RiddleEffect.nameable` (the caster's decklist, most copies unaccounted
+  for first); a name the library lacks runs it dry, as the card reads.
+  `tests/cards/test_demonic_consultation_2026_09_17.gd`; the ledger's
+  ruling paragraph records the correction; RULES_REVISION
+  `sgmanalink-packs-2026-09-17-1`.
+- **The Booster Draft "Verify saved deck…" overlay stacked.** The button
+  kept keyboard focus under the verifier, so Enter again opened a second
+  verifier on the first. One at a time now, and the verifier takes focus.
+  `tests/ui/test_draft_setup_one_verifier_2026_09_17.gd`.
+- **A guest's board badged the PRINTED abilities.** `SgCardPresentation`
+  left `cur_activated_abilities` at the definition's list, so a Zombie
+  Master's granted regeneration and a Titania's Song's silence showed at
+  the host only. Protocol **15** sends each face's live activated
+  abilities as a cost and a regeneration flag (nothing executable, masked
+  faces send none); the guest rebuilds the list for the cost badge and the
+  regeneration mark. `test_granted_and_silenced_abilities_badge_the_same_at_both_seats`.
+
+Still unreproduced: `CumulativeUpkeep` with a null sacrifice choice, and
+two tactics lines that pay mana before an unprovokable refusal.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

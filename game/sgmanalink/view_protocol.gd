@@ -77,6 +77,17 @@ static func room(value: Variant) -> bool:
 		or not value.game.damage_request.is_empty()
 
 
+## A face's live activated abilities: a cost string and a regeneration
+## flag each, bounded like the rest of the face.
+static func abilities(value: Variant) -> bool:
+	if not value is Array or value.size() > 64: return false
+	for row in value:
+		if not row is Dictionary or not SgProtocol.exact(row, ["cost", "regen"]) \
+				or not text(row.cost, 128) or not row.regen is bool:
+			return false
+	return true
+
+
 static func cards(value: Variant) -> bool:
 	if not value is Array or value.size() > SgProtocol.MAX_CARDS:
 		return false
@@ -84,7 +95,7 @@ static func cards(value: Variant) -> bool:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "cost", "land",
 			"power", "toughness", "tapped", "sick", "damage", "attacking", "blocking", "playable",
 			"creature", "owner", "controller", "masked", "types", "colors", "keywords", "subtypes", "counters",
-			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "shield", "attached", "actions", "exile_playable", "text_effects"]) \
+			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "shield", "attached", "abilities", "actions", "exile_playable", "text_effects"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card_name(card.name) \
 			or not text(card.rules, 4096) or not text(card.cost, 128) \
 			or not text(card.shield, 128) \
@@ -93,7 +104,8 @@ static func cards(value: Variant) -> bool:
 			or not text(card.chosen, 128) or not text(card.attached, 16) \
 			or not SgProtocol.indices(card.keywords, 64) or not SgProtocol.names(card.subtypes, 64) \
 			or not SgProtocol.names(card.landwalk, 64) or not counters(card.counters) or not options(card.actions) \
-			or not text_effects(card.text_effects) or (card.masked and not card.text_effects.is_empty()):
+			or not text_effects(card.text_effects) or (card.masked and not card.text_effects.is_empty()) \
+			or not abilities(card.abilities) or (card.masked and not card.abilities.is_empty()):
 			return false
 		for key in ["land", "tapped", "sick", "attacking", "playable", "creature", "masked", "exile_playable"]:
 			if not card[key] is bool:

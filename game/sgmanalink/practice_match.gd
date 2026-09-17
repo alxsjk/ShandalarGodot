@@ -164,6 +164,7 @@ func _cards(pid: int, list: Array) -> Array:
 			"text_effects": [] if masked else _text_effects(card),
 			"attached": "" if card.attached_to < 0 or game.find_instance(card.attached_to) == null \
 				else _handle(pid, game.find_instance(card.attached_to)),
+			"abilities": [] if masked else _abilities(card),
 			"actions": [] if masked else SgDuelActions.options(card, pid),
 			"exile_playable": game.can_play_from_exile(pid, card)})
 		if masked: out.back().cost = ""
@@ -171,11 +172,24 @@ func _cards(pid: int, list: Array) -> Array:
 			var hidden: Dictionary = out.back()
 			hidden.name = "Face-down card"
 			for key in ["types", "colors", "power", "toughness", "protection", "rampage", "prevention", "regeneration", "damage"]: hidden[key] = 0
-			for key in ["keywords", "subtypes", "landwalk"]: hidden[key] = []
+			for key in ["keywords", "subtypes", "landwalk", "abilities"]: hidden[key] = []
 			hidden.counters = {}
 			hidden.shield = ""
 			hidden.land = false
 			hidden.creature = false
+	return out
+
+
+## The LIVE activated abilities as the board badges them — a cost and
+## whether it regenerates — so a grant (Zombie Master) or a silence
+## (Titania's Song) shows at both seats. Nothing executable crosses.
+func _abilities(card: CardInstance) -> Array:
+	var out: Array = []
+	for ability in card.cur_activated_abilities:
+		var regen := false
+		for effect in ability.effects:
+			if effect is RegenerateEffect and effect.target_spec == null: regen = true
+		out.append({"cost": ability.cost.text, "regen": regen})
 	return out
 
 

@@ -69,7 +69,9 @@ in real mtg). When you can rewrite the card text - the same - you should be
 presented with a limited list so make things as simple as possible."* So a
 card is NAMED from a DECKLIST — `MtgPlayer.deck_names`, what a player
 brought to the duel, never a scan of zones (Petra Sphinx from one's own,
-Nebuchadnezzar from the target opponent's; both rows lifted 2026-09-07), and
+Nebuchadnezzar from the target opponent's; both rows lifted 2026-09-07;
+Demonic Consultation from one's own — corrected 2026-09-17, it had offered
+every name in the pool with the decklist as a default), and
 a text change picks from the words the engine models (the Text changes row
 below stays, and says so). Do not re-litigate either.
 
