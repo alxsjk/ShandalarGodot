@@ -19,6 +19,41 @@ extends GutTest
 var screen: SetupScreen
 
 
+## THE CHOSEN MODE WEARS GOLD (2026-09-17 playtest — "sometimes hard to
+## see which button is selected"): the one button down in the row has a
+## two-pixel ring and letters of UiChrome.CHOSEN on the theme's own
+## pressed face; the two up keep the plain face, and the gold follows the
+## choice.
+func test_the_chosen_mode_button_wears_a_gold_ring_and_gold_letters() -> void:
+	for mode in [SetupScreen.BattleMode.HOTSEAT, SetupScreen.BattleMode.DEMO,
+			SetupScreen.BattleMode.VS_AI]:
+		screen._apply_mode(mode)
+		for i in screen._mode_buttons.size():
+			var button: Button = screen._mode_buttons[i]
+			assert_eq(button.button_pressed, i == mode, "button %d for mode %d" % [i, mode])
+			var pressed := button.get_theme_stylebox("pressed") as StyleBoxFlat
+			assert_not_null(pressed, "the ring is a flat box on the theme's face")
+			if pressed != null:
+				assert_eq(pressed.border_color, UiChrome.CHOSEN)
+				assert_eq(pressed.border_width_left, 2)
+				assert_eq(pressed.border_width_top, 2)
+				assert_gt(pressed.bg_color.a, 0.0, "the face is still drawn under the ring")
+			assert_eq(button.get_theme_stylebox("hover_pressed"), pressed,
+				"a hovered chosen button stays ringed")
+			assert_eq(button.get_theme_color("font_pressed_color"), UiChrome.CHOSEN)
+			assert_eq(button.get_theme_color("font_hover_pressed_color"), UiChrome.CHOSEN)
+			# An UP button is the theme's own: no ring on its face, no gold ink.
+			var normal := button.get_theme_stylebox("normal") as StyleBoxFlat
+			assert_not_null(normal)
+			if normal != null:
+				assert_ne(normal.border_color, UiChrome.CHOSEN, "the plain face wears no gold")
+			assert_ne(button.get_theme_color("font_color"), UiChrome.CHOSEN)
+	# And the gold is legible where it goes: on the depressed charcoal.
+	var face := (screen._mode_buttons[0].get_theme_stylebox("pressed") as StyleBoxFlat).bg_color
+	assert_gt(UiChrome.CHOSEN.get_luminance() - face.get_luminance(), 0.5,
+		"gold on the dark face, not on sandstone")
+
+
 func test_hotseat_always_enables_private_hands_but_other_modes_do_not() -> void:
 	for mode in [SetupScreen.BattleMode.HOTSEAT, SetupScreen.BattleMode.VS_AI,
 			SetupScreen.BattleMode.DEMO]:

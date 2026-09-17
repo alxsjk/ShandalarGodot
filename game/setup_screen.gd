@@ -397,6 +397,9 @@ func _build_ui() -> void:
 		button.text = pair[0]
 		button.toggle_mode = true
 		button.custom_minimum_size = Vector2(150, 36)
+		# The chosen mode wears gold (2026-09-17 playtest: "sometimes
+		# hard to see which button is selected").
+		UiChrome.gold_when_chosen(button)
 		button.pressed.connect(_apply_mode.bind(pair[1]))
 		mode_row.add_child(button)
 		_mode_buttons.append(button)

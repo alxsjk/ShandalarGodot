@@ -4292,7 +4292,9 @@ shandalar/
 │    its pool) and the label rule one rule for the row and the duel; and
 │    since 2026-09-17 EVERY DECK ROW WEARS ITS COLOUR PIPS (the mask's
 │    cached ManaIcons.color_strip, five pips wide, the random rows bare)
-│    and the strip itself with and without the 1997 sheet;
+│    and the strip itself with and without the 1997 sheet, and THE
+│    CHOSEN MODE BUTTON WEARS GOLD (ring and letters follow the choice,
+│    the up buttons plain, the gold legible on the dark face);
 │    tests/ui/test_extras_remembered.gd — THE EXTRAS WINDOW REMEMBERS
 │    (2026-09-17): only-1997 is what the next opening shows and the
 │    latest word wins, Select All remembered too, a keystroke and an
@@ -5553,7 +5555,9 @@ shandalar/
 │   │                          builder"): `_deck_masks` from the scan,
 │   │                          ManaIcons.color_strip as the row's icon at
 │   │                          DECK_PIP = the Builder's LOAD_PIP; the
-│   │                          random rows wear none.
+│   │                          random rows wear none. The chosen mode
+│   │                          button (Hotseat / Duel the AI / AI Demo)
+│   │                          wears UiChrome.gold_when_chosen's ring.
 │   ├── deck_groups.gd       class DeckGroups — WHERE A DECK CAME FROM,
 │   │                          the heading it appears under in the deck
 │   │                          list. `User-created` is DERIVED from the
@@ -5796,7 +5800,11 @@ shandalar/
 │   │                          (Winbk_Options 9-patch) + era buttons/labels;
 │   │                          ONE place for the game's window look
 │   │                          (player-facing summary of every path:
-│   │                          docs/player-files.md)
+│   │                          docs/player-files.md). gold_when_chosen
+│   │                          (2026-09-17): a toggle in a row of same-
+│   │                          faced buttons wears a two-pixel ring and
+│   │                          letters of CHOSEN gold when down — the
+│   │                          Battle-Setup mode row
 │   ├── paths.gd             class GamePaths — THE PLAYER'S PLACES ([QoL],
 │   │                          2026-09-08: "the default folder location
 │   │                          should be shown in settings but can also be

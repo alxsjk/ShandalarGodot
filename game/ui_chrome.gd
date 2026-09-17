@@ -34,6 +34,12 @@ const SEAT := Color(1, 0.97, 0.90, 0.75)
 ## frames leave free, so an emphasised word cannot be mistaken for a
 ## colour cue.
 const ACCENT := Color8(74, 26, 92)
+## THE CHOSEN ONE OF A ROW OF TOGGLES — see [method gold_when_chosen].
+## The warm gold the original emphasises with on its DARK grounds (the
+## duel log's seat ink is the same), which is where a default-themed
+## button's face is: [constant ACCENT] is for sandstone and would vanish
+## on charcoal.
+const CHOSEN := Color8(252, 206, 108)
 ## The skinless panel face: sandstone, so [constant INK] reads on it.
 const FACE := Color8(196, 179, 146)
 ## Its bevel.
@@ -190,6 +196,35 @@ static func menu_button(label: String, min_size := Vector2(260, 46),
 	button.add_theme_stylebox_override("hover_pressed", pressed)
 	shadowed_button(button)
 	return button
+
+
+## A TOGGLE THAT SAYS IT IS DOWN. Three same-faced buttons in a row
+## (Hotseat / Duel the AI / AI Demo) and the default theme's `pressed`
+## is the `normal` face a shade darker with the letters a shade whiter —
+## "sometimes hard to see which button is selected" (the owner,
+## 2026-09-17). The chosen one now wears a two-pixel ring of
+## [constant CHOSEN] and letters of the same gold, on the face the theme
+## already gives it; the others are untouched, so the row reads as one
+## lit button among dark ones. Works on any [Button] in `toggle_mode` —
+## the theme's own pressed box is duplicated and ringed, not replaced.
+static func gold_when_chosen(button: Button) -> void:
+	var face := button.get_theme_stylebox("pressed")
+	var ring: StyleBoxFlat
+	if face is StyleBoxFlat:
+		ring = face.duplicate()
+	else:
+		# A skinned or missing face: the default theme's own depressed
+		# charcoal, so the ring still has something dark to sit on.
+		ring = StyleBoxFlat.new()
+		ring.bg_color = Color(0, 0, 0, 0.6)
+		ring.set_corner_radius_all(3)
+		ring.set_content_margin_all(4)
+	ring.border_color = CHOSEN
+	ring.set_border_width_all(2)
+	button.add_theme_stylebox_override("pressed", ring)
+	button.add_theme_stylebox_override("hover_pressed", ring)
+	button.add_theme_color_override("font_pressed_color", CHOSEN)
+	button.add_theme_color_override("font_hover_pressed_color", CHOSEN)
 
 
 ## A modal EXPLANATION popup on the era's stone panel: a title, body text,

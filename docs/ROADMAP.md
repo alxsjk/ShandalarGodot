@@ -15053,6 +15053,34 @@ setting in `after_each`. No wire change; `SgProtocol.VERSION` stays 20.
 Gate on the tree as committed: 469 scripts, **7,377/7,377 tests, 329,625
 asserts**, exit 0 in 1016 s; Python 277, exit 0; boot 0 errors.
 
+## 2026-09-17 — The chosen mode wears gold
+
+THE OWNER'S PLAYTEST: *"In the Magic Battle where we select Hotseat /
+Duel the AI / AI Demo it is sometimes hard to see which button is
+selected. Can we make a yellow border around the selected button and
+yellow text, or do you suggest something else?"*
+
+The three mode buttons are default-themed `Button`s in `toggle_mode`,
+and Godot's `pressed` face is the `normal` face a shade darker with the
+letters a shade whiter — on mottled sandstone, at a glance, nothing. The
+owner's own idea is the right one, in the game's own ink:
+`UiChrome.gold_when_chosen(button)` duplicates the theme's pressed box,
+rings it two pixels of `UiChrome.CHOSEN` — the warm gold the original
+emphasises with on its dark grounds, the duel log's seat ink — and
+letters the down state in the same gold (`font_pressed_color`,
+`font_hover_pressed_color`, `hover_pressed` box). The up buttons are
+untouched, so the row reads as one lit button among dark ones. Not
+`ACCENT`: dark purple is the emphasis for sandstone and would vanish on
+charcoal. The helper takes any toggle button, so a later row can wear the
+same ring.
+
+Pinned by `tests/ui/test_setup_screen.gd` (+1: the ring and the gold
+follow the choice through all three modes, the up buttons keep the plain
+face and ink, the gold is legible on the pressed face). No wire change.
+
+Gate on the tree as committed: 469 scripts, **7,378/7,378 tests, 328,741
+asserts**, exit 0 in 979 s; Python 277, exit 0; boot 0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.
