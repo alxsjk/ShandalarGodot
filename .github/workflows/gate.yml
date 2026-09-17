@@ -45,11 +45,11 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Godot ${{ env.GODOT_VERSION }} from the cache
         id: godot
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: godot.zip
           key: godot-${{ env.GODOT_VERSION }}-stable-linux-x86_64
@@ -77,7 +77,7 @@ jobs:
 
       - name: Keep the engine log and the JUnit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: gut-shard-${{ matrix.shard }}
           path: |
@@ -91,14 +91,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Python tool tests
         run: python3 -m unittest discover -s tools -p 'test_*.py'
 
       - name: Godot ${{ env.GODOT_VERSION }} from the cache
         id: godot
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: godot.zip
           key: godot-${{ env.GODOT_VERSION }}-stable-linux-x86_64
