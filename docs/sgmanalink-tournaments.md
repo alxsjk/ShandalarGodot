@@ -121,9 +121,16 @@ ready; previously recorded wins remain. There is no seamless host migration.
 Save failure suspends tournament advancement. The organiser reads the storage
 instruction they can act on; every other hall says that play resumes when the
 organiser retries the save and that recorded scores are kept.
-The organiser's own **Forget** is the end of the event: the resume code goes
-with it, so an event in registration or under way is cancelled for every
-entrant rather than left running with its controls unreachable.
+The organiser's own **Forget** empties the organiser's chair, not the event:
+the resume code goes with the session, but an event in registration or under
+way keeps running at its tables and its checkpoint stays current. The host's
+own lobby takes the chair back with the seat it holds next, without a table
+restarting; nobody else can, and a connected organiser is never displaced.
+A host whose network drops loses nothing either way: every tournament seat,
+the organiser's included, is held for its resume code past any duel's
+reconnect grace, and when the network is back each seat is where it was —
+same table, same hands, same controls. Only a host restart goes through the
+checkpoint and the recovery codes below.
 Recovery requires a matching build and the same enabled gameplay packs. Earlier
 protocol-8/9/10/11/12/13 development checkpoints remain untouched but are not migrated
 to the current protocol-14 compatibility contract.

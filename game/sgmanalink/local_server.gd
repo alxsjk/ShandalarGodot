@@ -66,6 +66,24 @@ func open_tournament(options: Dictionary, resume_code: String, folder: String, r
 	return ""
 
 
+## Local organiser entry point, like [method open_tournament]: the host's
+## own lobby takes the chair of a live event whose organiser session is gone
+## — vacated by an abandon, or disconnected past any hope of its resume code
+## — with a session it holds right now. Nothing at the tables moves. A
+## connected organiser is never displaced; a visitor never reaches this.
+func reclaim_tournament(resume_code: String) -> String:
+	var sid := int(_tokens.get(resume_code.sha256_text(), 0))
+	if not _connected(sid): return "Connect the organiser to this host first."
+	if tournament == null or tournament.event.phase not in ["registration", "running"]:
+		return "No tournament is under way on this host."
+	if sid == tournament.organiser: return "This session already holds the tournament."
+	if _connected(tournament.organiser): return "The organiser is still connected."
+	tournament.organiser = sid
+	tournament.event.revision += 1
+	_publish()
+	return ""
+
+
 ## [param discovery_port] exists so a test — or a second service on one
 ## development machine — need not take the single system-wide UDP 17898;
 ## [method SgLanDiscovery.advertise] already carries it for that reason.
@@ -279,14 +297,12 @@ func _abandon(sid: int) -> void:
 	var session: Dictionary = _sessions[sid]
 	var room_id: String = session.room
 	var room: Dictionary = _rooms.get(room_id, {})
-	if tournament != null and sid == tournament.organiser \
-			and tournament.event.phase in ["registration", "running"]:
-		# The organiser walking away must not leave an event nobody can end:
-		# the session is gone with its resume code, so the event is cancelled
-		# for every entrant rather than orphaned with its controls unreachable.
-		tournament.abandoned_by_organiser()
-		room = {}
-	elif tournament != null and tournament.member(sid) != 0:
+	# The organiser walking away vacates the chair, not the event: the
+	# session is gone with its resume code, but the event stays saved and
+	# running for [method reclaim_tournament] or a restored checkpoint. An
+	# organiser who also plays departs as an entrant as well.
+	if tournament != null and sid == tournament.organiser: tournament.vacated_by_organiser()
+	if tournament != null and tournament.member(sid) != 0:
 		tournament.departed(sid)
 		room = {}
 	if not room.is_empty():

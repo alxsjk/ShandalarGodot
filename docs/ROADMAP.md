@@ -14815,6 +14815,72 @@ asserts**, exit 0 in 971 s (the first run had the one red above, the
 older concede test, and every other script green); Python 273; boot
 0 errors.
 
+## 2026-09-17 — Two calls on the last section: the introduction fits, the organiser's chair
+
+The owner's two calls on "The owner's nine calls" above, both without a
+wire change.
+
+- **Long deck names give way; the introduction fits its slot.** The
+  opening window is pinned to the ground's 977×584, so the online
+  introduction has exactly the two antes' slot — caption, gap and card,
+  454 px — and whatever it cannot fit pushes the answer buttons off the
+  paper. Measured: under the skin's body font two three-line deck titles
+  stood 40 px over; under the shipped body font (Spectral, whose line is
+  half again as tall) the page was 45 px over with SHORT names and
+  one-line titles, nothing left to give. Two changes in
+  `game/sgmanalink/duel_opening.gd`. (a) Each seat is a ROW: the portrait
+  beside the name and deck, portraits on the outside and the two names
+  facing each other across the `vs.`. A seat is now the portrait's
+  height, and a name and a title of two lines each stand within it under
+  either font; the column is 333 px under the skin and 403–411 under
+  Spectral against a room of 420, buttons at 676 inside 692. (b) The deck
+  titles give way a line at a time on the column's sort pass —
+  `_fit_titles`, connected to `sort_children` — with the ellipsis and the
+  tooltip keeping the whole name. Two things learned on the way: the
+  first sort passes run with the labels a pixel wide, where an autowrapped
+  title measures at its cap, so the pass waits for a real width; and a
+  Label's `max_lines_visible` does not refresh its minimum until
+  `update_minimum_size()` is called, so the pass calls it and re-measures
+  in place. Under the skin nothing is ever trimmed (pinned: the titles
+  keep their three lines); under Spectral two long names over two long
+  titles trim each title to two lines, the note under the rules keeps
+  both its lines, and every label and button is inside the dialog. The
+  earlier note that the long-names test "passes in the full suite" and
+  fails alone was wrong: it passed alone on main; the red came from a
+  worktree without `assets/`, where the shipped font stands in for the
+  skin's — which is exactly the plain build's case, and now fits.
+- **The organiser's abandon vacates the chair; the event stays.** The
+  previous section's cancel-on-Forget is withdrawn on the owner's word:
+  *"the tournament state should be saved and resumable if network drops
+  for the host."* `SgTournamentHost.vacated_by_organiser()` replaces
+  `abandoned_by_organiser()`: the chair empties, the revision moves, the
+  checkpoint is saved, and the tables play on; an organiser who also
+  plays departs as an entrant too. `SgLocalServer.reclaim_tournament
+  (resume_code)` is the way back — a local entry point beside
+  `open_tournament`, never a wire command, so a visitor with the
+  invitation cannot reach it; it refuses without a live event, while the
+  organiser is still connected, or for a session that is not connected,
+  and otherwise binds the chair and publishes. The host's own lobby calls
+  it from `_refresh` whenever its service carries a live event and the
+  snapshot says this seat is not the organiser, and prints "Tournament
+  controls recovered for this seat." The pause, if the organiser had set
+  one, stands until they are back: it is theirs to lift. Network tests:
+  the abandon leaves the event running with its table, hands and
+  checkpoint intact, a fresh local session is refused `t_pause` until it
+  reclaims and accepted after; the host's lobby takes an empty chair
+  back on its own while an entrant's lobby has no service to do it with;
+  and the host's own network drop — every socket closed at once, every
+  `disconnected_at` pushed past `RECONNECT_GRACE_MS`, `_expire_disconnected`
+  run — expires no tournament seat, restarts no game, and brings every
+  seat back to the same table with the same hands and the organiser's
+  controls answering. `docs/sgmanalink-tournaments.md` says so in the
+  recovery contract.
+
+Docs: `docs/sgmanalink-tournaments.md`, `docs/CODE_MAP.md` rows.
+
+Gate on the tree as committed: 467 scripts, **7,361/7,361 tests, 327,204
+asserts**, exit 0 in 968 s; Python 273; boot 0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

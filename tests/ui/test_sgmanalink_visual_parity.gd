@@ -8,15 +8,17 @@ class ResultTable extends SgDuelView:
 		super._on_game_over(winner_id)
 
 var referee: SgPracticeMatch
+var player_names := ["Azure Fox", "Amber Owl"]
 
 func before_each() -> void:
 	super.before_each()
+	player_names = ["Azure Fox", "Amber Owl"]
 	referee = SgPracticeMatch.new(42)
 	referee.game = g
 
 func _room(seat := 0) -> Dictionary:
 	return {"id":"r1", "name":"Visual parity", "seat":seat,
-		"names":["Azure Fox", "Amber Owl"], "revision":1, "ready":[true,true],
+		"names":player_names.duplicate(), "revision":1, "ready":[true,true],
 		"connected":[true,true], "game":referee.view(seat),
 		"deck_names":referee.deck_names.duplicate(), "deck":{}}
 
@@ -148,12 +150,49 @@ func test_online_introduction_maps_both_players_and_contains_long_deck_names() -
 	var intro := screen._intro_overlay
 	assert_eq(screen.config.player_names, ["Amber Owl", "Azure Fox"])
 	assert_eq(screen.config.deck_names, [referee.deck_names[1], referee.deck_names[0]])
+	_assert_introduction_on_the_paper(intro)
+	for title in intro._deck_titles:
+		assert_eq(title.max_lines_visible, 3, "a title that fits under the skin's font gives nothing away")
+	assert_null(intro._hand)
+	for card in intro._cards: assert_false(card.is_visible_in_tree())
+
+
+func test_long_deck_names_give_way_under_the_shipped_font_and_keep_the_whole_name_in_the_tooltip() -> void:
+	# The plain build has no skin: its body font is the shipped one, whose
+	# line is taller than a skin's. Two long names over two long titles
+	# stand taller than the portraits beside them and the column leaves
+	# its slot, so each title gives up a line; the tooltip keeps the whole
+	# name, and nothing under the seats moves.
+	var fonts := GameSkin._font_cache.duplicate()
+	GameSkin._font_cache["font_body"] = GameSkin.our_font("font_body")
+	player_names = ["Azure Fox of the Northern Marches", "Amber Owl the Elder of Thune"]
+	referee = SgPracticeMatch.new(42)
+	referee.deck_names = ["White Knights ".repeat(6).strip_edges(), "Black-Red Raiders ".repeat(5).strip_edges()]
+	var screen := _screen(1)
+	for i in 8: await get_tree().process_frame
+	GameSkin._font_cache = fonts
+	var intro := screen._intro_overlay
+	_assert_introduction_on_the_paper(intro)
+	assert_eq(intro._deck_titles.size(), 2)
+	for title in intro._deck_titles:
+		assert_eq(title.max_lines_visible, 2, "a three-line title gives up one line, not two: " + title.text)
+		assert_eq(title.get_visible_line_count(), 2)
+		assert_true(title.tooltip_text.begins_with(title.text.left(12)))
+		assert_gt(title.tooltip_text.length(), 40, "the tooltip keeps the whole name")
+	var note: Label = intro._column.get_child(intro._column.get_child_count() - 1)
+	assert_true(note.text.begins_with("Temporary player names"))
+	assert_eq(note.get_visible_line_count(), 2, "the note under the rules lost nothing")
+
+
+## Every word and both answer buttons stand on the dialog's paper — the
+## window is pinned to the ground's size and grows for nothing.
+func _assert_introduction_on_the_paper(intro: SgDuelOpening) -> void:
 	var rect: Rect2 = intro._dialog.get_global_rect()
 	for label in intro.find_children("*", "Label", true, false):
 		if not label.is_visible_in_tree(): continue
 		assert_true(rect.encloses(label.get_global_rect()), label.text)
-	assert_null(intro._hand)
-	for card in intro._cards: assert_false(card.is_visible_in_tree())
+	for button in intro._buttons:
+		assert_true(rect.encloses(button.get_global_rect()), button.text)
 
 
 func test_finished_snapshot_during_the_introduction_preserves_the_result() -> void:

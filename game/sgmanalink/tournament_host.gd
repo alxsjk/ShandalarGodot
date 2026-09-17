@@ -260,17 +260,17 @@ func collect_result(room: Dictionary) -> String:
 	return save_error
 
 
-## The organiser's session abandoned with a live event: cancel it, so the
-## entrants read a cancelled event instead of one whose controls nobody
-## holds. A dropped connection is not this — [method departed] and the
-## resume code cover that.
-func abandoned_by_organiser() -> void:
+## The organiser's session abandoned with a live event: the CHAIR is
+## vacated, never the event. The tables keep playing, the checkpoint stays
+## current and the event stays resumable — the host's own lobby takes the
+## chair back through [method SgLocalServer.reclaim_tournament] without a
+## table restarting, and a host restart restores the checkpoint. The
+## organiser's own pause stands until then: it is theirs to lift. A dropped
+## connection is not this — the session is held for its resume code.
+func vacated_by_organiser() -> void:
 	if event.phase not in ["registration", "running"]: return
-	event.cancel()
-	for session: Dictionary in server()._sessions.values(): session.room = ""
-	server()._rooms.clear()
-	server()._view_cache.clear()
-	paused = false
+	organiser = 0
+	event.revision += 1
 	save()
 
 

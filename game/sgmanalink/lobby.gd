@@ -610,6 +610,13 @@ func _refresh() -> void:
 		var error := service.open_tournament(pending.options, client._resume, pending.folder, pending.path)
 		_notice.text = error if not error.is_empty() else "Tournament opened. Share the invitation; entrants should save their recovery codes."
 	var event: Dictionary = client.state.get("tournament", {})
+	# The host's own seat is the organiser's: a live event on this service
+	# whose chair is empty — the earlier session abandoned with its resume
+	# code — is taken back with the session this lobby holds now.
+	if service != null and client.online and not client.busy() and not event.is_empty() \
+			and not bool(event.get("organiser", false)) and String(event.get("phase", "")) in ["registration", "running"]:
+		if service.reclaim_tournament(client._resume).is_empty():
+			_notice.text = "Tournament controls recovered for this seat."
 	if String(event.get("id", "")) != _tournament_id:
 		_tournament_id = String(event.get("id", ""))
 		_close_master()

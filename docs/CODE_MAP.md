@@ -105,7 +105,8 @@ needed); card files have NO class_name (they register by name instead);
   organiser's flagged rulings/corrections and recovery.
 - `game/sgmanalink/tournament_host.gd` (`SgTournamentHost`): organiser authority,
   entrant-session bindings, concurrent duel rooms, result collection, the
-  organiser's pause and the save gating (one `hold` word for both).
+  organiser's pause and the save gating (one `hold` word for both); an
+  abandoned organiser session vacates the chair, never the event.
 - `game/sgmanalink/tournament_protocol.gd` (`SgTournamentProtocol`): exact public
   context/view and private checkpoint schemas, pair/roster/lifecycle invariants.
 - `game/sgmanalink/tournament_store.gd` (`SgTournamentStore`): private local JSON
@@ -129,7 +130,8 @@ needed); card files have NO class_name (they register by name instead);
   coverage pilots (optional `SG_TOURNAMENT_CAMPAIGN_PLAYERS=20` full knockout),
   seeded varied-deck tournaments, duplicate/lost-ACK stress, credential-free journals,
   the playing organiser's Master Panel and its printed refusals, the waiting player's
-  live hall line across a reconnect, and cross-client final-standings/recovery checks.
+  live hall line across a reconnect, cross-client final-standings/recovery checks,
+  the vacated organiser chair and its reclaim, and the host's own network drop.
 - `tests/ui/test_sgmanalink_tournament_panel.gd`: opt-in setup controls,
   small-window layout, graph containment/zoom/path persistence, twenty-row final
   standings, truthful cancelled-table labels, whole-number series scores on a real
@@ -210,7 +212,8 @@ needed); card files have NO class_name (they register by name instead);
 - `game/sgmanalink/local_server.gd` (`SgLocalServer`): loopback or TLS LAN service,
   room membership, ephemeral capabilities, sequencing/deduplication and
   seat resumption; disambiguated guest labels, bounded in-memory state,
-  ephemeral certificate/invitations, optional LAN advertising, no MElo/public auth.
+  ephemeral certificate/invitations, optional LAN advertising, no MElo/public auth;
+  the host's local `open_tournament` / `reclaim_tournament` entry points.
 - `game/sgmanalink/local_client.gd` (`SgLocalClient`): value-only WebSocket
   client, pinned native LAN TLS, one outstanding command, retry/reconnect,
   acknowledgement-plus-snapshot completion, stalled-action recovery, bounded
@@ -244,7 +247,9 @@ needed); card files have NO class_name (they register by name instead);
   combat gestures, phase stops, card widgets, spell flights and audio are shared.
 - `game/sgmanalink/duel_opening.gd` (`SgDuelOpening`): shared opening-window
   ground with public player/deck names, actual rules and explicit unrated/no-ante
-  status; acknowledged introduction and persistent information beside mulligans.
+  status; acknowledged introduction and persistent information beside mulligans;
+  portraits beside the names, and deck titles that give way a line at a time
+  so the page fits the ante slot under either body font.
 - `game/sgmanalink/duel_projection.gd` (`SgDuelProjection`): render-only `MtgGame`
   interface populated solely from a validated seat view. Stable UI-local card
   objects, empty-identity hidden-zone placeholders, both ends of every attachment,
@@ -271,7 +276,8 @@ needed); card files have NO class_name (they register by name instead);
   retained combat instructions during connection waits, stable opening controls,
   live connection details, previous-life/result sequencing and restored-combat
   layout/resize without recreating its card widgets; one-time no-ante introduction,
-  public match labels, long names, reconnect stability and opening cancellation.
+  public match labels, long names under the skin's font and the shipped one,
+  reconnect stability and opening cancellation.
 - `tests/ui/test_sgmanalink_polish.gd`: connection callback lifecycle,
   stable waiting-room controls, identity locking, chooser Escape/room/search
   lifecycle, viewport resize and delayed/refused deck confirmation over sockets.

@@ -994,22 +994,107 @@ func test_the_organisers_ruling_ends_a_live_table_and_a_correction_is_flagged_ev
 	assert_null(server.tournament)
 
 
-func test_an_organiser_who_abandons_the_host_session_cancels_the_event_for_everyone() -> void:
+func test_an_organiser_who_abandons_the_host_session_leaves_the_event_running_for_a_reclaim() -> void:
 	var owner := await _register(2)
 	var pair: Dictionary = server.tournament.event.rounds[0][0]
 	var a := _by_member(pair.players[0])
 	var b := _by_member(pair.players[1])
 	for client in [a, b]: await _act(client, "t_ready", {"value": true})
 	assert_eq(server._rooms.size(), 1)
+	var room_id: String = a.state.room.id
+	var hand: Array = a.state.room.game.hand.duplicate(true)
+	var revision := int(a.state.tournament.revision)
+	assert_eq(server.reclaim_tournament(a._resume), "The organiser is still connected.")
 	# `forget` is the abandon message: the organiser's session and its
-	# resume code are gone for good, so the event ends rather than lingering
-	# with controls nobody can reach.
+	# resume code are gone for good. The chair empties; the event, its
+	# table and its checkpoint do not.
 	owner.forget()
-	assert_true(await _until(func() -> bool: return server.tournament.event.phase == "cancelled"))
-	assert_true(server._rooms.is_empty(), "every table was cleared with the event")
-	assert_true(await _until(func() -> bool: return String(a.state.get("tournament", {}).get("phase", "")) == "cancelled"))
-	assert_true(a.state.room.is_empty(), "the entrant is back in the hall")
-	assert_eq(SgTournamentStore.read_checkpoint(scratch.path_join(server.tournament.event.id + ".json")).phase, "cancelled")
+	assert_true(await _until(func() -> bool: return server.tournament.organiser == 0))
+	assert_eq(server.tournament.event.phase, "running")
+	assert_eq(server._rooms.size(), 1, "the table plays on")
+	assert_true(await _until(func() -> bool: return int(a.state.tournament.revision) > revision))
+	assert_eq(a.state.room.id, room_id, "the entrants are still at their table")
+	assert_eq(a.state.room.game.hand, hand)
+	assert_eq(SgTournamentStore.read_checkpoint(scratch.path_join(server.tournament.event.id + ".json")).phase, "running")
+	# The host's own lobby takes the chair back with the session it holds
+	# now — the local entry point, never a wire command — and the controls
+	# answer again. Nothing at the table moved.
+	var back := await _client("Organiser")
+	await _act(back, "t_pause")
+	assert_eq(refusals.back(), "Only the organiser can use this control.")
+	assert_eq(server.reclaim_tournament(back._resume), "")
+	assert_true(await _until(func() -> bool: return bool(back.state.tournament.organiser)))
+	await _act(back, "t_pause")
+	assert_true(server.tournament.paused, str(refusals))
+	assert_eq(a.state.room.id, room_id)
+	assert_eq(server.reclaim_tournament(a._resume), "The organiser is still connected.")
+
+
+func test_the_hosts_own_lobby_takes_an_empty_organiser_chair_back() -> void:
+	var owner := await _register(2)
+	owner.forget()
+	assert_true(await _until(func() -> bool: return server.tournament.organiser == 0))
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(1280, 800)
+	add_child_autofree(viewport)
+	var lobby := SgLobby.new()
+	viewport.add_child(lobby)
+	lobby.service = server
+	clients.append(lobby.client)
+	assert_eq(lobby.client.connect_invitation(server.invitation(), "Organiser"), OK)
+	assert_true(await _until(func() -> bool: return bool(lobby.client.state.get("tournament", {}).get("organiser", false))))
+	assert_eq(lobby._notice.text, "Tournament controls recovered for this seat.")
+	assert_eq(server.tournament.event.phase, "running")
+	# An entrant's lobby has no service of its own and never reaches the
+	# entry point; the hall it sees is the same running event.
+	var hall := await _tournament_lobby("Visitor")
+	assert_null(hall.service)
+	assert_false(bool(hall.client.state.tournament.organiser))
+	assert_true(bool(lobby.client.state.tournament.organiser))
+
+
+func test_the_hosts_network_drop_keeps_the_tournament_saved_and_resumable() -> void:
+	# The host's own network goes away for longer than any duel's reconnect
+	# grace: every connection is lost at once, the organiser's included.
+	# Nothing expires and nothing restarts — the sessions are held for their
+	# resume codes, the checkpoint on disk is current, and when the network
+	# is back every seat is where it was, hands and controls included.
+	var owner := await _register(2, 2)
+	var pair: Dictionary = server.tournament.event.rounds[0][0]
+	var a := _by_member(pair.players[0])
+	var b := _by_member(pair.players[1])
+	for client in [a, b]: await _act(client, "t_ready", {"value": true})
+	var room_id: String = a.state.room.id
+	var hands := [a.state.room.game.hand.duplicate(true), b.state.room.game.hand.duplicate(true)]
+	var sids := [server.tournament.organiser, int(server.tournament.bindings[pair.players[0]]),
+		int(server.tournament.bindings[pair.players[1]])]
+	for client in [owner, a, b]:
+		client.set_process(false)
+		client._socket.close(-1)
+	for sid in sids: assert_true(await _until(func() -> bool: return not server._connected(sid)))
+	var now := Time.get_ticks_msec()
+	for sid in sids: server._sessions[sid].disconnected_at = now - SgLocalServer.RECONNECT_GRACE_MS - 1
+	server._expire_disconnected(now)
+	for sid in sids: assert_true(server._sessions.has(sid), "a tournament seat is held past the duel grace")
+	assert_eq(server.tournament.event.phase, "running")
+	assert_eq(server._rooms.size(), 1, "the table waits")
+	var checkpoint := SgTournamentStore.read_checkpoint(scratch.path_join(server.tournament.event.id + ".json"))
+	assert_eq(checkpoint.phase, "running")
+	assert_eq(checkpoint.entrants.size(), 2)
+	for client in [owner, a, b]:
+		client.set_process(true)
+		client._retry_at = 0
+	# Each client notices its dead socket first, then resumes its own seat.
+	assert_true(await _until(func() -> bool: return not (owner.online or a.online or b.online)))
+	assert_true(await _until(func() -> bool: return owner.online and a.online and b.online))
+	assert_true(await _until(func() -> bool: return not a.state.room.is_empty() and not b.state.room.is_empty()))
+	assert_eq(a.state.room.id, room_id, "the same table, not a new game")
+	assert_eq([a.state.room.game.hand, b.state.room.game.hand], hands)
+	assert_true(bool(owner.state.tournament.organiser), "the organiser's seat came back with its controls")
+	await _act(owner, "t_pause")
+	assert_true(server.tournament.paused, str(refusals))
+	await _act(owner, "t_resume")
+	assert_false(server.tournament.paused)
 
 
 func test_a_failed_save_still_lets_the_organiser_cancel_and_close() -> void:
