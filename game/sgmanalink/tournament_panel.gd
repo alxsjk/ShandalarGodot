@@ -390,12 +390,18 @@ func _build_hall() -> void:
 			"Fair information" if unfair_count == 0 else "%d Unfair challenge bot(s) — they see their opponent's current hand" % unfair_count], 15, true))
 	if _view.phase == "complete":
 		header.add_child(SgLobbyStyle.label("Champion · " + _name_of(int(_view.champion)) if _view.champion != 0 else "No champion — no entrants remain.", 26, true))
-	if not _view.save_error.is_empty():
+	if _held():
 		var warning := SgLobbyStyle.column(self, "Tournament paused")
 		# The stored reason is the organiser's own instruction. A guest has no
 		# Master Panel to retry from, so tell them what to expect instead.
-		var pause := SgLobbyStyle.label(_view.save_error if _view.organiser else
-			"The host could not save progress. Play resumes when the organiser retries the save. Scores already recorded are kept.", 18)
+		var text: String
+		if not _view.save_error.is_empty():
+			text = _view.save_error if _view.organiser else \
+				"The host could not save progress. Play resumes when the organiser retries the save. Scores already recorded are kept."
+		else:
+			text = "You paused the tournament. Every table stands still and no new game opens until you choose Resume tournament." if _view.organiser else \
+				"The organiser paused the tournament. Every table stands still; play resumes when the organiser continues the event. Scores already recorded are kept."
+		var pause := SgLobbyStyle.label(text, 18)
 		pause.name = "TournamentPauseNotice"
 		warning.add_child(pause)
 	var tabs := SgLobbyStyle.row(self)
@@ -419,6 +425,11 @@ func _build_hall() -> void:
 	note.add_child(SgLobbyStyle.label("The Master Panel shows scores, life totals and turns — never private hands or library order. Play with a host you trust.", 15, true))
 
 
+## Is every table standing still — a failed save, or the organiser's pause.
+func _held() -> bool:
+	return bool(_view.get("paused", false)) or not String(_view.get("save_error", "")).is_empty()
+
+
 func _choose_section(value: String) -> void:
 	_section = value
 	_snapshot = {"section": value}
@@ -440,17 +451,17 @@ func _build_standings() -> void:
 	var title := "Final standings" if _view.phase == "complete" and _view.champion != 0 else "Results so far"
 	if _view.phase == "cancelled": title = "Results at cancellation"
 	var body := SgLobbyStyle.column(self, title, false)
-	body.add_child(SgLobbyStyle.label("Shared places mean elimination in the same round; there is no third-place match. Series count played results only. Byes and forfeits are separate. No global ranking points.", 15, true))
+	body.add_child(SgLobbyStyle.label("Shared places mean elimination in the same round; there is no third-place match. Series count played results only. Byes, forfeits and the organiser's rulings are separate. No global ranking points.", 15, true))
 	var rows := SgTournamentResults.standings(_view)
 	var table := Tree.new()
 	table.name = "TournamentStandings"
-	table.columns = 7
+	table.columns = 8
 	table.hide_root = true
 	table.column_titles_visible = true
 	table.select_mode = Tree.SELECT_ROW
 	table.custom_minimum_size.y = 360
 	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var columns := [["Place", 46], ["Player", 170], ["Series W–L", 82], ["Games W–L–D", 108], ["Byes", 42], ["Forfeit W–L", 91], ["Status", 130]]
+	var columns := [["Place", 46], ["Player", 150], ["Series W–L", 82], ["Games W–L–D", 108], ["Byes", 42], ["Forfeit W–L", 91], ["Ruled W–L", 82], ["Status", 130]]
 	for index in columns.size():
 		table.set_column_title(index, columns[index][0])
 		table.set_column_custom_minimum_width(index, columns[index][1])
@@ -484,7 +495,7 @@ func _build_standings() -> void:
 		item.set_metadata(0, row.id)
 		var cells := ["—" if row.place == 0 else ("=%d" if row.tied else "%d") % int(row.place), row.name,
 			"%d–%d" % [row.series_won, row.series_lost], "%d–%d–%d" % [row.games_won, row.games_lost, row.draws],
-			str(row.byes), "%d–%d" % [row.forfeits_won, row.forfeits_lost], row.status]
+			str(row.byes), "%d–%d" % [row.forfeits_won, row.forfeits_lost], "%d–%d" % [row.rulings_won, row.rulings_lost], row.status]
 		for index in cells.size():
 			item.set_text(index, cells[index])
 			item.set_tooltip_text(index, "%s\nDeck: %s\n%s" % [row.name, row.deck_name, row.status])
@@ -522,7 +533,11 @@ func _master_controls(ready: int) -> void:
 		for pair: Dictionary in _view.rounds.back():
 			if pair.status not in ["finished", "bye"]: finished = false
 		controls.add_child(SgLobbyStyle.label("Human players confirm each new game in the hall; bots ready automatically. Draw the next round when all pairings finish and players have returned.", 16))
-		_button(controls, "Draw next round", "t_next", {}, finished and _view.tables.is_empty())
+		_button(controls, "Draw next round", "t_next", {}, finished and _view.tables.is_empty() and not _view.paused)
+		# The organiser's own pause: every table stands still, yours included,
+		# and no new one opens. Reversible, so a single click each way.
+		_button(controls, "Resume tournament" if _view.paused else "Pause tournament", "t_resume" if _view.paused else "t_pause")
+		controls.add_child(SgLobbyStyle.label("Pause freezes every table, including your own, until you resume. Declare a winner or correct a result on its table below; every such ruling is flagged for all players.", 14))
 	# Only a table whose pairing has stopped playing still holds a player on a
 	# result screen. Offering the control over live games did nothing.
 	var finished_tables := false
@@ -539,7 +554,7 @@ func _master_controls(ready: int) -> void:
 	controls.add_child(SgLobbyStyle.label("Progress is saved on this host. There is no automatic host migration or public ranking.", 14))
 
 
-func _confirm_button(parent: Node, caption: String, op: String, extra: Dictionary, explanation: String) -> void:
+func _confirm_button(parent: Node, caption: String, op: String, extra: Dictionary, explanation: String) -> Button:
 	var key := op + str(extra)
 	var button := SgLobbyStyle.button("Confirm: " + caption if _confirm == key else caption, func() -> void:
 		if _confirm == key:
@@ -553,6 +568,7 @@ func _confirm_button(parent: Node, caption: String, op: String, extra: Dictionar
 	button.set_meta("t_network", true)
 	parent.add_child(button)
 	if _confirm == key: parent.add_child(SgLobbyStyle.label(explanation + " Click Confirm to continue.", 15))
+	return button
 
 
 func _player_controls() -> void:
@@ -634,6 +650,10 @@ func _entry_status(own: Dictionary) -> String:
 		return "You have a bye in round %d. There is no game to play; wait for the other tables." % round_number
 	var opponent := _entrant(int(pair.players[1 if int(pair.players[0]) == int(own.id) else 0]))
 	var opponent_name := "Unavailable entrant" if opponent.is_empty() else String(opponent.name)
+	if pair.status in ["waiting", "playing"] and _held():
+		return "%s Your round %d table against %s waits for play to resume." % [
+			"The host could not save progress." if not _view.save_error.is_empty() else "The organiser paused the tournament.",
+			round_number, opponent_name]
 	if pair.status == "playing": return "Your game against %s is running at table %d." % [opponent_name, table]
 	if pair.status == "waiting":
 		if not own.ready: return "Round %d, table %d against %s. Select Ready for next game." % [round_number, table, opponent_name]
@@ -665,6 +685,30 @@ func _build_roster() -> void:
 		row.add_child(label)
 		if _view.organiser and SgTournamentResults.active(_view, int(player.id)):
 			_confirm_button(row, "Withdraw", "t_remove", {"player": player.id}, "Withdraw %s?" % player.name)
+
+
+## The organiser's pen over one pairing of the current round: declare a winner
+## while the series is undecided, or overturn a recorded one. Two clicks, like
+## a withdrawal, and the ledger flags whichever it was.
+func _ruling_controls(card: Node, pair: Dictionary) -> void:
+	if _view.phase not in ["running", "complete"] or pair.status == "bye": return
+	for seat in 2:
+		var pid := int(pair.players[seat])
+		var player := _entrant(pid)
+		if player.is_empty() or player.get("withdrawn", false): continue
+		var button: Button
+		if pair.status == "finished":
+			if int(pair.winner) == pid: continue
+			button = _confirm_button(card, "Correct: %s wins" % player.name, "t_rule", {"pair": int(pair.id), "winner": pid},
+				"Overturn this result and record %s as the winner? The correction is flagged for every player." % player.name)
+		else:
+			button = _confirm_button(card, "Declare %s winner" % player.name, "t_rule", {"pair": int(pair.id), "winner": pid},
+				"End this series now with %s as the winner? A game in progress ends at once, and the ruling is flagged for every player." % player.name)
+		# A forty-character name must not widen the card past the hall: the
+		# caption trims, the tooltip keeps the whole sentence.
+		button.custom_minimum_size = Vector2(0, 36)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 
 ## A pairing that is waiting names the players it is waiting for. "Waiting for
@@ -723,7 +767,9 @@ func _build_rounds() -> void:
 			if pair.status == "bye": summary = "Bye · advances without playing"
 			elif pair.status == "finished": summary = "%s · %s" % [pair.reason, _name_of(int(pair.winner)) if pair.winner != 0 else "No advancing player"]
 			elif _view.phase == "cancelled": summary = "Cancelled · no further games"
+			elif _held(): summary = "Paused · the table opens when play resumes" if pair.status == "waiting" else "Paused · game %d stands still" % int(pair.game)
 			card.add_child(SgLobbyStyle.label(summary, 15))
+			if _view.get("organiser", false) and r == _view.rounds.size() - 1: _ruling_controls(card, pair)
 			if pair.draws > 0: card.add_child(SgLobbyStyle.label("%d drawn game(s) · no wins awarded" % int(pair.draws), 14))
 			for table: Dictionary in _view.tables:
 				if table.pair == pair.id:

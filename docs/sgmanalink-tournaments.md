@@ -33,10 +33,31 @@ limit, follow the same deck policy and ready automatically for each game.
 A graphical Master Panel shows registration, pairings, series scores, table
 progress and connections. Its organiser may enter or remain outside the draw,
 close registration, draw the next round, withdraw an entrant with confirmation,
-cancel the event and recover saved progress. It does not offer a "declare
-winner" control: the referee determines game results. Withdrawal awards the
+pause and resume the whole event, declare or correct a series result with
+confirmation, cancel the event and recover saved progress. The referee
+determines every game result; the organiser's two other marks on the ledger
+are flagged as theirs for every player. Withdrawal awards the
 opponent the series, visibly marked as a withdrawal rather than a played win.
 An already eliminated entrant cannot be withdrawn afterwards to rewrite results.
+
+**Pause tournament** (running events only) freezes every table, the
+organiser's own included, and opens no new one; a game action at a paused
+table is refused with the pause notice, and **Draw next round** waits for
+**Resume tournament**. Withdrawals, rulings and cancellation stay available
+while paused. The pause lives in the host application: a host restart lifts
+it. A failed save pauses the event the same way, with **Retry save** as the
+way out.
+
+**Declare … winner** on a table of the current round ends that series at once
+with the named player as its winner; a game in progress ends there, the way a
+withdrawal ends one. **Correct: … wins** on a finished table of the current
+round overturns the recorded result, whether the referee, a withdrawal or an
+earlier ruling wrote it; a correction of the final moves the championship.
+Played scores are never rewritten: the ruled pairing keeps the games as they
+were played and carries the reason **Organiser's ruling** or **Corrected by
+organiser** on every round card, in the Advancement diagram and in its own
+Standings column. Only the current round can be ruled on — a published draw
+closes the round before it — and a withdrawn player cannot be ruled the winner.
 
 The hall has five sections:
 
@@ -47,7 +68,8 @@ The hall has five sections:
   winners, not guessed future opponents. Scroll, zoom, fit the width or choose
   **Whole draw**; select a player to highlight their route through the event.
 - **Standings:** all entrants, played series W–L, games W–L–D, byes, forfeit
-  awards/losses and status. Completion opens the final table automatically.
+  awards/losses, ruled awards/losses and status. Completion opens the final
+  table automatically.
 - **Players:** connection/readiness status, deck titles and organiser withdrawals.
 - **My entry:** one plain line for the player's own seat, plus deck review,
   readiness, recovery code and return to the hall. The line names the table
@@ -137,7 +159,8 @@ application cannot reclaim an entry by matching its nickname.
    both confirm readiness again; otherwise wait for the next draw. **My entry**
    says which of those is happening and updates as the other tables finish.
    The organiser chooses **Draw next round** after all pairings finish. No draw
-   can be rerolled and no client can report an arbitrary winner.
+   can be rerolled and no client can report an arbitrary winner; the
+   organiser's own rulings are flagged as such wherever the result is shown.
 
 **Expand Master Panel** opens a full-window overview. During the organiser's
 own duel, the **Tournament** button opens the same panel without disconnecting
@@ -146,7 +169,7 @@ while the referee and every other table keep running. The panel is opaque and
 covers the ordinary notice line, so a control the host refuses — drawing the
 next round while an advancing player is still away, for instance — prints its
 answer inside the panel. It shows pairings, scores, drawn games, life totals, turns and entrant
-connections. Withdrawals and cancellation require a second confirmation click.
+connections. Withdrawals, rulings and cancellation require a second confirmation click.
 **Return finished tables to hall** releases completed result screens without
 affecting live games, and is offered only while a table is actually finished. **Finish hosting this tournament** returns the service to
 ordinary duel hosting after completion/cancellation and all tables are released.

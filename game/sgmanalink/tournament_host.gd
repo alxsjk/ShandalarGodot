@@ -2,12 +2,17 @@ class_name SgTournamentHost
 extends Node
 ## Tournament orchestration on the host only. Never instantiated by a client.
 
+## Why every table stands still, as one word on the duel wire: "" when play
+## is open, "storage" while a save has failed, "organiser" during their pause.
+const HOLDS := ["", "storage", "organiser"]
+const PAUSE_NOTICE := "The organiser paused the tournament. Every table stands still until the organiser resumes play."
 var event: SgTournament
 var organiser := 0
 var bindings: Dictionary = {} # entrant -> temporary session; not persisted
 var codes: Dictionary = {} # session -> its own plaintext recovery code; memory only
 var folder := ""
 var save_error := ""
+var paused := false # the organiser's own pause; memory only, a host restart lifts it
 
 
 func server() -> SgLocalServer:
@@ -35,6 +40,14 @@ func save() -> String:
 	return save_error
 
 
+## The reason no table may move right now, or "" while play is open. A failed
+## save comes first: it is the one the organiser has to act on in storage.
+func hold() -> String:
+	if not save_error.is_empty(): return save_error
+	if paused: return PAUSE_NOTICE
+	return ""
+
+
 func restore_bots() -> void:
 	for player: Dictionary in event.entrants:
 		if not player.has("bot") or player.withdrawn or bindings.has(player.id): continue
@@ -42,7 +55,7 @@ func restore_bots() -> void:
 
 
 func prepare_bots() -> void:
-	if not save_error.is_empty(): return
+	if not hold().is_empty(): return
 	var changed := false
 	for player: Dictionary in event.entrants:
 		if not player.has("bot"): continue
@@ -75,7 +88,7 @@ func command(sid: int, action: Dictionary, revision: int) -> String:
 		return "The tournament changed. Review the hall and try again."
 	var pid := member(sid)
 	var room: Dictionary = server()._rooms.get(server()._sessions[sid].room, {})
-	if op in ["t_start", "t_next", "t_remove", "t_cancel", "t_retry", "t_clear", "t_close", "t_bots"] and sid != organiser:
+	if op in ["t_start", "t_next", "t_remove", "t_cancel", "t_retry", "t_clear", "t_close", "t_bots", "t_pause", "t_resume", "t_rule"] and sid != organiser:
 		return "Only the organiser can use this control."
 	if op == "t_retry":
 		var error := save()
@@ -152,7 +165,23 @@ func command(sid: int, action: Dictionary, revision: int) -> String:
 			if action.round != event.rounds.size() or action.game != pair.get("game", 0):
 				return "Your next game changed. Review the round and confirm readiness again."
 			error = event.set_ready(pid, action.value)
+		"t_pause", "t_resume":
+			if event.phase != "running": return "There is no round in play to pause."
+			if (op == "t_pause") == paused: return "The tournament is already paused." if paused else "The tournament is not paused."
+			paused = op == "t_pause"
+			event.revision += 1
+		"t_rule":
+			var pair := event.pairing(int(action.pair))
+			error = event.rule(int(action.pair), int(action.winner))
+			if error.is_empty():
+				# A live game at that table ends now, the way a withdrawal ends
+				# one; the referee has nothing left to score on a ruled pairing.
+				for table: Dictionary in server()._rooms.values():
+					if table.get("t_pair", -1) != pair.get("id", 0) or table.match.game.game_over: continue
+					table.match.game.concede(1 - pair.players.find(int(action.winner)))
+					table.revision += 1
 		"t_start", "t_next":
+			if paused: return "Resume the tournament before drawing the next round."
 			if not server()._rooms.is_empty(): return "Wait for players to return from their completed games."
 			if (op == "t_start") != (event.phase == "registration"): return "This round has already been drawn."
 			for player: Dictionary in event.entrants:
@@ -181,6 +210,7 @@ func command(sid: int, action: Dictionary, revision: int) -> String:
 			server()._view_cache.clear()
 		_: return "Tournament action unavailable."
 	if not error.is_empty(): return error
+	if event.phase != "running": paused = false
 	error = save()
 	if error.is_empty(): launch_ready_games()
 	server()._publish("*", 0, true)
@@ -188,7 +218,7 @@ func command(sid: int, action: Dictionary, revision: int) -> String:
 
 
 func launch_ready_games() -> void:
-	if event.phase != "running" or not save_error.is_empty() or event.rounds.is_empty(): return
+	if event.phase != "running" or not hold().is_empty() or event.rounds.is_empty(): return
 	for pair: Dictionary in event.rounds.back():
 		if pair.status != "waiting": continue
 		var seats: Array = []
@@ -260,7 +290,8 @@ func retire_empty_tables() -> void:
 func context(room: Dictionary) -> Dictionary:
 	var pair := event.pairing(room.t_pair)
 	return {"id": event.id, "name": event.config.name, "round": event.rounds.size(), "pair": pair.id,
-		"game": room.t_game, "wins": pair.wins.duplicate(), "target": event.config.wins, "paused": not save_error.is_empty()}
+		"game": room.t_game, "wins": pair.wins.duplicate(), "target": event.config.wins,
+		"hold": "storage" if not save_error.is_empty() else ("organiser" if paused else "")}
 
 
 func view(sid: int) -> Dictionary:
@@ -279,4 +310,4 @@ func view(sid: int) -> Dictionary:
 	return {"id": event.id, "config": event.config.duplicate(true), "phase": event.phase,
 		"revision": event.revision, "champion": event.champion, "entrants": roster, "rounds": event.rounds.duplicate(true),
 		"you": pid, "deck": {} if pid == 0 else event.entrant(pid).deck.duplicate(true),
-		"code": codes.get(sid, ""), "organiser": sid == organiser, "save_error": save_error, "tables": tables}
+		"code": codes.get(sid, ""), "organiser": sid == organiser, "save_error": save_error, "paused": paused, "tables": tables}

@@ -114,7 +114,10 @@ and save it privately. The game does not put plaintext codes in settings or
 logs; clipboard history may retain a copied code. Reopening an application
 requires the current host invitation and this code to recover the entry.
 Restoring a tournament on the host preserves completed scores but restarts
-interrupted games. Use the same build for checkpoint recovery.
+interrupted games. Use the same build for checkpoint recovery. A pairing the
+organiser ruled on keeps its flag (`Organiser's ruling` or `Corrected by
+organiser`) in the checkpoint; the organiser's pause is not saved, so a
+restarted host resumes play.
 Tournament welcome support uses protocol 11. Earlier protocol-8/9/10 checkpoints are
 not migrated or deleted; they require their original compatible build to recover.
 Computer entries also save their level, separate Unfair flag, pace and deck;

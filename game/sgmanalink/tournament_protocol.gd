@@ -4,11 +4,11 @@ extends RefCounted
 
 
 static func context(value: Variant) -> bool:
-	return value is Dictionary and SgProtocol.exact(value, ["id", "name", "round", "pair", "game", "wins", "target", "paused"]) \
+	return value is Dictionary and SgProtocol.exact(value, ["id", "name", "round", "pair", "game", "wins", "target", "hold"]) \
 		and SgProtocol.token(value.id) and SgProtocol.short_text(value.name) \
 		and SgProtocol.integer(value.round, 1, SgTournament.MAX_ROUNDS) and SgProtocol.integer(value.pair, 1, SgTournament.MAX_PAIR_ID) \
 		and SgProtocol.integer(value.game, 1, SgTournament.MAX_GAMES) \
-		and scores(value.wins, 3) and SgProtocol.integer(value.target, 1, 3) and value.paused is bool
+		and scores(value.wins, 3) and SgProtocol.integer(value.target, 1, 3) and value.hold in SgTournamentHost.HOLDS
 
 
 static func scores(value: Variant, maximum: int) -> bool:
@@ -34,7 +34,7 @@ static func rows(value: Variant, ids: Array, target: int, withdrawn: Array = [])
 				or not scores(pair.wins, target) or not SgProtocol.integer(pair.draws, 0, SgTournament.MAX_GAMES) \
 				or not SgProtocol.integer(pair.game, 0, SgTournament.MAX_GAMES) \
 				or pair.status not in ["waiting", "playing", "finished", "bye"] \
-				or pair.reason not in ["", "Bye", "Series won", "Withdrawal"] \
+				or pair.reason not in SgTournament.REASONS \
 				or not SgProtocol.integer(pair.winner) or (pair.winner != 0 and not pair.players.has(pair.winner)): return false
 			if int(pair.wins[0]) + int(pair.wins[1]) + int(pair.draws) > int(pair.game): return false
 			if pair.wins[0] == target and pair.wins[1] == target: return false
@@ -46,9 +46,11 @@ static func rows(value: Variant, ids: Array, target: int, withdrawn: Array = [])
 			if pair.status == "bye": byes += 1
 			if pair.status != "bye" and pair.players[1] == 0: return false
 			if pair.status == "finished":
-				if pair.reason not in ["Series won", "Withdrawal"]: return false
+				if pair.reason not in ["Series won", "Withdrawal", SgTournament.RULED, SgTournament.CORRECTED]: return false
 				if pair.reason == "Series won" and (pair.winner == 0 \
 					or pair.wins[pair.players.find(pair.winner)] != target): return false
+				# A ruling always names its winner; only a double withdrawal leaves none.
+				if pair.reason in [SgTournament.RULED, SgTournament.CORRECTED] and pair.winner == 0: return false
 			if r < value.size() - 1 and pair.status not in ["finished", "bye"]: return false
 			for pid in pair.players:
 				if pid == 0: continue
@@ -133,12 +135,13 @@ static func roster(value: Variant, private_data: bool) -> bool:
 static func view(value: Variant) -> bool:
 	if not value is Dictionary: return false
 	if value.is_empty(): return true
-	if not SgProtocol.exact(value, ["id", "config", "phase", "revision", "champion", "entrants", "rounds", "you", "deck", "code", "organiser", "save_error", "tables"]) \
+	if not SgProtocol.exact(value, ["id", "config", "phase", "revision", "champion", "entrants", "rounds", "you", "deck", "code", "organiser", "save_error", "paused", "tables"]) \
 		or not SgProtocol.token(value.id) or not SgTournament.valid_config(value.config) \
 		or not SgProtocol.integer(value.revision, 1) or not roster(value.entrants, false) \
 		or not SgProtocol.integer(value.you) or not SgViewProtocol.deck(value.deck) \
 		or not value.code is String or (value.code != "" and not SgProtocol.token(value.code)) \
-		or not value.organiser is bool or not SgViewProtocol.text(value.save_error, 256): return false
+		or not value.organiser is bool or not SgViewProtocol.text(value.save_error, 256) \
+		or not value.paused is bool: return false
 	var ids: Array = []
 	var withdrawn: Array = []
 	for player in value.entrants:

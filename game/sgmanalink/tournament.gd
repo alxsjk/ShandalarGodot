@@ -2,6 +2,12 @@ class_name SgTournament
 extends RefCounted
 ## [QoL] LAN knockout ledger. No sockets, engine snapshots or client results.
 ## Only the referee calls begin_game/record_game. Draws never award a win.
+## The organiser's one other pen is [method rule], and every mark it makes is
+## flagged on the pairing as a ruling or a correction, never as a played win.
+
+const RULED := "Organiser's ruling"
+const CORRECTED := "Corrected by organiser"
+const REASONS := ["", "Bye", "Series won", "Withdrawal", RULED, CORRECTED]
 
 const MAX_PLAYERS := 20
 const MAX_ROUNDS := 5
@@ -245,6 +251,34 @@ func record_game(pair_id: int, game_number: int, winner_seat: int) -> bool:
 	revision += 1
 	finish_if_decided()
 	return true
+
+
+## The organiser's word over one pairing of the current round: a declared
+## winner where the referee had none yet, or a correction that overturns a
+## recorded outcome. The played scores stay as they were played; the flag on
+## the pairing says which of the two this was. A correction of the final
+## moves the championship with it.
+func rule(pair_id: int, winner: int) -> String:
+	if phase not in ["running", "complete"] or rounds.is_empty(): return "No round is in play to rule on."
+	var pair: Dictionary = {}
+	for candidate: Dictionary in rounds.back():
+		if candidate.id == pair_id: pair = candidate
+	if pair.is_empty(): return "Only a pairing of the current round can be ruled on."
+	if pair.status == "bye" or not pair.players.has(winner): return "Choose one of the two players at this table."
+	if entrant(winner).withdrawn: return "A withdrawn player cannot be ruled the winner."
+	if pair.status == "finished":
+		if pair.winner == winner: return "That player is already the recorded winner."
+		pair.reason = CORRECTED
+	else: pair.reason = RULED
+	pair.winner = winner
+	pair.status = "finished"
+	for pid: int in pair.players: entrant(pid).ready = false
+	if phase == "complete":
+		phase = "running"
+		champion = 0
+	revision += 1
+	finish_if_decided()
+	return ""
 
 
 func withdraw(pid: int) -> String:

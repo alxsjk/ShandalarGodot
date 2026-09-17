@@ -14642,6 +14642,73 @@ boot smoke clean; the two-process LAN smoke clean (seed 4250: turn 15,
 seat 0, 16 vs −11, 209 round trips at a 17 ms median). Version stays
 0.32.0 in `project.godot`; no release, no art.
 
+## 2026-09-17 — The organiser's hand: pause, rulings and corrections (protocol 19)
+
+Two controls the tournament guide used to rule out now exist on the owner's
+word. `SgProtocol.VERSION` is **19** for three new organiser words —
+`t_pause`, `t_resume` and `t_rule` (`pair`, `winner`) — and one changed
+field on the duel context: the boolean `paused` became `hold`, one of
+`""`, `"storage"` or `"organiser"`, so a table knows WHY it stands still.
+Both players need this build; the invitation's compatibility check says
+so.
+
+- **Pause.** `SgTournamentHost.paused` is memory only (a host restart
+  lifts it — documented in the guide and the player-files page) and
+  `hold()` folds it with the save gate into one word that
+  `_poll_bots`, `_command` (every game op), `prepare_bots` and
+  `launch_ready_games` read. A paused event freezes every table, the
+  organiser's own included: a game action is refused with
+  `PAUSE_NOTICE`, bots stop, no new table opens, and `t_start`/`t_next`
+  answer "Resume the tournament before drawing the next round." Withdraw,
+  rule, cancel, `t_ready`, `t_return` and Resume stay open. An event that
+  leaves `running` drops the pause by itself. The Master Panel shows
+  **Pause tournament** / **Resume tournament** (one click; a pause is
+  cheap to undo), the organiser's card reads differently from a guest's,
+  every hall entry line says whose pause it waits on, and
+  `SgDuelView` locks the board with a banner that names the organiser —
+  the same lock and banner a failed save already produced.
+- **Rulings and corrections.** `SgTournament.rule(pair, winner)` is the
+  ledger's second writer after `record_game`: only a pairing of the
+  current round, never a bye, never a withdrawn winner, refused when the
+  named player is already the recorded winner. A waiting or playing
+  pairing finishes with the reason **Organiser's ruling**; a finished one
+  — whoever wrote it — is overturned with **Corrected by organiser**.
+  Played `wins` are never rewritten; `finish_if_decided` re-derives the
+  champion, and a correction of the final in a complete event moves the
+  championship (phase returns to running for the re-derivation). The host
+  ends a live game at the ruled table by conceding the loser's seat, and
+  `record_game` returns false for a ruled pair so the referee's own
+  result cannot double-score it. The flag travels: round cards and the
+  Advancement diagram print the reason, Standings gained a **Ruled W–L**
+  column (`rulings_won`/`rulings_lost` beside the forfeit pair), and the
+  checkpoint carries it through a host restart. The Master Panel offers
+  **Declare … winner** on an open table and **Correct: … wins** on a
+  finished one, both behind the two-click confirmation withdrawals use,
+  stacked in the card so a 20-player overview still fits its width.
+  `SgTournamentProtocol.rows` refuses a ruled reason without a winner.
+- Tests: three ledger tests (flags, the moving championship, the words
+  on the wire), two panel tests (organiser-only buttons and flags,
+  organiser-vs-guest pause text) and two real-TLS network tests — a
+  playing organiser pausing every table from their own duel (the
+  decision-holder's `keep` refused, the other pair unable to open a
+  table, a guest's `t_pause` refused, Resume reopening play) and a ruling
+  ending a live table with the correction flagged in the hall, the
+  standings and the checkpoint on disk.
+
+Docs: `docs/sgmanalink-tournaments.md` (pause and ruling paragraphs, the
+Standings column, the second-confirmation list),
+`docs/sgmanalink-local-playtest.md` (protocol 19),
+`docs/player-files.md` (rulings persist, the pause does not),
+`docs/CODE_MAP.md` rows.
+
+Gate: the full suite on this tree ran **7,347 tests / 326,606 assertions /
+467 scripts** in 938.16 seconds with ONE failure — a hand-built view in
+`tests/ui/test_sgmanalink_bot_setup.gd` that predates the `paused` key
+the exact schema now demands; the fixture gained the key and that script
+re-ran 3/3, so the tree stands at **7,347/7,347**. **273 Python tests**;
+boot smoke clean. Version stays 0.32.0 in `project.godot`; no release,
+no art.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

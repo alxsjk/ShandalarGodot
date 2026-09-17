@@ -402,3 +402,96 @@ func test_a_paused_tournament_tells_a_guest_what_to_expect_not_what_to_press() -
 	assert_not_null(own)
 	if own == null: return
 	assert_eq(own.text, view.save_error, "the organiser keeps the instruction they can act on")
+
+
+func _standings_cell(panel: SgTournamentPanel, player_name: String, column: int) -> String:
+	var table := panel.find_child("TournamentStandings", true, false) as Tree
+	assert_not_null(table)
+	if table == null: return ""
+	var item := table.get_root().get_first_child()
+	while item != null:
+		if item.get_text(1) == player_name: return item.get_text(column)
+		item = item.get_next()
+	return ""
+
+
+func test_the_master_panel_offers_rulings_only_to_the_organiser_and_flags_them() -> void:
+	var event := _small_event(2, 2)
+	var pair: Dictionary = event.rounds[0][0]
+	for pid: int in pair.players: event.set_ready(pid, true)
+	assert_eq(event.begin_game(int(pair.id)), "")
+	var panel := _panel()
+	panel.present(_seat_view(event, 0), true, false, true)
+	for i in 3: await get_tree().process_frame
+	var captions := _captions(panel)
+	assert_true(captions.has("Declare Player 1 winner"), "the organiser can declare a winner over a live table")
+	assert_true(captions.has("Declare Player 2 winner"))
+	var guest := _panel()
+	guest.present(_seat_view(event, int(pair.players[0])), true, false, false)
+	for i in 3: await get_tree().process_frame
+	for caption in _captions(guest):
+		assert_false(caption.begins_with("Declare ") or caption.begins_with("Correct: "), "a guest is offered no ruling: " + caption)
+	assert_eq(event.rule(int(pair.id), int(pair.players[1])), "")
+	panel.present(_seat_view(event, 0), true, false, true)
+	panel._choose_section("overview") # completion had turned the panel to Standings
+	for i in 3: await get_tree().process_frame
+	captions = _captions(panel)
+	assert_true(captions.has("Correct: Player 1 wins"), "the losing seat can be ruled the winner instead")
+	assert_false(captions.has("Correct: Player 2 wins"), "the recorded winner is not a correction")
+	assert_false(captions.has("Declare Player 1 winner"), "a finished pairing is corrected, not declared")
+	assert_true(_labels(panel).has("Organiser's ruling · Player 2"), "the round card flags the ruling")
+	panel._choose_section("standings")
+	for i in 3: await get_tree().process_frame
+	var table := panel.find_child("TournamentStandings", true, false) as Tree
+	assert_not_null(table)
+	if table == null: return
+	assert_eq(table.get_column_title(6), "Ruled W–L", "rulings are their own column, never played series")
+	assert_eq(_standings_cell(panel, "Player 2", 6), "1–0")
+	assert_eq(_standings_cell(panel, "Player 1", 6), "0–1")
+	assert_eq(_standings_cell(panel, "Player 2", 2), "0–0", "a ruled series is not a played series")
+	assert_eq(event.rule(int(pair.id), int(pair.players[0])), "")
+	panel.present(_seat_view(event, 0), true, false, true)
+	panel._choose_section("overview")
+	for i in 3: await get_tree().process_frame
+	assert_true(_labels(panel).has("Corrected by organiser · Player 1"), "the round card flags the correction")
+	assert_true(_captions(panel).has("Correct: Player 2 wins"), "a correction can itself be corrected")
+
+
+func test_a_manual_pause_reads_differently_for_the_organiser_and_a_guest() -> void:
+	var event := _small_event(2)
+	var pair: Dictionary = event.rounds[0][0]
+	var running := _seat_view(event, 0)
+	var panel := _panel()
+	panel.present(running, true, false, true)
+	for i in 3: await get_tree().process_frame
+	assert_true(_captions(panel).has("Pause tournament"), "a running event can be paused by its organiser")
+	assert_null(panel.find_child("TournamentPauseNotice", true, false))
+	var paused := _seat_view(event, 0)
+	paused.paused = true
+	panel.present(paused, true, false, true)
+	for i in 3: await get_tree().process_frame
+	var captions := _captions(panel)
+	assert_true(captions.has("Resume tournament"))
+	assert_false(captions.has("Pause tournament"))
+	var notice := panel.find_child("TournamentPauseNotice", true, false) as Label
+	assert_not_null(notice)
+	if notice == null: return
+	assert_true(notice.text.contains("Resume tournament"), "the organiser is told which control lifts the pause")
+	var guest_view := _seat_view(event, int(pair.players[0]))
+	guest_view.paused = true
+	var guest := _panel()
+	guest.present(guest_view, true, false, false)
+	for i in 3: await get_tree().process_frame
+	var seen := guest.find_child("TournamentPauseNotice", true, false) as Label
+	assert_not_null(seen)
+	if seen == null: return
+	assert_eq(seen.text, "The organiser paused the tournament. Every table stands still; play resumes when the organiser continues the event. Scores already recorded are kept.")
+	for caption in _captions(guest):
+		assert_false(caption in ["Pause tournament", "Resume tournament"], "a guest has no pause control")
+	guest._choose_section("entry")
+	for i in 3: await get_tree().process_frame
+	var line := guest.find_child("TournamentEntryStatus", true, false) as Label
+	assert_not_null(line)
+	if line == null: return
+	assert_eq(line.text, "The organiser paused the tournament. Your round 1 table against %s waits for play to resume."
+		% event.entrant(int(pair.players[1])).name)

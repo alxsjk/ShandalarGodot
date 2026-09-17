@@ -101,9 +101,11 @@ needed); card files have NO class_name (they register by name instead);
 - `docs/sgmanalink-tournaments.md`: LAN-only knockout rules, deck policies,
   Master Panel, private recovery, storage contract and verification.
 - `game/sgmanalink/tournament.gd` (`SgTournament`): bounded knockout ledger,
-  registration/deck locking, random round draws, byes, series scores and recovery.
+  registration/deck locking, random round draws, byes, series scores, the
+  organiser's flagged rulings/corrections and recovery.
 - `game/sgmanalink/tournament_host.gd` (`SgTournamentHost`): organiser authority,
-  entrant-session bindings, concurrent duel rooms, result collection and save gating.
+  entrant-session bindings, concurrent duel rooms, result collection, the
+  organiser's pause and the save gating (one `hold` word for both).
 - `game/sgmanalink/tournament_protocol.gd` (`SgTournamentProtocol`): exact public
   context/view and private checkpoint schemas, pair/roster/lifecycle invariants.
 - `game/sgmanalink/tournament_store.gd` (`SgTournamentStore`): private local JSON
@@ -111,9 +113,10 @@ needed); card files have NO class_name (they register by name instead);
 - `game/sgmanalink/tournament_panel.gd` (`SgTournamentPanel`): styled configuration,
   name/welcome, host-local remembered save-folder picker and saved-event list,
   full deck review, round scorecards, tabbed Master Panel, standings and entrant hall,
-  and the per-seat waiting line that names what each player's hall is waiting for.
+  the per-seat waiting line that names what each player's hall is waiting for,
+  the pause/resume control and the per-table declare/correct rulings.
 - `game/sgmanalink/tournament_results.gd` (`SgTournamentResults`): read-only shared
-  places, separate played/bye/forfeit accounting and published advancement links.
+  places, separate played/bye/forfeit/ruled accounting and published advancement links.
 - `game/sgmanalink/tournament_bracket.gd` (`SgTournamentBracket`, `BracketCanvas`):
   scrollable connected round diagram, zoom, keyboard player picker and path focus.
 - `tests/unit/test_sgmanalink_tournament_results.gd`: twenty-player shared places,

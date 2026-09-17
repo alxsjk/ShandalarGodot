@@ -446,10 +446,10 @@ func _poll_bots(now: int) -> void:
 	# One decision per table per poll, with round-robin fairness and a soft
 	# 12ms frame budget. A single bounded Wizard decision is not preemptible.
 	if tournament != null:
-		if not tournament.save_error.is_empty(): return
+		if not tournament.hold().is_empty(): return
 		tournament.prepare_bots()
 		# Automatic return/readiness can itself fail to save this frame.
-		if not tournament.save_error.is_empty(): return
+		if not tournament.hold().is_empty(): return
 	var room_ids := _rooms.keys()
 	var started := Time.get_ticks_msec()
 	for offset in room_ids.size():
@@ -466,7 +466,7 @@ func _poll_bots(now: int) -> void:
 		room.revision += 1
 		if tournament != null: tournament.collect_result(room)
 		_publish(room.id, 0, match_game.game.game_over)
-		if tournament != null and not tournament.save_error.is_empty(): break
+		if tournament != null and not tournament.hold().is_empty(): break
 		if Time.get_ticks_msec() - started >= 12:
 			_bot_cursor = index + 1
 			break
@@ -496,7 +496,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 	if tournament != null:
 		if op in ["host", "join", "deck", "ready", "remove_guest", "leave", "add_bot", "remove_bot"]:
 			return "Use the Tournament Hall while this host runs a tournament."
-		if not tournament.save_error.is_empty(): return tournament.save_error
+		if not tournament.hold().is_empty(): return tournament.hold()
 	if not room.is_empty() and revision != int(room.revision):
 		return "The room changed. Please try again."
 	if op == "host":

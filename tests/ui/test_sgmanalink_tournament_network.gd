@@ -666,13 +666,13 @@ func test_result_save_failure_is_not_acknowledged_as_durable_success() -> void:
 	server.tournament.folder = blocked
 	await _act(b, "concede")
 	assert_false(refusals.is_empty(), "unsaved result reports the storage failure")
-	assert_true(a.state.room.tournament.paused)
+	assert_eq(a.state.room.tournament.hold, "storage")
 	assert_eq(pair.wins, [1, 0], "in-memory result is retained exactly once")
 	var path := scratch.path_join(server.tournament.event.id + ".json")
 	assert_eq(SgTournamentStore.read_checkpoint(path).rounds[0][0].wins, [0.0, 0.0])
 	server.tournament.folder = scratch
 	await _act(owner, "t_retry")
-	assert_false(a.state.room.tournament.paused)
+	assert_eq(a.state.room.tournament.hold, "")
 	assert_eq(SgTournamentStore.read_checkpoint(path).rounds[0][0].wins, [1.0, 0.0])
 
 
@@ -885,3 +885,110 @@ func test_the_hall_tells_a_waiting_player_what_the_round_is_waiting_for() -> voi
 		server.tournament.event.entrant(int(final_pair.players[1 - seat])).name])
 	assert_eq(_hall_line(loser), "You were knocked out. The hall stays open — the rest of the event is in Standings.")
 	assert_eq(refusals, [])
+
+
+func test_a_playing_organiser_pauses_every_table_from_their_own_duel_and_resumes_it() -> void:
+	var owner := await _tournament_lobby("Organiser")
+	owner.service = server
+	assert_eq(server.open_tournament({"name": "LAN Cup", "limit": 8, "wins": 1, "policy": "fixed",
+		"decks": [{"name": "Knights", "cards": Array(StarterDecks.WHITE_KNIGHTS), "sideboard": []}]},
+		owner.client._resume, scratch), "")
+	await _until(func() -> bool: return owner.client.state.has("tournament"))
+	var guest := await _tournament_lobby("Guest")
+	var third := await _client("Third")
+	var fourth := await _client("Fourth")
+	for client in [owner.client, guest.client, third, fourth]:
+		await _act(client, "t_join")
+		await _act(client, "t_ready", {"value": true})
+	await _act(owner.client, "t_start")
+	assert_eq(server.tournament.event.rounds[0].size(), 2, "two tables to tell apart")
+	var own_pair := server.tournament.event.pairing_for(int(owner.client.state.tournament.you))
+	var mate := _by_member(int(own_pair.players[1 - own_pair.players.find(int(owner.client.state.tournament.you))]))
+	for client in [owner.client, mate]: await _act(client, "t_ready", {"value": true})
+	await _until(func() -> bool: return not owner.client.state.room.is_empty() and not mate.state.room.is_empty())
+	for i in 8: await get_tree().process_frame
+	assert_true(is_instance_valid(owner._duel))
+	if not is_instance_valid(owner._duel): return
+	owner._duel._network_badge.pressed.emit()
+	for i in 4: await get_tree().process_frame
+	var pause: Button
+	for button: Button in owner._master_panel.find_children("*", "Button", true, false):
+		if button.text == "Pause tournament": pause = button
+	assert_not_null(pause, "the playing organiser finds the pause over their own table")
+	if pause == null: return
+	pause.pressed.emit()
+	await _until(func() -> bool: return not owner.client.busy())
+	for i in 6: await get_tree().process_frame
+	assert_true(owner.client.state.tournament.paused)
+	assert_eq(owner.client.state.room.tournament.hold, "organiser")
+	assert_true(owner._duel.projection.locked, "the organiser's own table stands still too")
+	assert_eq(owner._duel._connection_message(), "Tournament paused by the organiser. Play resumes when they continue the event.")
+	var table: Dictionary = server._rooms.values()[0]
+	var actor := int(table.match.decision_state().actor)
+	var mover: SgLocalClient = owner.client if int(table.seats[actor]) == server.tournament.organiser else mate
+	var refused_before := refusals.size()
+	assert_true(mover.command({"op": "keep"}))
+	await _until(func() -> bool: return not mover.busy())
+	assert_eq(refusals.size(), refused_before + 1, "a game action at a paused table is refused")
+	assert_eq(refusals.back(), SgTournamentHost.PAUSE_NOTICE)
+	# The waiting pair readies up meanwhile: its table opens only on resume.
+	for other: Dictionary in server.tournament.event.rounds[0]:
+		if int(other.id) == int(own_pair.id): continue
+		for pid: int in other.players: await _act(_by_member(pid), "t_ready", {"value": true})
+	assert_eq(server._rooms.size(), 1, "no new table opens while the event is paused")
+	await _act(mate, "t_pause")
+	assert_eq(refusals.back(), "Only the organiser can use this control.")
+	await _act(owner.client, "t_next")
+	assert_eq(refusals.back(), "Resume the tournament before drawing the next round.")
+	var resume: Button
+	for button: Button in owner._master_panel.find_children("*", "Button", true, false):
+		if button.text == "Resume tournament": resume = button
+	assert_not_null(resume)
+	if resume == null: return
+	resume.pressed.emit()
+	await _until(func() -> bool: return not owner.client.busy())
+	for i in 6: await get_tree().process_frame
+	assert_false(owner.client.state.tournament.paused)
+	assert_eq(owner.client.state.room.tournament.hold, "")
+	assert_eq(server._rooms.size(), 2, "the readied table opens the moment play resumes")
+	refused_before = refusals.size()
+	await _act(mover, "keep")
+	assert_eq(refusals.size(), refused_before, "play continues where it stood")
+	assert_true(server._listener.is_listening())
+
+
+func test_the_organisers_ruling_ends_a_live_table_and_a_correction_is_flagged_everywhere() -> void:
+	var owner := await _register(2, 2)
+	var pair: Dictionary = server.tournament.event.rounds[0][0]
+	var a := _by_member(pair.players[0])
+	var b := _by_member(pair.players[1])
+	for client in [a, b]: await _act(client, "t_ready", {"value": true})
+	var table: Dictionary = server._rooms.values()[0]
+	await _act(b, "t_rule", {"pair": int(pair.id), "winner": int(pair.players[1])})
+	assert_eq(refusals.back(), "Only the organiser can use this control.")
+	assert_eq(pair.status, "playing")
+	await _act(owner, "t_rule", {"pair": int(pair.id), "winner": int(pair.players[1])})
+	assert_eq(pair.status, "finished")
+	assert_eq(pair.reason, "Organiser's ruling")
+	assert_eq(pair.winner, pair.players[1])
+	assert_eq(pair.wins, [0, 0], "no played win is invented")
+	assert_true(table.match.game.game_over, "the live game ends with the ruling")
+	assert_eq(server.tournament.event.phase, "complete")
+	assert_eq(server.tournament.event.champion, pair.players[1])
+	assert_eq(a.state.tournament.rounds[0][0].reason, "Organiser's ruling", "both seats see the flag")
+	assert_eq(b.state.tournament.rounds[0][0].reason, "Organiser's ruling")
+	var before := refusals.size()
+	await _act(owner, "t_rule", {"pair": int(pair.id), "winner": int(pair.players[1])})
+	assert_eq(refusals.size(), before + 1, "the recorded winner cannot be re-declared")
+	await _act(owner, "t_rule", {"pair": int(pair.id), "winner": int(pair.players[0])})
+	assert_eq(pair.reason, "Corrected by organiser")
+	assert_eq(pair.winner, pair.players[0])
+	assert_eq(server.tournament.event.champion, pair.players[0], "the championship follows the correction")
+	var path := scratch.path_join(server.tournament.event.id + ".json")
+	var saved := SgTournamentStore.read_checkpoint(path)
+	assert_eq(saved.rounds[0][0].reason, "Corrected by organiser", "the flag is on disk")
+	assert_eq(SgTournament.new().restore(saved), "", "and the checkpoint restores")
+	for client in [a, b]: await _act(client, "t_return")
+	assert_true(server._rooms.is_empty())
+	await _act(owner, "t_close")
+	assert_null(server.tournament)

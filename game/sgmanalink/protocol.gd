@@ -3,8 +3,8 @@ extends RefCounted
 ## [QoL] Unrated loopback/LAN protocol. Data only; no Variant object decoding or RPC.
 ## Version this independently from the application release and future rated protocol.
 
-const VERSION := 18
-const SUBPROTOCOL := "sgmanalink-local-v18"
+const VERSION := 19
+const SUBPROTOCOL := "sgmanalink-local-v19"
 const NICKNAME_LIMIT := 20
 const MAX_BYTES := 2097152
 const MAX_COMMAND_BYTES := 32768
@@ -32,6 +32,8 @@ const FIELDS := {
 	"t_recover": ["event", "code"], "t_cancel": ["event"], "t_retry": ["event"],
 	"t_clear": ["event"],
 	"t_close": ["event"],
+	"t_pause": ["event"], "t_resume": ["event"],
+	"t_rule": ["event", "pair", "winner"],
 }
 static var _unicode_pattern: RegEx
 
@@ -148,6 +150,7 @@ static func valid(message: Dictionary) -> bool:
 				and (op == "add_bot" or integer(action.count, 1, SgTournament.MAX_PLAYERS))
 		"t_recover": return token(action.code)
 		"t_remove": return integer(action.player, 1)
+		"t_rule": return integer(action.pair, 1, SgTournament.MAX_PAIR_ID) and integer(action.winner, 1)
 		"t_choose": return integer(action.index, 0, 15)
 		"order": return action.play is bool
 		"mana": return short_text(action.card, 16) and integer(action.index, 0, 63)

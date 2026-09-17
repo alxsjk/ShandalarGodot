@@ -55,7 +55,7 @@ func present(room: Dictionary, online: bool, busy: bool, hosting := false) -> vo
 	_room = room.duplicate(true)
 	if _awaiting_ack and int(room.revision) > _sent_revision and not busy: _awaiting_ack = false
 	projection.locked = not online or busy or _awaiting_ack or not (room.connected[0] and room.connected[1]) \
-		or bool(room.get("tournament", {}).get("paused", false))
+		or String(room.get("tournament", {}).get("hold", "")) != ""
 	projection.ingest(_room)
 	hidden_hands.assign([] if projection.players[1].hand_revealed else [1])
 	if not _built:
@@ -164,9 +164,11 @@ func _refresh() -> void:
 func _update_banner() -> void:
 	if not is_instance_valid(_connection_banner): return
 	var suspended: bool = _online and not (_room.connected[0] and _room.connected[1])
-	_connection_banner.visible = not _online or suspended or bool(_room.get("tournament", {}).get("paused", false))
+	_connection_banner.visible = not _online or suspended or String(_room.get("tournament", {}).get("hold", "")) != ""
 	if not _connection_banner.visible: return
-	_banner_text.text = _connection_message() + ("\nThe game reconnects by itself; Reconnect tries at once." if not _online else "\nThe referee keeps the table; play resumes when both seats are back.")
+	_banner_text.text = _connection_message() + ("\nThe game reconnects by itself; Reconnect tries at once." if not _online
+		else ("\nThe referee keeps the table exactly as it stands." if String(_room.get("tournament", {}).get("hold", "")) != ""
+		else "\nThe referee keeps the table; play resumes when both seats are back."))
 	_connection_banner.reset_size()
 	var area := _board_area()
 	var origin := get_global_rect().position
@@ -175,7 +177,9 @@ func _update_banner() -> void:
 
 func _connection_message() -> String:
 	if not _online: return "Reconnecting to the host. Your last confirmed table is shown."
-	if bool(_room.get("tournament", {}).get("paused", false)): return "Tournament paused: the organiser must retry saving progress."
+	var hold := String(_room.get("tournament", {}).get("hold", ""))
+	if hold == "storage": return "Tournament paused: the organiser must retry saving progress."
+	if hold == "organiser": return "Tournament paused by the organiser. Play resumes when they continue the event."
 	if not _room.connected[int(_room.seat)]:
 		return "Restoring your seat. The duel is suspended."
 	if not _room.connected[1 - int(_room.seat)]:

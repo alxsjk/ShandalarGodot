@@ -52,7 +52,7 @@ func test_bot_controls_and_deck_review_fit_inside_the_small_tournament_window() 
 	var event := SgTournament.new()
 	assert_eq(event.configure({"name": "Wizard Cup", "limit": 20, "wins": 1, "policy": "fixed", "decks": _decks()}, 4250), "")
 	var view := {"id": event.id, "config": event.config, "phase": event.phase, "revision": 1, "champion": 0,
-		"entrants": [], "rounds": [], "you": 0, "deck": {}, "code": "", "organiser": true, "save_error": "", "tables": []}
+		"entrants": [], "rounds": [], "you": 0, "deck": {}, "code": "", "organiser": true, "save_error": "", "paused": false, "tables": []}
 	assert_true(SgTournamentProtocol.view(view))
 	lobby._tournament_panel.present(view, true, false, true)
 	for i in 8: await get_tree().process_frame

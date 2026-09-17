@@ -12,6 +12,7 @@ static func standings(view: Dictionary) -> Array:
 		var row := {"id": int(player.id), "name": String(player.name), "deck_name": String(player.get("deck_name", "")),
 			"place": 0, "tied": false, "round": 0, "series_won": 0, "series_lost": 0,
 			"games_won": 0, "games_lost": 0, "draws": 0, "byes": 0, "forfeits_won": 0, "forfeits_lost": 0,
+			"rulings_won": 0, "rulings_lost": 0,
 			"withdrawn": bool(player.withdrawn), "active": not player.withdrawn, "status": "Registered", "last_pair": {}}
 		rows.append(row)
 		indexed[row.id] = row
@@ -31,6 +32,7 @@ static func standings(view: Dictionary) -> Array:
 					var won: bool = int(pair.winner) == pid
 					if pair.reason == "Series won": row["series_won" if won else "series_lost"] += 1
 					elif pair.reason == "Withdrawal": row["forfeits_won" if won else "forfeits_lost"] += 1
+					elif pair.reason in [SgTournament.RULED, SgTournament.CORRECTED]: row["rulings_won" if won else "rulings_lost"] += 1
 				row.active = not row.withdrawn and (pair.status in ["waiting", "playing"] or int(pair.winner) == pid)
 	var champion := int(view.get("champion", 0))
 	var final_places: bool = view.phase == "complete" and champion != 0

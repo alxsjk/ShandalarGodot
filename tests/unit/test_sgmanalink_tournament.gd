@@ -184,3 +184,83 @@ func test_restore_preserves_draw_and_scores_but_restarts_interrupted_game() -> v
 		assert_ne(SgTournament.new().restore(broken), "", "required checkpoint field " + key)
 	saved.rounds[0][0].players[1] = pair.players[0]
 	assert_ne(SgTournament.new().restore(saved), "", "self-pairing is invalid")
+
+
+func test_the_organisers_ruling_and_correction_are_flagged_on_the_ledger() -> void:
+	var event := _event(4, 2)
+	assert_eq(event.draw_round(), "")
+	var pair: Dictionary = event.rounds[0][0]
+	var other: Dictionary = event.rounds[0][1]
+	for pid: int in pair.players: assert_eq(event.set_ready(pid, true), "")
+	assert_eq(event.begin_game(pair.id), "")
+	assert_ne(event.rule(pair.id, 999), "", "a stranger cannot be ruled the winner")
+	assert_ne(event.rule(other.id + 40, other.players[0]), "", "an unknown pairing cannot be ruled on")
+	assert_eq(event.rule(pair.id, pair.players[1]), "", "the organiser declares a winner over a live game")
+	assert_eq(pair.status, "finished")
+	assert_eq(pair.winner, pair.players[1])
+	assert_eq(pair.reason, "Organiser's ruling", "a declared winner is flagged, never a played win")
+	assert_eq(pair.wins, [0, 0], "played scores stay as they were played")
+	for pid: int in pair.players: assert_false(event.entrant(pid).ready)
+	assert_ne(event.rule(pair.id, pair.players[1]), "", "the recorded winner is already the recorded winner")
+	assert_false(event.record_game(pair.id, pair.game, 0), "the referee cannot score a ruled pairing")
+	assert_true(SgTournamentProtocol.checkpoint(event.checkpoint()), "a ruling is a legal checkpoint")
+	assert_eq(event.rule(pair.id, pair.players[0]), "", "the organiser overturns their own ruling")
+	assert_eq(pair.winner, pair.players[0])
+	assert_eq(pair.reason, "Corrected by organiser", "a correction is flagged as one")
+	assert_ne(event.withdraw(pair.players[1]), "", "a ruled pairing has finished")
+	var saved := SgProtocol.decode_payload(SgProtocol.encode(event.checkpoint()).to_ascii_buffer())
+	var restored := SgTournament.new()
+	assert_eq(restored.restore(saved), "")
+	assert_eq(restored.rounds[0][0].reason, "Corrected by organiser", "the flag survives a restart")
+	var forged := event.checkpoint()
+	forged.rounds[0][0].winner = 0
+	assert_false(SgTournamentProtocol.checkpoint(forged), "a ruling always names its winner")
+	# The other pairing plays out; a drawn next round closes the first one.
+	for pid: int in other.players: assert_eq(event.set_ready(pid, true), "")
+	assert_eq(event.begin_game(other.id), "")
+	assert_true(event.record_game(other.id, other.game, 0))
+	for pid: int in other.players: assert_eq(event.set_ready(pid, true), "")
+	assert_eq(event.begin_game(other.id), "")
+	assert_true(event.record_game(other.id, other.game, 0))
+	assert_eq(event.draw_round(), "")
+	assert_ne(event.rule(pair.id, pair.players[1]), "", "a published draw closes the round before it")
+	var bye_free: Dictionary = event.rounds[1][0]
+	assert_ne(event.rule(bye_free.id, 0), "", "nobody is not a winner")
+
+
+func test_a_correction_of_the_final_moves_the_championship() -> void:
+	var event := _event(2)
+	assert_eq(event.draw_round(), "")
+	var pair: Dictionary = event.rounds[0][0]
+	for pid: int in pair.players: assert_eq(event.set_ready(pid, true), "")
+	assert_eq(event.begin_game(pair.id), "")
+	assert_true(event.record_game(pair.id, pair.game, 0))
+	assert_eq(event.phase, "complete")
+	assert_eq(event.champion, pair.players[0])
+	assert_eq(event.rule(pair.id, pair.players[1]), "", "a finished event can still have its final corrected")
+	assert_eq(event.phase, "complete")
+	assert_eq(event.champion, pair.players[1], "the champion follows the corrected final")
+	assert_eq(pair.wins, [1, 0], "the played game is not rewritten")
+	assert_true(SgTournamentProtocol.checkpoint(event.checkpoint()))
+	assert_ne(event.withdraw(pair.players[1]), "", "a finished event has nobody left to withdraw")
+	var withdrawn := _event(2)
+	assert_eq(withdrawn.draw_round(), "")
+	var final: Dictionary = withdrawn.rounds[0][0]
+	assert_eq(withdrawn.withdraw(final.players[1]), "")
+	assert_ne(withdrawn.rule(final.id, final.players[1]), "", "a withdrawn player cannot be ruled the winner")
+
+
+func test_pause_and_ruling_commands_are_organiser_words_on_the_wire() -> void:
+	var message := {"v": SgProtocol.VERSION, "type": "command", "seq": 1,
+		"room": "", "revision": 0, "action": {"op": "t_pause", "event": "a".repeat(64)}}
+	assert_true(SgProtocol.valid(message), "the organiser can pause the event")
+	message.action.op = "t_resume"
+	assert_true(SgProtocol.valid(message), "and resume it")
+	message.action = {"op": "t_rule", "event": "a".repeat(64), "pair": 1, "winner": 2}
+	assert_true(SgProtocol.valid(message), "a ruling names its pairing and winner")
+	message.action.winner = 0
+	assert_false(SgProtocol.valid(message), "a ruling always names a winner")
+	message.action = {"op": "t_rule", "event": "a".repeat(64), "pair": 0, "winner": 2}
+	assert_false(SgProtocol.valid(message), "a ruling names a real pairing")
+	message.action = {"op": "t_rule", "event": "a".repeat(64), "pair": 1, "winner": 2, "wins": [2, 0]}
+	assert_false(SgProtocol.valid(message), "a ruling never carries a score")
