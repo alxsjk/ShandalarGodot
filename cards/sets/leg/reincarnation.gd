@@ -16,10 +16,17 @@ extends CardScript
 ## dying body of theirs into the best thing in their yard — read the second
 ## sentence twice before pointing it.
 ##
-## The returned card is chosen by that owner (they are the one being paid),
-## and the heuristic offers the biggest body first. The creature that just
-## died is already in the graveyard by then, so it may return itself, which
-## is the printed behaviour and the usual line.
+## WHICH card comes back is the SPELL's controller's choice (CR 609.3 — an
+## effect's instructions are carried out by the object's controller unless
+## it says otherwise, and this one only names whose graveyard to look in
+## and whose control to land under), which is not the same seat: pointed at
+## an opponent's creature you hand them their WORST body, not their best.
+## Glyph of Reincarnation, same set and same clause, reads it the same way;
+## this file asked the graveyard's owner until 2026-09-17. The list is
+## sorted from the CHOOSER's point of view, so the heuristic's first pick
+## is their own biggest body or an opponent's smallest. The creature that
+## just died is already in the graveyard by then, so it may return itself,
+## which is the printed behaviour and the usual line.
 
 
 func build() -> CardData:
@@ -34,15 +41,18 @@ class MarkEffect extends EffectBase:
 	func _init() -> void:
 		target_spec = TargetSpec.creature()
 
-	func resolve(game: MtgGame, _source: CardInstance, _controller: int,
+	func resolve(game: MtgGame, _source: CardInstance, controller: int,
 			target: TargetRef, _x_value: int = 0) -> void:
 		var doomed := game.find_instance(target.instance_id)
 		if doomed == null or doomed.zone != Mtg.Zone.BATTLEFIELD:
 			return
-		game.watch_death(doomed, MarkEffect._reincarnate)
+		# The delayed ability is the SPELL's (CR 603.7a), so its controller
+		# rides along to make the choice when it fires.
+		game.watch_death(doomed, MarkEffect._reincarnate.bind(controller))
 		game.log_line("%s is marked for reincarnation" % doomed.data.card_name)
 
-	static func _reincarnate(game: MtgGame, dead: CardInstance) -> void:
+	static func _reincarnate(game: MtgGame, dead: CardInstance,
+			chooser: int) -> void:
 		var owner := dead.owner_id
 		var candidates: Array[CardInstance] = []
 		for card in game.players[owner].graveyard:
@@ -50,10 +60,16 @@ class MarkEffect extends EffectBase:
 				candidates.append(card)
 		if candidates.is_empty():
 			return
-		candidates.sort_custom(func(a: CardInstance, b: CardInstance) -> bool:
-			return a.data.cost.mana_value() > b.data.cost.mana_value())
-		var pick := game.agents[owner].choose_card(game, owner, candidates,
-			"Return a creature card to the battlefield")
+		# From the CHOOSER's point of view: their own graveyard's biggest
+		# body first, an opponent's smallest first.
+		if owner == chooser:
+			candidates.sort_custom(func(a: CardInstance, b: CardInstance) -> bool:
+				return a.data.cost.mana_value() > b.data.cost.mana_value())
+		else:
+			candidates.sort_custom(func(a: CardInstance, b: CardInstance) -> bool:
+				return a.data.cost.mana_value() < b.data.cost.mana_value())
+		var pick := game.agents[chooser].choose_card(game, chooser, candidates,
+			"Return a creature card to the battlefield", false, false, true)
 		if pick == null or not candidates.has(pick):
 			pick = candidates[0]
 		game.reanimate(pick, owner)

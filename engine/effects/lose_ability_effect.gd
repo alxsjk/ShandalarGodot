@@ -19,6 +19,13 @@ var all_landwalk: bool = false
 ## other, so an islandwalking victim keeps its islandwalk.
 var landwalk_types: Array[String] = []
 
+## When true the creature loses every "bands with other [quality]" ability
+## (Shelkin Brownie) WITHOUT losing banding. CR 702.22b runs one way only:
+## losing banding takes the "bands with other" abilities too, but a card
+## that names only the latter leaves plain banding standing — which is the
+## whole difference between Shelkin Brownie and Tolaria.
+var bands_with: bool = false
+
 ## When true the loss lands on the effect's SOURCE instead of a target
 ## (Wall of Wonder shedding its own defender).
 var self_mode: bool = false
@@ -49,6 +56,13 @@ func and_landwalk_of(types: Array) -> LoseAbilityEffect:
 	return self
 
 
+## Fluent: also (or instead) strip every "bands with other" ability, and
+## only those — "loses all \"bands with other\" abilities" on its own.
+func and_bands_with() -> LoseAbilityEffect:
+	bands_with = true
+	return self
+
+
 ## Fluent: apply to the effect's own source, with no target.
 func to_source() -> LoseAbilityEffect:
 	self_mode = true
@@ -67,7 +81,7 @@ func resolve(game: MtgGame, source: CardInstance, _controller: int, target: Targ
 	if affected == null or affected.zone != Mtg.Zone.BATTLEFIELD:
 		return
 	game.continuous.add_until_eot_loss(affected.id, keywords, all_landwalk,
-		false, landwalk_types)
+		false, landwalk_types, bands_with)
 	game.log_line("%s loses %s until end of turn" % [affected.data.card_name, what])
 	game.recalculate()
 

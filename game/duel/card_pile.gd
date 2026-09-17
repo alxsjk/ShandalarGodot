@@ -347,7 +347,17 @@ func _make_card(inst: CardInstance, hidden: bool, click_cb: Callable,
 func _on_card_hover(inst: CardInstance, face: Variant) -> void:
 	if is_instance_valid(face):
 		face.hovered = true
-	if preview != null:
+	if preview == null:
+		return
+	# AND THE ENLARGED CARD KEEPS THE ROW'S SECRET. The row above is drawn
+	# as a card back whenever the card is face down in the game, and the
+	# pointer crossing that back used to fill the Showcase with its name,
+	# art, rules text and P/T regardless — the one line that made the row's
+	# own card back worth nothing. The board's lone cards already ask this
+	# question on their way into the preview (`DuelScreen._make_widget`).
+	if inst.face_down:
+		preview.show_back()
+	else:
 		preview.show_card(inst)
 
 

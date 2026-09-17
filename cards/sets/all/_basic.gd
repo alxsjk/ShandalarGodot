@@ -137,3 +137,19 @@ static func _decay(g: MtgGame, _s: CardInstance, _pid: int, _t: TargetRef, _x: i
 		if i.is_creature() and not i.is_type(Mtg.CardType.ARTIFACT): g.continuous.add_until_eot_pump(i.id, -1, -1)
 	g.recalculate()
 static func _shuffle(g: MtgGame, _s: CardInstance, _pid: int, t: TargetRef, _x: int) -> void: g.shuffle_library(t.player_id)
+
+## "Draw N cards, then discard one of them" (Soldevi Sage, Casting of Bones):
+## the discard is bounded to the cards this draw put in hand, not the whole
+## hand. [param before] is drawn_this_turn's size taken before the draw —
+## Krovikan Sorcerer's shape (cards/sets/ice/_storage.gd).
+static func discard_one_just_drawn(g: MtgGame, pid: int, before: int, prompt: String) -> void:
+	var candidates: Array[CardInstance] = []
+	for n in range(before, g.players[pid].drawn_this_turn.size()):
+		var i: CardInstance = g.players[pid].drawn_this_turn[n]
+		if i.zone == Mtg.Zone.HAND and not candidates.has(i): candidates.append(i)
+	if candidates.is_empty(): return
+	# Declining is not legal here, so a null answer becomes the first
+	# candidate (DecisionAgent.choose_card's contract for optional = false).
+	var pick := g.agents[pid].choose_card(g, pid, candidates, prompt, false, true)
+	if pick == null or not candidates.has(pick): pick = candidates[0]
+	g.discard_cards(pid, [pick])

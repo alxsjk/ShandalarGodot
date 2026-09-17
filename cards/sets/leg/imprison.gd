@@ -13,9 +13,9 @@ extends CardScript
 ## Implementation: BOTH clauses.
 ##
 ## The COMBAT clause, both halves — attacking and blocking. Paying {1} taps
-## the enchanted creature and pulls it out of combat (and, because this
-## engine treats "no blockers" as unblocked, whatever it was blocking
-## really does get through); not paying destroys the Aura, which is the
+## the enchanted creature and pulls it out of combat, and whatever it was
+## blocking ALONE really does become unblocked (the printed third clause;
+## see `_collect_the_toll`); not paying destroys the Aura, which is the
 ## printed price of letting it go.
 ##
 ## The TAP-ABILITY clause rides on Mtg.EventType.ABILITY_ACTIVATED, which
@@ -59,10 +59,21 @@ static func _host_is_attacking(game: MtgGame, source: CardInstance,
 	return false
 
 
-static func _host_is_blocking(_game: MtgGame, source: CardInstance,
+## "Whenever enchanted creature … BLOCKS" — ONE toll per combat however
+## many attackers it blocks (CR 509.1h; Blaze of Glory and Two-Headed
+## Giant of Foriys both make that reachable). BLOCKED is dispatched once
+## per declared PAIR, so only the FIRST attacker counts, the same guard
+## Spitting Slug's `_in_the_pair` uses; it charged per pair until
+## 2026-09-17.
+static func _host_is_blocking(game: MtgGame, source: CardInstance,
 		event: GameEvent) -> bool:
 	var blocker: CardInstance = event.data.get("blocker")
-	return blocker != null and blocker.id == source.attached_to
+	if blocker == null or blocker.id != source.attached_to:
+		return false
+	var attacked := game.combat.attackers_blocked_by(blocker.id)
+	var attacker: CardInstance = event.data.get("attacker")
+	return not attacked.is_empty() and attacker != null \
+		and attacked[0] == attacker.id
 
 
 ## "Whenever a PLAYER activates an ability of enchanted creature with {T}
@@ -114,6 +125,12 @@ static func _collect_the_toll(game: MtgGame, source: CardInstance) -> void:
 			game, pid, "Pay {1} to hold %s?" % host.data.card_name, true) \
 			and game.try_pay(pid, toll):
 		game.tap_permanent(host)
-		game.remove_from_combat(host)
+		# "…and creatures it was blocking that had become blocked by only
+		# that creature this combat become UNBLOCKED" — the printed
+		# exception to CR 509.1h, which MtgGame.remove_from_combat keeps
+		# behind an opt-in flag (Ydwen Efreet and False Orders are the
+		# other callers). Without it the toll was a Fog: the attacker
+		# stayed blocked with no blockers and hit nobody (until 2026-09-17).
+		game.remove_from_combat(host, true)
 		return
 	game.destroy(source)

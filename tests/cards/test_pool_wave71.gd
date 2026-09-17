@@ -133,6 +133,10 @@ func test_reincarnation_raises_a_creature_when_the_target_dies() -> void:
 	assert_eq(dead.zone, Mtg.Zone.BATTLEFIELD, "the Angel came back")
 
 
+## Corrected 2026-09-17: this used to assert the OWNER named the body, and
+## so that their Serra Angel came back. CR 609.3 gives the choice to the
+## spell's controller — who hands an opponent their cheapest body — and the
+## control half, which is what this test is about, is unchanged.
 func test_reincarnation_pays_the_creatures_own_owner() -> void:
 	var theirs := put_battlefield(1, "Grizzly Bears")
 	var dead := give_hand(1, "Serra Angel")
@@ -146,8 +150,11 @@ func test_reincarnation_pays_the_creatures_own_owner() -> void:
 	assert_ok(g.cast_spell(0, spell, [TargetRef.card(theirs)]))
 	resolve_stack()
 	g.destroy(theirs)
-	assert_eq(dead.zone, Mtg.Zone.BATTLEFIELD)
-	assert_eq(dead.controller_id, 1, "under ITS OWNER's control")
+	assert_eq(theirs.zone, Mtg.Zone.BATTLEFIELD,
+		"the caster names their opponent's cheapest body")
+	assert_eq(theirs.controller_id, 1, "under ITS OWNER's control")
+	assert_eq(dead.zone, Mtg.Zone.GRAVEYARD, "not the Angel they wanted")
+	assert_eq(g.players[0].battlefield.size(), 0, "and never the caster's")
 
 
 func test_reincarnation_expires_at_end_of_turn() -> void:

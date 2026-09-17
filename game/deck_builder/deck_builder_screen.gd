@@ -3456,7 +3456,12 @@ func _clear_deck() -> void:
 	if _cleared != null:
 		_restore_deck()
 		return
-	if deck.total() == 0:
+	# BOTH PILES, because [method DeckModel.clear] wipes both. A deck that
+	# is fifteen sideboard cards and nothing else is still work — the
+	# same test [method _confirm_discard] and [method _open_copy_dialog]
+	# already make — and refusing on the main deck alone left those cards
+	# with no way back out of this command and `Restore deck` unreachable.
+	if deck.total() + deck.side_total() == 0:
 		_say("There is nothing to clear", true)
 		return
 	_cleared = deck.duplicate_model()
@@ -4272,7 +4277,13 @@ func _show_stats_page(index: int, tabs: HBoxContainer) -> void:
 		var tab := tabs.get_child(i) as Button
 		if tab != null:
 			tab.set_pressed_no_signal(i == index)
+	# remove_child BEFORE queue_free: a queued node is still a child until
+	# the end of the frame, so freeing without detaching left the holder
+	# carrying the OLD page above the new one — the scroller then opened on
+	# the page the player had just left. Same idiom as
+	# [method HelpScreen._rebuild] and [method _fill_filter_page].
 	for child in _stats_pages.get_children():
+		_stats_pages.remove_child(child)
 		child.queue_free()
 	match index:
 		0: _stats_page_deck(_stats_pages)

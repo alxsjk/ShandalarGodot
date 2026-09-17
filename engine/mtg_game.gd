@@ -10285,6 +10285,19 @@ func _untap_step() -> bool:
 	_begin_cost_choices()
 	var pid := active_player
 	var mine := players[pid].battlefield
+	# ---- 0. the pre-untap census --------------------------------------
+	# Power Surge counts what is untapped AS THE TURN BEGINS, which is
+	# before this step unties anything — the whole "tap out or burn"
+	# bargain of the card. Taken here rather than after the sweep below,
+	# where it used to be and where it could only ever read the player's
+	# entire land count (2026-09-17). The step may hold on a "may choose
+	# not to untap" question and re-enter; nothing has untapped by this
+	# point either way, so the census is the same on every pass.
+	var standing := 0
+	for inst in mine:
+		if inst.is_land() and not inst.tapped:
+			standing += 1
+	players[pid].untapped_lands_at_turn_start = standing
 	# ---- 1. classify, mutating nothing --------------------------------
 	var eligible: Array[CardInstance] = []   # untaps unless a cap says no
 	var may_stay: Array[CardInstance] = []   # tapped, "may choose not to"
@@ -10408,12 +10421,6 @@ func _untap_step() -> bool:
 		inst.attacked_this_turn = false
 		inst.could_attack_this_turn = false
 	players[pid].lands_played_this_turn = 0
-	# Power Surge counts what is untapped as the turn BEGINS.
-	var standing := 0
-	for inst in mine:
-		if inst.is_land() and not inst.tapped:
-			standing += 1
-	players[pid].untapped_lands_at_turn_start = standing
 	recalculate()   # untapping re-enables Castle-style statics
 	for woken in just_untapped:
 		dispatch_event(Mtg.EventType.BECAME_UNTAPPED,

@@ -3265,6 +3265,22 @@ func _done_applies() -> bool:
 ## original has no "quit" on that key either; leaving is Concede
 ## (`docs/duel-todo.md` §6.3), and it asks first.
 func _on_escape() -> void:
+	# THE TWO BARE DIALOGS FIRST, because they are the last thing opened
+	# and stand over everything else: `Give up this duel?` ([method
+	# _ask_to_concede]) and `Duel Options...`. Neither had a rung here,
+	# and [method _unhandled_key_input] routes Escape into this ladder the
+	# moment [method _dialogs_open] is true — so Escape over the concede
+	# question left the question standing and peeled a layer of the duel
+	# UNDERNEATH it instead, un-declaring the attackers the player had
+	# lined up while they were looking at a different window. Both carry a
+	# Cancel/OK of their own, which is what *"Esc is just like Cancel"*
+	# means here.
+	if _concede_dialog != null and is_instance_valid(_concede_dialog):
+		_concede_dialog.dismiss()
+		return
+	if _options_dialog != null and is_instance_valid(_options_dialog):
+		_options_dialog.dismiss()
+		return
 	if _choice_overlay != null:
 		if _choice_withdrawable():
 			_withdraw_choice()
@@ -4809,6 +4825,17 @@ func _on_x_confirmed() -> void:
 		return
 	var per_x: int = maxi(_pending_card.data.cost.x_count, 1)
 	if _pending_ability_index >= 0:
+		# THE ABILITY CAN GO WHILE THE WINDOW IS UP. An AI seat's dwell
+		# runs on under this dialog ([method _maybe_schedule_ai] waits only
+		# on the Pause window), so a Titania's Song resolving here empties
+		# `cur_activated_abilities` and the index the menu handed us is
+		# past its end — which read as an out-of-bounds error instead of a
+		# refusal. There is nothing left to activate, so the activation
+		# goes the same silent way the vanished card above does; the engine
+		# answers the same question with "no such ability".
+		if _pending_ability_index >= _pending_card.cur_activated_abilities.size():
+			_on_x_canceled()
+			return
 		per_x = maxi(_pending_card.cur_activated_abilities[
 			_pending_ability_index].cost.x_count, 1)
 	var mana := int(_x_spin.value)
@@ -5727,7 +5754,16 @@ func _open_territory_menu(pid: int, at: Vector2) -> void:
 func _menu_seat() -> int:
 	if _is_human(_territory_menu_pid):
 		return _territory_menu_pid
-	return _human_seat()
+	# WITH NO TERRITORY BEHIND IT the answer is the seat the screen is
+	# SERVING, not the perspective it draws from: the Pause window's own
+	# Concede clears `_territory_menu_pid` ([method _on_pause_chosen])
+	# because it belongs to no half of the table, and [method _human_seat]
+	# is ALWAYS seat 0 at a private hotseat — so Player 2 pressing
+	# Q → Concede duel → Yes, I'm sure gave up PLAYER 1's seat and won the
+	# duel by conceding. [method _viewing_seat] is the read the 2026-09-16
+	# hunt added for exactly this, and it is [method _human_seat] again
+	# wherever the hotseat is not private.
+	return _viewing_seat()
 
 
 func _on_territory_menu_chosen(id: int) -> void:
@@ -6065,7 +6101,17 @@ func _on_card_menu_chosen(id: int) -> void:
 		# §2.12's stamp reads the entry the same way.
 		0, 1:
 			if _card_preview != null:
-				_card_preview.show_card(_card_menu_inst)
+				# A CARD THAT IS FACE DOWN IN THE GAME IS FACE DOWN HERE
+				# TOO. The hover and the right-hold both refuse to enlarge
+				# one ([method _on_card_look]) and so does the graveyard
+				# view ([method _on_graveyard_card]); this entry was the
+				# door left open, and it named an Illusionary Mask creature
+				# to whoever right-clicked it — the exact information the
+				# card exists to hide (`docs/card-states.md` §5.1).
+				if _card_menu_inst.face_down:
+					_card_preview.show_back()
+				else:
+					_card_preview.show_card(_card_menu_inst)
 		CARD_MENU_NO_AUTO_TAP:
 			# *"marks a land to be ignored — not tapped for mana — when you
 			# auto-cast any spell or effect. The only way to tap a locked
@@ -7963,7 +8009,12 @@ func _attack_refusal(inst: CardInstance) -> String:
 
 
 func _block_refusal(blocker: CardInstance, attacker: CardInstance, defender: int) -> String:
-	return CombatState.block_illegality(game, blocker, attacker, defender)
+	# The blocking-cost check (Hipparion's {1}, Awesome Presence's {3})
+	# plans mana the way the seat at the screen can see it (rule 8): the
+	# defender's own hand when the defender is deciding, which is every
+	# legitimate call here — the viewer argument keeps this door on the
+	# same convention as the network presentation and the AI tactics.
+	return CombatState.block_illegality(game, blocker, attacker, defender, true, _viewing_seat())
 
 
 # ================================================================= UI build --

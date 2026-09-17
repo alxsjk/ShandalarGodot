@@ -19,7 +19,9 @@ extends RefCounted
 ##
 ## One tag takes its static OUT of the passes: [method changing_abilities]
 ## (CR 613 layer 6) is applied from ContinuousEffects._layer_six, among the
-## floating grants and losses and in timestamp order with them.
+## floating grants and losses and in timestamp order with them. One more
+## moves it to the END of them: [method reading_pt], for a static that asks
+## a question ABOUT a power rather than writing one (Meekstone).
 ##
 ## Two floating (until-end-of-turn) passes are interleaved between those
 ## three, and a static must expect to be on the losing side of both: the
@@ -33,7 +35,8 @@ extends RefCounted
 ## pipeline skips it, so a static never has to check whether it still exists.
 ##
 ## The remaining approximations (no full dependency analysis beyond the two
-## layer-4 rounds, CR 613.8) are documented in docs/ROADMAP.md.
+## layer-4 rounds and the layer-7 one below, CR 613.8) are documented in
+## docs/ROADMAP.md.
 
 ## func(game, source) -> void; adjust cur_power/cur_toughness/cur_keywords
 ## of affected instances. Runs on every recalculation, always from printed
@@ -112,6 +115,33 @@ var reads_land_types: bool = false
 ## Fluent: mark this layer-4 static as reading a land type (CR 613.8).
 func reading_land_types() -> StaticAbility:
 	reads_land_types = true
+	return self
+
+
+## Does this static READ a creature's live POWER or TOUGHNESS to decide
+## what it does? Meekstone's "creatures with power 3 or greater don't
+## untap" and the two "can't attack if the defending player controls an
+## untapped creature with power 3 or greater" bodies (Orgg, Goblin Mutant)
+## are the pool's three. A static that only WRITES a P/T — every anthem and
+## every Aura — is not one of them.
+##
+## THE DEPENDENCY (CR 613.8), the layer-7 twin of [member
+## reads_land_types]. Every P/T layer has to have settled before the
+## question is asked, or the answer depends on which permanent entered
+## first: in the anthem pass a Scathe Zombies under a Bad Moon that entered
+## AFTER the Meekstone was a 3/3 the Meekstone never saw, and a creature a
+## Giant Growth had just made huge was invisible to all three, because the
+## floating pumps of layer 7c run a pass later still. A flagged static is
+## therefore applied in a pass of its own, after layer 7e's switches — the
+## last thing [method ContinuousEffects.recalculate] does to a power.
+## Nothing in the pool reads a power to WRITE one, so that pass has no
+## readers of its own and one round is the whole analysis, exactly as it is
+## for the retypers.
+var reads_pt: bool = false
+
+## Fluent: mark this static as reading a live power/toughness (CR 613.8).
+func reading_pt() -> StaticAbility:
+	reads_pt = true
 	return self
 
 

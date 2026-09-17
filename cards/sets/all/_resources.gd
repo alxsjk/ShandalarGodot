@@ -38,7 +38,7 @@ static func configure(c: CardData) -> bool:
 		"Ashnod's Cylix": c.activated(F._ability("{3}", true, F.Action.new(_cylix, "target player looks at their top three, puts one back and exiles the rest", TargetSpec.player())))
 		"Soldevi Digger": c.activated(F._ability("{2}", false, F.Action.new(_digger, "put the top card of your graveyard on the bottom of your library", null, true)))
 		"Soldevi Sage":
-			var ability := F._ability("", true, F.Action.new(_sage, "draw three cards, then discard a card", null, true)).with_sacrifice_of("land", B._land)
+			var ability := F._ability("", true, F.Action.new(_sage, "draw three cards, then discard one of them", null, true)).with_sacrifice_of("land", B._land)
 			ability.sacrifice_count = 2
 			c.activated(ability)
 		"Gorilla Shaman":
@@ -129,8 +129,9 @@ static func _cylix(g: MtgGame, _s: CardInstance, _pid: int, t: TargetRef, _x: in
 static func _digger(g: MtgGame, _s: CardInstance, pid: int, _t: TargetRef, _x: int) -> void:
 	if not g.players[pid].graveyard.is_empty(): g.put_on_bottom_of_library(g.players[pid].graveyard.back())
 static func _sage(g: MtgGame, _s: CardInstance, pid: int, _t: TargetRef, _x: int) -> void:
+	var before := g.players[pid].drawn_this_turn.size()
 	g.draw_cards(pid, 3)
-	g.discard_cards(pid, g.agents[pid].choose_discard(g, pid, mini(1, g.players[pid].hand.size())))
+	B.discard_one_just_drawn(g, pid, before, "Soldevi Sage: discard one of the cards just drawn")
 static func _devour(g: MtgGame, s: CardInstance, _pid: int, _t: TargetRef, _x: int) -> void:
 	if not B.live_source(g, s): return
 	var cards: Array = g.cost_paid("_library_exiled", [])

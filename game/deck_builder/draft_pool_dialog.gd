@@ -65,6 +65,10 @@ func _ready() -> void:
 	add_button("Save pool").pressed.connect(_save)
 	add_button("Cancel").pressed.connect(dismiss)
 	_refresh()
+	# Take the keyboard from the setup beneath: its `Card pool…` button
+	# would otherwise keep focus and answer the next Enter. The finder is
+	# where a hand goes first here, and Enter in it does nothing.
+	search.grab_focus()
 
 
 func body() -> VBoxContainer:

@@ -421,6 +421,9 @@ static func button(label: String, min_size := Vector2(96, 26)) -> Button:
 	btn.add_theme_color_override("font_color", INK)
 	btn.add_theme_color_override("font_hover_color", INK)
 	btn.add_theme_color_override("font_pressed_color", INK)
+	# The theme's pale focus text on stone read as disabled (the online
+	# introduction's focused Continue looked greyed out).
+	btn.add_theme_color_override("font_focus_color", INK)
 	btn.add_theme_color_override("font_disabled_color", Color8(110, 110, 112))
 	btn.add_theme_font_size_override("font_size", 14)
 	return btn
@@ -488,6 +491,8 @@ static func _flat_button(btn: Button) -> Button:
 		btn.add_theme_stylebox_override(state, box)
 	btn.add_theme_color_override("font_color", INK)
 	btn.add_theme_color_override("font_hover_color", INK)
+	btn.add_theme_color_override("font_focus_color", INK)
+	btn.add_theme_color_override("font_pressed_color", INK)
 	return btn
 
 

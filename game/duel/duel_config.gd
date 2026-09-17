@@ -141,7 +141,15 @@ static func dominant_color(cards: Array) -> String:
 
 static func hotseat_default() -> DuelConfig:
 	var config := DuelConfig.new()
-	config.decks = [StarterDecks.WHITE_KNIGHTS, StarterDecks.BLACK_RED_RAIDERS]
+	# DUPLICATED, because a `const` Array reaches its readers READ-ONLY in
+	# GDScript 2.0 and a config's deck is something the game edits: the
+	# Match screen's sideboard moves a card between `config.decks[pid]` and
+	# `config.sideboards[pid]` in place ([method MatchScreen.move_one]), and
+	# on a config built here `remove_at` failed with "Array is in read-only
+	# state" while the `append` on the other side went through — so the
+	# card was in BOTH piles and the move reported success.
+	config.decks = [StarterDecks.WHITE_KNIGHTS.duplicate(),
+		StarterDecks.BLACK_RED_RAIDERS.duplicate()]
 	config.player_names = ["White Wizard", "Black Wizard"]
 	config.apply_deck_colors()
 	return config

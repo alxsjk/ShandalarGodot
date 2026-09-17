@@ -34,6 +34,7 @@ extends RefCounted
 ##   block restrictions, protection, rampage, granted abilities
 ##   combat-damage shields
 ##   P/T switches                 layer 7e            (Transmutation)
+##   the statics that READ a P/T  CR 613.8            (Meekstone, Orgg)
 ## [/codeblock]
 ## Recomputing from scratch after every change is exactly how XMage/mage-go
 ## stay correct, and at duel scale (tens of permanents) the cost is
@@ -438,7 +439,7 @@ func add_granted_activated_ability(instance_id: int, ability: ActivatedAbility,
 ## turn" on an instance. See [member _losses].
 func add_until_eot_loss(instance_id: int, keywords: Array[int] = [],
 		lose_landwalk := false, until_end_of_combat := false,
-		landwalk_types: Array = []) -> void:
+		landwalk_types: Array = [], lose_bands_with := false) -> void:
 	_rec(&"_losses")
 	var types: Array[String] = []
 	for t in landwalk_types:
@@ -448,6 +449,9 @@ func add_until_eot_loss(instance_id: int, keywords: Array[int] = [],
 		"keywords": keywords.duplicate(),
 		"landwalk": lose_landwalk,
 		"landwalk_types": types,
+		# "loses all 'bands with other' abilities" WITHOUT losing banding
+		# (Shelkin Brownie); losing banding implies it anyway, below.
+		"bands_with": lose_bands_with,
 		"until_combat": until_end_of_combat,
 		"ts": _stamp(),
 	})
@@ -651,12 +655,15 @@ static func parse_pt_counter(kind: String) -> Vector2i:
 	return Vector2i(int(halves[0]), int(halves[1]))
 
 
-## The five sub-passes [method recalculate] runs the static abilities in,
+## The six sub-passes [method recalculate] runs the static abilities in,
 ## named so [method _floating_statics_pass] can be asked for one of them.
 ## The order is CR 613's layer order as this pipeline resolves it: ability
 ## removal (layer 6) before the two layer-4 retypers, then the layer-7a/7b
-## setters, then everything else.
-enum _StaticPass { SILENCE, LAND_TYPES, LAND_TYPE_READERS, TYPES, BASE_PT, REST }
+## setters, then everything else — and last of all the statics that READ a
+## power or toughness ([member StaticAbility.reads_pt]), which every P/T
+## layer has to have finished with before their question can be answered.
+enum _StaticPass { SILENCE, LAND_TYPES, LAND_TYPE_READERS, TYPES, BASE_PT, REST,
+	PT_READERS }
 
 
 ## Run the FLOATING statics ([member _floating_statics]) that belong to
@@ -696,7 +703,10 @@ func _floating_statics_pass(game: MtgGame, which: int) -> void:
 			_StaticPass.REST:
 				runs = not ability.sets_base_pt and not ability.changes_types \
 					and not ability.changes_abilities \
-					and not ability.silences_abilities
+					and not ability.silences_abilities \
+					and not ability.reads_pt
+			_StaticPass.PT_READERS:
+				runs = ability.reads_pt
 		if runs:
 			ability.apply.call(game, entry["source"])
 
@@ -793,8 +803,10 @@ func _layer_six(game: MtgGame) -> void:
 				continue
 			for k in loss["keywords"]:
 				victim.cur_keywords.erase(k)
-			if loss["keywords"].has(Mtg.Keyword.BANDING):
-				# CR 702.22b: losing banding loses every "bands with other".
+			if loss["keywords"].has(Mtg.Keyword.BANDING) \
+					or bool(loss.get("bands_with", false)):
+				# CR 702.22b: losing banding loses every "bands with other"
+				# — and Shelkin Brownie takes those alone, leaving banding.
 				victim.cur_bands_with.clear()
 			if loss["landwalk"]:
 				victim.cur_landwalk.clear()
@@ -995,9 +1007,11 @@ func recalculate(game: MtgGame) -> void:
 		for ability in inst.data.static_abilities:
 			# The silencers ran first, in 2a-0; they do not run again here,
 			# and neither does a layer-6 grant — pass 2c-0 above took it.
+			# A static that READS a power waits for pass 5, below.
 			if not ability.sets_base_pt and not ability.changes_types \
 					and not ability.changes_abilities \
-					and not ability.silences_abilities:
+					and not ability.silences_abilities \
+					and not ability.reads_pt:
 				ability.apply.call(game, inst)
 	_floating_statics_pass(game, _StaticPass.REST)
 
@@ -1084,6 +1098,23 @@ func recalculate(game: MtgGame) -> void:
 		var p := inst.cur_power
 		inst.cur_power = inst.cur_toughness
 		inst.cur_toughness = p
+
+	# Pass 5: the statics that READ a live power or toughness — CR 613.8's
+	# dependency one layer up from the retyper waves of pass 2a-1. Meekstone
+	# ("creatures with power 3 or greater don't untap"), Orgg and Goblin
+	# Mutant ("can't attack if the defending player controls an untapped
+	# creature with power 3 or greater") ask a question ABOUT a power, so
+	# every layer that writes one — the setters, the counters, the anthems,
+	# the floating pumps and the switches above — has to be finished first.
+	# In the anthem pass the answer depended on which permanent entered
+	# first, and no entry order could have shown them a Giant Growth at all.
+	for inst in static_sources:
+		if inst.cur_abilities_silenced or inst.cur_statics_suspended:
+			continue
+		for ability in inst.data.static_abilities:
+			if ability.reads_pt:
+				ability.apply.call(game, inst)
+	_floating_statics_pass(game, _StaticPass.PT_READERS)
 
 	# These replacements change mana PRODUCTION, not land subtypes or the
 	# abilities a land has. Each applicable final color is an equivalent

@@ -48,7 +48,11 @@ class BanditEffect extends EffectBase:
 				and game.try_pay(defender, toll):
 			game.log_line("%s pays the Bandits off" % game.players[defender].player_name)
 			return
-		game.gain_control_leashed(prize, source, false)
+		# "for as long as THIS CREATURE REMAINS ON THE BATTLEFIELD" — the
+		# Bandits' own presence is the whole duration, so the leash is not
+		# control-bound: Bandits an opponent steals keep the artifact where
+		# the ability put it (CR 611.2b, the printed words).
+		game.gain_control_leashed(prize, source, false, false, false)
 
 	func describe() -> String:
 		return "steal target artifact unless an opponent pays {2}"

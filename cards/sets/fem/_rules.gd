@@ -198,7 +198,7 @@ static func _configure(c: CardData) -> CardData:
 			c.activated(_ability(cost + cost, false, PumpEffect.new(1, 0).self_buff()))
 		"Orgg":
 			c.with_cant_block_power_ge(3)
-			c.static_ability(StaticAbility.new(_orgg, "Cannot attack into an untapped creature with power 3 or greater."))
+			c.static_ability(StaticAbility.new(_orgg, "Cannot attack into an untapped creature with power 3 or greater.").reading_pt())
 		"Rainbow Vale":
 			for color in _all_colors(null, null):
 				c.mana(ManaAbility.new(color).with_side_effect(_rainbow))

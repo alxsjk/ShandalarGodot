@@ -25,9 +25,12 @@ class BirdEffect extends EffectBase:
 		if source == null or source.zone != Mtg.Zone.BATTLEFIELD:
 			return
 		game.move_to_ante(source)
-		# Snapshot first: remove_from_ante mutates the owner's ante array.
+		# "all other cards YOU OWN" — you is the ACTIVATOR, not the Bird's
+		# owner, and a card sits in the ante array of the player who owns
+		# it. A Bird an opponent has stolen dumps THEIR stake, not yours.
+		# Snapshot first: remove_from_ante mutates that ante array.
 		var mine: Array = []
-		for inst in game.players[source.owner_id].ante:
+		for inst in game.players[controller].ante:
 			if inst != source:
 				mine.append(inst)
 		for inst in mine:

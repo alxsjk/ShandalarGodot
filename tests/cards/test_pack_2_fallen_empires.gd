@@ -676,3 +676,23 @@ func test_tidal_influence_casts_when_no_other_copy_is_out() -> void:
 	resolve_stack()
 	assert_eq(first.zone, Mtg.Zone.BATTLEFIELD)
 	assert_eq(int(first.counters.get("tide", 0)), 1)
+
+func test_orgg_stays_home_against_a_creature_a_pump_just_made_big() -> void:
+	# "Can't attack if the defending player controls an untapped creature
+	# with power 3 or greater" is a question ABOUT a power, so every layer
+	# that writes one has to be finished before it is asked (CR 613.8,
+	# StaticAbility.reading_pt). Until 2026-09-17 the static ran in the
+	# anthem pass, a pass ahead of the floating pumps: a Giant-Growthed 2/2
+	# was invisible and the Orgg attacked into it.
+	var orgg := put_battlefield(0, "Orgg")
+	var bear := put_battlefield(1, "Grizzly Bears")
+	g.continuous.add_until_eot_pump(bear.id, 1, 1)   # an untapped 3/3
+	g.recalculate()
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_refused(g.declare_attackers(0, [orgg.id]), "can't attack")
+
+func test_orgg_attacks_past_a_creature_that_stayed_small() -> void:
+	var orgg := put_battlefield(0, "Orgg")
+	put_battlefield(1, "Grizzly Bears")
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_ok(g.declare_attackers(0, [orgg.id]))

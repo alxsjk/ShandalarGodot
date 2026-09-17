@@ -14182,6 +14182,220 @@ old code:
 Still unreproduced: `CumulativeUpkeep` with a null sacrifice choice, and
 two tactics lines that pay mana before an unprovokable refusal.
 
+## 2026-09-17 — Second hunt over 0.32.0, and the SGManalink front door
+
+Eight hunters, one layer each, over acf6526 with the same brief as the
+2026-09-16 pass (the printed card, the rules text and the two seats' views
+are the only authorities; a finding is a failing test first). Their work
+is integrated here; the standing hunt notes for the owner are at the end.
+
+**Protocol 16.** The hello and every LAN advert now carry a readable stamp
+`{game, rules, packs}` beside the fingerprint, so a refusal says which of
+the three differs ("This host runs Shandalar 0.31.0; you run 0.32.0",
+"This host has no card packs enabled; you have Pack 2") instead of
+"incompatible build", and the game browser can say the same before any
+connection. `SgProtocol.decode_payload(bytes, max_depth)` bounds the JSON
+nesting before parsing (discovery four levels, the hello six); the worst
+advert — `MAX_PACKS` packs and a `NICKNAME_LIMIT` tournament name — is
+pinned under `SgLanDiscovery.MAX_PACKET`. Both players need this build.
+
+**The Manalink front door (the owner's word, 2026-09-17).**
+
+- *"The welcome page does not need redundant buttons."* The Overview
+  carries none: the tabs above already are the map. It states this
+  computer's version and packs, its LAN address and the name it will
+  play under, and one sentence each for Identity, Host, Join and
+  Tournament. It fits 1280×800 without a scrollbar and 640×480 with one.
+- *"Make a table for discovered games."* Nearby hosts are a table —
+  NAME, TYPE (Duel, or Tournament · its name), WHERE (address:port),
+  TABLES, BUILD ("Same as yours", or the first difference: "Shandalar
+  0.31.0", "Pack 1", "No card packs", "Different build") — with a Select
+  per row; a selected host's full sentence sits under the table, and the
+  connected rooms list is a table too (NAME, HOST, SEAT, Join).
+- *"On sand background sand buttons, otherwise normal ones."*
+  `SgLobbyStyle.button()` builds a plain Button and dresses it when it
+  enters the tree with the face of the surface it sits on: the shell's
+  parchment button (`UiChrome.menu_button`) on a paper section, the duel
+  window's grey one (`OriginalDialog.button`) on the dark frame — copied
+  from a fresh model each time, so the three faces can never drift. A
+  caller's own override (a font size) outranks the dress and survives a
+  re-parent. The old `primary` flag is gone from every Manalink button;
+  the tournament panel's section tabs are toggle buttons that show which
+  is open. `test_buttons_wear_the_surface_they_sit_on`.
+- Enter submits the name field, the duel name (hosts, when hosting is
+  available) and the pasted invitation. The host page repeats the table
+  rules and the guest's requirement ("Your guest needs the same game
+  version and enabled packs: …"). The duel banner grew to 520 px so a
+  two-line reconnect notice no longer wraps into the board.
+
+**Fixes from the hunt, each with a test that fails on the old code.**
+
+- *SGManalink (network core).* Rule 8 on the wire: under Melee the
+  attacking seat's `blockable` matrix was built rules-exact and so counted
+  the DEFENDER's hidden hand mana (a Spirit Guide paying Hipparion's tax);
+  the presentation now passes the seat as the viewer.
+  `test_sgmanalink_fair_blocks_2026_09_17.gd`. A refused `choice` answer
+  left the overlay's picks standing, so the next click un-picked instead
+  of answering; `show_notice` drops them and rebuilds.
+  `test_sgmanalink_choice_refusal_2026_09_17.gd`. The referee spent the
+  toss winner's play/draw choice on an action it refused, and since
+  nothing changed the room revision never moved — the opening kept
+  offering an order it then refused. Anything but keep/mulligan is refused
+  before the implied order. `test_sgmanalink_opening_order_2026_09_17.gd`.
+- *Engine.* Cumulative upkeep with a declined sacrifice pick paid nothing
+  and kept the permanent (the 2026-09-16 unreproduced row — reachable,
+  `HumanAgent.answer_card` returns null for a parked answer that is not a
+  candidate); the pick falls back to the first victim like every other
+  never-optional ask. `test_cumulative_upkeep_2026_09_17.gd`. Meekstone,
+  Orgg and Goblin Mutant read a power while the P/T layers were still
+  answering it — they missed a later anthem and every floating pump;
+  `StaticAbility.reading_pt()` moves them to a final pass after layer 7e
+  (the `reading_land_types()` shape). `test_static_reads_pt_2026_09_17.gd`.
+  The snapshot rewind keyed its state classes by global name, which an
+  inner class lacks, so `DamagePacket.PreventionBudget` came back from a
+  probe already spent; `test_snapshot_audit.gd` pins it.
+- *Base set.* Sixteen cards read against their print, in
+  `tests/cards/test_original_pool_2026_09_17.gd`: Shelkin Brownie took
+  banding itself instead of only "bands with other"; Preacher and
+  Scarwood Bandits snapped a stolen creature home on a control change the
+  print never mentions; Season of the Witch never asked at exactly two
+  life; Wand of Ith's ransom was off by one; Jeweled Bird dumped the
+  owner's ante instead of the activator's; Power Surge counted lands
+  after the untap step; Visions wrote five hidden cards into the shared
+  log and used the unjournaled shuffle; Vesuvan Doppelganger never asked
+  which shape; Reincarnation asked the wrong seat; Eye for an Eye's source
+  list excluded your own sources and was unranked; False Orders offered
+  the defending player no attackers; Ydwen Efreet and Imprison fired once
+  per block pair, and Imprison's toll left the attacker blocked by nobody.
+  Two older tests that pinned the wrong behaviour now assert the print.
+- *Packs.* "Draw three cards, then discard one of them" (Soldevi Sage,
+  Casting of Bones) offered the whole hand; it is bounded to the three
+  just drawn, Krovikan Sorcerer's shape, in `_basic.discard_one_just_drawn`.
+  `test_drawn_discard_2026_09_17.gd`.
+- *Duel screen.* The small card kept a face-down secret everywhere, but
+  three doors into the ENLARGED sidebar card handed it the instance
+  unasked — the small-card menu's Show full card / Original type, a pile
+  row's hover and the graveyard viewer's hover — so a right-click on an
+  Illusionary Mask creature, or the pointer crossing a Knowledge Vault's
+  exile, printed its name, art and text; each now asks the board's own
+  may-look question. `test_face_down_showcase_2026_09_17.gd`. At a
+  private hotseat the Pause window's Concede belongs to no territory and
+  fell back to seat 0, so Player 2 conceded Player 1's seat; it falls back
+  to the viewing seat. Escape over "Give up this duel?" (and the Options
+  window) had no rung on the cancel ladder and peeled a layer of the duel
+  underneath instead — silently un-declaring the attackers; both windows
+  are the ladder's top rung. The {X} window read past the end of an
+  ability list a Titania's Song had emptied under it (the AI's dwell runs
+  on under the modal window); the activation is withdrawn like a vanished
+  pending card. `test_duel_windows_2026_09_17.gd`.
+  `DuelConfig.hotseat_default()` handed out `const` decks, which reach
+  their readers read-only: `MatchScreen.move_one`'s `remove_at` failed
+  while its `append` went through, so the card sat in both piles;
+  duplicated (`test_match_screen.gd`). And the local duel's
+  `_block_refusal` now passes the viewing seat to
+  `CombatState.block_illegality` — the rule-8 hole the network lane
+  closed on the wire, closed at the screen.
+- *AI.* The "Royal Assassin executes a tapped attacker" arm read only an
+  ability's shape and activated it without `_ability_available`, which
+  every sibling loop asks first, so its cost riders were spent for
+  nothing: Hand of Justice tapped three White Knights before blocks to
+  kill one Craw Wurm, and a Magician's Viscerid Drone ate a Swamp its
+  profile says it may not spend. `test_ai_ability_gate_2026_09_17.gd`
+  (positive control: the Assassin still fires). The damage window's
+  spender ranked battlefield shields by mana value and never asked
+  whether the permanent could be activated: a TAPPED Pentagram of the
+  Ages was chosen, four lands were tapped, and `activate_ability`
+  answered "is already tapped" — four mana floating for the step to throw
+  away, or four life under the 1997 burn — the ROADMAP's own "pays mana
+  before a refusal it cannot provoke" shape, found in the window rather
+  than a tactics file; the gate and the sacrifice/discard rider now
+  mirror `_regenerate`. And `AiMatchMemory`, the one thing the sideboarder
+  may read, tallied an Illusionary Mask creature's REAL name off
+  `ENTERS_BATTLEFIELD` (rule 8: a face-down identity is hidden even on the
+  battlefield); a face-down arrival is not a sighting.
+  `test_ai_masked_memory_2026_09_17.gd`.
+- *Shell.* The Booster Draft card-pool chooser and the match screen's
+  sideboard window could be opened twice from the keyboard; one at a
+  time, and each takes the keyboard. `test_one_window_at_a_time_2026_09_17.gd`.
+  Clear Deck refused a sideboard-only deck (it counted the main pile
+  alone); the deck builder's stats pages are removed at once when
+  switched, not a frame later. The theme's pale focus text on stone read
+  as disabled (the online introduction's focused Continue looked greyed
+  out): `OriginalDialog.button` sets the focused and pressed text to ink.
+- *Tools.* `tools/test_tracked_tree.py` holds two CONTRIBUTING rules that
+  had nothing holding them: every source file has a CODE_MAP row (eight
+  had none), and no tracked text file names a home path, a private
+  address or a tool vendor — the release guard run at the commit rather
+  than at the upload. It checks untracked-but-not-ignored files too, so a
+  new file fails before it is staged. `test_decks_1997.gd` lists the only
+  shipped decks over four of a non-basic (all period-correct, each file
+  says so) so a new one cannot slip in unremarked.
+
+RULES_REVISION `sgmanalink-packs-2026-09-17-2` (three hunters bumped it;
+one bump at integration).
+
+**Hunt notes for the owner** (verified by a hunter, not fixed here):
+
+- Duel screen, seen and left for the owner's call: `CardMenu.MINIMIZED_ATTACK`
+  is dead — the attack menu is wired only to the combat window's input,
+  and that window is hidden exactly while minimised, so Restore can never
+  be opened; "Show cue cards" never reaches the phase bar and the combat
+  bar (both assign their tooltips unconditionally where MiniCard and the
+  damage markers gate on the toggle); at a private hotseat either player
+  can tap the OTHER's lands (the click gates on "is a human", true for
+  both seats — activated abilities are still refused); the audit trail
+  writes tutored and hand-bound card names, and the L log prints it
+  unfiltered to whoever is at the screen, so one hotseat player can read
+  the other's tutor (needs a per-seat flag in `log_meta`); the end-of-turn
+  phase icons walk 5 → 7 → 6 by the original's own `phaseIndex` order.
+- AI, out of its lane: `ManaPlanner.run_plan` ignores `tap_for_mana`'s
+  refusal, so a held trigger question mid-plan leaves a part-paid pool
+  (needs a human seat to reach); `AiPlayer.act` mirrors every
+  `_act_precheck` reason but `awaiting_discard` and
+  `awaiting_damage_assignment`. The two 2026-09-16 tactics lines
+  (Deflection's `_cast_gate`, `redirect_pending`) were re-enumerated and
+  every refusal they could miss is unreachable from their call sites —
+  left as they are rather than "fixed" without a failing test.
+- Two community decks look suspicious to a reader:
+  `decks/community/twist_of_fire_merritt_1993.deck` and
+  `proto_zoo_edwards.deck`; `GauntletScreen.default_roster()` should
+  recompute when packs change; `deck_catalog.gd` says 40–250 where
+  `DeckModel` allows 500/200; `OriginalDialog` draws no blocker, so every
+  opener needs its own one-at-a-time guard; `main.gd`'s
+  `_verify_exported_pack_1` persists through `CardPacks.set_enabled`.
+- Base set, real and unfixed: Lesser Werewolf's resolution-time "if" as an
+  activation gate; Johan's "until end of combat" as a whole turn; All
+  Hallow's Eve and Eureka without the `begin_simultaneous()` bracket;
+  Equinox's "would destroy" as "is a legal target"; Chain Lightning's
+  second "may" never asked; Cocoon's "your untap step" on a stolen host;
+  Puppet Master and Takklemaggot reading "you" as the owner; Living Plane
+  and Camouflage shortcuts without a SIMPLIFIED row; Backdraft "cast" as
+  "owns"; Indestructible Aura assigning over an existing shield; The
+  Fallen biting its own controller after a control change; Illusionary
+  Mask ignoring the {X} colour; five cards mutating `counters` directly
+  (unjournaled for a probe's rewind); Tetravus's token without the
+  `tetravite` subtype; Mind Bomb and Rebirth resolving "each player may"
+  in sequence; Sengir Vampire's `add_counters` without a battlefield
+  guard; Verduran Enchantress and Zombie Master reading printed types.
+- Engine: `engine/combat.gd`'s banding header documents an approximation
+  of CR 702.22j (the attacking side's assignment) without the word
+  SIMPLIFIED; `check_state_based_actions` reads printed supertypes for
+  the legend and world rules; `ChosenDiscardEffect` and Mind Warp drop a
+  null answer the same way cumulative upkeep did (no shipped agent
+  returns one there); `CombatState.forget()` loses a band's announced
+  damage order when its lead attacker leaves.
+- Packs: `FallenEmpiresPack.names()` hands out its cache by reference
+  where the other packs duplicate; the FEM/ICE/HML rules annotations omit
+  `max_per_turn` and the exile-cost kinds (cosmetic today); Soldevi
+  Excavations' default seat always bottoms the top card.
+- SGManalink: `practice_match.gd` `_zones` is written and never read;
+  a room's `_view_cache` entry outlives a `leave`;
+  `tests/ui/test_sgmanalink_visual_parity.gd:154` fails in a checkout
+  without the 1997 art (the intro label overflows the dialog rect).
+- Every hunter's worktree lacked `assets/` (gitignored), so 26 art UI
+  tests and 24 risky ones fail there regardless of the change; a green
+  gate needs the owner's art tree. The integration gate below ran with it.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

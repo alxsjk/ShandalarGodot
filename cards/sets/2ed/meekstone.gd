@@ -8,12 +8,15 @@ extends CardScript
 ## untap step honors the flag. Reads LIVE power, so a Giant-Growthed 2/2
 ## caught tapped at cleanup still untaps fine (the pump expired), while a
 ## Serra Angel stays locked — vigilance is the classic partner tech.
+## `reading_pt()` is what makes "live" true (CR 613.8): the static runs
+## after every P/T layer, so a Bad Moon that entered AFTER the Meekstone
+## still hands it a 3/3 to lock.
 
 
 func build() -> CardData:
 	return CardData.new("Meekstone", "{1}", Mtg.CardType.ARTIFACT) \
 		.static_ability(StaticAbility.new(
-			_apply, "Creatures with power 3 or greater don't untap during their controllers' untap steps.")) \
+			_apply, "Creatures with power 3 or greater don't untap during their controllers' untap steps.").reading_pt()) \
 		.oracle("Creatures with power 3 or greater don't untap during their controllers' untap steps.")
 
 

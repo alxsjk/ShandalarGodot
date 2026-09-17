@@ -150,7 +150,12 @@ func _refresh() -> void:
 	status.text = refusal if refusal != "" else "%d cards to build with · aim for at least %d cards in your deck" % [total, DeckModel.MIN_CARDS]
 
 
+## One chooser at a time, for the reason [method _open_verifier] states:
+## `Card pool…` keeps the keyboard under the overlay, so Enter again put a
+## second chooser on the first — and the two then saved over each other.
 func _open_pool() -> void:
+	for child in get_children():
+		if child is DraftPoolDialog and not child.is_queued_for_deletion(): return
 	var chooser := DraftPoolDialog.new()
 	add_child(chooser)
 	chooser.closed.connect(_refresh)

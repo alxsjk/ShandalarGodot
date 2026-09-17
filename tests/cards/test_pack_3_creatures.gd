@@ -138,3 +138,21 @@ func test_ai_plans_machinist_mana_for_an_artifact_draw_ability() -> void:
 	assert_eq(ai._try_activate(g, AiPlayer.Moment.SINK), "activated Jayemdae Tome")
 	resolve_stack()
 	assert_eq(g.players[0].hand.size(), 1)
+
+func test_goblin_mutant_stays_home_against_a_pumped_defender() -> void:
+	# The Orgg clause on an Ice Age body: a question ABOUT a power, asked
+	# after every P/T layer (CR 613.8, StaticAbility.reading_pt). The
+	# anthem pass ran a pass ahead of the floating pumps, so the Mutant
+	# attacked into a Giant-Growthed 2/2 it could not see.
+	var mutant := put_battlefield(0, "Goblin Mutant")
+	var bear := put_battlefield(1, "Grizzly Bears")
+	g.continuous.add_until_eot_pump(bear.id, 1, 1)   # an untapped 3/3
+	g.recalculate()
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_refused(g.declare_attackers(0, [mutant.id]), "can't attack")
+
+func test_goblin_mutant_attacks_past_a_creature_that_stayed_small() -> void:
+	var mutant := put_battlefield(0, "Goblin Mutant")
+	put_battlefield(1, "Grizzly Bears")
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_ok(g.declare_attackers(0, [mutant.id]))

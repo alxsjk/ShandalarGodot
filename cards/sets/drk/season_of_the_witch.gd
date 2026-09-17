@@ -53,10 +53,11 @@ static func _pay_the_rent(game: MtgGame, source: CardInstance, _event: GameEvent
 	if source.zone != Mtg.Zone.BATTLEFIELD:
 		return
 	var pid := source.controller_id
-	# Life may legally be paid down to exactly 0 (CR 118.4), but a player
-	# who would not survive it is not offered the bargain by the heuristic.
+	# Life may legally be paid down to exactly 0 (CR 119.4), so the bargain
+	# is offered whenever the total covers it — a seat at exactly 2 still
+	# has the choice, and only the HINT says surviving it is the default.
 	var hint := game.players[pid].life > 2
-	if hint and game.agents[pid].choose_yes_no(game, pid,
+	if game.players[pid].life >= 2 and game.agents[pid].choose_yes_no(game, pid,
 			"Pay 2 life to keep Season of the Witch?", hint):
 		game.adjust_life(pid, -2)
 		return

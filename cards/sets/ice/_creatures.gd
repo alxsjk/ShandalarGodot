@@ -47,7 +47,7 @@ static func configure(c: CardData) -> bool:
 			c.activated(F._ability("", true, ping))
 		"Goblin Mutant":
 			c.with_cant_block_power_ge(3)
-			c.static_ability(StaticAbility.new(_mutant, "Can't attack into an untapped creature with power 3 or greater."))
+			c.static_ability(StaticAbility.new(_mutant, "Can't attack into an untapped creature with power 3 or greater.").reading_pt())
 		"Flow of Maggots", "Stone Spirit":
 			c.static_ability(StaticAbility.new(_evasion.bind(c.card_name), "Restricted blockers."))
 		"Grizzled Wolverine":

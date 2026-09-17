@@ -46,8 +46,10 @@ class WandEffect extends EffectBase:
 			game.players[pid].player_name, revealed.data.card_name,
 			source.data.card_name])
 		# The engine's default: keep the card while the life can be spared.
+		# The ransom itself is payable down to exactly 0 (CR 119.4), so the
+		# gate is the life total COVERING the toll, not exceeding it.
 		var hint: bool = game.players[pid].life > toll + 2
-		if toll < game.players[pid].life and game.agents[pid].choose_yes_no(
+		if toll <= game.players[pid].life and game.agents[pid].choose_yes_no(
 				game, pid, "Pay %d life to keep %s?" % [toll, revealed.data.card_name],
 				hint):
 			game.adjust_life(pid, -toll)

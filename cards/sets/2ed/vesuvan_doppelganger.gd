@@ -19,7 +19,10 @@ extends CardScript
 ## computes is only the HINT, and the candidates are pre-sorted for it.
 ##
 ## The hint on the upkeep trigger is "shift only when the new shape is
-## bigger"; the hint on arrival is the biggest creature on the board.
+## bigger"; the hint on arrival is the biggest creature on the board. The
+## upkeep trigger asks BOTH of its questions — whether to shift, and into
+## what — through that funnel; until 2026-09-17 it picked the biggest body
+## itself and never offered a smaller shape at all.
 
 
 static func _any_creature(inst: CardInstance) -> bool:
@@ -58,19 +61,35 @@ static func _your_upkeep(_game: MtgGame, source: CardInstance, event: GameEvent)
 static func _shift(game: MtgGame, source: CardInstance, _event: GameEvent) -> void:
 	if source.zone != Mtg.Zone.BATTLEFIELD:
 		return
-	var best: CardInstance = null
+	var pid := source.controller_id
+	# "…become a copy of TARGET creature" — every other creature on the
+	# table is a candidate, ranked biggest first so the head of the list is
+	# the heuristic's pick and the human seat's default highlight.
+	var shapes: Array[CardInstance] = []
 	for inst in game.all_battlefield():
-		if inst == source or not inst.is_creature():
-			continue
-		if best == null or inst.cur_power + inst.cur_toughness \
-				> best.cur_power + best.cur_toughness:
-			best = inst
-	if best == null:
+		if inst != source and inst.is_creature():
+			shapes.append(inst)
+	if shapes.is_empty():
 		return
-	# "You may": only shift when the new shape is actually bigger.
-	if best.cur_power + best.cur_toughness <= source.cur_power + source.cur_toughness:
+	shapes.sort_custom(func(a: CardInstance, b: CardInstance) -> bool:
+		var va := a.cur_power + a.cur_toughness
+		var vb := b.cur_power + b.cur_toughness
+		if va != vb:
+			return va > vb
+		return a.id < b.id)
+	# "YOU MAY": the hint is the old heuristic — shift only when the best
+	# shape available is an upgrade — but the answer is the seat's, so a
+	# smaller body that flies, taps for mana or dodges a sweeper is a line
+	# the controller may take (it was unreachable until 2026-09-17).
+	var worth_it: bool = shapes[0].cur_power + shapes[0].cur_toughness \
+		> source.cur_power + source.cur_toughness
+	if not game.agents[pid].choose_yes_no(game, pid,
+			"Have Vesuvan Doppelganger become a copy of another creature?",
+			worth_it):
 		return
-	if not game.agents[source.controller_id].choose_yes_no(game, source.controller_id,
-			"Become a copy of %s?" % best.data.card_name, true):
-		return
-	game.become_copy(source, _keep_the_ability(best.data), 0, true)
+	# WHICH creature is the seat's own choice too, not the engine's.
+	var shape := game.agents[pid].choose_card(game, pid, shapes,
+		"Become a copy of which creature?", false, false, true)
+	if shape == null or not shapes.has(shape):
+		shape = shapes[0]
+	game.become_copy(source, _keep_the_ability(shape.data), 0, true)

@@ -108,6 +108,20 @@ func _on_event(event: GameEvent) -> void:
 				# against one would be boarding against a spell we already
 				# counted when it was cast.
 				return
+			if inst.face_down:
+				# AND A FACE-DOWN PERMANENT HAS NO NAME AT THIS TABLE
+				# (2026-09-17, rule 8 / docs/fair-play.md: "a face-down
+				# creature's hidden printed identity"). Illusionary Mask's
+				# 2/2 arrives through ENTERS_BATTLEFIELD like any other
+				# permanent, carrying the card it hides — so the line the
+				# hidden ZONES draw for this class ("an event about a card
+				# in a hand or a library is never dispatched in the first
+				# place") has to be drawn by hand for the hidden FACE.
+				# Turning face up dispatches no event of its own, so a
+				# creature unmasked later is simply missed: an undercount,
+				# which is the side a fairness rule errs on and the same
+				# side [AiObservation] errs on.
+				return
 			_note(inst)
 		Mtg.EventType.DAMAGE_DEALT:
 			if int(event.data.get("to_player", -1)) != pid:

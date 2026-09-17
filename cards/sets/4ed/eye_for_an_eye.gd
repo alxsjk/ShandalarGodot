@@ -36,19 +36,20 @@ class MirrorEffect extends EffectBase:
 
 	func resolve(game: MtgGame, source: CardInstance, controller: int,
 			_target: TargetRef, _x_value: int = 0) -> void:
-		var candidates: Array[CardInstance] = []
-		for inst in game.players[game.opponent_of(controller)].battlefield:
-			candidates.append(inst)
-		for item in game.stack:
-			if item.card != null and item.card != source \
-					and item.card.zone == Mtg.Zone.STACK \
-					and not candidates.has(item.card):
-				candidates.append(item.card)
+		# "A SOURCE of your choice" — every permanent and every spell on
+		# the stack (MtgGame.damage_sources, CR 609.7), yours included,
+		# ranked so the first entry is the one about to deal damage to the
+		# caster. That ranking is the heuristic's pick and the human seat's
+		# default highlight; until 2026-09-17 the list was the opponent's
+		# board in battlefield order, so an AI Eye watched their oldest
+		# land while the Bolt sailed past.
+		var candidates := game.damage_sources(
+			MirrorEffect._not_the_eye.bind(source), TargetRef.player(controller))
 		if candidates.is_empty():
 			game.log_line("Eye for an Eye finds no source to watch")
 			return
 		var pick := game.agents[controller].choose_card(game, controller,
-			candidates, "Choose a source for Eye for an Eye")
+			candidates, "Choose a source for Eye for an Eye", false, false, true)
 		if pick == null or not candidates.has(pick):
 			pick = candidates[0]
 		game.players[controller].damage_replacements.append({
@@ -57,6 +58,12 @@ class MirrorEffect extends EffectBase:
 			"apply": MirrorEffect._reflect.bind(source),
 		})
 		game.log_line("Eye for an Eye watches %s" % pick.data.card_name)
+
+	## The Eye is still on the stack while it resolves; it cannot watch
+	## itself.
+	static func _not_the_eye(inst: CardInstance, eye: CardInstance) -> bool:
+		return inst != eye
+
 
 	static func _from_that_source(_game: MtgGame, packet: DamagePacket,
 			chosen_id: int) -> bool:

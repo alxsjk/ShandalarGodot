@@ -3544,3 +3544,51 @@ func test_a_family_name_that_will_not_fit_keeps_its_own_half() -> void:
 		"Circle of Protection: Red", "untouched when it fits")
 	assert_eq(MiniCard.bar_title("Serra Angel", font, 10.0), "Serra Angel",
 		"no family, no initials — the bar's own ellipsis does the rest")
+
+
+# ----------------------------- 2026-09-17 hunt: the surface's own state --
+
+## The Stats window's pages are swapped in place, and a queued node is
+## still a child until the end of the frame — so freeing without
+## detaching left the holder carrying the page the player had just left
+## ABOVE the one they asked for, and the scroller opened on the old one.
+## The same idiom HelpScreen._rebuild and _fill_filter_page already use.
+func test_switching_stats_pages_drops_the_old_page_at_once() -> void:
+	for card_name in ["Forest", "Mountain", "Grizzly Bears", "Lightning Bolt"]:
+		for _i in 10:
+			screen.deck.add(card_name)
+	screen._open_stats()
+	await get_tree().process_frame
+	assert_gt(screen._stats_pages.get_child_count(), 0, "the era's own page is up")
+	screen._show_stats_page(4, _stats_tabs())
+	var stale := 0
+	for child in screen._stats_pages.get_children():
+		if child.is_queued_for_deletion():
+			stale += 1
+	assert_eq(stale, 0, "the old page's rows are detached, not merely queued")
+	_answer("OK")
+
+
+## `C&lear deck` wipes the deck — and [method DeckModel.clear] has taken
+## the sideboard with it since the sideboard existed. Refusing on the
+## MAIN deck alone left a sideboard-only deck with nothing to clear it,
+## and `Restore deck` permanently out of reach. Both other places that
+## ask "is there anything here" already count both piles
+## (_confirm_discard, _open_copy_dialog).
+func test_clear_deck_empties_a_sideboard_only_deck() -> void:
+	for _i in 15:
+		screen._add_one_side("Lightning Bolt")
+	assert_eq(screen.deck.total(), 0, "nothing in the deck itself")
+	assert_eq(screen.deck.side_total(), 15)
+	screen._clear_deck()
+	assert_eq(screen.deck.side_total(), 0, "Clear deck wipes both piles")
+	assert_eq(screen._clear_button.text, "Restore deck")
+	screen._restore_deck()
+	assert_eq(screen.deck.side_total(), 15, "and Restore deck brings them back")
+
+
+func test_clear_deck_still_refuses_an_empty_surface() -> void:
+	assert_eq(screen.deck.total() + screen.deck.side_total(), 0)
+	screen._clear_deck()
+	assert_eq(screen._clear_button.text, "Clear deck", "nothing was cleared")
+	assert_string_contains(screen._status_label.text, "nothing to clear")

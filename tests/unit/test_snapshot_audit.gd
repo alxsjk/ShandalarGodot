@@ -236,6 +236,29 @@ func test_a_rewind_does_not_sever_the_stack_items_shared_effect_list() -> void:
 			"and they are the same effect objects")
 
 
+func test_a_rewind_restores_a_packets_own_prevention_budget() -> void:
+	# THE INNER CLASS THE WALK COULD NOT NAME (2026-09-17). Errant Minion's
+	# paid prevention is a DamagePacket.PreventionBudget — an OBJECT rather
+	# than an int, because a redirected or split event has to SHARE the
+	# budget instead of multiplying it (cards/sets/all/_links.gd). An inner
+	# class has no `get_global_name()`, which is the key
+	# GameSnapshot.STATE_CLASSES is looked up by, so the budget was a
+	# DEFINITION as far as the rewind was concerned: a packet waiting in the
+	# 1997 prevention window came back from a probe with its own prevention
+	# already spent, and the real resolution could no longer offer it.
+	_busy_board()
+	var bear: CardInstance = g.players[0].battlefield[0]
+	var packet := plant_damage_packet(bear, TargetRef.player(1), 2)
+	packet.local_prevention = DamagePacket.PreventionBudget.new()
+	packet.local_prevention.remaining = 2
+	var before := _state_of(g)
+	var snap := GameSnapshot.take(g)
+	packet.local_prevention.remaining -= packet.prevent(2)
+	assert_eq(packet.local_prevention.remaining, 0, "the probe spent it")
+	snap.restore()
+	_assert_same(before, _state_of(g), "the packet's own budget did not come back")
+
+
 # ======================================= the probe, in the real machinery ==
 
 func _human_seat(pid := 0) -> HumanAgent:

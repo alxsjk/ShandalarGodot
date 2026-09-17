@@ -32,9 +32,21 @@ func build() -> CardData:
 			+ "this combat become unblocked.")
 
 
-static func _is_the_blocker(_game: MtgGame, source: CardInstance,
+## "Whenever this creature BLOCKS" — ONE trigger per combat however many
+## attackers it blocks (CR 509.1h; a Blaze of Glory or Two-Headed Giant of
+## Foriys conscript really can block two). The engine dispatches BLOCKED
+## once per declared PAIR, so only the FIRST attacker the Efreet is
+## blocking counts — Spitting Slug's `_in_the_pair` is the same guard. It
+## flipped once per pair until 2026-09-17, which gave a double-blocking
+## Efreet two chances to run away instead of one.
+static func _is_the_blocker(game: MtgGame, source: CardInstance,
 		event: GameEvent) -> bool:
-	return event.data.get("blocker") == source
+	if event.data.get("blocker") != source:
+		return false
+	var attacked := game.combat.attackers_blocked_by(source.id)
+	var attacker: CardInstance = event.data.get("attacker")
+	return not attacked.is_empty() and attacker != null \
+		and attacked[0] == attacker.id
 
 
 static func _gamble(game: MtgGame, source: CardInstance, _event: GameEvent) -> void:

@@ -55,8 +55,13 @@ static func _resolve(g: MtgGame, source: CardInstance, _event: GameEvent,
 		for i in ages:
 			var pick := g.agents[pid].choose_card(g, pid, victims,
 				"%s: sacrifice %s %d of %d for cumulative upkeep" % [source.data.card_name, sacrifice_type, i + 1, ages])
+			# Never optional: the offer was already accepted, so a declined or
+			# stale answer takes the first body exactly as a cost's sacrifice
+			# does (MtgGame._ask_cost_card, CR 601.2h). Falling out of the
+			# resolution here left the age counter on, nothing paid and the
+			# permanent alive — the third outcome CR 702.24a does not have.
 			if pick == null or not victims.has(pick):
-				return
+				pick = victims[0]
 			victims.erase(pick)
 			selected.append(pick)
 	if not g.try_pay(pid, cost, USAGE):

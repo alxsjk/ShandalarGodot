@@ -62,6 +62,34 @@ const SHIPPED_TOTAL := PORTED_TOTAL + VARIANT_TOTAL
 ## The enemy-deck groups: one deck per enemy, each with a `# tier:` line.
 const ENEMY_GROUPS := ["originals", "ancients", "duels"]
 
+## THE ONLY SHIPPED DECKS THAT HOLD MORE THAN FOUR OF A NON-BASIC CARD —
+## `deck file: N Card Name`, sorted, exactly as
+## [method DeckFormat.nonbasic_counts] counts them (both piles together;
+## a PROXY is never basic, DeckFormat's own ruling, which is why the two
+## reconstructions' snow basics are here).
+##
+## Everything in this list is period-correct rather than a mistake, and
+## each file says so in its own header: the three MicroProse decks are the
+## 1997 AI's, which never obeyed a four-of limit, and the two Menendian
+## lists are 1993-94 forty-card decks from before the rule existed
+## (`# caveat:` on both). The list exists for the other 312 files —
+## nothing else here may quietly gain a fifth copy, which a `14` typed for
+## a `4` in a count column is, and which no other test in this project
+## would see (sizes, names and proxies all still check out).
+const OVER_FOUR: Array[String] = [
+	"elementalist.deck: 6 Drain Power",
+	"forest_dragon.deck: 5 Living Lands",
+	"proto_zoo_edwards.deck: 10 Kird Ape",
+	"proto_zoo_edwards.deck: 18 Lightning Bolt",
+	"proto_zoo_edwards.deck: 5 Taiga",
+	"ptny1996_sclafani.deck: 5 Snow-Covered Mountain",
+	"ptny1996_sclafani.deck: 6 Snow-Covered Plains",
+	"twist_of_fire_merritt_1993.deck: 18 Timetwister",
+	"twist_of_fire_merritt_1993.deck: 21 Black Lotus",
+	"warlock.deck: 8 Fear",
+	"wc1996_stern.deck: 18 Snow-Covered Swamp",
+]
+
 ## folder -> the files of that group the pool holds every card of, sorted
 ## — the decks a gauntlet deals. Everything else in the folder holds at
 ## least one proxy.
@@ -275,6 +303,26 @@ func test_every_ported_deck_loads_with_no_parse_error() -> void:
 			"the Deck Builder opens %s" % path)
 		seen += 1
 	assert_eq(seen, SHIPPED_TOTAL)
+
+
+func test_no_shipped_deck_quietly_holds_a_fifth_copy() -> void:
+	# THE COUNT COLUMN, which nothing else here reads. Every other check
+	# on these 319 files is about names, sizes and proxies, so a `14`
+	# typed for a `4` still parses, still loads and still fits under
+	# MAX_TOTAL. The 1997 AI decks and the two forty-card 1993 lists
+	# genuinely break the four-of limit — [constant OVER_FOUR] is that
+	# whole list, and everything else is a mistake.
+	var over: Array[String] = []
+	for path in DeckStore.all_deck_paths():
+		var deck := DeckList.load_file(path, false)
+		var counts := DeckFormat.nonbasic_counts(
+			DeckFormat.both_piles(deck.cards, deck.sideboard))
+		for card_name in counts:
+			if int(counts[card_name]) > DeckFormat.COPY_LIMIT:
+				over.append("%s: %d %s" % [path.get_file(),
+					counts[card_name], card_name])
+	over.sort()
+	assert_eq(over, OVER_FOUR)
 
 
 func test_every_ported_deck_declares_the_group_its_folder_files_it_under() -> void:

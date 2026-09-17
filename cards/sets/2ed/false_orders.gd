@@ -20,6 +20,10 @@ extends CardScript
 ## is therefore a legal target and can be dragged into the fight; removing
 ## it from combat is simply a no-op for it.
 ##
+## The attackers offered are ALL of them — they are the active player's
+## whoever cast the spell, so the defending player pointing their own
+## blocker at a second attacker has the same list.
+##
 ## "An attacking creature of YOUR choice" (lifted 2026-09-02; was "combat
 ## re-arrangement" in docs/simplified-cards.md): the caster picks the
 ## attacker through the DecisionAgent funnel — one OPTION per attacking
@@ -70,16 +74,27 @@ class FalseOrdersEffect extends EffectBase:
 		var attackers: Array[CardInstance] = []
 		var labels: Array[String] = []
 		var best := -1
+		# "AN ATTACKING CREATURE of your choice": every attacker, whoever
+		# cast this. They are all the active player's by definition (CR
+		# 506.3), so filtering by the caster's own control emptied the list
+		# whenever the DEFENDING player cast it on their own blocker — the
+		# use the card's own header describes, unreachable until 2026-09-17.
+		var mine := game.active_player == controller
 		for attacker_id in game.combat.attackers:
 			var attacker := game.find_instance(attacker_id)
-			if attacker == null or attacker.controller_id != controller:
+			if attacker == null:
 				continue
 			attackers.append(attacker)
 			labels.append(attacker.data.card_name)
-			# The hint: the smallest attacker that isn't already being
-			# blocked — the one you least mind it landing on.
-			if game.combat.blockers_of(attacker_id).is_empty() \
-					and (best < 0 or attacker.cur_power < attackers[best].cur_power):
+			# The hint, from the CASTER's side: attacking, the smallest
+			# unblocked attacker of your own (the one you least mind it
+			# landing on); defending, the biggest unblocked one (the blow
+			# you most want stopped).
+			if not game.combat.blockers_of(attacker_id).is_empty():
+				continue
+			if best < 0 \
+					or (mine and attacker.cur_power < attackers[best].cur_power) \
+					or (not mine and attacker.cur_power > attackers[best].cur_power):
 				best = attackers.size() - 1
 		if attackers.is_empty():
 			return

@@ -80,7 +80,9 @@ extends RefCounted
 ## Copy+scan is still a single walk.
 
 ## The classes whose script variables ARE the game state. Anything reachable
-## that is not one of these is a shared definition and is left alone.
+## that is not one of these is a shared definition and is left alone. Keyed
+## by `Script.get_global_name()`, so an INNER class cannot appear here — see
+## the one that has to be named in [method _is_state] instead.
 const STATE_CLASSES := {
 	"MtgGame": true,
 	"MtgPlayer": true,
@@ -219,8 +221,17 @@ static func _is_state(script: Script, obj: Object) -> bool:
 	# makes a probe invisible to the seat being probed: HumanAgent's mailbox
 	# is CONSUMED by the probe exactly as it would be by the real
 	# resolution, and then handed back untouched for the real one.
+	#
+	# And an INNER class has no `get_global_name()`, so it can never be in
+	# [constant STATE_CLASSES] and has to be named here instead:
+	# [DamagePacket.PreventionBudget] is an object rather than an int
+	# because a redirected or split event SHARES one budget instead of
+	# multiplying it (Errant Minion), and until 2026-09-17 a packet waiting
+	# in the 1997 prevention window came back from a probe with its own
+	# prevention already spent. Any future inner class of game state joins
+	# this line.
 	var answer: bool = STATE_CLASSES.has(script.get_global_name()) \
-		or (obj is DecisionAgent)
+		or (obj is DecisionAgent) or (obj is DamagePacket.PreventionBudget)
 	_is_state_by_script[key] = answer
 	return answer
 

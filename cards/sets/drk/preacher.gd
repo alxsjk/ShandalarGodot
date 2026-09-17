@@ -60,7 +60,12 @@ class PreachEffect extends EffectBase:
 		var chosen := game.find_instance(target.instance_id)
 		if chosen == null or chosen.zone != Mtg.Zone.BATTLEFIELD:
 			return
-		game.gain_control_leashed(chosen, source, true)
+		# The duration names the TAP and nothing else — there is no "for as
+		# long as you control" clause here, as there is on Rubinia
+		# Soulsinger and Willow Satyr — so the leash is not control-bound:
+		# a Preacher an opponent steals while it stays tapped keeps feeding
+		# its activator (CR 611.2b, the printed words).
+		game.gain_control_leashed(chosen, source, true, false, false)
 
 	## THEIR order: cheapest body first, then the smallest — a card-local
 	## stand-in for "which creature would its controller miss least".

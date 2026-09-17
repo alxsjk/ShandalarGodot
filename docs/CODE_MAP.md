@@ -70,6 +70,10 @@ needed); card files have NO class_name (they register by name instead);
 - `tests/ui/test_draft_setup_one_verifier_2026_09_17.gd`: Verify pressed twice
   opens one verifier, a fresh one after Back, and the verifier takes keyboard
   focus from the button beneath.
+- `tests/ui/test_one_window_at_a_time_2026_09_17.gd`: the same shape twice more
+  — Booster Draft's `Card pool…` chooser and a match's `Sideboard...` window
+  open once however often their button fires, take the keyboard from it, close
+  completely, and reopen afterwards.
 - `tests/ui/test_booster_draft.gd`: pack composition, eligibility, setup lifecycle,
   pool enforcement, real input at expiry, layout, close handling and save recovery.
 
@@ -153,9 +157,11 @@ needed); card files have NO class_name (they register by name instead);
   options, name ownership, consensus and referee trust, privacy, recovery
   and verification gates; documentation only, no selected implementation.
 - `game/sgmanalink/protocol.gd` (`SgProtocol`): bounded ASCII JSON and exact
-  command schemas; bounded temporary nicknames, version-14 handshake (public
-  hack reminders, named damage shields) and separate message limits from
-  per-seat view nesting.
+  command schemas; bounded temporary nicknames, version-16 handshake (public
+  hack reminders, named damage shields, live ability badges, the readable
+  `{game, rules, packs}` stamp beside the fingerprint) and separate message
+  limits from per-seat view nesting; `decode_payload(bytes, max_depth)`
+  bounds JSON nesting before parsing.
 - `game/sgmanalink/practice_match.gd` (`SgPracticeMatch`): server-side full-pool
   referee, explicit player actions, public/seat-private views and retiring hidden-zone
   handles; retains the Forest practice list as an optional default fixture.
@@ -168,12 +174,17 @@ needed); card files have NO class_name (they register by name instead);
   search using actual spell/ability costs and precomputed eligible mana sources.
 - `game/sgmanalink/compatibility.gd` (`SgCompatibility`): portable protocol,
   release/rules-revision and printed-catalogue fingerprint; not authentication.
+  Beside it the readable stamp `{game, rules, packs}`, `summary()` for the
+  Overview ("Shandalar 0.32.0 · Pack 2"), `difference()` for a refusal's
+  sentence and `brief()` for the game browser's BUILD cell.
 - `game/sgmanalink/journal.gd` (`SgJournal`): bounded, seat-filtered online
   event history built from public events and authorized reveals, never raw logs.
 - `game/sgmanalink/lan_invite.gd` (`SgLanInvite`): private IPv4 validation,
   local adapter addresses and bounded certificate-pinned temporary invitations.
 - `game/sgmanalink/lan_discovery.gd` (`SgLanDiscovery`): opt-in UDP LAN search,
-  bounded untrusted host listings, unicast replies, expiry and secret exclusion.
+  bounded untrusted host listings, unicast replies, expiry and secret exclusion;
+  the advert carries the build stamp and tournament name inside `MAX_PACKET`
+  (768) bytes and is decoded four levels deep, no more.
 - `game/sgmanalink/view_protocol.gd` (`SgViewProtocol`): exact bounded host
   response/room/game/card schemas and consistent card/combat references before
   a client UI sees remote values; bounded, allowlisted public text-effect records
@@ -193,9 +204,16 @@ needed); card files have NO class_name (they register by name instead);
   Game Browser, deck chooser and waiting-room windows; automatic room creation after hosting,
   invitation-only hosting, stable waiting-room refreshes, acknowledged deck choices,
   room-bound chooser lifecycle and no automatic network on opening menus.
+  The Overview carries no buttons (the tabs are the map): this computer's
+  version, packs, LAN address and name, and one sentence per page. The
+  game browser lists nearby hosts as a table (name, type, where, tables,
+  build) and names what a host does not match before any connection.
 - `game/sgmanalink/lobby_style.gd` (`SgLobbyStyle`): shared dark frame,
   parchment sections, readable fields, compact actions and deck-list styling;
-  reuses existing fonts, buttons and the vector globe.
+  reuses existing fonts, buttons and the vector globe. `button()` builds a
+  plain Button and `dress()` gives it the face of the surface it lands on —
+  the shell's parchment button on a paper section, the duel window's grey
+  one elsewhere — copied from a fresh model so the three never drift.
 - `game/sgmanalink/card_presentation.gd` (`SgCardPresentation`): detached
   render-only cards for the full registered pool, built from disclosed card DTOs and
   local printed definitions; public hack reminders carried in presentation-only
@@ -261,6 +279,13 @@ needed); card files have NO class_name (they register by name instead);
   counts, malformed host-card graphs and departed/vanished attacker handling;
   `GateServer` delays real-socket state delivery and `CountingMatch` counts
   view construction.
+- `tests/ui/test_sgmanalink_fair_blocks_2026_09_17.gd`: rule 8 in the blocking
+  matrix — Melee hands the declaration to the attacker, and a blocking tax
+  (Hipparion) must not read the defender's hidden hand mana.
+- `tests/ui/test_sgmanalink_choice_refusal_2026_09_17.gd`: a refused answer
+  leaves the same question open, and the next click answers it.
+- `tests/ui/test_sgmanalink_opening_order_2026_09_17.gd`: only keeping or
+  redrawing spends the toss winner's play/draw choice.
 
 `MtgGame.reveal_information` is a presentation-only, viewer-scoped channel for
 rule-authorized looks/reveals. Choice preflight records only information preceding
@@ -273,7 +298,7 @@ per-card reveals and is respected by network views and fair observations.
 - `game/card_packs.gd`: independent numbered-pack discovery, version/compatibility and
   SHA-256 ZIP validation, safe art mounting, persistent enable/disable,
   deck-requirement tracking, and registry configuration.
-- `game/card_packs_screen.gd`: Options → Card Packs management, including
+- `game/card_packs_screen.gd/.tscn`: Options → Card Packs management, including
   Open Folder, Rescan, versions, enabled state and readable rejection reasons.
 - `game/card_pack_badges.gd`: compact `1-tDotP`, `2-FEM`, `3-ICE`, `4-HML`
   and `5-ALL` status buttons below the title-screen original set strip;
@@ -413,10 +438,23 @@ per-card reveals and is respected by network views and fair observations.
   with fewer than three picks, ordering answers and the next draws.
 - `docs/pack-5-alliances.md`: construction, adaptations, audits and acceptance.
 - `docs/adding-card-packs.md`: future-pack end-to-end contributor checklist.
+- `tests/cards/test_drawn_discard_2026_09_17.gd`: "draw three, then discard
+  one of them" on Soldevi Sage and Casting of Bones is bounded to the three
+  just drawn (`_basic.discard_one_just_drawn`, Krovikan Sorcerer's shape); a
+  null answer takes the first candidate rather than skipping the discard.
 - `tests/cards/test_demonic_consultation_2026_09_17.gd`: Demonic Consultation
   names from the caster's DECKLIST (Petra Sphinx's `RiddleEffect.nameable`,
   the 2026-09-07 ruling) — not the whole pool; the likeliest name first,
   and a name the library lacks runs it dry as the card reads.
+- `tests/cards/test_original_pool_2026_09_17.gd`: the second-pass hunt over
+  the 1997 pool — Shelkin Brownie takes "bands with other" and not banding,
+  the Preacher/Scarwood Bandits leashes are not control-bound, Season of the
+  Witch and Wand of Ith still offer a life payment the total exactly covers,
+  Jeweled Bird dumps the ACTIVATOR's ante, Power Surge counts before the
+  untap, Visions keeps the library out of the shared log and shuffles through
+  the journaled path, Vesuvan Doppelganger and Reincarnation delegate their
+  choices, Eye for an Eye ranks its sources, False Orders serves the
+  defending player too.
 - `tests/unit/test_festival_predicate_2026_09_16.gd`: Festival's turn-wide
   ban answered by `CombatState.attack_illegality` itself, so the seats that
   only ask the predicate (the SGManalink "attackable" lane) offer no
@@ -426,6 +464,15 @@ per-card reveals and is respected by network views and fair observations.
   Soul Burn's {B}/{R} — Primitive Justice's per-target {R}-or-{G} pip taps,
   pays and still refuses a board that cannot make it. `ManaPlanner` walks
   `ManaPool.RESTRICTED_SPEND_ORDER`, so a plan taps what the payment spends.
+- `tests/unit/test_cumulative_upkeep_2026_09_17.gd`: CR 702.24a has two
+  outcomes and no third — a seat that agreed to pay and then declined the
+  SACRIFICE pick left the age counter on, nothing paid and the permanent
+  alive; the pick now falls back to the first body as every other
+  never-optional cost ask does, with the four refusals as controls.
+- `tests/unit/test_static_reads_pt_2026_09_17.gd`: a static that READS a
+  live power (`StaticAbility.reading_pt`, CR 613.8) runs after every P/T
+  layer — Meekstone sees a Bad Moon that entered after it and a floating
+  pump, where the anthem pass showed it neither.
 
 The Deck Builder keeps its original eight-medallion strip. Extras sits just
 left of the compact Stats button and opens six centered source rows;
@@ -484,6 +531,8 @@ and Elo. `docs/manalink-planning.md` records scope, references and validation.
 | `tests/ai/test_ai_combat_study.gd` | Joint blocks, casualties, first strike, trample, danger defence, single-trick accounting, hidden-state invariance and specialised fallbacks. |
 | `tests/ai/test_ai_probe_nesting_2026_09_16.gd` | A search a strategy opens from inside the engine's own pre-flight probe must hand probe mode back — else the rewound run's log lines and signals reach the duel screen. |
 | `tests/ai/test_ai_cast_gate_2026_09_16.gd` | Arity sweep over every card-authored predicate the planner and the engine call ("cast only if ...", announcement, sacrifice, activator, X and the cost filters). |
+| `tests/ai/test_ai_ability_gate_2026_09_17.gd` | The two arms that activated an ability without `AiPlayer._ability_available`: the defensive executioner (Hand of Justice's three taps, Viscerid Drone's two sacrifices, unpriced) and the damage window's spender (a tapped Pentagram of the Ages bought with four lands the refusal then left floating). |
+| `tests/ai/test_ai_masked_memory_2026_09_17.gd` | Rule 8 for a hidden FACE: an Illusionary Mask creature's printed name never reaches `AiMatchMemory`, the only thing `AiSideboard` reads; a face-up arrival still counts. |
 | `tests/cards/test_card_naming_fairness.gd` | Card-naming hints may not read hidden library contents or face-down identities. |
 | `tools/bench_planning.gd` | Repeatable combat-decision latency and per-study leaf-budget probe on small, wide and fallback boards; `--unfair` measures the separate known-hand response study. |
 | `docs/fair-play.md` | Player-facing fair-information contract. |
@@ -751,6 +800,10 @@ shandalar/
 │   │   ├── damage_effect.gd class DamageEffect — N or X damage; fluent
 │   │   │                      .any_target()/.target_creature()/.x_damage()
 │   │   ├── draw_effect.gd   class DrawEffect — draw N or X; .target_player()
+│   │   ├── delayed_draw_effect.gd class DelayedDrawEffect — Ice Age's slow
+│   │   │                      cantrip. The recipient is fixed at RESOLUTION
+│   │   │                      and the card comes at the NEXT turn's upkeep,
+│   │   │                      so a fizzled spell schedules nothing at all
 │   │   ├── destroy_effect.gd class DestroyEffect — destroy target;
 │   │   │                      can_regenerate honored by MtgGame.destroy
 │   │   ├── random_destroy_effect.gd class RandomDestroyEffect — a seeded
@@ -1630,6 +1683,14 @@ shandalar/
 │   │                          untap+cleanup write every permanent
 │   │                          (docs/ROADMAP.md, "The journal across a
 │   │                          step boundary")
+│   ├── rules_options.gd    class RulesOptions — THE RULES FORKS: the one
+│   │                          place the 1997 ruleset (manual p.108, "the
+│   │                          official FIFTH EDITION rules") and the modern
+│   │                          CR are allowed to disagree, as switches rather
+│   │                          than as a silent default. Every flag defaults
+│   │                          to the MODERN answer and cites the manual page
+│   │                          for the other; the Options screen and
+│   │                          duel_soak.sh's `--rules fifth|modern` set them
 │   ├── ai/                  THE AI OPPONENT (pure engine, headless)
 │   │   ├── ai_profile.gd    class AiProfile — the difficulty surface:
 │   │   │                      uses_tactical_effects (2026-09-13): visible
@@ -2613,9 +2674,27 @@ shandalar/
 │   │                          macOS; test-profile isolation via XDG on Linux
 │   │                          and the shandalar_test runtime feature on Mac
 │   │                          (used by all five shell entry points)
+│   ├── banner.sh           The family banner, SHELL side — six functions
+│   │                          sourced by the five shell entry points: the
+│   │                          wordmark and the mini-help on stderr and only
+│   │                          on a terminal, `-V` answered from
+│   │                          project.godot alone ("version unknown" rather
+│   │                          than a guess), and nothing here may fail its
+│   │                          caller. tools/tool_banner.py is the Python
+│   │                          half, DeckLab/lab_console.gd the design
 │   ├── test_tool_banner.py  Banner/terminal contracts, including
 │   │                          RuntimeContractTest: missing explicit Godot
 │   │                          paths and soak-help engine failure status
+│   ├── test_tracked_tree.py The two rules about the tracked tree itself
+│   │                          (2026-09-17, after eight source files were
+│   │                          found with no row): every file under engine/,
+│   │                          game/, tools/ and DeckLab/ is named in
+│   │                          docs/CODE_MAP.md and no row points at a file
+│   │                          that is gone; and no tracked text file names
+│   │                          this machine's home (package_release.py's own
+│   │                          guard_private, pointed at the tree instead of
+│   │                          at a staged package), a private address or a
+│   │                          tool vendor. Skips outside a git checkout
 │   ├── fetch_cards.py       Scryfall → cards/data/<set>.json for the 8-set
 │   │                          pool (base game + Duels of the Planeswalkers);
 │   │                          excludes Chaos Orb/Falling Star/Shahrazad/
@@ -2882,6 +2961,12 @@ shandalar/
 │   │                          --headless --path . -s res://tools/bench_undo.gd
 │   ├── screenshot_tour.gd   Screenshot tour of the UI (main session's tool;
 │   │   screenshot_tour.tscn   off limits to engine passes)
+│   ├── reset_test_packs.gd  A canceled pack test can skip after_each, so
+│   │                          run_tests.sh clears `enabled_card_packs`
+│   │                          between GUT processes. REFUSES to run outside
+│   │                          the isolated test profile (the shandalar_test
+│   │                          runtime feature, or a user:// under the
+│   │                          exported XDG_DATA_HOME) and exits 2 instead
 │   └── duel_soak.gd         THE DUEL SOAK — whole duels through the LIVE
 │                              DuelScreen under Xvfb (AI vs AI, and a human
 │                              seat fuzzed by its HumanClicker), Godot's
@@ -2920,6 +3005,14 @@ shandalar/
 │   │                          with its ETA, colour that degrades to plain
 │   │                          text off a tty, and the "did you mean"
 │   │                          behind a mistyped flag or deck path
+│   ├── lab_eta.gd          class LabEta — HOW MUCH LONGER: the rate behind
+│   │                          the progress bar's eta, measured over a sliding
+│   │                          30-second window of completions rather than
+│   │                          over the whole run (the warm-up and a change of
+│   │                          pair make the overall average useless), and no
+│   │                          estimate at all before 3 s of run. Hands back a
+│   │                          RATE — LabConsole does the division, so the two
+│   │                          numbers on the bar cannot disagree
 │   ├── sim_stats.gd         class SimStats — Wilson 95% CIs, matchup
 │   │                          summaries, play/draw splits, whether a
 │   │                          matchup is DECIDED, the interval a sample
@@ -3557,6 +3650,20 @@ shandalar/
 │    resolution-safe passes and modal-safe Hide without answering a choice;
 │    named phase/decision prompts survive concealment and repeated refreshes,
 │    including blockers, damage assignment, discard and private choices;
+│    tests/ui/test_face_down_showcase_2026_09_17.gd — THE SHOWCASE NEVER
+│    NAMES A FACE-DOWN CARD: the three handlers that fill the enlarged
+│    card by themselves — `@MENU_SMALLCARD`'s `Show full card` /
+│    `Original type`, a pile row's hover and the graveyard viewer's
+│    hover — all keep the card back the small card already wears, while
+│    an ordinary card and an exile a rule DID show this seat (Gustha's
+│    Scepter) still fill it;
+│    tests/ui/test_duel_windows_2026_09_17.gd — THE WINDOWS ANSWER FOR
+│    THEMSELVES: the Pause window's Concede gives up the seat the screen
+│    is serving (a private hotseat's top seat used to concede the bottom
+│    one and win by it), Escape over `Give up this duel?` and over
+│    `Duel Options...` answers the window instead of peeling the duel
+│    under it, and the `{X}` window withdraws its activation rather than
+│    reading past the end of a list a Titania's Song emptied;
 │    tests/ui/test_land_art.gd — a land retuned to a basic type wears that
 │    land's art (Blood Moon, Evil Presence) and gets its own back when the
 │    effect goes;
@@ -4335,7 +4442,12 @@ shandalar/
 │    still Big Green, the pickers' headings in ORDER, the gauntlet's
 │    default roster exactly the strict-loadable decks (216), the Deck
 │    Lab's default field still five decks and a `--group` reaching into
-│    the subfolders for only the proxy-free
+│    the subfolders for only the proxy-free. Since 2026-09-17 also THE
+│    COUNT COLUMN (OVER_FOUR): every fifth copy of a non-basic card in
+│    all 319 shipped decks, which is the 1997 AI's three decks and the
+│    two forty-card 1993 lists and nothing else — the one thing about
+│    these files no other check reads, so a `14` typed for a `4` parses,
+│    loads and fits under MAX_TOTAL
 │   (tests/unit/test_targeted_triggers.gd, test_delayed_triggers.gd,
 │    test_untap_step_choices.gd, test_sibling_targets.gd — the ENGINE
 │    features the 2026-09-02 fidelity pass built to lift the ledger:
@@ -5888,7 +6000,7 @@ shandalar/
 │   │   │                      at both ends, Escape back to the menu. The
 │   │   │                      body is centred and capped at
 │   │   │                      MAX_TEXT_WIDTH; the ground is `Menubak.pic`
-│   │   └── help_pages.gd    class HelpPages — the CONTENT, as pure data
+│   │   ├── help_pages.gd    class HelpPages — the CONTENT, as pure data
 │   │                          (title + blocks; TEXT / QUOTE / HEADING /
 │   │                          ICONS / CARDS), so it is testable without a scene.
 │   │                          The first fourteen pages use native MiniCard
@@ -5929,6 +6041,14 @@ shandalar/
 │   │                          screen's COMMANDS/SHORTCUTS by a test) and
 │   │                          three icon pages, the last teaching the
 │   │                          funnel and the Filters window's five pages
+│   │   └── ability_glossary.gd  The final Help chapter, as pure data: the
+│   │                          PLAYER-facing rules rather than implementation
+│   │                          notes — combat, keyword abilities, costs,
+│   │                          counters and delayed triggers — verified
+│   │                          against engine/combat.gd, the effect classes,
+│   │                          fem/_rules.gd and the CR. Every example is
+│   │                          TEXTUAL, so the chapter still reads with every
+│   │                          pack disabled
 │   ├── art/                 WHAT THIS PROJECT SHIPS AS ITS OWN LOOK, and
 │   │                          the only art inside the .pck: seven PNGs
 │   │                          drawn by tools/draw_our_art.gd (six set
@@ -7036,6 +7156,14 @@ shandalar/
 │       │                      click again restores, and restoring is free
 │       │                      because the engine's own zone arrays are
 │       │                      the unarranged order
+│       ├── expand_button.gd class ExpandButton — the Showcase's `Expand`
+│       │                      toggle, as a control you can see. The feature
+│       │                      is the original's (`Duel.hlp`, Showcase;
+│       │                      @MENU_FULLCARD entry 1; `ExpandTextBoxOnBigCard`)
+│       │                      and was already here behind an unmarked
+│       │                      right-click — **[QoL]** only the door is ours,
+│       │                      and both doors write the same key so they
+│       │                      cannot disagree
 │       ├── duel_options.gd  class DuelOptions — @DIALOG_DUELOPTIONS
 │       │                      (UIStrings.txt:598), the 1997 duel's own
 │       │                      preferences window: nineteen strings, the

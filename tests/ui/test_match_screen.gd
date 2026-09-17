@@ -167,6 +167,31 @@ func test_a_card_moves_out_of_the_deck_and_into_the_sideboard() -> void:
 	assert_eq((runner.config.sideboards[0] as Array).size(), before_side)
 
 
+## THE DECK A DEFAULT CONFIG CARRIES IS THE GAME'S TO EDIT (2026-09-17).
+## [method DuelConfig.hotseat_default] used to hand out
+## `StarterDecks.WHITE_KNIGHTS` itself, and a `const` Array reaches its
+## readers READ-ONLY in GDScript 2.0 — so [method MatchScreen.move_one]'s
+## `remove_at` failed with "Array is in read-only state" while the `append`
+## on the other side went through, leaving the card in BOTH piles and
+## returning "" as though the move had worked. Every other test here builds
+## its config from a real deck file ([method _config]), which is why none
+## of them ever met it.
+func test_a_swap_on_a_default_config_really_moves_the_card() -> void:
+	runner = load("res://game/match_screen.tscn").instantiate()
+	runner.config = DuelConfig.hotseat_default()
+	runner.config.best_of = 3
+	runner.config.rng_seed = 31337
+	add_child_autofree(runner)
+	await get_tree().process_frame
+	var before: int = (runner.config.decks[0] as Array).size()
+	assert_eq(runner.move_one(0, "Plains", true), "")
+	assert_eq((runner.config.decks[0] as Array).size(), before - 1,
+		"the card left the deck")
+	assert_eq((runner.config.sideboards[0] as Array).size(), 1)
+	assert_eq(StarterDecks.WHITE_KNIGHTS.size(), 40,
+		"and the shipped starter deck is what it always was")
+
+
 func test_moving_a_card_that_is_not_there_is_refused_not_crashed() -> void:
 	runner = _run(3)
 	await get_tree().process_frame

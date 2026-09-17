@@ -86,8 +86,9 @@ static func _host_died(g: MtgGame, s: CardInstance, _e: GameEvent) -> void:
 	var ctx := g.trigger_context(s)
 	var who := int(ctx.controller)
 	if s.data.card_name == "Casting of Bones":
+		var before := g.players[who].drawn_this_turn.size()
 		g.draw_cards(who, 3)
-		g.discard_cards(who, g.agents[who].choose_discard(g, who, mini(1, g.players[who].hand.size())))
+		B.discard_one_just_drawn(g, who, before, "Casting of Bones: discard one of the cards just drawn")
 	else:
 		var i := g.find_instance(int(ctx.id))
 		if i != null and i.zone == Mtg.Zone.GRAVEYARD and i.graveyard_entry == int(ctx.entry): g.reanimate(i, who)

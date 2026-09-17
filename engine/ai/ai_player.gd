@@ -7331,6 +7331,18 @@ func _defensive_combat_response(game: MtgGame) -> String:
 					continue
 				if ability.effects.size() != 1 or not (ability.effects[0] is DestroyEffect):
 					continue
+				# THE GATE EVERY OTHER ACTIVATION IN THIS FILE ASKS FIRST
+				# (2026-09-17). This arm read an ability's SHAPE and never
+				# its price, so a rider the shape does not mention was
+				# spent for nothing: Hand of Justice tapped three white
+				# creatures before blocks were declared, and Viscerid
+				# Drone ate a creature and a Swamp on a seat whose
+				# [member AiProfile.pays_sacrifices] is off. No
+				# `priced_sacrifice` here — nothing below charges one, so
+				# a body-priced ability must stay invisible exactly as it
+				# does to the pump probes.
+				if not _ability_available(game, inst, index):
+					continue
 				var spec: TargetSpec = ability.effects[0].target_spec
 				if spec == null or not spec.is_legal(game, TargetRef.card(victim), inst):
 					continue
@@ -10940,8 +10952,11 @@ const FACE_URGENCY := 4.0
 ##
 ## [param worth] is what answering this packet is worth (see
 ## [method _packet_worth]); a card out of HAND has to be worth less than
-## that to be spent, while a repeatable activated ability costs no card and
-## only has to be affordable.
+## that to be spent, and so does an ability's RIDER — the body, the
+## counter, the discard a shield charges on top of its mana (2026-09-17).
+## An ability that charges none of them costs no card and only has to be
+## available and affordable, which is what it was read as before the
+## riders were priced.
 func _spend_on_packet(game: MtgGame, packet: DamagePacket, worth: float) -> String:
 	var best: Dictionary = {}
 	# Guardian Angel's rider on the victim: no card, {1} a point, so it is
@@ -10956,7 +10971,21 @@ func _spend_on_packet(game: MtgGame, packet: DamagePacket, worth: float) -> Stri
 			var ability: ActivatedAbility = inst.cur_activated_abilities[index]
 			if not _effects_answer(game, ability.effects, packet, inst):
 				continue
-			var price: float = ability.cost.mana_value()
+			# THE GATE, AND THE RIDER'S PRICE (2026-09-17). [method
+			# _regenerate] is this routine for the OTHER window and has
+			# asked both since it was written; this one ranked a shield by
+			# its MANA alone. A Pentagram of the Ages already tapped was
+			# therefore bought — four lands tapped, then `activate_ability`
+			# answering "is already tapped", and the mana left to burn —
+			# and a Wandering Mage's `{B}` put a -1/-1 counter on one of
+			# ours for a packet the body was worth more than.
+			if not _ability_available(game, inst, index, true):
+				continue
+			var rider := _sacrifice_price(game, inst, ability) \
+				+ _discard_price(game, ability)
+			if rider > 0.0 and rider >= worth:
+				continue
+			var price: float = ability.cost.mana_value() + rider
 			if not best.is_empty() and float(best["price"]) <= price:
 				continue
 			best = {"price": price, "inst": inst, "index": index,

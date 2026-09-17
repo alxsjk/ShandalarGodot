@@ -36,14 +36,22 @@ func test_the_other_four_banding_lands_pick_their_colour() -> void:
 	assert_eq(plain.cur_bands_with.size(), 0)
 
 
-func test_shelkin_brownie_strips_banding() -> void:
+## Corrected 2026-09-17: this used to assert the Brownie stripped BANDING.
+## It does not — its printed text names only "bands with other" abilities,
+## which is the one thing that tells it apart from Tolaria below.
+func test_shelkin_brownie_strips_bands_with_other_and_not_banding() -> void:
+	put_battlefield(0, "Adventurers' Guildhouse")
 	var brownie := put_battlefield(0, "Shelkin Brownie")
-	var bander := put_battlefield(1, "Benalish Hero")
+	var legend := put_battlefield(0, "Jasmine Boreal")       # granted
+	var bander := put_battlefield(1, "Benalish Hero")        # printed banding
+	assert_eq(legend.cur_bands_with.size(), 1)
 	assert_true(bander.has_keyword(Mtg.Keyword.BANDING))
 	advance_to_step(Mtg.Step.MAIN1)
-	assert_ok(g.activate_ability(0, brownie, 0, [TargetRef.card(bander)]))
+	assert_ok(g.activate_ability(0, brownie, 0, [TargetRef.card(legend)]))
 	resolve_stack()
-	assert_false(bander.has_keyword(Mtg.Keyword.BANDING))
+	assert_eq(legend.cur_bands_with.size(), 0)
+	assert_true(bander.has_keyword(Mtg.Keyword.BANDING),
+		"plain banding is Tolaria's business, not the Brownie's")
 
 
 func test_tolaria_only_works_in_an_upkeep() -> void:

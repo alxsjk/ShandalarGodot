@@ -231,6 +231,17 @@ static func section_title(game: MtgGame, pid: int, human: int, zone: int,
 	return "%s %s (%d)" % [game.players[pid].player_name, noun, count]
 
 
+## MAY THE SEAT THIS VIEW IS SERVING READ [param inst]? A card exiled face
+## down is nobody's to read (`MtgGame.exile_top_of_library`, Knowledge
+## Vault) unless a rule showed it to this seat (Gustha's Scepter) — and
+## the shelf's card back and the enlarged card in the sidebar have to
+## answer it the same way, which is why it is one method rather than two
+## copies of the same expression.
+func _may_look(inst: CardInstance) -> bool:
+	return not inst.face_down \
+		or (inst.zone == Mtg.Zone.EXILE and inst.exile_visible_to == _human)
+
+
 static func _pile(game: MtgGame, pid: int, zone: int) -> Array[CardInstance]:
 	match zone:
 		Mtg.Zone.EXILE:
@@ -391,7 +402,7 @@ func _card(inst: CardInstance, legal: Callable, counter: String) -> MiniCard:
 	# tooltip already keep it shut — the plate stays a plate, the tooltip
 	# reads `(face down)`. Opening the viewer named it anyway. Nobody may
 	# look at a card exiled face down, so nobody does.
-	card.face_down = inst.face_down and not (inst.zone == Mtg.Zone.EXILE and inst.exile_visible_to == _human)
+	card.face_down = not _may_look(inst)
 	# s30 OUTLINES a legal target and leaves an illegal one plain
 	# (`duel.go:3699-3712`); ours reuses the board's own target tint AND
 	# CardPile's 2px ring. The tint alone is a modulate on the imported
@@ -536,8 +547,18 @@ func can_page(zone: int, pid: int, delta: int) -> bool:
 func _on_card_hover(inst: CardInstance, card: Variant) -> void:
 	if is_instance_valid(card):
 		card.hovered = true
-	if preview != null:
+	if preview == null:
+		return
+	# AND THE ENLARGED CARD KEEPS THE SAME SECRET THE SHELF DOES. The
+	# widget above is drawn as a back for a card nobody may look at, and
+	# the pointer crossing that back used to fill the Showcase with the
+	# card's name, art and rules text anyway — the leak [method _card]'s
+	# note says it closed, by the one door it did not shut. The board's own
+	# hover already asks this question (`DuelScreen._make_widget`).
+	if _may_look(inst):
 		preview.show_card(inst)
+	else:
+		preview.show_back()
 
 
 func _on_card_leave(card: Variant = null) -> void:

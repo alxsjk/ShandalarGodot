@@ -344,6 +344,13 @@ func _leave() -> void:
 ## `Done` stays disabled until the sizes match, which is the smallest rule
 ## that cannot make a deck illegal and needs no invented number to do it.
 func _open_sideboard(pid: int) -> void:
+	# ONE AT A TIME. The between-duels window draws no blocker, so the
+	# `Side&board...` button under this one keeps the KEYBOARD: Enter again
+	# built a second window over the first, and only the newest is
+	# remembered — `Done` closed that one and left the older sitting over
+	# `Continue match` with nothing on screen able to close it.
+	if is_instance_valid(_sb_dialog) and not _sb_dialog.is_queued_for_deletion():
+		return
 	_sb_pid = pid
 	_sb_size = (config.decks[pid] as Array).size()
 	var dialog := OriginalDialog.create(
@@ -363,12 +370,15 @@ func _open_sideboard(pid: int) -> void:
 	_sb_done.pressed.connect(_close_sideboard)
 	_refresh_sideboard()
 	add_child(dialog)
+	# ...and the keyboard comes with it, so Enter answers THIS window
+	# rather than the button that opened it.
+	_sb_done.grab_focus()
 
 
 func _close_sideboard() -> void:
-	if _sb_dialog != null:
+	if is_instance_valid(_sb_dialog):
 		_sb_dialog.dismiss()
-		_sb_dialog = null
+	_sb_dialog = null
 	_sb_pid = -1
 
 
