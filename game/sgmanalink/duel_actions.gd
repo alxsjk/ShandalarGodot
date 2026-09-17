@@ -209,10 +209,14 @@ func autopay(pid: int, excluded: Dictionary, count: int) -> String:
 	_auto_payment.clear()
 	var due := payment(count)
 	if due.is_empty(): return "This action has no mana payment."
-	var plan := ManaPlanner.plan(game, pid, due.cost, int(due.extra), due.usage, excluded)
+	# The auto-tap's own view of the sources: a Fellwar Stone with several
+	# colours on offer is generic-only here, so its tap asks the seat what
+	# kind of mana instead of picking a colour for them (2026-09-17).
+	var plan := ManaPlanner.plan_from(ManaPlanner.auto_tap_sources(game, pid, excluded),
+		due.cost, int(due.extra), due.usage)
 	for step in plan:
 		if step[0] == null: continue
-		var error := game.tap_for_mana(pid, step[0], step[1])
+		var error := ManaPlanner.run_step(game, pid, step)
 		if not error.is_empty(): return error
 		if game.awaiting_choice != null:
 			_auto_payment = {"pid": pid, "excluded": excluded.duplicate(), "count": count}

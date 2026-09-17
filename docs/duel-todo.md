@@ -1904,8 +1904,10 @@ shape" had not looked at:**
    in the file already uses.
 2. **A mana ability can ASK, and a payment nested in a resolution has
    nowhere to put the question.** Two shapes do it: a colour CHOICE
-   (Fellwar Stone) and a mana battery with charge counters on it
-   (CR 601.2b). Proven at the site rather than argued:
+   (Fellwar Stone — with SEVERAL colours on offer; since 2026-09-17 one
+   colour asks nothing and is planned like any land, and a plan's own
+   step names the colour it priced) and a mana battery with charge
+   counters on it (CR 601.2b). Proven at the site rather than argued:
 
    ```
    tap_for_mana(Fellwar Stone) -> ''

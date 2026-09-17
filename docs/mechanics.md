@@ -110,7 +110,7 @@ order" (simplified-cards, *untap locks*).
 | Ability discounts | An effect may rewrite a permanent's LIVE activated abilities with cheaper copies. | 601.2f | `ActivatedAbility.shallow_copy` / `discounted`, `ManaCost.minus_generic` | Power Artifact (`atq/power_artifact.gd`) |
 | Additional cost: sacrifice a spell's fodder | Paid as the spell goes on the stack; the eaten permanent's mana value is recorded in the spell's own memory. | 601.2h | `CardData.with_additional_sacrifice` / `additional_sacrifice`, `CardInstance.memory["sacrificed_mv"]` | Metamorphosis (`arn/metamorphosis.gd`) |
 | Ability cost riders | Tap, sacrifice self, sacrifice another `<filter>`, pay life, exile self, random discard, remove N counters. Every part is checked before any part is paid. | 601.2h, 118.4 | `ActivatedAbility.tap_cost` / `with_sacrifice_cost` / `with_sacrifice_of` / `with_life_cost` / `with_exile_cost` / `with_random_discard_cost` / `with_counter_cost` | Triskelion (`4ed/triskelion.gd`), Feldon's Cane (`atq/feldon_s_cane.gd`, the exile-self cost) |
-| Mana-ability cost riders | Own mana cost, no `{T}`, sacrifice self, sacrifice another, life, counter removal, dynamic amount, dynamic colour, a colour the ACTIVATING PLAYER picks, restriction, side effect, scale-with-sacrifice. `with_dynamic_color` computes a colour; `with_color_choice` supplies the CENSUS of colours on offer and lets `MtgGame.tap_for_mana` ask — which is the only place a mana ability's question can hold the duel open, since it never uses the stack (docs/duel-todo.md §1.3). | 605.1a | `ManaAbility.with_mana_cost` / `without_tap` / `with_sacrifice` / `with_sacrifice_of` / `with_life_cost` / `with_counter_cost` / `with_dynamic_amount` / `with_dynamic_color` / `with_color_choice` / `with_restriction` / `with_side_effect` / `scaling_with_sacrifice` | Ashnod's Altar (`atq/ashnod_s_altar.gd`), Gem Bazaar (`past/gem_bazaar.gd`), Fellwar Stone (`4ed/fellwar_stone.gd`), Rasputin Dreamweaver (`leg/rasputin_dreamweaver.gd`) |
+| Mana-ability cost riders | Own mana cost, no `{T}`, sacrifice self, sacrifice another, life, counter removal, dynamic amount, dynamic colour, a colour the ACTIVATING PLAYER picks, restriction, side effect, scale-with-sacrifice. `with_dynamic_color` computes a colour; `with_color_choice` supplies the CENSUS of colours on offer and lets `MtgGame.tap_for_mana` ask — which is the only place a mana ability's question can hold the duel open, since it never uses the stack (docs/duel-todo.md §1.3); ONE colour on offer is no choice and asks nobody, and a plan that priced a colour hands it in (`tap_for_mana(..., chosen)`, 2026-09-17). | 605.1a | `ManaAbility.with_mana_cost` / `without_tap` / `with_sacrifice` / `with_sacrifice_of` / `with_life_cost` / `with_counter_cost` / `with_dynamic_amount` / `with_dynamic_color` / `with_color_choice` / `with_restriction` / `with_side_effect` / `scaling_with_sacrifice` | Ashnod's Altar (`atq/ashnod_s_altar.gd`), Gem Bazaar (`past/gem_bazaar.gd`), Fellwar Stone (`4ed/fellwar_stone.gd`), Rasputin Dreamweaver (`leg/rasputin_dreamweaver.gd`) |
 | X spells | X is chosen at cast, stamped on the card before targets are validated (so "target with mana value X" filters see it), then multiplied by `x_count` and paid as generic. | 107.3, 115.4, 601.2b | `MtgGame.cast_spell(x_value)`, `CardInstance.memory["x_value"]`, `StackItem.x_value` | Fireball, Frankenstein's Monster (`drk/frankenstein_s_monster.gd`) |
 | X in abilities | Generic by default; `with_colored_x` makes it a coloured payment. | 107.3 | `ActivatedAbility.x_color` / `with_colored_x` / `cost_for`, `ManaCost.plus_colored` | Goblin Polka Band (`past/goblin_polka_band.gd`) |
 | Coloured X on spells | "Spend only black mana on X": `CardData.with_colored_x` makes `cast_spell` pay `cost_for(x)` (X copies of that colour) with no generic X share; the AI sizes X against the coloured cost. | 107.3, 601.2f | `CardData.x_color` / `with_colored_x` / `cost_for`, `MtgGame.cast_spell`, `AiPlayer._max_affordable_x` | Drain Life (`2ed/drain_life.gd`) |
@@ -132,9 +132,11 @@ the engine then turned down. Pinned by
 CR 605.3a, a mana ability may be activated whenever a rule asks for a
 payment), but the payer still does not CHOOSE which sources go: the
 planner's order decides, and the two shapes that would ask a question to
-activate — a colour CHOICE (Fellwar Stone) and a mana battery with charge
-counters on it — are left out of the plan rather than half-paid, which
-under-reports six cards in the safe direction — ROADMAP. Power Artifact's
+activate — a colour CHOICE with several colours on offer (Fellwar Stone
+facing two colours; one colour asks nothing and is planned, 2026-09-17)
+and a mana battery with charge counters on it — are left out of the plan
+rather than half-paid, which under-reports six cards in the safe
+direction — ROADMAP. Power Artifact's
 floor is "generic can't go below zero" rather than "not less than one
 mana" — simplified-cards.
 
@@ -698,7 +700,15 @@ and ran TWICE per activation, once for the mana trigger's colour and once
 inside `produce_into_for`. The card now only takes the CENSUS
 (`ManaAbility.color_options` returns the flags on offer) and `tap_for_mana`
 does the asking, once, before anything is paid, and hands the answer to
-`produce_into_for(..., forced_color)`.
+`produce_into_for(..., forced_color)`. It asks only when there is a choice
+(2026-09-17): one colour on offer is made outright, and a PLAN that priced
+a colour tells the tap which (`ManaPlanner.sources` lists the Stone once
+per colour, its step carries the one picked). The human's double-click
+plans over `ManaPlanner.auto_tap_sources` instead, where a Stone with
+several colours is generic-only — the owner's rule: the Stone auto-taps
+for a colourless request or a known colour, and with several colours on
+offer the player is asked; the gesture waits for the answer rather than
+submitting the cast under the question (ROADMAP 2026-09-17).
 
 Every card using `CardData.as_it_enters` is still outside all of this, for
 the same reason as ever.

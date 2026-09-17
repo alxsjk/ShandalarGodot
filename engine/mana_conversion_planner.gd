@@ -73,7 +73,7 @@ static func plan(sources: Array, cost: ManaCost, extra: int, usage: Array) -> Ar
 			var fuel: Dictionary = state.fuel.duplicate()
 			if fuel_key != "": fuel[fuel_key] = int(fuel.get(fuel_key, 0)) + 1
 			var steps: Array = state.steps.duplicate()
-			steps.append([row[0], row[1]])
+			steps.append(ManaPlanner.step_of(row))
 			queue.append({"pool": next, "used": used, "fuel": fuel, "steps": steps,
 				"rank": _distance(next, cost, extra, usage) + steps.size() * 0.05})
 	return []

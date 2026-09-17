@@ -1467,7 +1467,14 @@ func pay_for_prevention(pid: int, target: TargetRef) -> String:
 	return ""
 
 
-func tap_for_mana(pid: int, inst: CardInstance, ability_index := 0) -> String:
+## Activate [param inst]'s mana ability [param ability_index] for
+## [param pid]. [param chosen] is the colour a PLAN already picked for a
+## colour-choice source (Fellwar Stone; [method ManaPlanner.step_of]) —
+## one the ability offers is made without a question, any other value
+## (the default -1, or the {C} an auto-tap plans a many-coloured Stone
+## for) leaves the colour to the activating player as before.
+func tap_for_mana(pid: int, inst: CardInstance, ability_index := 0,
+		chosen := -1) -> String:
 	_begin_cost_choices()
 	if game_over:
 		return "the game is over"
@@ -1563,9 +1570,16 @@ func tap_for_mana(pid: int, inst: CardInstance, ability_index := 0) -> String:
 			question.colors.assign(offered)
 			if _hold_cost_choice(question, replay): return ""
 			chosen_color = _ask_cost_color(pid, inst, offered, question.prompt)
+	# THE OWNER'S RULE (2026-09-17): a Stone whose opponent has lands of
+	# ONE colour makes that colour — "we know" — with no question; one the
+	# plan has already chosen a colour for makes that (the AI's plan, or a
+	# human's whose choice the auto-tap only ever leaves to them); and only
+	# a Stone with several colours on offer and nothing decided asks.
 	if ability.color_options.is_valid():
 		var offered: Array = ability.color_options.call(self, inst)
-		if not offered.is_empty():
+		if offered.size() == 1 or offered.has(chosen):
+			chosen_color = chosen if offered.has(chosen) else int(offered[0])
+		elif not offered.is_empty():
 			var color_q := _cost_question(pid, inst, PlayerChoice.Kind.COLOR,
 				PlayerChoice.mana_color_prompt(inst.data.card_name))
 			color_q.colors.assign(offered)
@@ -6750,7 +6764,7 @@ func try_pay(pid: int, cost: ManaCost, usage_keys: Array = []) -> bool:
 	for step in plan:
 		if step[0] == null:
 			continue   # mana already floating — there is nothing to tap
-		if tap_for_mana(pid, step[0], step[1]) != "":
+		if ManaPlanner.run_step(self, pid, step) != "":
 			break   # the plan went stale — stop before tapping more
 	if not players[pid].mana_pool.can_pay(cost, 0, usage_keys):
 		return false   # a tap trigger disturbed the pool — refuse safely
@@ -6814,13 +6828,14 @@ func _payment_plan(pid: int, cost: ManaCost, usage_keys: Array = [],
 ## board with nothing else keeps the answer 1997 gives for a source the
 ## auto-tapper will not touch, which is to tap it by hand before the
 ## trigger. A battery with no counters on it asks nothing and is planned
-## like any other source.
-static func _mana_ability_asks(inst: CardInstance, index: int) -> bool:
+## like any other source, and so is a Stone with ONE colour on offer —
+## [method tap_for_mana] makes it without a question (2026-09-17).
+func _mana_ability_asks(inst: CardInstance, index: int) -> bool:
 	if index < 0 or index >= inst.cur_mana_abilities.size():
 		return true
 	var ability: ManaAbility = inst.cur_mana_abilities[index]
 	if ability.color_options.is_valid():
-		return true
+		return ability.color_options.call(self, inst).size() > 1
 	return ability.any_number_counter_kind != "" \
 		and int(inst.counters.get(ability.any_number_counter_kind, 0)) > 0
 

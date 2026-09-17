@@ -14912,6 +14912,85 @@ construction toolkit; downloaded card pictures and constructed packs remain
 local. Export, archive, extracted-tool and uploaded-checksum verification
 are separate release gates, as documented in `docs/release-builds.md`.
 
+## 2026-09-17 — Fellwar Stone under the double-click
+
+THE OWNER'S PLAYTEST: *"On double-click (when you want to cast with
+automatic mana tap) card Fellwar Stone can tap automatically and produce
+mana of the wrong colour. Fellwar Stone should tap automatically only for
+a colourless mana request, or if we know the opponent only has land of
+the colour we know. Furthermore, if Fellwar Stone can produce many mana
+types (the opponent has many different lands), you should be asked upon
+tapping what kind of mana you want Fellwar Stone to produce. Fix it."*
+
+**What the table actually did.** Forest + Fellwar Stone, the opponent on
+an Island and a Mountain, a double-click on Grizzly Bears: the Forest
+tapped, the Stone's *"Fellwar Stone: What kind of mana?"* was put to the
+player — and the gesture then SUBMITTED the cast under the open question.
+The engine refused it (*"waiting for a choice to be made"*), and because
+that is not an unpaid refusal the duel screen DROPPED the cast: the answer
+landed the Stone's mana beside the Forest's, both floated to nothing, and
+the Bears were back in hand. That is the "wrong colour" of the report —
+mana of every colour was made and none of it was spent. Two quieter
+defects sat beside it: a Stone facing ONE colour held the duel open on a
+one-button question, and the planner modelled the Stone as the FIRST
+colour on offer (blue, above), so a {R} spell facing that Stone was
+neither yellow nor plannable at all.
+
+**The model.** `ManaPlanner.sources` lists a colour-choice source ONCE PER
+COLOUR on offer, the way a dual land is listed once per ability — the rows
+share the instance, `source_key` lets a plan spend it once, and the plan
+step carries the colour the plan priced as a third entry
+(`ManaPlanner.step_of`; `run_step` hands it to `MtgGame.tap_for_mana`,
+whose new optional `chosen` makes that colour without asking). So the
+yellow name (`could_afford`), reachability, the AI seat and `try_pay` all
+see what the Stone can really do: the AI's plan for a {R} makes RED and
+asks nobody, where it used to be asked and answer with the first colour.
+`tap_for_mana` asks NOTHING for one colour on offer — one colour is no
+choice — for a human seat too, and `_mana_ability_asks` (the rule that
+keeps an asking source out of a triggered payment) agrees, so a one-colour
+Stone now pays an upkeep.
+
+**The gesture.** The double-click plans over `ManaPlanner.auto_tap_sources`
+— the owner's rule as a source list. A Stone with SEVERAL colours on offer
+is collapsed to one generic-only `{C}` row there: the fast path can spend
+it on generic mana and never on a coloured pip, and its tap, told a colour
+the Stone does not offer, puts the question to the player. A Stone with
+ONE colour keeps its row and taps without a word. `run_plan` now reports a
+hold, and `DuelScreen._auto_tap_for_pending` no longer submits under it:
+the cast waits (`_auto_resume`, with the pool as it stood), and `_refresh`
+finishes it once the question is gone — an ANSWER plans again from the
+floating mana and casts, a CANCEL submits the short plan and the engine's
+unpaid refusal parks the cast in `Mode.PAYING` for the player to finish by
+hand, exactly where a plan that came up short already left them.
+SGManalink's host-side `autopay` plans over the same list; it already
+waited for the colour and resumed (`_auto_payment`), so the two doors now
+agree. The yellow name keeps the FULL model on purpose: a {R} spell facing
+a blue-or-red Stone IS castable — by hand, with the question — and the
+double-click leaves it in `Mode.PAYING` with the Stone untouched rather
+than choosing for the player. The X window's budget keeps the full model
+for the same reason; the gesture's own X budget counts only what it may
+tap without asking. No wire change: the colour never crosses SGManalink
+(the host's plan tells its own Stone; a seat's hand tap is asked through
+the host's question), so `SgProtocol.VERSION` stays 20.
+
+Pinned by `tests/ui/test_fellwar_stone_auto_tap.gd` (eight: the held cast
+answered and cast, cancelled and parked then finished by hand, a generic
+cost using the Stone but still asking, a coloured pip never auto-tapped
+from a choice yet yellow and castable by hand, lands preferred over the
+Stone, one colour auto-tapped and hand-tapped without a question, the
+per-colour rows and the collapsed list) and by
+`tests/unit/test_cost_choice_contract.gd` (a one-colour Stone asks nobody;
+a plan tells the Stone its colour). The two tests whose premise was
+"one colour asks" now face two colours.
+
+Docs: `docs/mechanics.md` (mana-ability riders row, the try_pay
+simplifications, the cost-hold section), `docs/duel-todo.md` §5.3 caveat
+2, `docs/CODE_MAP.md` rows.
+
+Gate on the tree as committed: 468 scripts, **7,371/7,371 tests, 327,755
+asserts**, exit 0 in 996 s; Python 277, exit 0; boot
+0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

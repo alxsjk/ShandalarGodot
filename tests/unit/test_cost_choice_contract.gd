@@ -273,10 +273,47 @@ func test_fellwar_stones_colour_holds_the_duel_open() -> void:
 func test_fellwar_stone_still_asks_nothing_of_a_heuristic_seat() -> void:
 	var stone := put_battlefield(0, "Fellwar Stone")
 	put_battlefield(1, "Swamp")
+	put_battlefield(1, "Forest")
 	assert_ok(g.tap_for_mana(0, stone))
 	assert_null(g.awaiting_choice)
-	assert_eq(g.players[0].mana_pool.amount_of(Mtg.ManaColor.B), 1)
+	assert_eq(g.players[0].mana_pool.amount_of(Mtg.ManaColor.B), 1,
+		"the heuristic takes the first colour on offer")
 	assert_eq(g.choice_log.size(), 1, "asked once, not twice")
+
+
+func test_fellwar_stone_with_one_colour_on_offer_asks_nobody() -> void:
+	# THE OWNER'S RULE (2026-09-17): *"Fellwar Stone should tap
+	# automatically ... if we know the opponent only has land of the colour
+	# we know."* One colour is no choice, so the tap makes it without a
+	# question — for a human seat too, whose duel used to be held open on a
+	# one-button "What kind of mana?".
+	_human_seat(0)
+	var stone := put_battlefield(0, "Fellwar Stone")
+	put_battlefield(1, "Swamp")
+	assert_ok(g.tap_for_mana(0, stone))
+	assert_null(g.awaiting_choice, "nothing to choose, nothing asked")
+	assert_true(stone.tapped)
+	assert_eq(g.players[0].mana_pool.amount_of(Mtg.ManaColor.B), 1)
+	assert_eq(g.choice_log.size(), 0, "and no agent was asked either")
+
+
+func test_a_plan_tells_fellwar_stone_its_colour() -> void:
+	# The planner lists the Stone once per colour on offer and its step
+	# carries the one the plan priced (ManaPlanner.step_of), so a plan the
+	# engine runs for a heuristic seat makes THAT colour — not the first
+	# on offer — and asks nothing.
+	put_battlefield(0, "Fellwar Stone")
+	put_battlefield(1, "Island")
+	put_battlefield(1, "Mountain")
+	var plan := ManaPlanner.plan(g, 0, ManaCost.parse("{R}"), 0)
+	assert_eq(plan.size(), 1)
+	assert_eq(plan[0].size(), 3, "the step names the colour")
+	assert_eq(int(plan[0][2]), Mtg.ManaColor.R)
+	assert_true(ManaPlanner.run_plan(g, 0, plan))
+	assert_null(g.awaiting_choice)
+	assert_eq(g.players[0].mana_pool.amount_of(Mtg.ManaColor.R), 1,
+		"red, though blue is first on offer")
+	assert_eq(g.choice_log.size(), 0, "told, not asked")
 
 
 # --------------------------------------- the as-enters copy replacement --

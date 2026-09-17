@@ -1046,7 +1046,17 @@ shandalar/
 │   │                          the source (a tapped creature neither
 │   │                          attacks nor blocks, CR 508.1a / 509.1a).
 │   │                          The human seat's double-click keeps its
-│   │                          Library of Alexandria by it
+│   │                          Library of Alexandria by it. A colour-CHOICE
+│   │                          source (Fellwar Stone) is listed once per
+│   │                          colour on offer (2026-09-17); step_of() puts
+│   │                          the colour a plan priced on its step and
+│   │                          run_step() hands it to tap_for_mana, so the
+│   │                          tap asks nothing; auto_tap_sources() is the
+│   │                          human's double-click list, where a Stone with
+│   │                          several colours is one generic-only row (the
+│   │                          owner's rule: auto-tap only for a colourless
+│   │                          request or a known colour, else ask);
+│   │                          run_plan() reports a hold
 │   ├── mtg_game.gd          class MtgGame — THE ORCHESTRATOR. Public API:
 │   │                        _has_damage_gates / _damage_gates /
 │   │                        _damage_gate_applies / _apply_damage_gate —
@@ -3584,6 +3594,14 @@ shandalar/
 │    reaching the table under it, and the promise the word makes — the
 │    auto-pass off, the AI's dwell neither armed nor fired, no clock of
 │    its own — plus Concede asking the original's own question first;
+│    tests/ui/test_fellwar_stone_auto_tap.gd — FELLWAR STONE UNDER THE
+│    DOUBLE-CLICK (2026-09-17): the Stone's colour question holding the
+│    cast instead of dropping it (answered -> cast; cancelled -> parked in
+│    Mode.PAYING and finished by hand), a generic cost using the Stone but
+│    still asking, a coloured pip never auto-tapped from a choice yet
+│    yellow and castable by hand, lands preferred over the Stone, one
+│    colour on offer tapping without a question, and the planner's
+│    per-colour rows against auto_tap_sources' collapsed list;
 │    tests/ui/test_casting_flow.gd — the 1997 casting flow: click the
 │    spell then tap the lands (Mode.PAYING and its `Tap %s` prompt, the
 │    sources lighting, Done refusing to pass priority under a waiting

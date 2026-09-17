@@ -189,13 +189,22 @@ func test_a_source_that_would_ask_is_left_out_of_the_plan() -> void:
 		pass_test("Fellwar Stone not in the pool")
 		return
 	put_battlefield(0, "Fellwar Stone")
-	put_battlefield(1, "Forest")          # a colour for it to offer
+	put_battlefield(1, "Forest")          # two colours for it to offer
+	put_battlefield(1, "Island")
 	assert_false(g.can_afford_cost(0, ManaCost.parse("{1}")),
 		"the colour choice keeps it out of a triggered payment")
 	# ...and it is THIS method's rule, not the planner's: the shared
 	# planner still reaches the Stone for a cast.
 	assert_eq(_plan_names(ManaPlanner.plan(g, 0, ManaCost.parse("{1}"), 0)),
 		["Fellwar Stone"])
+	# With ONE colour on offer there is no question to hold anything open
+	# (2026-09-17), so the same Stone pays a triggered cost.
+	g.players[1].battlefield.clear()
+	put_battlefield(1, "Forest")
+	assert_true(g.can_afford_cost(0, ManaCost.parse("{1}")),
+		"one colour is no choice")
+	assert_true(g.try_pay(0, ManaCost.parse("{G}")))
+	assert_null(g.awaiting_choice)
 
 
 func test_a_charged_battery_is_left_out_and_an_empty_one_is_not() -> void:

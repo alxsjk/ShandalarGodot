@@ -101,8 +101,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([0.32.0 release gate](docs/ROADMAP.md#2026-09-17--0320-release-gate)):
-**7,361 GUT tests / 326,964 assertions**, plus **277 Python tests**
+Latest local verification ([Fellwar Stone under the double-click](docs/ROADMAP.md#2026-09-17--fellwar-stone-under-the-double-click)):
+**7,371 GUT tests / 327,755 assertions**, plus **277 Python tests**
 (one platform-specific skip).
 
 ## Art and skins

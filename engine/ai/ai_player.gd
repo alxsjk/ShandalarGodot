@@ -731,7 +731,7 @@ func _try_cast_best(game: MtgGame) -> String:
 		return ""
 	for step in plan:
 		if step[0] != null:   # floating mana is already in the pool
-			game.tap_for_mana(pid, step[0], step[1])
+			ManaPlanner.run_step(game, pid, step)
 	var err := game.cast_spell(pid, best, best_targets, best_x, best_mode)
 	if err != "":
 		if _wait_out(game, best):

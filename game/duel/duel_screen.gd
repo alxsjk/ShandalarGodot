@@ -2150,8 +2150,16 @@ func _pending_mana_conflicts(inst: CardInstance, mana_index: int) -> bool:
 	return (activation.tap_cost and mana.taps_source) or mana.sacrifice_source or mana.exile_source
 
 
-func _pending_payment_sources(excluded: Dictionary = {}) -> Array:
-	var sources := ManaPlanner.sources(game, _pending_pid, excluded)
+## The sources the pending cast may be paid from, minus [param excluded]
+## and minus whatever the cast itself needs untapped. [param auto] is the
+## DOUBLE-CLICK's view ([method ManaPlanner.auto_tap_sources]): a Fellwar
+## Stone with several colours on offer is generic-only there, so the
+## gesture never picks its colour — the player is asked (2026-09-17).
+## Reachability and the yellow name keep the full model, so a {R} spell
+## facing that Stone is still castable by hand.
+func _pending_payment_sources(excluded: Dictionary = {}, auto := false) -> Array:
+	var sources := ManaPlanner.auto_tap_sources(game, _pending_pid, excluded) if auto \
+		else ManaPlanner.sources(game, _pending_pid, excluded)
 	return sources.filter(func(row: Array) -> bool:
 		return row[0] == null or not _pending_mana_conflicts(row[0], int(row[1])))
 
@@ -2165,6 +2173,32 @@ func _has_payment_mana(inst: CardInstance) -> bool:
 ## The floating composition the held-open cast was last priced against.
 ## Converters can change colors/restrictions without changing the total.
 var _paying_pool: Array = []
+
+## The double-click is waiting on a mana question (Fellwar Stone's colour)
+## before it can finish — see [method _auto_tap_for_pending] — and the
+## pool as it stood when the question was put, so [method _resume_auto_tap]
+## can tell an answer (the pool grew) from a cancel (it did not).
+var _auto_resume := false
+var _auto_hold_pool: Array = []
+
+
+## The question the double-click ran into is gone: finish what it started.
+## An ANSWER left the Stone's mana floating, and the gesture plans again
+## from there (the floating mana is a free source, the Stone is tapped and
+## out of the list) and submits the cast; a CANCEL left the pool as it
+## was, so the plan is short by that pip and the cast is submitted as it
+## stands — the engine's unpaid refusal parks it in
+## [constant Mode.PAYING] for the player to finish by hand.
+func _resume_auto_tap() -> void:
+	if not _auto_resume or game.awaiting_choice != null:
+		return
+	_auto_resume = false
+	if _pending_card == null:
+		return
+	if _payment_pool_state() != _auto_hold_pool:
+		_auto_tap_for_pending()
+	else:
+		_submit_pending()
 
 
 func _payment_pool_state() -> Array:
@@ -2261,10 +2295,10 @@ func _auto_x_budget() -> int:
 		cost = _pending_card.cur_activated_abilities[_pending_ability_index].cost
 		surcharge = game.ability_surcharge(_pending_pid, _pending_card)
 		usage = game.ability_mana_usage_keys(_pending_card)
-	var budget := _x_budget(cost, surcharge, usage, _no_auto_tap)
+	var budget := _x_budget(cost, surcharge, usage, _no_auto_tap, true)
 	if _pending_ability_index < 0 and _pending_card.data.repeated_additional_cost != "":
 		# The spin counts PAYMENTS for this card, as the window's does.
-		budget = _repeat_budget(budget, _no_auto_tap)
+		budget = _repeat_budget(budget, _no_auto_tap, true)
 	return budget
 
 
@@ -2278,9 +2312,12 @@ func _auto_x_budget() -> int:
 ## because the coloured pips compete with X for the same lands: six
 ## Mountains pay Disintegrate's {R} out of one of them and leave five for
 ## X, and only a plan can say so.
+## [param auto] is the double-click's source list (see
+## [method _pending_payment_sources]) — the gesture can only count on
+## the mana it will tap for without asking.
 func _x_budget(cost: ManaCost, surcharge: int, usage: Array,
-		excluded: Dictionary) -> int:
-	var src := _pending_payment_sources(excluded)
+		excluded: Dictionary, auto := false) -> int:
+	var src := _pending_payment_sources(excluded, auto)
 	var budget := 0
 	# 40 is the same kind of safety net the advance driver carries: no
 	# board in this pool makes more mana than that in one step.
@@ -2299,8 +2336,8 @@ func _x_budget(cost: ManaCost, surcharge: int, usage: Array,
 ## reason — before it was, the gesture handed the spin the raw generic
 ## budget, and seven Forests bought "3 additional payments" of a ten-mana
 ## bill the auto-tapper could not meet.
-func _repeat_budget(budget: int, excluded: Dictionary) -> int:
-	var src := _pending_payment_sources(excluded)
+func _repeat_budget(budget: int, excluded: Dictionary, auto := false) -> int:
+	var src := _pending_payment_sources(excluded, auto)
 	var repeat_count := 0
 	while repeat_count <= budget:
 		var payment := game.spell_payment(_pending_pid, _pending_card.data,
@@ -2320,6 +2357,17 @@ func _repeat_budget(budget: int, excluded: Dictionary) -> int:
 ## with whatever it did produce floating, and the player finishes it by
 ## hand — which is the same place a single click leaves them, so the
 ## gesture can never cost them the cast.
+##
+## A SOURCE THAT ASKS holds the gesture, not the cast (2026-09-17). The
+## plan is built over [method ManaPlanner.auto_tap_sources], so the only
+## question it can run into is Fellwar Stone's *"What kind of mana?"* for
+## a generic pip with several colours on offer; the engine holds the duel
+## open for the answer, and the cast is neither submitted (the engine
+## would refuse it — *"waiting for a choice"* — and the refusal dropped
+## it, leaving the mana already made to burn) nor abandoned: it waits in
+## [member _auto_resume] and [method _refresh] picks it up once the
+## question is gone, tapping the rest or, after a cancel, leaving the
+## player in [constant Mode.PAYING] as a short plan does.
 func _auto_tap_for_pending() -> void:
 	if _pending_card == null:
 		return
@@ -2330,9 +2378,12 @@ func _auto_tap_for_pending() -> void:
 	else:
 		payment = game.ability_payment(_pending_pid, _pending_card,
 			_pending_ability_index, _pending_x)
-	var tap_plan := ManaPlanner.plan_from(_pending_payment_sources(_no_auto_tap), payment["cost"],
-		int(payment["extra"]), payment["usage"])
-	ManaPlanner.run_plan(game, _pending_pid, tap_plan)
+	var tap_plan := ManaPlanner.plan_from(_pending_payment_sources(_no_auto_tap, true),
+		payment["cost"], int(payment["extra"]), payment["usage"])
+	if not ManaPlanner.run_plan(game, _pending_pid, tap_plan):
+		_auto_resume = true
+		_auto_hold_pool = _payment_pool_state()
+		return
 	# Targets still to pick? Then the mana is all this gesture owed and the
 	# targeting loop takes over ("If the spell is a targeted one, you need
 	# to choose a target"). Otherwise finish the cast.
@@ -2566,6 +2617,7 @@ func _clear_pending(cast := false) -> void:
 	_pending_mode = 0
 	_pending_target_count = -1
 	_paying_pool = []
+	_auto_resume = false
 	# A parked-but-uncast tutor pick must not leak into the next search.
 	if not cast and _humans.has(_pending_pid):
 		_humans[_pending_pid].preselect("")
@@ -5068,8 +5120,11 @@ func _refresh() -> void:
 	elif mode == Mode.DAMAGE and not game.awaiting_damage_assignment:
 		_damage_picks = {}
 		mode = Mode.NORMAL
-	# A cast HELD OPEN for its mana (Mode.PAYING) is re-offered the moment
-	# the pool moves — see [method _retry_payment].
+	# A double-click held by a mana question finishes once it is answered
+	# — see [method _resume_auto_tap] — and a cast HELD OPEN for its mana
+	# (Mode.PAYING) is re-offered the moment the pool moves — see
+	# [method _retry_payment].
+	_resume_auto_tap()
 	_retry_payment()
 	_maybe_schedule_ai()
 

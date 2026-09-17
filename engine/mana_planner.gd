@@ -135,74 +135,94 @@ static func sources(game: MtgGame, pid: int, excluded: Dictionary = {},
 			if amount <= 0:
 				continue
 			# A dynamic-colour source (Gem Bazaar) makes the colour it is
-			# SHOWING, not the seed colour it was built with; a CHOICE
+			# SHOWING, not the seed colour it was built with. A CHOICE
 			# source (Fellwar Stone) makes whichever of the colours on
-			# offer this planner picks, and the planner models one colour
-			# per source, so it takes the first — which is also what the
-			# AI's own answer_color would say when tap_for_mana asks.
-			var color: int = ability.produces[0][0]
+			# offer its controller picks as it is tapped, so it is listed
+			# ONCE PER COLOUR, the way a dual land is listed once per
+			# ability: the rows share the instance, [method source_key]
+			# lets a plan spend it once, and the row a plan picks names the
+			# colour the tap is then told to make ([method step_of]). Until
+			# 2026-09-17 the planner took the FIRST colour on offer for its
+			# one row, so a Stone facing an Island and a Mountain was blue
+			# to every plan and could never be planned for a {R}.
+			var colors: Array = [ability.produces[0][0]]
 			if ability.color_options.is_valid():
-				var offered: Array = ability.color_options.call(game, inst)
-				color = int(offered[0]) if not offered.is_empty() \
-					else Mtg.ManaColor.C
+				colors = ability.color_options.call(game, inst).duplicate()
+				if colors.is_empty():
+					colors = [Mtg.ManaColor.C]
 			elif ability.dynamic_color.is_valid():
-				color = int(ability.dynamic_color.call(game, inst))
-			# Only public descriptors, never speculative callbacks or RNG.
-			# Snowfall's restricted blue bonus is not ordinary island mana,
-			# and High Tide still adds BLUE after Darkness recolors the land.
-			var bonuses: Array = []
-			if ability.taps_source and inst.is_land():
-				var triggers: Array = []
-				for entry in game.delayed_triggers: triggers.append(entry.trigger)
-				for permanent in game.all_battlefield():
-					if not permanent.cur_abilities_silenced: triggers.append_array(permanent.cur_triggered_abilities)
-				for trigger in triggers:
-					if not trigger.is_mana_trigger or trigger.mana_bonus_amount <= 0 or not inst.has_subtype(trigger.mana_bonus_subtype): continue
-					var restriction: String = trigger.mana_bonus_restriction
-					if restriction == "cumulative_upkeep" and game.current_step() != Mtg.Step.UPKEEP: continue
-					var bonus: int = trigger.mana_bonus_amount
-					if (inst.cur_supertypes & Mtg.Supertype.SNOW) != 0: bonus += trigger.mana_bonus_snow_extra
-					if trigger.mana_bonus_color == color and restriction == ability.restriction_key: amount += bonus
-					else: bonuses.append([trigger.mana_bonus_color, bonus, restriction])
-			var row: Array = [inst, index, color,
-				amount, ability.sacrifice_source or ability.exile_source, ability.restriction_key,
-				ability.pain if mind_pain else 0, holds]
-			if ability.planner_counter_cost and not ability.taps_source:
-				# Finite counter fuel, never a reusable free source. Search
-				# budgets activations and the real engine removes each counter.
-				row.append({"cost": ability.cost, "repeatable": true,
-					"fuel_key": "%d:%s" % [inst.id, ability.counter_cost_kind],
-					"fuel": int(inst.counters.get(ability.counter_cost_kind, 0)) / maxi(1, ability.counter_cost_count),
-					"cost_usage": game.ability_mana_usage_keys(inst),
-					"floating": pool._mana.duplicate(), "restricted": pool._restricted.duplicate(true)})
-			elif ability.planner_conversion:
-				if ability.produces.size() != 1 or ability.color_options.is_valid() \
-						or ability.dynamic_amount.is_valid() or ability.dynamic_color.is_valid():
-					continue
-				row.append({"cost": ability.cost, "repeatable": not ability.taps_source and not ability.sacrifice_source,
-					"cost_usage": game.ability_mana_usage_keys(inst),
-					"floating": pool._mana.duplicate(), "restricted": pool._restricted.duplicate(true)})
-			elif ability.produces.size() > 1 or not bonuses.is_empty():
-				# One tap can produce DIFFERENT colours together (Adarkar
-				# Unicorn). Treat it as one atomic action in the pure fallback.
-				var outputs: Array = [[color, amount, ability.restriction_key]]
-				for pair in ability.produces.slice(1):
-					outputs.append([pair[0], pair[1], ability.restriction_key])
-				outputs.append_array(bonuses)
-				row.append({"cost": null, "repeatable": false, "outputs": outputs,
-					"floating": pool._mana.duplicate(), "restricted": pool._restricted.duplicate(true)})
-			out.append(row)
+				colors = [int(ability.dynamic_color.call(game, inst))]
+			for color_choice in colors:
+				var row := _source_row(game, pool, inst, index, ability,
+					int(color_choice), amount, holds, mind_pain)
+				if not row.is_empty():
+					out.append(row)
 	# Fewer options first; painful sources after painless; sacrifices last;
 	# and last of all, the source that is holding something back.
 	out.sort_custom(cheapest_source_first)
 	return out
 
 
+## The source row for one mana ability making [param color] — a plain
+## row, or one with the converter/multi-output ninth entry (see
+## [method sources]); `[]` when the ability is not one the planner models.
+static func _source_row(game: MtgGame, pool: ManaPool, inst: CardInstance,
+		index: int, ability: ManaAbility, color: int, amount: int, holds: int,
+		mind_pain: bool) -> Array:
+	# Only public descriptors, never speculative callbacks or RNG.
+	# Snowfall's restricted blue bonus is not ordinary island mana,
+	# and High Tide still adds BLUE after Darkness recolors the land.
+	var bonuses: Array = []
+	if ability.taps_source and inst.is_land():
+		var triggers: Array = []
+		for entry in game.delayed_triggers: triggers.append(entry.trigger)
+		for permanent in game.all_battlefield():
+			if not permanent.cur_abilities_silenced: triggers.append_array(permanent.cur_triggered_abilities)
+		for trigger in triggers:
+			if not trigger.is_mana_trigger or trigger.mana_bonus_amount <= 0 or not inst.has_subtype(trigger.mana_bonus_subtype): continue
+			var restriction: String = trigger.mana_bonus_restriction
+			if restriction == "cumulative_upkeep" and game.current_step() != Mtg.Step.UPKEEP: continue
+			var bonus: int = trigger.mana_bonus_amount
+			if (inst.cur_supertypes & Mtg.Supertype.SNOW) != 0: bonus += trigger.mana_bonus_snow_extra
+			if trigger.mana_bonus_color == color and restriction == ability.restriction_key: amount += bonus
+			else: bonuses.append([trigger.mana_bonus_color, bonus, restriction])
+	var row: Array = [inst, index, color,
+		amount, ability.sacrifice_source or ability.exile_source, ability.restriction_key,
+		ability.pain if mind_pain else 0, holds]
+	if ability.planner_counter_cost and not ability.taps_source:
+		# Finite counter fuel, never a reusable free source. Search
+		# budgets activations and the real engine removes each counter.
+		row.append({"cost": ability.cost, "repeatable": true,
+			"fuel_key": "%d:%s" % [inst.id, ability.counter_cost_kind],
+			"fuel": int(inst.counters.get(ability.counter_cost_kind, 0)) / maxi(1, ability.counter_cost_count),
+			"cost_usage": game.ability_mana_usage_keys(inst),
+			"floating": pool._mana.duplicate(), "restricted": pool._restricted.duplicate(true)})
+	elif ability.planner_conversion:
+		if ability.produces.size() != 1 or ability.color_options.is_valid() \
+				or ability.dynamic_amount.is_valid() or ability.dynamic_color.is_valid():
+			return []
+		row.append({"cost": ability.cost, "repeatable": not ability.taps_source and not ability.sacrifice_source,
+			"cost_usage": game.ability_mana_usage_keys(inst),
+			"floating": pool._mana.duplicate(), "restricted": pool._restricted.duplicate(true)})
+	elif ability.produces.size() > 1 or not bonuses.is_empty():
+		# One tap can produce DIFFERENT colours together (Adarkar
+		# Unicorn). Treat it as one atomic action in the pure fallback.
+		var outputs: Array = [[color, amount, ability.restriction_key]]
+		for pair in ability.produces.slice(1):
+			outputs.append([pair[0], pair[1], ability.restriction_key])
+		outputs.append_array(bonuses)
+		row.append({"cost": null, "repeatable": false, "outputs": outputs,
+			"floating": pool._mana.duplicate(), "restricted": pool._restricted.duplicate(true)})
+	return row
+
+
 ## The tap plan covering [param cost] against a pre-built [param src] list:
 ## an Array of `[instance, ability_index]` pairs (a null instance is mana
-## already floating, which the executors skip), or `[]` when no plan
-## covers it. A cost that is FREE also plans as `[]` — callers check that
-## first (see [method plan_and_pay]).
+## already floating, which the executors skip; a colour-choice source's
+## step carries the colour the plan picked as a third entry — see
+## [method step_of]), or `[]` when no plan covers it. A cost that is FREE
+## also plans as `[]` — callers check that first (see
+## [method plan_and_pay]).
 ##
 ## [param x_value] is additional GENERIC mana on top of the printed cost:
 ## the chosen X, a surcharge, or both.
@@ -286,7 +306,7 @@ static func _plan_free_sources(src: Array, cost: ManaCost, x_value: int,
 				if used_instances.has(source_key(s)) or s[2] != color \
 						or not source_usable(s, usage_keys):
 					continue
-				out.append([s[0], s[1]])
+				out.append(step_of(s))
 				used_instances[source_key(s)] = true
 				pool_check.add(s[2], s[3])
 				found = true
@@ -302,7 +322,7 @@ static func _plan_free_sources(src: Array, cost: ManaCost, x_value: int,
 			break
 		if used_instances.has(source_key(s)) or not source_usable(s, usage_keys):
 			continue
-		out.append([s[0], s[1]])
+		out.append(step_of(s))
 		used_instances[source_key(s)] = true
 		generic -= s[3]
 	if generic > 0:
@@ -434,15 +454,82 @@ static func plan_pain(src: Array, tap_plan: Array) -> int:
 
 
 ## How many ways a source can make mana (floating mana: none — spend it
-## first, it is gone at the end of the step).
+## first, it is gone at the end of the step). A colour CHOICE counts as
+## one more way, so a Fellwar Stone sorts with the duals, after the basic
+## whose colour it is borrowing (2026-09-17).
 static func source_options(s: Array) -> int:
-	return 0 if s[0] == null else s[0].cur_mana_abilities.size()
+	if s[0] == null:
+		return 0
+	var options: int = s[0].cur_mana_abilities.size()
+	for ability in s[0].cur_mana_abilities:
+		if ability.color_options.is_valid():
+			options += 1
+	return options
 
 
 ## The key a plan tracks a source by — one instance taps once; floating
 ## mana of one colour is one bucket.
 static func source_key(s: Array) -> String:
 	return "pool:%d:%d:%s" % [int(s[2]), int(s[1]), String(s[5]) if s.size() > 5 else ""] if s[0] == null else "inst:%d" % s[0].id
+
+
+## The plan step for source row [param s]: `[instance, ability_index]`,
+## and for a COLOUR-CHOICE source (Fellwar Stone, listed once per colour
+## by [method sources]) `[instance, ability_index, color]` — the colour
+## this plan is counting on, which [method run_plan] hands to
+## [method MtgGame.tap_for_mana] so the tap makes what the plan priced.
+## A colour the source does not offer is ignored there and the tap asks
+## instead: that is how [method auto_tap_sources]' generic-only row
+## ({C}) leaves the question to the player.
+static func step_of(s: Array) -> Array:
+	if source_chooses_color(s):
+		return [s[0], s[1], int(s[2])]
+	return [s[0], s[1]]
+
+
+## Is the source row [param s] a colour-choice ability's (Fellwar Stone)?
+static func source_chooses_color(s: Array) -> bool:
+	return s[0] != null and int(s[1]) < s[0].cur_mana_abilities.size() \
+		and s[0].cur_mana_abilities[int(s[1])].color_options.is_valid()
+
+
+## The source list a PLAYER's auto-tap plans over — the duel's double-click
+## and SGManalink's autopay — which is [method sources] with THE OWNER'S
+## RULE FOR FELLWAR STONE (2026-09-17) applied: *"Fellwar Stone should tap
+## automatically only for a colourless mana request, or if we know the
+## opponent only has land of the colour we know. If Fellwar Stone can
+## produce many mana types, you should be asked upon tapping what kind of
+## mana you want it to produce."*
+##
+## So a choice source offering ONE colour keeps its row (the colour is
+## known, and the tap asks nothing — [method MtgGame.tap_for_mana]); one
+## offering SEVERAL is collapsed to a single {C} row, which the fast path
+## can spend only on generic mana and whose tap, told a colour the Stone
+## does not offer, puts the question to the player. The AI's plans keep
+## the full per-colour list: a heuristic seat answers its own question
+## with the colour its plan picked.
+static func auto_tap_sources(game: MtgGame, pid: int,
+		excluded: Dictionary = {}) -> Array:
+	var src := sources(game, pid, excluded)
+	var rows_per_source: Dictionary = {}
+	for s in src:
+		if source_chooses_color(s):
+			var key := source_key(s)
+			rows_per_source[key] = int(rows_per_source.get(key, 0)) + 1
+	var out: Array = []
+	var collapsed: Dictionary = {}
+	for s in src:
+		if not source_chooses_color(s) or int(rows_per_source.get(source_key(s), 0)) < 2:
+			out.append(s)
+			continue
+		var key := source_key(s)
+		if collapsed.has(key):
+			continue
+		collapsed[key] = true
+		var generic_only: Array = s.duplicate()
+		generic_only[2] = Mtg.ManaColor.C
+		out.append(generic_only)
+	return out
 
 
 ## Is this cost nothing at all? (A free cost plans as `[]`, which is also
@@ -452,11 +539,29 @@ static func cost_is_free(cost: ManaCost) -> bool:
 
 
 ## Execute [param tap_plan] — tap every real source in it, in order.
-## Floating-mana entries (a null instance) are already in the pool.
-static func run_plan(game: MtgGame, pid: int, tap_plan: Array) -> void:
+## Floating-mana entries (a null instance) are already in the pool. A
+## colour-choice step ([method step_of]) tells the tap its colour. Stops
+## at a tap that HOLDS THE DUEL OPEN on a question (a player's Fellwar
+## Stone asked its colour): every tap after it would be refused while the
+## question stands, so the caller finishes the plan once it is answered
+## (DuelScreen._auto_tap_for_pending, SgDuelActions.autopay). Returns
+## true when every step ran.
+static func run_plan(game: MtgGame, pid: int, tap_plan: Array) -> bool:
 	for step in tap_plan:
 		if step[0] != null:
-			game.tap_for_mana(pid, step[0], step[1])
+			run_step(game, pid, step)
+			if game.awaiting_choice != null:
+				return false
+	return true
+
+
+## Tap one plan [param step] (never a floating-mana step, whose source is
+## null): the colour a three-entry step carries goes with it, so a
+## colour-choice source makes what the plan priced instead of asking.
+## Returns [method MtgGame.tap_for_mana]'s refusal, "" when it tapped.
+static func run_step(game: MtgGame, pid: int, step: Array) -> String:
+	return game.tap_for_mana(pid, step[0], step[1],
+		int(step[2]) if step.size() > 2 else -1)
 
 
 ## Plan and pay [param cost] plus [param extra] generic. True when the pool
