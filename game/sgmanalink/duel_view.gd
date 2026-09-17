@@ -23,6 +23,8 @@ var _auto_pay_requested := false
 var _last_cue := -1
 var _last_visual_event := -1
 var _network_badge: Button
+var _connection_banner: PanelContainer
+var _banner_text: Label
 var _network_opening: SgDuelOpening
 var _network_dialog: OriginalDialog
 var _connection_status: Label
@@ -154,6 +156,21 @@ func _refresh() -> void:
 	_network_badge.tooltip_text = _connection_message() + ("\nClick for the Tournament Hall and duel controls.\n" if _room.has("tournament") else "\nClick for connection controls.\n") \
 		+ "Friendly, unrated player-hosted duel. Hidden opponent cards are not sent to this client; the host runs the referee."
 	if is_instance_valid(_connection_status): _connection_status.text = _connection_message()
+	_update_banner()
+
+
+## A lost or suspended connection deserves more than a badge: one calm line
+## over the table, out of the way of the phase prompt and the hand.
+func _update_banner() -> void:
+	if not is_instance_valid(_connection_banner): return
+	var suspended: bool = _online and not (_room.connected[0] and _room.connected[1])
+	_connection_banner.visible = not _online or suspended or bool(_room.get("tournament", {}).get("paused", false))
+	if not _connection_banner.visible: return
+	_banner_text.text = _connection_message() + ("\nThe game reconnects by itself; Reconnect tries at once." if not _online else "\nThe referee keeps the table; play resumes when both seats are back.")
+	_connection_banner.reset_size()
+	var area := _board_area()
+	var origin := get_global_rect().position
+	_connection_banner.position = Vector2(area.position.x + (area.size.x - _connection_banner.size.x) * 0.5, area.position.y + 12) - origin
 
 
 func _connection_message() -> String:
@@ -331,6 +348,14 @@ func show_notice(message: String) -> void:
 		for slot in _pending_slots: _pending_groups.append([])
 		mode = Mode.TARGETING if not _pending_slots.is_empty() else Mode.NORMAL
 		_set_target_cursor(mode == Mode.TARGETING)
+	if _sent_op == "choice" and game.awaiting_choice != null and game.awaiting_choice.pid == 0:
+		# A refused answer was never spent and the SAME question is still
+		# open — present() only drops the picks when the question's own DTO
+		# changes, and a refusal changes nothing. Keeping them made the next
+		# click toggle the standing pick off instead of answering.
+		_choice_picks = PackedInt32Array()
+		_close_choice_overlay()
+		_build_choice_overlay(game.awaiting_choice)
 	_report(message)
 
 
@@ -629,6 +654,25 @@ func _build_network_controls() -> void:
 		if _room.has("tournament"): tournament_requested.emit()
 		else: _show_connection())
 	_qol_reserve.add_child(_network_badge)
+	_connection_banner = PanelContainer.new()
+	_connection_banner.name = "ConnectionBanner"
+	_connection_banner.add_theme_stylebox_override("panel", OriginalDialog.panel_style("panel_dark_stone", 12))
+	_connection_banner.z_index = 150
+	_connection_banner.hide()
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 14)
+	_connection_banner.add_child(line)
+	_banner_text = OriginalDialog.label("", 15)
+	_banner_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_banner_text.custom_minimum_size.x = 520
+	_banner_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(_banner_text)
+	var retry := OriginalDialog.button("Reconnect", Vector2(110, 30))
+	retry.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	retry.pressed.connect(reconnect_requested.emit)
+	line.add_child(retry)
+	add_child(_connection_banner)
+	resized.connect(func() -> void: _update_banner())
 
 
 func _refit_network_combat() -> void:
@@ -638,14 +682,24 @@ func _refit_network_combat() -> void:
 
 
 func _show_connection() -> void:
-	var dialog := _network_window("SGManalink · Friendly duel")
+	var dialog := _network_window("SGManalink · " + String(_room.get("name", "Friendly duel")), Vector2(560, 330))
 	var column := VBoxContainer.new()
 	column.position = Vector2(24, 54)
 	column.custom_minimum_size.x = 510
+	column.add_theme_constant_override("separation", 6)
 	_connection_status = OriginalDialog.label(_connection_message(), 16)
 	_connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_connection_status.custom_minimum_size.x = 510
 	column.add_child(_connection_status)
+	var seat := int(_room.seat)
+	var facts := OriginalDialog.label("You: %s  ·  Opponent: %s\n%s  ·  %s" % [_room.names[seat], _room.names[1 - seat],
+		"You host this table" if _hosting else "Hosted by your opponent's computer",
+		"Tournament duel" if _room.has("tournament") else "Friendly duel, unrated"], 14)
+	facts.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	facts.custom_minimum_size.x = 510
+	facts.add_theme_color_override("font_color", OriginalDialog.CHOICE)
+	column.add_child(facts)
+	column.add_child(Control.new())
 	for entry in [["Revealed information", _show_information], ["Special actions", _show_specials],
 		["Reconnect", reconnect_requested.emit], ["Duel menu", _toggle_pause]]:
 		var button := OriginalDialog.choice_line(entry[0])
@@ -694,9 +748,9 @@ func _show_specials() -> void:
 	dialog.add_child(column)
 
 
-func _network_window(title: String) -> OriginalDialog:
+func _network_window(title: String, size := Vector2(560, 420)) -> OriginalDialog:
 	if is_instance_valid(_network_dialog): _network_dialog.dismiss()
-	_network_dialog = OriginalDialog.create(title, Vector2(560, 420))
+	_network_dialog = OriginalDialog.create(title, size)
 	_network_dialog.z_index = 280
 	_network_dialog.add_button("Close").pressed.connect(_network_dialog.dismiss)
 	add_child(_network_dialog)

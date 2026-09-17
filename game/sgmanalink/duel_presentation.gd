@@ -86,7 +86,12 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 				var legal: Array = []
 				for attacker_id in g.combat.attackers:
 					var attacker := g.find_instance(attacker_id)
-					if attacker != null and CombatState.block_illegality(g, card, attacker, card.controller_id).is_empty():
+					# The VIEWER, not the defender: Melee hands the declaration to
+					# the attacker, and a blocking tax (Hipparion, Awesome Presence)
+					# is a mana question mana in a hand can answer. Rule 8 — this
+					# seat may not be told what the other one holds; its own seat
+					# reads its own hand exactly as the rules-exact check does.
+					if attacker != null and CombatState.block_illegality(g, card, attacker, card.controller_id, true, pid).is_empty():
 						legal.append(m._handle(pid, attacker))
 				if not legal.is_empty(): result.blockable.append([row.id, legal])
 	for item in g.stack:

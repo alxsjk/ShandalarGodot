@@ -97,7 +97,7 @@ func build(maximum: int, decks: Array, previous: Dictionary = {}) -> void:
 	add_child(detail)
 	var choose := SgLobbyStyle.button("Add computer seat(s)", func() -> void:
 		_remember()
-		submitted.emit(int(_count.value), draft.bot.duplicate(true), _deck.duplicate(true)), true)
+		submitted.emit(int(_count.value), draft.bot.duplicate(true), _deck.duplicate(true)))
 	choose.name = "AddBots"
 	choose.set_meta("available", false)
 	choose.disabled = true

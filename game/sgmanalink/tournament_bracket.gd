@@ -136,14 +136,14 @@ class BracketCanvas extends Control:
 
 func present(view: Dictionary, saved: Dictionary = {}) -> void:
 	var toolbar := SgLobbyStyle.row(self)
-	var minus := SgLobbyStyle.button("−", func() -> void: _zoom_by(-0.1), false, Vector2(38, 34))
+	var minus := SgLobbyStyle.button("−", func() -> void: _zoom_by(-0.1), Vector2(38, 34))
 	minus.tooltip_text = "Zoom out"
 	toolbar.add_child(minus)
 	_zoom_label = SgLobbyStyle.label("100%", 16, true)
 	_zoom_label.custom_minimum_size.x = 42
 	_zoom_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	toolbar.add_child(_zoom_label)
-	var plus := SgLobbyStyle.button("+", func() -> void: _zoom_by(0.1), false, Vector2(38, 34))
+	var plus := SgLobbyStyle.button("+", func() -> void: _zoom_by(0.1), Vector2(38, 34))
 	plus.tooltip_text = "Zoom in"
 	toolbar.add_child(plus)
 	_fit_picker = OptionButton.new()

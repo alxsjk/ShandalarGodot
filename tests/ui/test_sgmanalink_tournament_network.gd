@@ -566,7 +566,8 @@ func test_normal_browser_discovers_named_tournament_and_invited_player_joins_wit
 	server.add_child(advertiser)
 	server.discovery = advertiser
 	assert_eq(advertiser.advertise({"address": "127.0.0.1", "port": server.port, "name": "Organiser",
-		"fingerprint": server._lan_pem.sha256_text(), "rooms": 0}, 0), OK)
+		"fingerprint": server._lan_pem.sha256_text(), "rooms": 0,
+		"build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}, 0), OK)
 	server.poll()
 	var lobby := SgLobby.new()
 	add_child_autofree(lobby)

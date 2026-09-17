@@ -102,7 +102,8 @@ func start_lan(address: String, requested_port := 17897, visible := true, nickna
 		add_child(discovery)
 		discovery_error = discovery.advertise({"address": address, "port": port,
 			"name": nickname if not nickname.is_empty() else "Guest host",
-			"fingerprint": pem.sha256_text(), "rooms": 0})
+			"fingerprint": pem.sha256_text(), "rooms": 0,
+			"build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()})
 	return OK
 
 
@@ -316,7 +317,9 @@ func _receive(id: int, message: Dictionary) -> void:
 			_reject(id, "Invalid invitation. Ask the host for a current invitation.")
 			return
 		if message.build != SgCompatibility.fingerprint():
-			_reject(id, "Incompatible builds or card catalogue. Both players must use the same game build and enabled card packs.")
+			# Name the difference for the guest, who reads this refusal.
+			var why := SgCompatibility.difference(message.stamp, SgCompatibility.stamp())
+			_reject(id, why if not why.is_empty() else SgCompatibility.catalogue_mismatch())
 			return
 		var resume := String(message.resume)
 		if not resume.is_empty():

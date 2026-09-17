@@ -30,6 +30,7 @@ static func panel(inner: Control, light := true, margin := 18.0) -> PanelContain
 	box.set_content_margin_all(margin)
 	var node := PanelContainer.new()
 	node.add_theme_stylebox_override("panel", box)
+	node.set_meta("sg_light", light)
 	node.add_child(inner)
 	return node
 
@@ -46,13 +47,80 @@ static func row(parent: Node) -> HBoxContainer:
 	parent.add_child(line)
 	return line
 
-static func button(text: String, callback: Callable, primary := false, minimum := Vector2(150, 40)) -> Button:
-	var node := UiChrome.menu_button(text, minimum, 18) if primary else OriginalDialog.button(text)
+## A BUTTON WEARS ITS SURFACE (2026-09-17): parchment buttons on the paper
+## sections, the stone-grey window button everywhere else — the dark
+## sections and the stone frame. No caller chooses: [method panel] marks
+## the surface and [method dress] reads it when the button enters the
+## tree, so a button moved to another section changes with it. Any theme
+## override a caller sets before that keeps precedence.
+static func button(text: String, callback: Callable, minimum := Vector2(150, 40)) -> Button:
+	var node := Button.new()
+	node.text = text
 	node.custom_minimum_size = minimum
+	node.focus_mode = Control.FOCUS_ALL
 	node.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	node.add_theme_color_override("font_focus_color", UiChrome.INK)
 	node.pressed.connect(callback)
+	node.tree_entered.connect(dress.bind(node))
 	return node
+
+const BUTTON_BOXES := ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]
+const BUTTON_COLOURS := ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color",
+	"font_focus_color", "font_disabled_color", "font_shadow_color"]
+const BUTTON_CONSTANTS := ["shadow_offset_x", "shadow_offset_y", "shadow_outline_size", "outline_size"]
+
+## True on a paper section, false on a dark one, the stone frame or a window.
+static func on_paper(node: Node) -> bool:
+	var probe := node.get_parent()
+	while probe != null:
+		if probe.has_meta("sg_light"): return bool(probe.get_meta("sg_light"))
+		probe = probe.get_parent()
+	return false
+
+## Give [param button] the face of the surface it sits on. The two faces
+## are the shell's parchment button and the duel window's grey one, copied
+## from a fresh model so the three of them can never drift apart.
+static func dress(button: Button) -> void:
+	var sand := on_paper(button)
+	if button.has_meta("sg_sand") and button.get_meta("sg_sand") == sand: return
+	var model := UiChrome.menu_button("", button.custom_minimum_size, 18) if sand \
+		else OriginalDialog.button("", button.custom_minimum_size)
+	var previous: Array = button.get_meta("sg_dressed", [])
+	var dressed := []
+	for key in BUTTON_BOXES:
+		if button.has_theme_stylebox_override(key) and not previous.has("box:" + key): continue
+		if model.has_theme_stylebox_override(key):
+			button.add_theme_stylebox_override(key, model.get_theme_stylebox(key))
+			dressed.append("box:" + key)
+		else: button.remove_theme_stylebox_override(key)
+	for key in BUTTON_COLOURS:
+		if button.has_theme_color_override(key) and not previous.has("colour:" + key): continue
+		if model.has_theme_color_override(key):
+			button.add_theme_color_override(key, model.get_theme_color(key))
+			dressed.append("colour:" + key)
+		else: button.remove_theme_color_override(key)
+	for key in BUTTON_CONSTANTS:
+		if button.has_theme_constant_override(key) and not previous.has("constant:" + key): continue
+		if model.has_theme_constant_override(key):
+			button.add_theme_constant_override(key, model.get_theme_constant(key))
+			dressed.append("constant:" + key)
+		else: button.remove_theme_constant_override(key)
+	if not (button.has_theme_font_override("font") and not previous.has("font")):
+		if model.has_theme_font_override("font"):
+			button.add_theme_font_override("font", model.get_theme_font("font"))
+			dressed.append("font")
+		else: button.remove_theme_font_override("font")
+	if not (button.has_theme_font_size_override("font_size") and not previous.has("font_size")):
+		if model.has_theme_font_size_override("font_size"):
+			button.add_theme_font_size_override("font_size", model.get_theme_font_size("font_size"))
+			dressed.append("font_size")
+		else: button.remove_theme_font_size_override("font_size")
+	# The theme's pale focus text reads as disabled on either face.
+	if not button.has_theme_color_override("font_focus_color"):
+		button.add_theme_color_override("font_focus_color", UiChrome.INK)
+		dressed.append("colour:font_focus_color")
+	button.set_meta("sg_dressed", dressed)
+	button.set_meta("sg_sand", sand)
+	model.free()
 
 static func option(node: OptionButton) -> void:
 	var box := StyleBoxFlat.new()

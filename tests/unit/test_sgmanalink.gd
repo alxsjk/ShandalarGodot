@@ -25,7 +25,7 @@ func test_lan_discovery_rejects_spoofed_stale_or_oversized_listings() -> void:
 	scanner._nonce = "b".repeat(64)
 	var response := {"v": SgProtocol.VERSION, "type": "sg-lan-host", "nonce": scanner._nonce,
 		"host": {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox",
-			"fingerprint": "a".repeat(64), "rooms": 1}}
+			"fingerprint": "a".repeat(64), "rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}}
 	assert_true(scanner.accept_reply(response, "192.168.0.5", 100))
 	assert_false(scanner.accept_reply(response, "192.168.0.6", 100), "no redirected discovery targets")
 	response.nonce = "c".repeat(64)
@@ -117,13 +117,13 @@ func test_text_effect_protocol_rejects_malformed_or_unbounded_records() -> void:
 	oversized.fill(valid[0])
 	assert_false(SgViewProtocol.text_effects(oversized))
 	var old_hello := {"v": SgProtocol.VERSION - 1, "type": "hello", "access": "0".repeat(64),
-		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint()}
+		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}
 	assert_false(SgProtocol.valid(old_hello), "old clients cannot silently drop reminder fields")
 
 
 func test_temporary_names_are_bounded_display_text_not_credentials() -> void:
 	var hello := {"v": SgProtocol.VERSION, "type": "hello", "access": "0".repeat(64),
-		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint()}
+		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}
 	for value in ["", "Silver Fox", "Forest-7", "a".repeat(SgProtocol.NICKNAME_LIMIT)]:
 		hello.nickname = value
 		assert_true(SgProtocol.valid(hello), str(value))
@@ -134,6 +134,65 @@ func test_temporary_names_are_bounded_display_text_not_credentials() -> void:
 	hello.nickname = "Fox"
 	hello.erase("nickname")
 	assert_false(SgProtocol.valid(hello), "old handshake cannot silently omit the new field")
+
+
+func test_compatibility_stamp_is_bounded_and_names_the_first_difference() -> void:
+	var mine := SgCompatibility.stamp()
+	assert_true(SgCompatibility.valid_stamp(mine))
+	assert_eq(mine.game, ProjectSettings.get_setting("application/config/version", ""))
+	assert_eq(mine.rules, SgCompatibility.RULES_REVISION)
+	assert_eq(SgCompatibility.difference(mine, mine), "")
+	var hello := {"v": SgProtocol.VERSION, "type": "hello", "access": "0".repeat(64),
+		"resume": "", "nickname": "", "build": SgCompatibility.fingerprint(), "stamp": mine}
+	assert_true(SgProtocol.valid(hello))
+	hello.stamp = {"game": "0.32.0", "rules": "r", "packs": []}
+	assert_true(SgProtocol.valid(hello), "a minimal readable stamp")
+	for bad in [null, {}, "0.32.0", {"game": "0.32.0", "rules": "r", "packs": "pack-1"},
+		{"game": "0.32.0", "rules": "r", "packs": [], "extra": 1}, {"game": "", "rules": "r", "packs": []},
+		{"game": "0.32.0\n", "rules": "r", "packs": []}, {"game": "0.32.0", "rules": "r", "packs": [1]},
+		{"game": "0.32.0", "rules": "r", "packs": ["[b]x[/b]"]}, {"game": "0.32.0", "rules": "r", "packs": ["a".repeat(13)]}]:
+		var probe := hello.duplicate(true)
+		probe.stamp = bad
+		assert_false(SgProtocol.valid(probe), str(bad))
+	var oversized := mine.duplicate(true)
+	oversized.packs = []
+	for i in SgCompatibility.MAX_PACKS + 1: oversized.packs.append("pack-%d" % i)
+	assert_false(SgCompatibility.valid_stamp(oversized))
+	var older := {"game": "0.31.0", "rules": mine.rules, "packs": mine.packs.duplicate()}
+	var why := SgCompatibility.difference(mine, older, "This host")
+	assert_string_contains(why, "This host runs Shandalar 0.31.0")
+	assert_string_contains(why, "you run " + String(mine.game))
+	var more_packs := {"game": mine.game, "rules": mine.rules, "packs": mine.packs + ["pack-9"]}
+	assert_string_contains(SgCompatibility.difference(mine, more_packs), "The host has Pack 9 enabled; you do not")
+	var fewer := {"game": mine.game, "rules": mine.rules, "packs": ["pack-8"]}
+	var mine_with := {"game": mine.game, "rules": mine.rules, "packs": ["pack-7", "pack-8"]}
+	assert_string_contains(SgCompatibility.difference(mine_with, fewer), "You have Pack 7 enabled; the host does not")
+	var other_rules := {"game": mine.game, "rules": "sgmanalink-packs-2000-01-01-1", "packs": mine.packs.duplicate()}
+	assert_string_contains(SgCompatibility.difference(mine, other_rules), "different build")
+	assert_string_contains(SgCompatibility.difference(mine, {}), "unknown game build")
+	assert_string_contains(SgCompatibility.catalogue_mismatch(), "card catalogue differs")
+	assert_eq(SgCompatibility.pack_labels(["pack-1", "pack-3"]), "Packs 1, 3")
+	assert_eq(SgCompatibility.pack_labels([]), "no card packs")
+	var advert := {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox",
+		"fingerprint": "a".repeat(64), "rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": mine}
+	assert_true(SgLanDiscovery.valid_advert(advert))
+	advert.erase("stamp")
+	assert_false(SgLanDiscovery.valid_advert(advert), "an advert without the readable stamp is not this protocol")
+	advert.stamp = mine
+	advert.build = "zz"
+	assert_false(SgLanDiscovery.valid_advert(advert))
+	advert.build = SgCompatibility.fingerprint()
+	advert.stamp = oversized.duplicate(true)
+	advert.stamp.packs.resize(SgCompatibility.MAX_PACKS)
+	advert.tournament = "T".repeat(SgProtocol.NICKNAME_LIMIT)
+	var scanner := SgLanDiscovery.new()
+	scanner._nonce = "n".repeat(64)
+	scanner.scanning = true
+	var reply := JSON.stringify({"v": SgProtocol.VERSION, "type": "sg-lan-host", "nonce": scanner._nonce, "host": advert}).to_ascii_buffer()
+	assert_true(reply.size() <= SgLanDiscovery.MAX_PACKET, "the worst-case reply fits one discovery packet: %d" % reply.size())
+	# The reply nests root > host > stamp > packs: the discovery decoder must allow that depth.
+	assert_true(scanner.accept_reply(SgProtocol.decode_payload(reply, 4), "192.168.0.5", 0), "a full reply round-trips the discovery decoder")
+	scanner.free()
 
 
 func test_protocol_refuses_unknown_fields_methods_types_and_unbounded_payloads() -> void:

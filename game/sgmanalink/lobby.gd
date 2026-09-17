@@ -3,6 +3,8 @@ extends Control
 ## [QoL] Separate classic-styled identity, host, browser and waiting-room windows.
 ## Opening a menu starts no network operation. Only a saved display name persists.
 
+## The referee's fixed table rules (SgPracticeMatch); shown before and inside a room.
+const TABLE_RULES := "Full implemented card pool  ·  40–250 cards  ·  20 life\nMana burn on  ·  Free combat damage assignment  ·  Single duel"
 var client := SgLocalClient.new()
 var service: SgLocalServer
 var _port: SpinBox
@@ -31,6 +33,8 @@ var _pages: Dictionary = {}
 var _page := "home"
 var _remember: CheckBox
 var _identity_summary: Label
+var _build_facts: Label
+var _address_facts: Label
 var _identity_name := ""
 var _room_draft := "Friendly duel"
 var _redraw_queued := false
@@ -156,32 +160,42 @@ func _layout_window() -> void:
 		_deck_panel.position = (size - _deck_panel.size) * 0.5
 
 func _build_home(page: VBoxContainer) -> void:
+	# The Overview carries no buttons of its own (owner's word, 2026-09-17:
+	# the tabs above already are the map): what this computer offers, and a
+	# sentence for each page so a first visit knows where to click.
 	var welcome := SgLobbyStyle.column(page, "", false)
 	_introduction = SgLobbyStyle.label("Welcome to SGManalink", 28, true)
 	welcome.add_child(_introduction)
-	welcome.add_child(SgLobbyStyle.label("Friendly duels for Windows, Linux and macOS on the same local network.", 18, true))
+	welcome.add_child(SgLobbyStyle.label("Friendly Magic duels and tournaments on your local network. No account, no Internet.", 18, true))
+	# What the other computer must match; the game browser compares these.
+	var facts := SgLobbyStyle.label("THIS COMPUTER", 13, true)
+	facts.add_theme_color_override("font_color", SgLobbyStyle.GOLD)
+	welcome.add_child(facts)
+	_build_facts = SgLobbyStyle.label(SgCompatibility.summary(), 17, true)
+	_build_facts.add_theme_color_override("font_color", SgLobbyStyle.GOLD)
+	welcome.add_child(_build_facts)
+	_address_facts = SgLobbyStyle.label("", 16, true)
+	welcome.add_child(_address_facts)
 	_identity_summary = SgLobbyStyle.label("", 16, true)
-	_identity_summary.add_theme_color_override("font_color", SgLobbyStyle.GOLD)
 	welcome.add_child(_identity_summary)
-	var guide := SgLobbyStyle.column(page, "Getting started")
-	guide.add_child(_label("Use the same game build. Choose a name in Identity, or play as a guest.", 17))
-	var routes := SgLobbyStyle.row(guide)
-	routes.add_theme_constant_override("separation", 28)
-	for entry in [["You host", "Open Host Game, start a table and send your private invitation to your opponent."],
-		["You join", "Open Game Browser and paste the invitation. Connect, then join your friend's duel."]]:
-		var advice := VBoxContainer.new()
-		advice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		advice.add_theme_constant_override("separation", 6)
-		routes.add_child(advice)
-		var heading := _label(entry[0], 20)
-		heading.add_theme_color_override("font_color", UiChrome.ACCENT)
-		advice.add_child(heading)
-		advice.add_child(_label(entry[1], 17))
-	guide.add_child(_label("In the room, choose your decks and select Ready. Both players must be ready to begin.", 17))
-	var note := SgLobbyStyle.column(page, "", false)
-	note.add_child(SgLobbyStyle.label("Play with a host you trust. Their computer runs the referee and must stay open.", 15, true))
-	note.add_child(SgLobbyStyle.label("No account required. Temporary names are not reserved.\nLAN tournaments are in Tournament. Internet play and MElo are parked.", 15, true))
-	note.add_child(SgLobbyStyle.label("Host up to 20 tournament players. Follow the advancement diagram, live results and final standings in the Tournament Hall.", 15, true))
+	welcome.add_child(SgLobbyStyle.label("Both players need the same version and packs. Any desktop OS plays together; the web build cannot host or join.", 15, true))
+	var guide := SgLobbyStyle.column(page, "How it works")
+	var lines := GridContainer.new()
+	lines.columns = 2
+	lines.add_theme_constant_override("h_separation", 18)
+	lines.add_theme_constant_override("v_separation", 8)
+	guide.add_child(lines)
+	for entry in [["IDENTITY", "Pick a temporary name, or play as a guest. Names are unrated; the host adds a guest number when two match."],
+		["HOST", "Host Game opens a table on this computer. Send the private invitation and keep the game open: your computer runs the referee."],
+		["JOIN", "Game Browser lists the hosts on your network, or takes a friend's pasted invitation. Join only hosts you trust."],
+		["TOURNAMENT", "The Tournament hall runs a knockout for up to 20 players on one host, with brackets, live results and standings."]]:
+		var caption := _label(entry[0], 13)
+		caption.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		caption.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		caption.custom_minimum_size.x = 110
+		caption.add_theme_color_override("font_color", UiChrome.ACCENT)
+		lines.add_child(caption)
+		lines.add_child(_label(entry[1], 16))
 
 func _build_identity(page: VBoxContainer) -> void:
 	var body := SgLobbyStyle.column(page, "Your name at the table")
@@ -195,6 +209,7 @@ func _build_identity(page: VBoxContainer) -> void:
 	_nickname.text = SgIdentity.remembered_name()
 	_identity_name = _nickname.text
 	SgLobbyStyle.field(_nickname)
+	_nickname.text_submitted.connect(func(_value: String) -> void: _save_identity())
 	row.add_child(_nickname)
 	row.add_child(_button("Generate name", func() -> void: _nickname.text = SgIdentity.generate_name()))
 	_remember = CheckBox.new()
@@ -205,7 +220,7 @@ func _build_identity(page: VBoxContainer) -> void:
 	body.add_child(_remember)
 	body.add_child(_label("Up to 20 letters, numbers, spaces, - or _. No email or SSH key needed.", 15))
 	var actions := SgLobbyStyle.row(body)
-	actions.add_child(SgLobbyStyle.button("Use this identity", _save_identity, true))
+	actions.add_child(SgLobbyStyle.button("Use this identity", _save_identity))
 	actions.add_child(_button("Cancel", _show_page.bind("home")))
 	var note := SgLobbyStyle.column(page, "A friendly introduction", false)
 	note.add_child(SgLobbyStyle.label("This is a display name, not a verified account. The host adds a guest number so players with the same name can be distinguished.", 16, true))
@@ -219,6 +234,8 @@ func _build_host(page: VBoxContainer) -> void:
 	_room_name.text = _room_draft
 	_room_name.max_length = 32
 	_room_name.text_changed.connect(func(value: String) -> void: _room_draft = value)
+	_room_name.text_submitted.connect(func(_value: String) -> void:
+		if not _lan_start.disabled: _host_game())
 	SgLobbyStyle.field(_room_name)
 	body.add_child(_room_name)
 	_host_controls = VBoxContainer.new()
@@ -253,12 +270,13 @@ func _build_host(page: VBoxContainer) -> void:
 	_host_controls.add_child(_advertise)
 	_host_controls.add_child(_label("Switch off for invitation-only hosting. In either mode, send your private invitation to the player you want to join.", 15))
 	var actions := SgLobbyStyle.row(body)
-	_lan_start = SgLobbyStyle.button("Host on LAN", _host_game, true)
+	_lan_start = SgLobbyStyle.button("Host on LAN", _host_game)
 	_lan_start.name = "StartLan"
 	actions.add_child(_lan_start)
 	actions.add_child(_button("Back", _show_page.bind("home")))
 	var rules := SgLobbyStyle.column(page, "At this table", false)
-	rules.add_child(SgLobbyStyle.label("Full implemented card pool  •  20 life  •  Mana burn on\nBoth players choose a deck and confirm Ready before play begins.", 16, true))
+	rules.add_child(SgLobbyStyle.label(TABLE_RULES, 16, true))
+	rules.add_child(SgLobbyStyle.label("Both players choose a deck and confirm Ready before play begins. Your guest needs the same game version and enabled packs: " + SgCompatibility.summary() + ".", 15, true))
 	var advanced := SgLobbyStyle.column(page)
 	advanced.add_child(_button("Same-computer testing", func() -> void: _start.visible = not _start.visible))
 	_start = _button("Start local service", _start_service)
@@ -282,9 +300,11 @@ func _build_browser(page: VBoxContainer) -> void:
 	_code.max_length = SgLanInvite.MAX_LENGTH
 	_code.secret = true
 	_code.tooltip_text = "Private invitation. Never saved by the game."
+	_code.text_submitted.connect(func(_value: String) -> void:
+		if not _connect_button.disabled: _connect_local())
 	SgLobbyStyle.field(_code)
 	join_row.add_child(_code)
-	_connect_button = SgLobbyStyle.button("Connect", _connect_local, true, Vector2(130,40))
+	_connect_button = SgLobbyStyle.button("Connect", _connect_local, Vector2(130,40))
 	join_row.add_child(_connect_button)
 	var local_row := HBoxContainer.new()
 	local_row.hide()
@@ -303,7 +323,7 @@ func _build_browser(page: VBoxContainer) -> void:
 	# A private copy action, never a visible credential label.
 	_copy = SgLobbyStyle.button("Copy invitation", func() -> void:
 		DisplayServer.clipboard_set(_code.text)
-		_notice.text = "Invitation copied. Send it privately; clipboard history may retain it.", true)
+		_notice.text = "Invitation copied. Send it privately; clipboard history may retain it.")
 	_copy.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_connection_controls.add_child(_copy)
 
@@ -370,11 +390,23 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _button(text: String, callback: Callable, minimum := Vector2(180, 38)) -> Button:
-	return SgLobbyStyle.button(text, callback, false, minimum)
+	return SgLobbyStyle.button(text, callback, minimum)
 
 
 func _label(text: String, font_size := 16) -> Label:
 	return SgLobbyStyle.label(text, font_size)
+
+
+func _address_summary() -> String:
+	if service != null and not service.lan_address.is_empty():
+		return "Hosting at %s, port %d  ·  %s" % [service.lan_address, service.port,
+			"visible in the LAN game browser" if service.discovery != null and service.discovery.advertising else "invitation only"]
+	if OS.has_feature("web"):
+		return "The browser build cannot host or join. Use the desktop game for LAN play."
+	var addresses := SgLanInvite.local_addresses()
+	if addresses.is_empty():
+		return "No LAN IPv4 address. Connect this computer to your local network to host or join."
+	return "LAN address  ·  " + ", ".join(addresses)
 
 func _host_game() -> void:
 	if not SgProtocol.short_text(_room_draft.strip_edges()):
@@ -431,7 +463,7 @@ func _open_master() -> void:
 	column.add_theme_constant_override("separation", 14)
 	margin.add_child(column)
 	var toolbar := SgLobbyStyle.row(column)
-	toolbar.add_child(SgLobbyStyle.button("Back to duel" if is_instance_valid(_duel) else "Back to hall", _close_master, true))
+	toolbar.add_child(SgLobbyStyle.button("Back to duel" if is_instance_valid(_duel) else "Back to hall", _close_master))
 	if is_instance_valid(_duel):
 		toolbar.add_child(SgLobbyStyle.button("Duel controls", func() -> void:
 			_close_master()
@@ -613,6 +645,7 @@ func _refresh() -> void:
 	_status.text = client.status + ("  ·  " + client.guest if client.online else "")
 	_status.add_theme_color_override("font_color", SgLobbyStyle.PALE if client.online else SgLobbyStyle.MUTED)
 	_identity_summary.text = "Your name at the table  ·  " + (_identity_name if not _identity_name.is_empty() else "Guest")
+	if _page == "home": _address_facts.text = _address_summary()
 	var locked := client.online or client.has_session() or client.connecting() or service != null
 	_nickname.editable = not locked
 	_start.disabled = locked or OS.has_feature("web")
@@ -710,11 +743,11 @@ func _waiting_room(room: Dictionary) -> void:
 		column.add_child(state_label)
 		column.add_child(_label("Deck: " + String(room.deck_names[seat]), 17))
 	var rules := SgLobbyStyle.column(_body, "Duel rules")
-	rules.add_child(_label("Unrestricted  ·  40–250 cards  ·  20 life\nMana burn on  ·  Free combat damage assignment  ·  Single duel", 16))
+	rules.add_child(_label(TABLE_RULES, 16))
 	var actions := SgLobbyStyle.row(rules)
 	actions.add_child(_network_button("Choose / review deck", _open_decks))
 	actions.add_child(_network_button("Not ready" if room.ready[int(room.seat)] else "Ready", func() -> void:
-		_send({"op":"ready", "value":not room.ready[int(room.seat)]}), true))
+		_send({"op":"ready", "value":not room.ready[int(room.seat)]})))
 	actions.add_child(_network_button("Leave room", func() -> void: _send({"op":"leave"})))
 	if int(room.seat) == 0 and not room.connected[1] and room.names[1] != "Empty seat":
 		rules.add_child(_network_button("Remove disconnected guest", func() -> void: _send({"op":"remove_guest"})))
@@ -740,8 +773,8 @@ func _waiting_room(room: Dictionary) -> void:
 	if not client.online: note.add_child(_button("Reconnect", client.reconnect))
 
 
-func _network_button(text: String, callback: Callable, primary := false, available := true) -> Button:
-	var button := SgLobbyStyle.button(text, callback, primary)
+func _network_button(text: String, callback: Callable, available := true) -> Button:
+	var button := SgLobbyStyle.button(text, callback)
 	button.set_meta("network_action", true)
 	button.set_meta("available", available)
 	return button
@@ -814,7 +847,7 @@ func _open_decks() -> void:
 		if _send({"op":"deck", "name":deck.name, "cards":deck.cards, "sideboard":deck.sideboard}):
 			_deck_submission = deck
 			_deck_status.text = "Waiting for the host to confirm your deck…"
-			_deck_use.disabled = true, true)
+			_deck_use.disabled = true)
 	_deck_use.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_deck_use.disabled = true
 	column.add_child(_deck_use)
@@ -857,24 +890,32 @@ func _browser() -> void:
 		var nearby := SgLobbyStyle.column(_body, "Nearby hosts")
 		if not _selected_host.is_empty():
 			var selected := SgLobbyStyle.row(nearby)
-			selected.add_child(_label("Selected: %s\n%s:%d" % [_selected_host.name, _selected_host.address, int(_selected_host.port)], 16))
+			var mismatch := _advert_mismatch(_selected_host)
+			selected.add_child(_label("Selected: %s at %s:%d\n%s" % [_selected_host.name, _selected_host.address, int(_selected_host.port),
+				mismatch if not mismatch.is_empty() else "Paste this host's invitation above and connect."], 16))
 			selected.add_child(_button("Clear selection", func() -> void:
 				_selected_host = {}
 				_refresh(), Vector2(150,38)))
 		if _discovery == null or _discovery.hosts.is_empty():
 			nearby.add_child(_label("No hosts listed yet", 21))
 			nearby.add_child(_label("Start a LAN search, or paste an invitation above. Your friend must keep their host open on the same network.", 16))
-		else:
-			var keys := _discovery.hosts.keys()
-			keys.sort()
-			for key in keys:
-				var advert: Dictionary = _discovery.hosts[key].host
-				var row := SgLobbyStyle.row(nearby)
-				row.add_child(_label("%s\n%s:%d  ·  %d open room(s)" % [advert.name, advert.address, int(advert.port), int(advert.rooms)] \
-					+ ("\nTournament: " + String(advert.tournament) if advert.has("tournament") else ""), 16))
-				row.add_child(_button("Select", func() -> void:
-					_selected_host = advert.duplicate(true)
-					_refresh(), Vector2(120,38)))
+			return
+		var table := _table(nearby, ["NAME", "TYPE", "WHERE", "TABLES", "BUILD", ""])
+		var keys := _discovery.hosts.keys()
+		keys.sort()
+		for key in keys:
+			var advert: Dictionary = _discovery.hosts[key].host
+			var rooms := int(advert.rooms)
+			var brief := _advert_brief(advert)
+			_cell(table, String(advert.name), true)
+			_cell(table, "Tournament · " + String(advert.tournament) if advert.has("tournament") else "Duel")
+			_cell(table, "%s:%d" % [advert.address, int(advert.port)])
+			_cell(table, "1 open" if rooms == 1 else "%d open" % rooms)
+			var build := _cell(table, brief if not brief.is_empty() else "Same as yours")
+			build.add_theme_color_override("font_color", UiChrome.ACCENT if not brief.is_empty() else SgLobbyStyle.GOLD.darkened(0.45))
+			table.add_child(_button("Select", func() -> void:
+				_selected_host = advert.duplicate(true)
+				_refresh(), Vector2(100,34)))
 		return
 	if not client.state.get("tournament", {}).is_empty():
 		var event := SgLobbyStyle.column(_body, client.state.tournament.config.name)
@@ -885,11 +926,52 @@ func _browser() -> void:
 	if client.state.rooms.is_empty():
 		rooms.add_child(_label("No open tables yet", 21))
 		rooms.add_child(_label("Open Host Game to create a duel on this host.", 16))
+		return
+	var table := _table(rooms, ["NAME", "HOST", "SEAT", ""])
 	for room: Dictionary in client.state.rooms:
-		var line := SgLobbyStyle.row(rooms)
-		line.add_child(_label("%s\nHost: %s" % [room.name, room.host], 18))
-		line.add_child(_network_button("Join" if room.open else "In use", func() -> void:
-			_send({"op":"join", "room":room.id}), true, room.open))
+		_cell(table, String(room.name), true)
+		_cell(table, String(room.host))
+		_cell(table, "Open" if room.open else "Taken")
+		table.add_child(_network_button("Join" if room.open else "In use", func() -> void:
+			_send({"op":"join", "room":room.id}), room.open))
+
+
+## A table of discovered games: a caption row, then one row per game.
+## The first column takes the slack; a button column ends each row.
+func _table(parent: Node, captions: Array) -> GridContainer:
+	var table := GridContainer.new()
+	table.columns = captions.size()
+	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	table.add_theme_constant_override("h_separation", 18)
+	table.add_theme_constant_override("v_separation", 6)
+	parent.add_child(table)
+	for i in captions.size():
+		var caption := _cell(table, captions[i], i == 0, 13)
+		caption.add_theme_color_override("font_color", UiChrome.ACCENT)
+	return table
+
+
+func _cell(table: GridContainer, text: String, wide := false, font_size := 16) -> Label:
+	var cell := _label(text, font_size)
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL if wide else Control.SIZE_SHRINK_BEGIN
+	cell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	cell.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wide else TextServer.AUTOWRAP_OFF
+	table.add_child(cell)
+	return cell
+
+
+## An advert is untrusted; it only previews the hello check the host repeats.
+func _advert_mismatch(advert: Dictionary) -> String:
+	if String(advert.get("build", "")) == client.build_fingerprint: return ""
+	var why := SgCompatibility.difference(SgCompatibility.stamp(), advert.get("stamp", {}), "This host")
+	return why if not why.is_empty() else SgCompatibility.catalogue_mismatch("This host")
+
+
+func _advert_brief(advert: Dictionary) -> String:
+	if String(advert.get("build", "")) == client.build_fingerprint: return ""
+	var why := SgCompatibility.brief(SgCompatibility.stamp(), advert.get("stamp", {}))
+	return why if not why.is_empty() else "Modified files"
+
 
 func _send(action: Dictionary) -> bool:
 	_confirm_close = false

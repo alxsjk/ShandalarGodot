@@ -31,6 +31,7 @@ var _sent_at := 0
 var _address := "127.0.0.1"
 var _tls_options: TLSOptions
 var build_fingerprint := SgCompatibility.fingerprint()
+var build_stamp := SgCompatibility.stamp()
 var _closing: Array = []
 var _unavailable_since := 0
 
@@ -47,6 +48,7 @@ func connect_invitation(invitation: String, temporary_name := "") -> Error:
 		return ERR_INVALID_PARAMETER
 	forget()
 	build_fingerprint = SgCompatibility.fingerprint()
+	build_stamp = SgCompatibility.stamp()
 	CardPacks.lock_catalogue(self)
 	_address = data.address
 	_port = int(data.port)
@@ -64,6 +66,7 @@ func connect_local(local_port: int, code: String, temporary_name := "") -> Error
 		return ERR_INVALID_PARAMETER
 	forget()
 	build_fingerprint = SgCompatibility.fingerprint()
+	build_stamp = SgCompatibility.stamp()
 	CardPacks.lock_catalogue(self)
 	_port = local_port
 	_access = code
@@ -241,7 +244,8 @@ func poll() -> void:
 		return
 	if not _hello_sent:
 		_socket.send_text(JSON.stringify({"v": SgProtocol.VERSION,
-			"type": "hello", "access": _access, "resume": _resume, "nickname": _nickname, "build": build_fingerprint}))
+			"type": "hello", "access": _access, "resume": _resume, "nickname": _nickname, "build": build_fingerprint,
+			"stamp": build_stamp}))
 		_hello_sent = true
 	for i in 32:
 		if _socket.get_available_packet_count() == 0:

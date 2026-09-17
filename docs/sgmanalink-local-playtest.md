@@ -269,12 +269,15 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   dispatch. Duplicate/contradictory card locations, absent combat-card references
   and unknown keyword values are rejected before replacing the client view.
   Seat authorization comes from the connection, not a player
-  number submitted by the client. The data protocol is version 14 (all players
-  need this updated build, including viewer-specific exile-play permissions and
-  public hack-effect reminders);
+  number submitted by the client. The data protocol is version 16 (all players
+  need this updated build, including viewer-specific exile-play permissions,
+  public hack-effect reminders and live ability badges);
   the invitation keeps the `sglan1:` envelope prefix and carries the same
-  protocol-14 compatibility check inside it. A handshake fingerprint additionally
-  checks the release version, maintained rules revision and printed card catalogue.
+  protocol-16 compatibility check inside it. A handshake fingerprint additionally
+  checks the release version, maintained rules revision and printed card catalogue,
+  and a readable stamp `{game, rules, packs}` travels beside it in the hello and
+  in every LAN advert, so a refusal — and the game browser's BUILD column — can
+  say which of the three differs instead of "incompatible build".
   It detects incompatible builds, not modified-client cheating or player identity.
   Enable the same gameplay packs before connecting. Hosting, connecting and
   resumable sessions lock pack changes/rescans until Stop/Forget; ordinary Deck

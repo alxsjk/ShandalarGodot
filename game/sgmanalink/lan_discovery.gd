@@ -86,7 +86,7 @@ func query(destination := "255.255.255.255", discovery_port := PORT) -> void:
 
 
 static func valid_advert(data: Dictionary) -> bool:
-	var fields := ["address", "port", "name", "fingerprint", "rooms"]
+	var fields := ["address", "port", "name", "fingerprint", "rooms", "build", "stamp"]
 	if data.has("tournament"):
 		fields.append("tournament")
 		if not SgProtocol.short_text(data.tournament): return false
@@ -94,7 +94,8 @@ static func valid_advert(data: Dictionary) -> bool:
 		and SgLanInvite.address(data.get("address")) \
 		and SgProtocol.integer(data.get("port"), 1, 65535) \
 		and SgProtocol.short_text(data.get("name"), SgProtocol.NICKNAME_LIMIT) \
-		and SgProtocol.token(data.get("fingerprint")) and SgProtocol.integer(data.get("rooms"), 0, SgLocalServer.MAX_ROOMS)
+		and SgProtocol.token(data.get("fingerprint")) and SgProtocol.integer(data.get("rooms"), 0, SgLocalServer.MAX_ROOMS) \
+		and SgProtocol.token(data.get("build")) and SgCompatibility.valid_stamp(data.get("stamp"))
 
 
 func accept_reply(data: Dictionary, source: String, now: int) -> bool:
@@ -147,7 +148,8 @@ func _process(_delta: float) -> void:
 		var source_port := _socket.get_packet_port()
 		if bytes.size() > MAX_PACKET or not SgLanInvite.address(source):
 			continue
-		var data := SgProtocol.decode_payload(bytes, 3)
+		# Query: root. Reply: root > host > stamp > packs list (depth 4).
+		var data := SgProtocol.decode_payload(bytes, 4)
 		if scanning:
 			accept_reply(data, source, now)
 		elif advertising and _replies < 16 \

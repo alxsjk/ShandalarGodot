@@ -323,6 +323,12 @@ func act(pid: int, action: Dictionary) -> String:
 			first_player = pid if action.play else 1 - pid
 			order_chosen = true
 			return ""
+		# Refuse everything else BEFORE the implied order below. Every op is a
+		# legal wire command at any moment, and spending the toss winner's
+		# play/draw choice on one the referee then refuses left the opening
+		# offering neither the order nor a mulligan ever again.
+		if op not in ["keep", "mulligan"]:
+			return "Keep or redraw your opening hand."
 		# Older scripted fixtures may keep directly; live UI always offers the order.
 		if not order_chosen:
 			order_chosen = true
@@ -333,12 +339,10 @@ func act(pid: int, action: Dictionary) -> String:
 				_handles[pid].clear()
 				_ids[pid].clear()
 			return result
-		if op == "keep":
-			var result := game.decline_mulligan(pid)
-			if game.mulligan_kept[0] and game.mulligan_kept[1]:
-				game.start_duel(first_player)
-			return result
-		return "Keep or redraw your opening hand."
+		var kept := game.decline_mulligan(pid)
+		if game.mulligan_kept[0] and game.mulligan_kept[1]:
+			game.start_duel(first_player)
+		return kept
 	match op:
 		"mana":
 			var card := _card(pid, action.card)

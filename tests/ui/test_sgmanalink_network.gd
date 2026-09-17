@@ -289,10 +289,26 @@ func test_incompatible_build_fails_before_allocating_a_seat() -> void:
 	assert_eq(a.connect_local(server.port, server.access_code), OK)
 	a.build_fingerprint = "0".repeat(64)
 	await _until(func() -> bool: return not a._wanted)
-	assert_string_contains(a.status, "Incompatible")
+	assert_string_contains(a.status, "card catalogue differs", "equal stamps, different digest: modified files")
 	assert_false(a.online)
 	assert_true(server._sessions.is_empty())
 	assert_true(server._tokens.is_empty())
+	# The refusal names what differs, read from the guest's side.
+	assert_eq(b.connect_local(server.port, server.access_code), OK)
+	b.build_fingerprint = "0".repeat(64)
+	b.build_stamp = {"game": "0.31.0", "rules": SgCompatibility.RULES_REVISION, "packs": SgCompatibility.enabled_packs()}
+	await _until(func() -> bool: return not b._wanted)
+	assert_string_contains(b.status, "The host runs Shandalar %s; you run 0.31.0" % SgCompatibility.game_version())
+	assert_true(server._sessions.is_empty())
+	var c := SgLocalClient.new()
+	add_child_autofree(c)
+	assert_eq(c.connect_local(server.port, server.access_code), OK)
+	c.build_fingerprint = "0".repeat(64)
+	c.build_stamp = {"game": SgCompatibility.game_version(), "rules": SgCompatibility.RULES_REVISION,
+		"packs": SgCompatibility.enabled_packs() + ["pack-9"]}
+	await _until(func() -> bool: return not c._wanted)
+	assert_string_contains(c.status, "You have Pack 9 enabled; the host does not")
+	assert_true(server._sessions.is_empty())
 
 
 func test_reconnect_waits_for_fresh_snapshot_before_enabling_input() -> void:
@@ -597,7 +613,7 @@ func test_lan_discovery_real_udp_reply_has_no_credentials_and_stops() -> void:
 	add_child_autofree(advertiser)
 	add_child_autofree(scanner)
 	var advert := {"address": "127.0.0.1", "port": server.port, "name": "Forest Fox",
-		"fingerprint": "a".repeat(64), "rooms": 1}
+		"fingerprint": "a".repeat(64), "rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}
 	assert_eq(advertiser.advertise(advert, 0), OK)
 	assert_eq(scanner.scan(), OK)
 	scanner.query("127.0.0.1", advertiser._socket.get_local_port())

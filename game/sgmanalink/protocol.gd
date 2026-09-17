@@ -3,8 +3,8 @@ extends RefCounted
 ## [QoL] Unrated loopback/LAN protocol. Data only; no Variant object decoding or RPC.
 ## Version this independently from the application release and future rated protocol.
 
-const VERSION := 15
-const SUBPROTOCOL := "sgmanalink-local-v15"
+const VERSION := 16
+const SUBPROTOCOL := "sgmanalink-local-v16"
 const NICKNAME_LIMIT := 20
 const MAX_BYTES := 2097152
 const MAX_COMMAND_BYTES := 32768
@@ -117,9 +117,9 @@ static func valid(message: Dictionary) -> bool:
 	if not integer(message.get("v"), VERSION, VERSION):
 		return false
 	if message.get("type") == "hello":
-		return exact(message, ["v", "type", "access", "resume", "nickname", "build"]) \
+		return exact(message, ["v", "type", "access", "resume", "nickname", "build", "stamp"]) \
 			and token(message.access) and (message.resume == "" or token(message.resume)) \
-			and nickname(message.nickname) and token(message.build)
+			and nickname(message.nickname) and token(message.build) and SgCompatibility.valid_stamp(message.stamp)
 	if message.get("type") == "abandon": return exact(message, ["v", "type"])
 	if not exact(message, ["v", "type", "seq", "room", "revision", "action"]):
 		return false

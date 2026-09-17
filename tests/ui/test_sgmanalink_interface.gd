@@ -137,17 +137,18 @@ func test_windows_are_separate_fit_and_do_not_open_sockets() -> void:
 	assert_false(lobby._advertise.button_pressed, "private hosting is explicit")
 
 
-func test_overview_gives_guidance_without_repeating_navigation() -> void:
+func test_overview_states_the_facts_and_repeats_no_navigation() -> void:
 	var lobby := _lobby()
 	var home: Control = lobby._pages.home
 	assert_eq(home.find_children("*", "Button", true, false).size(), 0,
-		"Overview explains the visit; navigation belongs only in the top tabs")
-	assert_eq(lobby._navigation.size(), 5)
+		"the tabs above are the map; the Overview repeats none of them (owner's word, 2026-09-17)")
 	var explanation := ""
 	for label in home.find_children("*", "Label", true, false):
 		explanation += label.text + "\n"
-	for fact in ["same local network", "same game build", "private invitation", "Ready", "referee"]:
+	for fact in ["local network", SgCompatibility.summary(), "same version and packs", "IDENTITY", "HOST", "JOIN", "TOURNAMENT",
+		"invitation", "referee", "20 players", "LAN address" if not SgLanInvite.local_addresses().is_empty() else "No LAN IPv4 address"]:
 		assert_string_contains(explanation, fact)
+	assert_eq(lobby._navigation.size(), 5, "top tabs stay the full map")
 	for dimensions in [Vector2i(1280,800), Vector2i(960,600), Vector2i(640,480)]:
 		(lobby.get_parent() as SubViewport).size = dimensions
 		for i in 5: await get_tree().process_frame
@@ -155,9 +156,94 @@ func test_overview_gives_guidance_without_repeating_navigation() -> void:
 		assert_gte(window.position.x, 0.0)
 		assert_lte(window.end.x, float(dimensions.x))
 		assert_lte(window.end.y, float(dimensions.y))
-		for label in home.find_children("*", "Label", true, false):
-			assert_gte(label.get_global_rect().position.x, window.position.x)
-			assert_lte(label.get_global_rect().end.x, window.end.x)
+		for node in home.find_children("*", "Label", true, false):
+			assert_gte(node.get_global_rect().position.x, window.position.x)
+			assert_lte(node.get_global_rect().end.x, window.end.x)
 	assert_null(lobby.service)
 	assert_null(lobby._discovery)
+	assert_false(lobby.client._wanted)
+
+
+func test_buttons_wear_the_surface_they_sit_on() -> void:
+	var lobby := _lobby()
+	for i in 3: await get_tree().process_frame
+	var seen := {"paper": 0, "stone": 0}
+	for node in lobby.find_children("*", "Button", true, false):
+		if not node.has_meta("sg_sand"): continue
+		var sand: bool = node.get_meta("sg_sand")
+		assert_eq(sand, SgLobbyStyle.on_paper(node), node.text)
+		seen["paper" if sand else "stone"] += 1
+		assert_eq(node.get_theme_color("font_focus_color"), UiChrome.INK, node.text + ": focused text stays legible")
+		# The parchment face is the shell's shadowed lettering; the window face has none.
+		assert_eq(node.has_theme_color_override("font_shadow_color"), sand, node.text + " wears its surface's face")
+	assert_gt(seen.paper, 0, "the paper sections' buttons are parchment")
+	assert_gt(seen.stone, 0, "the frame's buttons are the window's grey")
+	assert_true(SgLobbyStyle.on_paper(lobby._lan_start))
+	assert_false(SgLobbyStyle.on_paper(lobby._close_button))
+	assert_false(SgLobbyStyle.on_paper(lobby._navigation["home"]))
+	# A caller's own override outranks the dress, and survives a re-dress.
+	var custom := SgLobbyStyle.button("Custom", func() -> void: pass)
+	custom.add_theme_font_size_override("font_size", 11)
+	lobby._pages.host.add_child(custom)
+	assert_eq(custom.get_theme_font_size("font_size"), 11)
+	assert_true(custom.has_theme_stylebox_override("normal"))
+	custom.get_parent().remove_child(custom)
+	lobby._window.add_child(custom)
+	assert_false(custom.get_meta("sg_sand"))
+	assert_eq(custom.get_theme_font_size("font_size"), 11)
+	custom.queue_free()
+
+
+func test_enter_submits_identity_room_name_and_invitation() -> void:
+	var lobby := _lobby()
+	lobby._show_page("identity")
+	lobby._nickname.text = "Forest Fox"
+	lobby._remember.button_pressed = false
+	lobby._nickname.text_submitted.emit(lobby._nickname.text)
+	assert_eq(lobby._page, "home", "Enter in the name field confirms the identity")
+	assert_eq(lobby._identity_name, "Forest Fox")
+	assert_false(Settings.has_value(SgIdentity.KEY), "not remembered unless asked")
+	lobby._show_page("host")
+	lobby._lan_start.disabled = true
+	lobby._room_name.text_submitted.emit("Friendly duel")
+	assert_null(lobby.service, "Enter never hosts while hosting is unavailable")
+	lobby._show_page("browser")
+	lobby._code.text = "not an invitation"
+	lobby._code.text_submitted.emit(lobby._code.text)
+	assert_false(lobby.client._wanted, "an invalid invitation opens no socket")
+	assert_string_contains(lobby._notice.text, "complete invitation")
+	assert_null(lobby._discovery)
+
+
+func test_browser_names_what_a_nearby_host_does_not_match() -> void:
+	var lobby := _lobby()
+	lobby._show_page("browser")
+	lobby._discovery = SgLanDiscovery.new()
+	lobby.add_child(lobby._discovery)
+	var same := {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox", "fingerprint": "a".repeat(64),
+		"rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}
+	var older := same.duplicate(true)
+	older.name = "Old Owl"
+	older.port = 17898
+	older.build = "0".repeat(64)
+	older.stamp.game = "0.31.0"
+	lobby._discovery.hosts["192.168.0.5:17897"] = {"host": same, "seen": Time.get_ticks_msec()}
+	lobby._discovery.hosts["192.168.0.5:17898"] = {"host": older, "seen": Time.get_ticks_msec()}
+	lobby._refresh()
+	var table: GridContainer = lobby._body.find_children("*", "GridContainer", true, false)[0]
+	assert_eq(table.columns, 6, "name, type, where, tables, build, select")
+	var rows := ""
+	for label in table.find_children("*", "Label", true, false): rows += label.text + "\n"
+	for cell in ["NAME", "TYPE", "WHERE", "TABLES", "BUILD", "Forest Fox", "Duel", "192.168.0.5:17897", "1 open", "Same as yours", "Old Owl", "Shandalar 0.31.0"]:
+		assert_string_contains(rows, cell)
+	var selects: Array = []
+	for node in table.find_children("*", "Button", true, false):
+		if node.text == "Select": selects.append(node)
+	assert_eq(selects.size(), 2)
+	selects[1].pressed.emit()
+	await get_tree().process_frame
+	assert_eq(lobby._selected_host.name, "Old Owl")
+	var explanation := ""
+	for label in lobby._body.find_children("*", "Label", true, false): explanation += label.text + "\n"
+	assert_string_contains(explanation, "This host runs Shandalar 0.31.0; you run " + SgCompatibility.game_version())
 	assert_false(lobby.client._wanted)

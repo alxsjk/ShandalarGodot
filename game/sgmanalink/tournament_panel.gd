@@ -91,8 +91,8 @@ func _clear() -> void:
 		child.queue_free()
 
 
-func _button(parent: Node, text: String, op: String, extra := {}, available := true, primary := false) -> Button:
-	var button := SgLobbyStyle.button(text, func() -> void: _send(op, extra), primary)
+func _button(parent: Node, text: String, op: String, extra := {}, available := true) -> Button:
+	var button := SgLobbyStyle.button(text, func() -> void: _send(op, extra))
 	button.set_meta("t_network", true)
 	button.set_meta("available", available)
 	parent.add_child(button)
@@ -183,7 +183,7 @@ func _build_setup() -> void:
 	storage.add_child(browse)
 	var reset := SgLobbyStyle.button("Default", func() -> void:
 		_folder_edit.text = GamePaths.DEFAULT_TOURNAMENTS
-		_apply_folder(), false, Vector2(100, 40))
+		_apply_folder(), Vector2(100, 40))
 	reset.set_meta("t_host", true)
 	storage.add_child(reset)
 	_folder_notice = SgLobbyStyle.label("Remembered on this device. Existing saves are not moved. Keep the folder private: checkpoints include decklists and recovery-code hashes.", 14)
@@ -200,7 +200,7 @@ func _build_setup() -> void:
 			_notice.text = "Use 1–32 letters, numbers, spaces, - or _ for the name. Choose valid decks and a welcome message of at most 280 characters."
 			return
 		if not _apply_folder(): return
-		host_requested.emit(options, ""), true)
+		host_requested.emit(options, ""))
 	create.name = "TournamentOpenRegistration"
 	create.set_meta("t_host", true)
 	settings.add_child(create)
@@ -390,8 +390,10 @@ func _build_hall() -> void:
 		warning.add_child(SgLobbyStyle.label(_view.save_error, 18))
 	var tabs := SgLobbyStyle.row(self)
 	for entry in [["overview", "Overview"], ["advancement", "Advancement"], ["standings", "Standings"], ["players", "Players"], ["entry", "My entry"]]:
-		var button := SgLobbyStyle.button(entry[1], func() -> void: _choose_section(entry[0]), _section == entry[0], Vector2(108, 36))
+		var button := SgLobbyStyle.button(entry[1], func() -> void: _choose_section(entry[0]), Vector2(108, 36))
 		button.name = "TournamentTab_" + entry[0]
+		button.toggle_mode = true
+		button.set_pressed_no_signal(_section == entry[0])
 		button.add_theme_font_size_override("font_size", 16)
 		tabs.add_child(button)
 	match _section:
@@ -494,7 +496,7 @@ func _master_controls(ready: int) -> void:
 	var controls := SgLobbyStyle.column(self, "Organiser controls")
 	if _view.phase == "registration":
 		controls.add_child(SgLobbyStyle.label("%d entrant(s) ready. Starting locks the roster and decks, then publishes the first random draw." % ready, 16))
-		_button(controls, "Start tournament", "t_start", {}, _view.entrants.size() >= 2 and ready == _view.entrants.size(), true)
+		_button(controls, "Start tournament", "t_start", {}, _view.entrants.size() >= 2 and ready == _view.entrants.size())
 		var remaining: int = int(_view.config.limit) - _view.entrants.size()
 		if remaining > 0:
 			var setup := SgBotSetup.new()
@@ -510,10 +512,10 @@ func _master_controls(ready: int) -> void:
 		for pair: Dictionary in _view.rounds.back():
 			if pair.status not in ["finished", "bye"]: finished = false
 		controls.add_child(SgLobbyStyle.label("Human players confirm each new game in the hall; bots ready automatically. Draw the next round when all pairings finish and players have returned.", 16))
-		_button(controls, "Draw next round", "t_next", {}, finished and _view.tables.is_empty(), true)
+		_button(controls, "Draw next round", "t_next", {}, finished and _view.tables.is_empty())
 	if not _view.tables.is_empty():
 		_confirm_button(controls, "Return finished tables to hall", "t_clear", {}, "Move players from finished games back to the hall?")
-	if not _view.save_error.is_empty(): _button(controls, "Retry save", "t_retry", {}, true, true)
+	if not _view.save_error.is_empty(): _button(controls, "Retry save", "t_retry")
 	if _view.phase in ["registration", "running"]:
 		_confirm_button(controls, "Cancel tournament", "t_cancel", {}, "Cancel this tournament and close all its tables?")
 	else:
@@ -542,7 +544,7 @@ func _player_controls() -> void:
 	var body := SgLobbyStyle.column(self, "Your entry")
 	if own.is_empty():
 		body.add_child(SgLobbyStyle.label("The organiser may enter the tournament or stay outside the draw.", 16))
-		if _view.phase == "registration": _button(body, "Join tournament", "t_join", {}, _view.entrants.size() < _view.config.limit, true)
+		if _view.phase == "registration": _button(body, "Join tournament", "t_join", {}, _view.entrants.size() < _view.config.limit)
 		var recovery := LineEdit.new()
 		recovery.name = "TournamentRecoveryCode"
 		recovery.placeholder_text = "Private recovery code for an existing entry"
@@ -570,11 +572,11 @@ func _player_controls() -> void:
 				action.op = "t_deck"
 				action.event = _view.id
 				action_requested.emit(action), "Register this deck")
-		_button(body, "Not ready" if own.ready else "Ready for tournament", "t_ready", {"value": not own.ready}, not _view.deck.is_empty(), true)
+		_button(body, "Not ready" if own.ready else "Ready for tournament", "t_ready", {"value": not own.ready}, not _view.deck.is_empty())
 	elif _view.phase == "running" and not own.withdrawn:
 		var pair := _current_pair()
 		if not pair.is_empty() and pair.status == "waiting":
-			_button(body, "Not ready" if own.ready else "Ready for next game", "t_ready", {"value": not own.ready}, true, true)
+			_button(body, "Not ready" if own.ready else "Ready for next game", "t_ready", {"value": not own.ready})
 		else: body.add_child(SgLobbyStyle.label("Follow your table in Overview, your path in Advancement and your results in Standings.", 16))
 	if not _view.deck.is_empty():
 		body.add_child(SgLobbyStyle.button("Hide registered deck" if _reviewing else "Review registered deck", func() -> void:
