@@ -647,6 +647,13 @@ func test_manalink_uses_the_main_menu_chrome_and_the_globe_does_not_take_input()
 	assert_eq(globe.mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	assert_eq(globe.focus_mode, Control.FOCUS_NONE)
 	assert_eq(online.focus_mode, Control.FOCUS_ALL, "the button is keyboard reachable")
+	# The mark is the owner's own picture (2026-09-17), shipped in game/art/
+	# and drawn with mipmaps of its own, so 256 px at 52 px does not shimmer.
+	var picture := ManalinkGlobe.picture()
+	assert_not_null(picture, "the picture ships inside the pack")
+	assert_eq(picture.get_size(), Vector2(256, 256))
+	assert_true(picture.get_image().has_mipmaps(), "the globe builds its own mipmaps")
+	assert_eq(globe.texture_filter, CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS)
 
 
 func test_manalink_and_download_progress_stay_clear_of_the_menu_when_resized() -> void:

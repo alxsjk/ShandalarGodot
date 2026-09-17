@@ -14252,6 +14252,39 @@ boot smoke clean.
   version and enabled packs: …"). The duel banner grew to 520 px so a
   two-line reconnect notice no longer wraps into the board.
 
+**The Manalink mark is the owner's picture (2026-09-17, later).** *"For
+the online use this icon instead."* The green retro globe drawn in code
+on 2026-09-13 gives way to the owner's own picture — a green wire globe
+and a starred violet sky sharing one disc under a rainbow rim — shipped
+as `game/art/manalink_globe.png`, 256 px, cropped from the 1254 px
+master and reduced with a Lanczos filter. `ManalinkGlobe` draws it
+square and centred, on the title button (52 px) and in the lobby
+heading (56 px); it builds the picture's mipmaps itself, once
+(`ManalinkGlobe.picture()`), because a 256 px file sampled plainly at
+52 is a shimmer of meridians and the import pipeline's
+`mipmaps/generate` lives in an ignored `.import` file, which is no place
+to keep a promise. The vector globe stays underneath as the fallback for
+a picture that fails to load, so the button is never blank. The picture
+is inventoried with its hash in `game/art/README.md` and registered in
+`Provenance.md` — the one file in that folder no generator draws, so
+`tools/draw_our_art.gd` never touches it; the master is not in the
+repository, because `branding/` ships in the pack. `test_our_art` 19/19,
+`test_title_screen` 29/29 (the Manalink test now holds the picture to
+256 px with mipmaps), `test_sgmanalink_interface` 8/8, boot clean.
+
+**Where the assertion count moves between two runs of the same code
+(2026-09-17).** Two full runs of one build, both to JUnit XML, differed
+by 265 assertions across 7,306 tests with the same test list and the
+same 7,306 passes: +220 and +45 in
+`test_sgmanalink_network.gd::test_two_network_clients_finish_a_duel_using_only_their_views`
+and `::test_varied_deck_rematches_with_latency_disconnects_and_duplicate_commands`
+— real ENet clients play a bot duel to its end with one assertion per
+turn, and how many turns that takes is the deck's shuffle and the
+clock's — plus ±1 in `test_booster_draft.gd` (a random pool's count of
+distinct names) and `test_portrait_library.gd` (an assertion behind a
+Settings check). So the README's total is a run's number, not the
+suite's; the test count and the pass count are the invariants.
+
 **Fixes from the hunt, each with a test that fails on the old code.**
 
 - *SGManalink (network core).* Rule 8 on the wire: under Melee the

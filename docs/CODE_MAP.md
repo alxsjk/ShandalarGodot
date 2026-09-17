@@ -5366,12 +5366,16 @@ shandalar/
 │   │                          restarting. Respects the global music switch;
 │   │                          _exit_tree and _open both stop it, so the next
 │   │                          screen starts against silence
-│   ├── manalink_globe.gd    class ManalinkGlobe — [QoL] original vector
-│   │                          drawing of a green retro-network globe, from
-│   │                          circles, ellipses and bowed parallels. The
-│   │                          owner's reference informs the design; no photo
-│   │                          pixels or external asset are shipped. Scales
-│   │                          with its control and passes input to its button.
+│   ├── manalink_globe.gd    class ManalinkGlobe — [QoL] the Manalink mark:
+│   │                          since 2026-09-17 the owner's own picture,
+│   │                          game/art/manalink_globe.png, drawn square and
+│   │                          centred with mipmaps the class builds itself
+│   │                          (picture(), once, static) so 256 px at 52 px
+│   │                          does not shimmer; underneath, the 2026-09-13
+│   │                          vector globe — circles, ellipses and bowed
+│   │                          parallels — as the fallback should the picture
+│   │                          fail to load. Scales with its control and
+│   │                          passes input to its button.
 │   ├── set_badges.gd        class SetBadges — THE CARD POOL, said in one
 │   │                          row, and since 2026-09-03 each badge is
 │   │                          CLICKABLE: `set_clicked` carries the code to
@@ -6050,10 +6054,12 @@ shandalar/
 │   │                          TEXTUAL, so the chapter still reads with every
 │   │                          pack disabled
 │   ├── art/                 WHAT THIS PROJECT SHIPS AS ITS OWN LOOK, and
-│   │                          the only art inside the .pck: seven PNGs
-│   │                          drawn by tools/draw_our_art.gd (six set
-│   │                          glyphs 48x48 and damage_marker 64x40, real
-│   │                          alpha, no mask half) reached through
+│   │                          the only art inside the .pck: the PNGs
+│   │                          drawn by tools/draw_our_art.gd (set glyphs
+│   │                          and filter medallions 48x48, damage_marker
+│   │                          64x40, real alpha, no mask half) plus
+│   │                          manalink_globe.png 256x256, the owner's own
+│   │                          picture (2026-09-17), all reached through
 │   │                          GameSkin.our_art, and fonts/ carrying
 │   │                          Spectral-Regular.ttf with its OFL.txt
 │   │                          beside it, reached through

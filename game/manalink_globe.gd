@@ -1,19 +1,32 @@
 class_name ManalinkGlobe
 extends Control
-## [QoL] A green retro-network globe for the future Manalink entry.
-## Original geometric drawing inspired by the owner's reference, 2026-09-13:
-## a green sphere with dark meridians and latitude lines. No photo pixels
-## or third-party artwork are bundled. Native vector drawing stays crisp
-## in every export and needs neither a skin pack nor a raster asset.
+## [QoL] The Manalink mark: the owner's own picture, 2026-09-17 — a green
+## wire globe and a starred violet sky sharing one disc, at
+## `game/art/manalink_globe.png` (inventoried with its hash in
+## `game/art/README.md`). It ships inside the pack like the rest of that
+## folder, so a player who has imported nothing still gets it.
+##
+## The 2026-09-13 drawing — a green sphere with dark meridians and latitude
+## lines, geometry only — stays underneath as the fallback for a build
+## whose picture failed to load, so the button is never blank.
 
+const PICTURE := "manalink_globe"
 const GREEN := Color8(139, 187, 98)
 const INK := Color8(29, 35, 27)
 const STEPS := 96
+
+## The picture with mipmaps of its own, built once. It is a 256 px file
+## drawn at 52–56 px: a plain linear sample of that is a shimmer of
+## meridians, and the import pipeline's `mipmaps/generate` lives in an
+## ignored `.import` file, which is no place to keep a promise.
+static var _picture: Texture2D = null
+static var _looked := false
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	focus_mode = Control.FOCUS_NONE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
 
 func _notification(what: int) -> void:
@@ -21,11 +34,34 @@ func _notification(what: int) -> void:
 		queue_redraw()
 
 
+static func picture() -> Texture2D:
+	if _looked:
+		return _picture
+	_looked = true
+	var shipped := GameSkin.our_art(PICTURE)
+	if shipped == null:
+		return null
+	var image := shipped.get_image()
+	if image == null:
+		_picture = shipped
+		return _picture
+	if image.is_compressed():
+		image.decompress()
+	image.generate_mipmaps()
+	_picture = ImageTexture.create_from_image(image)
+	return _picture
+
+
 func _draw() -> void:
-	var centre := size / 2.0
-	var radius := minf(size.x, size.y) * 0.46
-	if radius <= 0.0:
+	var side := minf(size.x, size.y)
+	if side <= 0.0:
 		return
+	var shipped := picture()
+	if shipped != null:
+		draw_texture_rect(shipped, Rect2((size - Vector2(side, side)) / 2.0, Vector2(side, side)), false)
+		return
+	var centre := size / 2.0
+	var radius := side * 0.46
 	var stroke := maxf(1.0, radius * 0.10)
 	draw_circle(centre, radius, GREEN, true, -1.0, true)
 	# Two ellipses give four meridians, all meeting at the poles.

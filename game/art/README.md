@@ -58,10 +58,12 @@ handful of polygons, arcs and capsules in unit coordinates — and run
 
     ../tools/godot --headless --path . -s res://tools/draw_our_art.gd
 
-which rewrites every PNG here — it never touches `fonts/`, whose one
-file is fetched, not drawn. The generator has no input but itself:
-run it on a machine with no 1997 game and no Manalink install and it
-produces exactly these bytes.
+which rewrites every PNG it draws — it never touches `fonts/`, whose one
+file is fetched, not drawn, and it never touches `manalink_globe.png`,
+which is the owner's own picture and not a drawing of the generator's
+(see its row below; to change it, supply a new picture and move the
+hash). The generator has no input but itself: run it on a machine with
+no 1997 game and no Manalink install and it produces exactly its bytes.
 
 ## The pictures
 
@@ -93,6 +95,17 @@ with the same gold card emblem and bevelled stone on/off tiles as the other pack
 | `filter_hml_on.png` | Homelands — globe on bright stone and gold ring, 48x48 | `tools/draw_our_art.gd` (`_globe`, `_stone_medallion`) | GPL-3.0 | `aa0b940ad78c4ea0eb674d4d6edce777a7d5002c4604c99f9455cfb35a14920e` |
 | `filter_hml_off.png` | Homelands — dim globe tile, 48x48 | `tools/draw_our_art.gd` (`_globe`, `_stone_medallion`) | GPL-3.0 | `91b3aa4ebefdbbbdc2dbb1050e50c0daeced7993e1802b54fb3eba647b1824b4` |
 | `damage_marker.png` | the dagger on a wounded creature, 64x40 | `tools/draw_our_art.gd` (`_dagger_blade`, `_dagger_hilt`) | GPL-3.0 | `771a24e7139e7df3757728350e0acf5e2fffb553e1a78bc48e1b04c20c52d489` |
+| `manalink_globe.png` | the Manalink button's mark — a green wire globe and a starred violet sky sharing one disc under a rainbow rim, 256x256 | the owner's own picture, supplied 2026-09-17; cropped to its outline and reduced to 256 px, NOT drawn by `tools/draw_our_art.gd` | GPL-3.0, with the rest of this project | `08ba71afe94739d45fe55210cac43442150a399b5d909a62bc6a1eadebbd765d` |
+
+`manalink_globe.png` is the one picture here that no code drew. It is
+the owner's own, handed over on 2026-09-17 as a 1254 px master with a
+transparent ground, cropped to its outline and reduced to 256 px with a
+Lanczos filter for the pack — the button draws it at 52 px and the lobby
+heading at 56, and `ManalinkGlobe` builds its own mipmaps for that
+(`game/manalink_globe.gd`), so the import settings of an ignored
+`.import` file are not what keeps it from shimmering. The master is not
+in the repository; `branding/` ships in the pack, and a 1.7 MB picture
+that nothing loads is 1.7 MB of pack for nothing.
 
 The eight set glyphs are the sets' own marks — an anvil, a scimitar, a
 comet, a crescent, a numeral, a column, a crown and a snow crystal. What is drawn here is this
