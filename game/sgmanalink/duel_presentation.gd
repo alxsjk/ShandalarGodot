@@ -4,9 +4,13 @@ extends RefCounted
 ## References are viewer-local capabilities, not engine ids. Even the host's
 ## UI consumes this filtered representation instead of its referee object.
 
-const FLAGS := ["cur_extra_blocks", "cur_cant_attack", "cur_attacks_as_if_hasty",
-	"cur_must_be_blocked", "must_attack_this_turn", "cur_indestructible", "cur_skips_untap",
-	"skip_next_untap", "skip_untaps"]
+const FLAGS := ["cur_extra_blocks", "extra_blocks_this_turn", "cur_cant_attack",
+	"cur_attacks_as_if_hasty", "cur_must_be_blocked", "must_attack_this_turn",
+	"cur_indestructible", "cur_skips_untap", "skip_next_untap", "skip_untaps"]
+## The rows of [constant FLAGS] that carry a COUNT rather than a yes/no.
+## `-1` is "any number" on either block permission — the static one and
+## Blaze of Glory's grant for the turn.
+const COUNTED_FLAGS := ["cur_extra_blocks", "extra_blocks_this_turn", "skip_untaps"]
 const RULES := ["mana_burn", "attackers_revocable", "tapped_artifacts_stop",
 	"life_checked_at_phase_end", "pool_empties_on_attack", "free_damage_assignment",
 	"damage_prevention_window"]
@@ -59,7 +63,7 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 		for card: CardInstance in visible:
 			var row := {"id": m._handle(pid, card), "flags": {}, "abilities": [], "castable": false}
 			for key in FLAGS:
-				row.flags[key] = (0 if key in ["cur_extra_blocks", "skip_untaps"] else false) if card.face_down and card.zone != Mtg.Zone.BATTLEFIELD else card.get(key)
+				row.flags[key] = (0 if key in COUNTED_FLAGS else false) if card.face_down and card.zone != Mtg.Zone.BATTLEFIELD else card.get(key)
 			if (card.zone == Mtg.Zone.HAND and card.owner_id == pid) or g.can_play_from_exile(pid, card):
 				row.castable = g.cast_timing_refusal(pid, card).is_empty() and SgPayment.affordable(g, pid, card, true)
 				if card.data.is_type(Mtg.CardType.INSTANT):

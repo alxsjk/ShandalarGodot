@@ -16,10 +16,15 @@ static func text(value: Variant, limit := 128) -> bool:
 
 
 static func valid(message: Dictionary) -> bool:
-	match message.get("type"):
+	# Every field below arrives from another computer with an unknown type,
+	# and GDScript raises on `5 == "welcome"` rather than answering false.
+	# Match on text only, and read each field through a typed check.
+	if not message.get("type") is String:
+		return false
+	match message.type:
 		"welcome":
 			return SgProtocol.exact(message, ["type", "v", "resume", "seq", "guest", "build"]) \
-				and message.v == SgProtocol.VERSION and SgProtocol.token(message.resume) \
+				and SgProtocol.integer(message.v, SgProtocol.VERSION, SgProtocol.VERSION) and SgProtocol.token(message.resume) \
 				and SgProtocol.integer(message.seq) and text(message.guest, 40) and SgProtocol.token(message.build)
 		"ack":
 			return SgProtocol.exact(message, ["type", "seq", "ok", "error"]) \
@@ -93,7 +98,8 @@ static func cards(value: Variant) -> bool:
 		return false
 	for card in value:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "cost", "land",
-			"power", "toughness", "tapped", "sick", "damage", "attacking", "blocking", "playable",
+			"power", "toughness", "print_power", "print_toughness", "tapped", "sick", "damage",
+			"attacking", "blocking", "playable",
 			"creature", "owner", "controller", "masked", "types", "colors", "keywords", "subtypes", "counters",
 			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "shield", "attached", "abilities", "actions", "exile_playable", "text_effects", "warded"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card_name(card.name) \
@@ -102,6 +108,7 @@ static func cards(value: Variant) -> bool:
 			or not text(card.blocking, 16) \
 			or (card.blocking != "" and not SgProtocol.short_text(card.blocking, 16)) \
 			or not text(card.chosen, 128) or not text(card.attached, 16) \
+			or (card.attached != "" and not SgProtocol.short_text(card.attached, 16)) \
 			or not SgProtocol.indices(card.keywords, 64) or not SgProtocol.names(card.subtypes, 64) \
 			or not SgProtocol.names(card.landwalk, 64) or not counters(card.counters) or not options(card.actions) \
 			or not text_effects(card.text_effects) or (card.masked and not card.text_effects.is_empty()) \
@@ -113,8 +120,11 @@ static func cards(value: Variant) -> bool:
 		# A masked face carries no ward: the board badges nothing on a
 		# face-down card, and the flag would name what the mask hides.
 		if card.masked and card.warded: return false
-		for key in ["power", "toughness", "damage", "rampage", "prevention", "regeneration"]:
-			if not SgProtocol.integer(card[key], -1000000 if key in ["power", "toughness"] else 0, 1000000):
+		# ...and no PRINTED pair, for the same reason: the print is the
+		# identity a face-down card exists to withhold.
+		if card.masked and (card.print_power != 0 or card.print_toughness != 0): return false
+		for key in ["power", "toughness", "print_power", "print_toughness", "damage", "rampage", "prevention", "regeneration"]:
+			if not SgProtocol.integer(card[key], -1000000 if key.ends_with("power") or key.ends_with("toughness") else 0, 1000000):
 				return false
 		for key in ["types", "colors", "protection"]:
 			if not SgProtocol.integer(card[key], 0, 65535): return false
@@ -131,7 +141,7 @@ static func text_effects(value: Variant) -> bool:
 	if not value is Array or value.size() > SgProtocol.MAX_CARDS:
 		return false
 	for effect in value:
-		if not effect is Dictionary or not effect.has("kind"):
+		if not effect is Dictionary or not effect.get("kind") is String:
 			return false
 		var circle: bool = effect.kind == "circle_color"
 		if not SgProtocol.exact(effect, ["kind", "to"] if circle else ["kind", "from", "to"]):
@@ -172,7 +182,8 @@ static func game(value: Variant) -> bool:
 	for i in 2:
 		var player: Variant = value.players[i]
 		if not player is Dictionary or not SgProtocol.exact(player, ["seat", "life", "hand_count",
-			"library_count", "mana", "kept", "battlefield", "graveyard", "deck_name", "mana_colors", "revealed", "top", "exile", "ante"]) or player.seat != i \
+			"library_count", "mana", "kept", "battlefield", "graveyard", "deck_name", "mana_colors", "revealed", "top", "exile", "ante"]) \
+			or not SgProtocol.integer(player.seat, i, i) \
 			or not SgProtocol.integer(player.life, -1000000, 1000000) or not player.kept is bool \
 			or not cards(player.battlefield) or not cards(player.graveyard) or not cards(player.revealed) \
 			or not cards(player.exile) or not cards(player.ante) or not text(player.top, 128) \
@@ -237,6 +248,10 @@ static func linked_cards(value: Dictionary) -> bool:
 		if not index.has(row.id): return false
 	for entry in index.values():
 		if entry.card.blocking != "" and not index.has(entry.card.blocking): return false
+		# An attachment is a link the board draws between two cards it holds:
+		# the aura gets no slot of its own and its HOST draws it again. A host
+		# this view never carried would take the aura off the board entirely.
+		if entry.card.attached != "" and not index.has(entry.card.attached): return false
 	for pair_value in value.presentation.blocks:
 		if not index.has(pair_value[0]) or (pair_value[1] != "" and not index.has(pair_value[1])): return false
 	for band in value.presentation.bands:
@@ -370,7 +385,7 @@ static func pairs(value: Variant, amounts := false, departed_target := false) ->
 		if not pair_value is Array or pair_value.size() != 2 or not SgProtocol.short_text(pair_value[0], 16): return false
 		if amounts:
 			if not SgProtocol.integer(pair_value[1], 0, 1000000): return false
-		elif not (departed_target and pair_value[1] == "") and not SgProtocol.short_text(pair_value[1], 16): return false
+		elif not (departed_target and SgProtocol.literal(pair_value[1], "")) and not SgProtocol.short_text(pair_value[1], 16): return false
 	return true
 
 
@@ -423,7 +438,7 @@ static func presentation(value: Variant) -> bool:
 			or not SgProtocol.short_text(card.id, 16) or not card.castable is bool or not card.flags is Dictionary \
 			or not SgProtocol.exact(card.flags, SgDuelPresentation.FLAGS) or not card.abilities is Array or card.abilities.size() > 64: return false
 		for key in SgDuelPresentation.FLAGS:
-			if key in ["cur_extra_blocks", "skip_untaps"]:
+			if key in SgDuelPresentation.COUNTED_FLAGS:
 				if not SgProtocol.integer(card.flags[key], -1, SgProtocol.MAX_CARDS): return false
 			elif not card.flags[key] is bool: return false
 		for ability in card.abilities:

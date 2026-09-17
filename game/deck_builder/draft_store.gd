@@ -33,6 +33,10 @@ func prepare(folder: String, pool: SealedPool, options: Dictionary) -> String:
 	receipt = {"schema": 1, "created": Time.get_datetime_string_from_system(true),
 		"version": ProjectSettings.get_setting("application/config/version", ""),
 		"collation": "printed-rarity-v1", "pack_shapes": {"booster": SealedPool.BOOSTER, "starter": SealedPool.STARTER},
+		# Which card packs this pool needs to be playable again. The recipe
+		# itself stays frozen at v1 and carries only card names; this receipt
+		# field is what tells an organiser which shelf to switch on.
+		"required_packs": CardPacks.packs_required_by(pool.names()),
 		"options": options.duplicate(), "counts": pool.counts.duplicate(),
 		"packs": pool.packs.duplicate(true), "state": "building"}
 	if not pool.draft_recipe.is_empty():

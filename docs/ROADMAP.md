@@ -14459,6 +14459,189 @@ screen's test still expected the Overview's former prose); **273 Python
 tests**; boot smoke clean; both soaks clean. Version stays 0.32.0 in
 `project.godot`; no release, no art.
 
+**The owner's eight, in five lanes (2026-09-17, afternoon).** *"Go
+systematically"* — the icon (above), a LAN backend pass, the recent work
+read at both seats of an online duel, a real two-process LAN game, the
+remote menus and the playing organiser's Master Panel, how a player waits
+between rounds, and the draft tool with its fingerprints over every card
+pack. Five hunters, each in its own worktree with the owner's art tree
+linked, each finding pinned red on the old code before its fix; the
+patches merged clean.
+
+- **Question 5 — can the tournament host who plays reach the Master
+  Panel? Yes.** While the organiser is at their own table the lobby's
+  navigation bar is hidden and the duel's top-left badge — it reads
+  **Tournament**, not Online — is the door; the panel opens over the duel
+  as an opaque overlay, the organiser's own table stands still under it
+  exactly as under any other duel window, and the referee, the listener
+  and every other table keep running. The pause/exit dialog offers the
+  same door. A guest's badge opens the same hall headed **Tournament
+  Hall** with no organiser control (the host refuses those ops from a
+  non-organiser session regardless). Pinned end to end through the lobby:
+  `test_a_playing_organiser_reaches_the_master_panel_from_their_own_duel`.
+- **Question 6 — does the Master Panel work?** Every control walked:
+  Start, Add computer players, Draw next round, Return finished tables,
+  Retry save, Cancel, Finish hosting, Withdraw an entrant / my entry,
+  Standings, Advancement, save and restore. Three faults. Every series
+  score in the hall read `0.0` / `1.0` on a real client — the wire
+  delivers JSON floats and the panel was the one reader without `int()`
+  (`test_series_scores_never_read_as_decimal_fractions_on_a_real_client`).
+  A control the host REFUSED printed its reason into the lobby notice
+  line, which the opaque overlay covers and a duel hides outright, so the
+  organiser clicked and nothing moved; the overlay has a notice line of
+  its own now
+  (`test_master_panel_prints_the_host_answer_to_a_refused_organiser_control`).
+  `Return finished tables to hall` was offered over live games it could
+  not touch. Two controls the owner named do not exist, by design: there
+  is no organiser pause/resume (the only pause is the automatic one when
+  a checkpoint cannot be written; a real one is a new wire op and the
+  owner's call), and no "declare winner" — the referee is the only
+  writer of a result.
+- **Question 7 — where does a player wait?** In the **Tournament Hall**:
+  the lobby's Tournament page, or the same panel expanded over the window.
+  A finished duel returns there; nobody sits on an empty screen. But the
+  hall said one sentence to everyone — "Follow your table in Overview…" —
+  to a bye, a winner, a loser, a survivor between rounds, and nothing at
+  all to a withdrawn entrant or the champion. `My entry` now names the
+  seat's own situation in sixteen states ("You have a bye in round 1.
+  There is no game to play; wait for the other tables." / "You won your
+  round 1 series. Waiting for the organiser to draw round 2." / "X won
+  your round 1 series. You are out of the tournament.") and updates as
+  the other tables finish, with no action by the waiting player and
+  across a reconnect
+  (`test_my_entry_says_what_each_waiting_player_is_waiting_for`,
+  `test_the_hall_tells_a_waiting_player_what_the_round_is_waiting_for`).
+  A round card waiting on one confirmation names the seat it waits for
+  and marks one that dropped. A paused event no longer tells guests to
+  press the organiser's Retry save.
+- **Question 8 — the draft tool, and the fingerprints over every pack.
+  Yes, they work with every pack**, because recipe v1 freezes the
+  eligible card NAMES rather than looking them up: all seven pack sets
+  (base 897 eligible names, each pack alone, all five together 1,608 —
+  590 rare / 511 uncommon / 502 common / 5 land, a 26 KB recipe) deal,
+  replay byte-for-byte and fingerprint distinctly, stable across the
+  order the packs were enabled and across a registry reload; the widest
+  pool (1,110 cards) is 2.5× inside `MAX_ELIGIBLE` and 10× inside the
+  recipe's JSON cap (`tests/ui/test_draft_pack_fingerprints_2026_09_17.gd`).
+  FEM, ICE, HML and ALL each printed their own rarity structure but all
+  four data files use only common/uncommon/rare, so all 711 implemented
+  pack identities sit on exactly one sheet — pinned, since a fifth rarity
+  word would have dropped them in silence. There are no computer
+  drafters: it is sealed-style, one seat, as the setup screen says. Four
+  faults around it: a pool checked on a machine with its pack switched
+  off was called CORRUPT ("Pool contains an unknown card or an invalid
+  quantity.", both `Check deck` and `Reconstruct deck`) — `DraftAudit`
+  now names the shelf, "This draft pool needs Pack 3: 4 of its card names
+  are not in play here. Enable it in Options > Card Packs and check
+  again.", and the saved `.pool.json` carries `required_packs` beside the
+  frozen recipe; toggling a pack under a dealt pool printed one
+  `CardRegistry: unknown card` per dealt card (`_sealed_library` and
+  `SealedPool.slot_of` used the loud fetch as an existence check); and a
+  draft sent to any folder but `user://decks` was saved, confirmed, and
+  invisible to `Load deck` and to Magic Battle — the setup screen says so
+  before the clock starts.
+- **The LAN backend pass (question 2).** Two Ready marks and a
+  reconnection never dealt the duel: the match was created only inside
+  the `ready` command and only while both seats were connected, so a
+  seat that readied and then dropped came back to a room marked
+  `[true, true]` with no game and a button reading "Not ready" at both
+  ends. `SgLocalServer._start_if_both_ready` is the whole condition now
+  and the reconnecting `hello` asks it too
+  (`tests/ui/test_sgmanalink_session_2026_09_17.gd`). The validators that
+  exist to refuse untrusted input RAISED on it instead: GDScript answers
+  `5 != "sg-lan-host"` with an "Invalid operands" runtime error, not
+  true, so a field of the wrong type aborted `SgProtocol.valid`,
+  `SgViewProtocol.game`, `SgLanDiscovery.accept_reply` and
+  `SgTournamentProtocol.checkpoint` mid-answer — still a refusal, but a
+  `SCRIPT ERROR:` line per malformed message, and one crafted UDP
+  broadcast to 17898 printed it on every advertising host on the network.
+  Every wire word goes through `SgProtocol.literal` and every wire number
+  through `SgProtocol.integer`
+  (`tests/unit/test_sgmanalink_dto_types_2026_09_17.gd`; 126 operator
+  errors on the old code; a leaf-by-leaf type sweep of a full view now
+  reports zero accepted mutations). A card's `attached` handle was
+  bounded only as free text, so a snapshot could name a host the view
+  never carried and take the aura off the board; it is a handle that must
+  appear in the same view, and the referee names a host only while that
+  seat can see it. `SgPracticeMatch._zones`, written and never read, is
+  gone; the "`_view_cache` outlives a `leave`" row above does not
+  reproduce and is pinned green.
+- **The recent work at both seats (question 3) — protocol 18.** A face
+  now carries its PRINTED power/toughness beside the live pair: a guest
+  reads a named card's print off its own registry, but a TOKEN has no
+  entry there, so every Thallid saproling and every Rukh Egg bird wore the
+  green "pumped" ink on both boards and enlarged as a subtypeless 0/0; a
+  masked face sends zeros and the validator refuses one that does not
+  (`test_a_tokens_printed_pair_and_subtype_reach_both_seats`).
+  `extra_blocks_this_turn` joins `SgDuelPresentation.FLAGS` (the counted
+  flags are one named list, `COUNTED_FLAGS`): Blaze of Glory's *"can
+  block any number of creatures this turn"* is that field beside the
+  static `cur_extra_blocks`, only the static half crossed, and the
+  guest's own blocking loop refused the second block before the referee
+  was asked
+  (`test_blaze_of_glory_lets_its_conscript_block_every_attacker_at_both_seats`).
+  The Manalink windows join the cancel ladder — bare `OriginalDialog`s
+  like `Give up this duel?`, so Escape already reached `_on_escape()` and
+  with no rung of their own peeled the DUEL underneath: attackers
+  un-declared, an open graveyard shut, the window still up
+  (`test_escape_over_a_manalink_window_closes_it_and_nothing_under_it`,
+  `test_an_attack_lineup_survives_escape_over_the_connection_window`).
+  And `_has_payment_mana` read the printed `cur_mana_abilities` — the
+  protocol-17 note above was wrong that the small-card lock was its only
+  reader — so a Titania's Song-silenced Sol Ring lit for payment while the
+  click did nothing; the online view asks the face's host-sent actions
+  (`test_a_silenced_mana_source_is_not_lit_for_payment_at_either_seat`).
+  Thirty-five more rows checked and holding, from the skip offer and
+  damage division to the prompt-list ruling and every sound cue. Seen,
+  not fixed: the watching seat sees no damage division in progress;
+  Fastbond's extra land plays do not cross (the Situation Bar drops
+  ", play land"; the hand's yellow name is the host's own); a face's
+  `cost` is dead weight on the wire. **Both players need this build.**
+- **A real two-process LAN game (question 4).** `tools/lan_smoke.sh`
+  plays a whole duel between two separate Godot processes on one computer
+  over the real encrypted path — each with its own data home, the host
+  bound to a private IPv4 address with its RSA-2048 key and self-signed
+  certificate, the guest joining from the `sglan1:` invitation with the
+  certificate pinned from it — through the advert, the game browser's
+  address/port/fingerprint check, both decks, the toss, a mulligan each, a
+  cable pull at turn 4 and a 41 ms resume to the same room, seat, turn,
+  step, life and hand, and the host closing the table ("Host unavailable.
+  Check that it is running; reconnecting..."). Seven clean runs on
+  2026-09-17 and one more on the merged tree: connect 19–34 ms, 205–271
+  actions a seat at a 16–25 ms median round trip, a duel in 8–14 s,
+  largest command 926 B against the 32 KiB limit, largest room snapshot
+  64 KiB against 2 MiB. It is a SCENE, not a `-s` script, because Godot
+  registers the autoloads after loading a `--script` main loop. One thing
+  no single computer can prove: this machine does not receive its own
+  LAN broadcast, so `Find LAN games` still needs the second computer —
+  the smoke says so and asks the host's address directly.
+  `tests/ui/test_sgmanalink_lan_pair_2026_09_17.gd` closes the hole the
+  run exposed: a started host's own advert had never been compared with
+  its own invitation, because both discovery tests hand-build an advert
+  from the same literals; `start_lan` takes an optional discovery port so
+  a test need not seize the system-wide UDP 17898.
+
+Seen, not fixed, across the lanes (the owner's calls): `_poll_bots` bumps
+the room revision on polls where the computer declines to act, so a human
+`concede` can bounce with "The room changed" while it thinks; an
+organiser who sends `abandon` erases its own session and nobody can then
+cancel or close the event; a failed save also blocks `t_cancel` and
+`t_close`; the hall's live table read-out is fresh only for the organiser
+(round progress reaches every hall; the life line under another pairing's
+card can be stale until that game ends — publishing every click to every
+hall is the bandwidth decision); `leave` blanks the departed host's deck
+title to the "Forest practice" default in the guest's room header;
+`deck_catalog.gd:24` trims `res://decks` so every player-saved deck
+advertises the literal `user://decks` as its lobby tooltip; three
+deck-size floors (20 / 40 / 40) for one drafted file; `setup_screen.gd`
+throws `# requires-pack:` away while the Deck Builder acts on it.
+
+Gate on the merged tree: **7,340/7,340 tests / 325,875 assertions / 467
+scripts**, strict exit **0** in **925.70 seconds**; **273 Python tests**;
+boot smoke clean; the two-process LAN smoke clean (seed 4250: turn 15,
+seat 0, 16 vs −11, 209 round trips at a 17 ms median). Version stays
+0.32.0 in `project.godot`; no release, no art.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

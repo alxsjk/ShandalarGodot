@@ -336,11 +336,16 @@ func _deck_browser(parent: Node, decks: Array, choose: Callable, caption: String
 			break
 
 
+func _entrant(pid: int) -> Dictionary:
+	for player: Dictionary in _view.entrants:
+		if int(player.id) == pid: return player
+	return {}
+
+
 func _name_of(pid: int) -> String:
 	if pid == 0: return "Bye"
-	for player: Dictionary in _view.entrants:
-		if player.id == pid: return player.name
-	return "Unavailable entrant"
+	var player := _entrant(pid)
+	return "Unavailable entrant" if player.is_empty() else String(player.name)
 
 
 func _own() -> Dictionary:
@@ -387,7 +392,12 @@ func _build_hall() -> void:
 		header.add_child(SgLobbyStyle.label("Champion · " + _name_of(int(_view.champion)) if _view.champion != 0 else "No champion — no entrants remain.", 26, true))
 	if not _view.save_error.is_empty():
 		var warning := SgLobbyStyle.column(self, "Tournament paused")
-		warning.add_child(SgLobbyStyle.label(_view.save_error, 18))
+		# The stored reason is the organiser's own instruction. A guest has no
+		# Master Panel to retry from, so tell them what to expect instead.
+		var pause := SgLobbyStyle.label(_view.save_error if _view.organiser else
+			"The host could not save progress. Play resumes when the organiser retries the save. Scores already recorded are kept.", 18)
+		pause.name = "TournamentPauseNotice"
+		warning.add_child(pause)
 	var tabs := SgLobbyStyle.row(self)
 	for entry in [["overview", "Overview"], ["advancement", "Advancement"], ["standings", "Standings"], ["players", "Players"], ["entry", "My entry"]]:
 		var button := SgLobbyStyle.button(entry[1], func() -> void: _choose_section(entry[0]), Vector2(108, 36))
@@ -513,7 +523,13 @@ func _master_controls(ready: int) -> void:
 			if pair.status not in ["finished", "bye"]: finished = false
 		controls.add_child(SgLobbyStyle.label("Human players confirm each new game in the hall; bots ready automatically. Draw the next round when all pairings finish and players have returned.", 16))
 		_button(controls, "Draw next round", "t_next", {}, finished and _view.tables.is_empty())
-	if not _view.tables.is_empty():
+	# Only a table whose pairing has stopped playing still holds a player on a
+	# result screen. Offering the control over live games did nothing.
+	var finished_tables := false
+	for table: Dictionary in _view.tables:
+		for pair: Dictionary in _view.rounds.back():
+			if int(pair.id) == int(table.pair) and pair.status != "playing": finished_tables = true
+	if finished_tables:
 		_confirm_button(controls, "Return finished tables to hall", "t_clear", {}, "Move players from finished games back to the hall?")
 	if not _view.save_error.is_empty(): _button(controls, "Retry save", "t_retry")
 	if _view.phase in ["registration", "running"]:
@@ -560,6 +576,9 @@ func _player_controls() -> void:
 		body.add_child(recover)
 		return
 	body.add_child(SgLobbyStyle.label("%s\nDeck: %s" % [own.name, own.deck_name], 19))
+	var standing := SgLobbyStyle.label(_entry_status(own), 17)
+	standing.name = "TournamentEntryStatus"
+	body.add_child(standing)
 	if not _view.code.is_empty():
 		body.add_child(SgLobbyStyle.button("Copy private recovery code", func() -> void:
 			DisplayServer.clipboard_set(_view.code)))
@@ -577,7 +596,8 @@ func _player_controls() -> void:
 		var pair := _current_pair()
 		if not pair.is_empty() and pair.status == "waiting":
 			_button(body, "Not ready" if own.ready else "Ready for next game", "t_ready", {"value": not own.ready})
-		else: body.add_child(SgLobbyStyle.label("Follow your table in Overview, your path in Advancement and your results in Standings.", 16))
+	if _view.phase in ["running", "complete", "cancelled"]:
+		body.add_child(SgLobbyStyle.label("Round results are in Overview, your path in Advancement, every score in Standings.", 15, true))
 	if not _view.deck.is_empty():
 		body.add_child(SgLobbyStyle.button("Hide registered deck" if _reviewing else "Review registered deck", func() -> void:
 			_reviewing = not _reviewing
@@ -591,6 +611,41 @@ func _player_controls() -> void:
 			body.add_child(details)
 	if SgTournamentResults.active(_view, int(own.id)):
 		_confirm_button(body, "Withdraw my entry", "t_withdraw", {}, "Withdraw from the tournament? An unfinished pairing is forfeited.")
+
+
+## One plain line for the player's own seat: what just happened to it, and
+## what the hall is waiting for now. Every wait in the event says something;
+## a bye, an elimination and the gap between rounds used to read the same.
+func _entry_status(own: Dictionary) -> String:
+	if _view.phase == "cancelled": return "The organiser cancelled the tournament. No further games are played."
+	if _view.phase == "complete":
+		if int(_view.champion) == int(own.id): return "You won the tournament."
+		return "The tournament is over. The full result is in Standings."
+	if _view.phase == "registration":
+		if _view.deck.is_empty(): return "Choose your deck below, then select Ready for tournament."
+		if not own.ready: return "Select Ready for tournament once your deck is the one you want."
+		return "You are ready. Waiting for the organiser to start the tournament."
+	var round_number: int = _view.rounds.size()
+	if own.withdrawn: return "You withdrew. Your seat is closed; the hall stays open to follow the rest."
+	var pair := _current_pair()
+	if pair.is_empty(): return "You were knocked out. The hall stays open — the rest of the event is in Standings."
+	var table := SgTournament.table_number(int(pair.id))
+	if pair.status == "bye":
+		return "You have a bye in round %d. There is no game to play; wait for the other tables." % round_number
+	var opponent := _entrant(int(pair.players[1 if int(pair.players[0]) == int(own.id) else 0]))
+	var opponent_name := "Unavailable entrant" if opponent.is_empty() else String(opponent.name)
+	if pair.status == "playing": return "Your game against %s is running at table %d." % [opponent_name, table]
+	if pair.status == "waiting":
+		if not own.ready: return "Round %d, table %d against %s. Select Ready for next game." % [round_number, table, opponent_name]
+		if not opponent.get("connected", true): return "You are ready. Waiting for %s to reconnect." % opponent_name
+		if not opponent.get("ready", false): return "You are ready. Waiting for %s to confirm." % opponent_name
+		return "Both players are ready. Your table is opening."
+	if int(pair.winner) != int(own.id):
+		return "%s won your round %d series. You are out of the tournament." % [opponent_name, round_number]
+	for other: Dictionary in _view.rounds.back():
+		if other.status not in ["finished", "bye"]:
+			return "You won your round %d series. Waiting for the other tables to finish." % round_number
+	return "You won your round %d series. Waiting for the organiser to draw round %d." % [round_number, round_number + 1]
 
 
 func _build_roster() -> void:
@@ -610,6 +665,18 @@ func _build_roster() -> void:
 		row.add_child(label)
 		if _view.organiser and SgTournamentResults.active(_view, int(player.id)):
 			_confirm_button(row, "Withdraw", "t_remove", {"player": player.id}, "Withdraw %s?" % player.name)
+
+
+## A pairing that is waiting names the players it is waiting for. "Waiting for
+## both players" read as a stale line to anyone who had already confirmed.
+func _waiting_summary(pair: Dictionary) -> String:
+	var pending := PackedStringArray()
+	for seat in 2:
+		var player := _entrant(int(pair.players[seat]))
+		if player.is_empty() or player.get("ready", false): continue
+		pending.append(String(player.name) + ("" if player.get("connected", true) else " · disconnected"))
+	if pending.is_empty(): return "Both players ready · the table is opening"
+	return "Waiting for " + " and ".join(pending)
 
 
 func _build_rounds() -> void:
@@ -642,7 +709,9 @@ func _build_rounds() -> void:
 				if pair.players[seat] == 0: continue
 				var line := SgLobbyStyle.row(card)
 				line.add_child(SgLobbyStyle.label(_name_of(int(pair.players[seat])), 18))
-				var score := SgLobbyStyle.label(str(pair.wins[seat]), 28)
+				# Wire numbers arrive as floats; a series score is a whole
+				# number of games, never "1.0" over a player's name.
+				var score := SgLobbyStyle.label(str(int(pair.wins[seat])), 28)
 				score.autowrap_mode = TextServer.AUTOWRAP_OFF
 				score.custom_minimum_size.x = 32
 				score.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -650,7 +719,7 @@ func _build_rounds() -> void:
 				score.size_flags_horizontal = Control.SIZE_SHRINK_END
 				score.add_theme_color_override("font_color", Color8(46, 99, 53) if pair.winner == pair.players[seat] else UiChrome.INK)
 				line.add_child(score)
-			var summary := "Waiting for both players to be ready" if pair.status == "waiting" else "Game %d in progress" % int(pair.game)
+			var summary := _waiting_summary(pair) if pair.status == "waiting" else "Game %d in progress" % int(pair.game)
 			if pair.status == "bye": summary = "Bye · advances without playing"
 			elif pair.status == "finished": summary = "%s · %s" % [pair.reason, _name_of(int(pair.winner)) if pair.winner != 0 else "No advancing player"]
 			elif _view.phase == "cancelled": summary = "Cancelled · no further games"

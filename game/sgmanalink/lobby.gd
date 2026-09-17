@@ -62,6 +62,7 @@ var _tournament_pending: Dictionary = {}
 var _tournament_id := ""
 var _master_overlay: Control
 var _master_panel: SgTournamentPanel
+var _master_notice: Label
 var _expand_tournament: Button
 var _bot_draft: Dictionary = {}
 
@@ -74,6 +75,7 @@ func _ready() -> void:
 	client.refused.connect(func(reason: String) -> void:
 		_host_pending = false
 		_notice.text = reason
+		_report_to_master(reason)
 		if is_instance_valid(_duel): _duel.show_notice(reason))
 	_shell = Control.new()
 	add_child(_shell)
@@ -441,6 +443,7 @@ func _close_master() -> void:
 		_master_overlay.queue_free()
 	_master_overlay = null
 	_master_panel = null
+	_master_notice = null
 	if is_instance_valid(_duel):
 		_duel._tournament_panel_open = false
 		_duel.focus_action()
@@ -469,6 +472,12 @@ func _open_master() -> void:
 			_close_master()
 			if is_instance_valid(_duel): _duel._show_connection()))
 	toolbar.add_child(SgLobbyStyle.button("Reconnect", client.reconnect))
+	# The overlay is opaque and, in a duel, the lobby shell is hidden as well:
+	# a refused organiser control had nowhere left to print its reason.
+	_master_notice = SgLobbyStyle.label("", 15, true)
+	_master_notice.name = "MasterPanelNotice"
+	_master_notice.custom_minimum_size.y = 20
+	column.add_child(_master_notice)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -976,10 +985,18 @@ func _advert_brief(advert: Dictionary) -> String:
 func _send(action: Dictionary) -> bool:
 	_confirm_close = false
 	_notice.text = ""
+	_report_to_master("")
 	if not client.command(action):
 		var reason := client.command_error
 		_notice.text = reason
+		_report_to_master(reason)
 		if is_instance_valid(_duel):
 			_duel.show_notice(reason)
 		return false
 	return true
+
+
+## The host's answer to an organiser control, inside the expanded panel that
+## covers every other notice line.
+func _report_to_master(reason: String) -> void:
+	if is_instance_valid(_master_notice): _master_notice.text = reason

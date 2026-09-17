@@ -28,6 +28,7 @@ static func rows(value: Variant, ids: Array, target: int, withdrawn: Array = [])
 		for i in row.size():
 			var pair: Variant = row[i]
 			if not pair is Dictionary or not SgProtocol.exact(pair, ["id", "players", "wins", "draws", "game", "status", "winner", "reason"]) \
+				or not SgProtocol.integer(pair.id, 1, SgTournament.MAX_PAIR_ID) \
 				or pair.id != r * SgTournament.MAX_PLAYERS + i + 1 \
 				or not scores(pair.players, 1000000) or pair.players[0] == 0 or pair.players[0] == pair.players[1] \
 				or not scores(pair.wins, target) or not SgProtocol.integer(pair.draws, 0, SgTournament.MAX_GAMES) \
@@ -66,8 +67,11 @@ static func rows(value: Variant, ids: Array, target: int, withdrawn: Array = [])
 
 
 static func checkpoint(value: Variant) -> bool:
+	# A checkpoint is a file on disk: type-check every field before comparing
+	# it, or a corrupted one raises where it should simply be refused.
 	if not value is Dictionary or not SgProtocol.exact(value, ["schema", "build", "id", "config", "entrants", "rounds", "phase", "revision", "champion", "next_entrant"]) \
-		or value.schema != 1 or value.build != SgCompatibility.fingerprint() or not SgProtocol.token(value.id) \
+		or not SgProtocol.integer(value.schema, 1, 1) or not SgProtocol.token(value.build) \
+		or value.build != SgCompatibility.fingerprint() or not SgProtocol.token(value.id) \
 		or not SgTournament.valid_config(value.config) or not SgProtocol.integer(value.revision, 1) \
 		or not SgProtocol.integer(value.next_entrant, 1) or not roster(value.entrants, true): return false
 	var ids: Array = []

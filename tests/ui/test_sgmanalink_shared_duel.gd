@@ -694,3 +694,137 @@ func test_locks_compulsions_and_wards_mark_the_same_at_both_seats() -> void:
 		assert_true(marks[local_warded].warded_from_artifacts(), "seat %d badges protection from artifacts" % seat)
 		assert_true(local_warded.memory.is_empty(), "no private host memory crosses the wire")
 		assert_true(_local(screen, conscript).cur_damage_immunity.is_empty(), "seat %d wards only the warded" % seat)
+
+
+func test_a_tokens_printed_pair_and_subtype_reach_both_seats() -> void:
+	# The P/T ink and the enlarged card ask the DEFINITION, not the live
+	# values (MiniCard.pt_color, CardPreview._power_toughness). A guest
+	# reads a named card's print off its own registry — but a TOKEN (a
+	# Thallid's saproling, a Rukh Egg's bird) has no entry there, so until
+	# protocol 18 every token on either board wore the green "pumped" ink
+	# and enlarged as a subtypeless 0/0.
+	advance_to_step(Mtg.Step.MAIN1)
+	var plain: CardInstance = g.create_token(0,
+		CardData.new("Saproling", "", Mtg.CardType.CREATURE).pt(1, 1).with_subtypes(["saproling"]))[0]
+	var grown: CardInstance = g.create_token(0,
+		CardData.new("Saproling", "", Mtg.CardType.CREATURE).pt(1, 1).with_subtypes(["saproling"]))[0]
+	g.add_counters(grown, "+1/+1")
+	g.recalculate()
+	assert_eq(grown.cur_power, 2)
+	for seat in 2:
+		var screen := _screen(seat)
+		await _pump()
+		var marks := {}
+		for card in screen.find_children("*", "MiniCard", true, false):
+			if card.instance != null: marks[card.instance] = card
+		var local := _local(screen, plain)
+		assert_eq(local.data.power, 1, "seat %d keeps the token's printed power" % seat)
+		assert_eq(local.data.toughness, 1, "seat %d keeps the token's printed toughness" % seat)
+		assert_eq(marks[local].pt_color(), Color.WHITE,
+			"seat %d inks an unmodified token white" % seat)
+		assert_ne(marks[_local(screen, grown)].pt_color(), Color.WHITE,
+			"seat %d still inks a grown token as pumped" % seat)
+		screen._card_preview.show_card(local)
+		assert_eq(screen._card_preview._pt_label.text, "1/1",
+			"seat %d enlarges the printed pair" % seat)
+		assert_string_contains(screen._card_preview._type_label.text, "Saproling")
+
+
+func test_blaze_of_glory_lets_its_conscript_block_every_attacker_at_both_seats() -> void:
+	# *"Target creature defending player controls can block any number of
+	# creatures this turn"* is CardInstance.extra_blocks_this_turn = -1,
+	# which MtgGame.blocks_allowed reads beside the static permission and
+	# the screen subtracts from on every blocking click. Only the static
+	# half crossed, so the guest's own UI refused the second block with
+	# "Wall of Stone can block only 1 attacker(s)" before the referee ever
+	# saw it.
+	advance_to_step(Mtg.Step.MAIN1)
+	var bears := put_battlefield(0, "Grizzly Bears")
+	var giant := put_battlefield(0, "Hill Giant")
+	var wall := put_battlefield(1, "Wall of Stone")
+	var blaze := give_hand(1, "Blaze of Glory")
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_ok(g.declare_attackers(0, [bears.id, giant.id]))
+	add_mana(1, Mtg.ManaColor.W)
+	assert_ok(g.pass_priority(0))
+	assert_ok(g.cast_spell(1, blaze, [TargetRef.card(wall)]))
+	resolve_stack()
+	assert_eq(g.blocks_allowed(wall), -1, "the print says any number")
+	advance_to_step(Mtg.Step.DECLARE_BLOCKERS)
+	for seat in 2:
+		var screen := _screen(seat)
+		await _pump()
+		var local_wall := _local(screen, wall)
+		assert_eq(screen.game.blocks_allowed(local_wall), -1,
+			"seat %d sees the permission" % seat)
+		if seat != 1: continue
+		# ...and the seat the engine is asking pencils both blocks in.
+		assert_eq(screen.mode, DuelScreen.Mode.BLOCKERS)
+		screen._on_card_clicked(local_wall)
+		screen._on_card_clicked(_local(screen, bears))
+		screen._on_card_clicked(_local(screen, giant))
+		assert_eq((screen._block_map.get(local_wall.id, []) as Array).size(), 2,
+			"the conscript is pencilled in against both attackers")
+
+
+func test_escape_over_a_manalink_window_closes_it_and_nothing_under_it() -> void:
+	# The Manalink windows are bare OriginalDialogs exactly as `Give up
+	# this duel?` and `Duel Options...` are, so `_dialogs_open()` routes
+	# Escape into the cancel ladder. With no rung of their own the press
+	# peeled a layer of the DUEL underneath: the graveyard a player had
+	# open shut itself while the window they were reading stayed up.
+	advance_to_step(Mtg.Step.MAIN1)
+	g.destroy(put_battlefield(0, "Grizzly Bears"))
+	g.destroy(put_battlefield(1, "Craw Wurm"))
+	for seat in 2:
+		var screen := _screen(seat)
+		await _pump()
+		screen._open_graveyard(0)
+		await _pump()
+		screen._show_connection()
+		await _pump()
+		assert_true(screen._dialogs_open(), "seat %d opened a bare dialog" % seat)
+		screen._on_escape()
+		await _pump()
+		assert_false(is_instance_valid(screen._network_dialog),
+			"seat %d closes the window it was reading" % seat)
+		assert_true(screen.graveyard_is_open(),
+			"seat %d keeps the pile it had open" % seat)
+		screen._close_graveyard()
+
+
+func test_an_attack_lineup_survives_escape_over_the_connection_window() -> void:
+	advance_to_step(Mtg.Step.MAIN1)
+	var bears := put_battlefield(0, "Grizzly Bears")
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	var screen := _screen(0)
+	await _pump()
+	assert_eq(screen.mode, DuelScreen.Mode.ATTACKERS)
+	screen._on_card_clicked(_local(screen, bears))
+	assert_eq(Array(screen._selected_attackers).size(), 1)
+	screen._show_connection()
+	await _pump()
+	screen._on_escape()
+	await _pump()
+	assert_false(is_instance_valid(screen._network_dialog))
+	assert_eq(Array(screen._selected_attackers).size(), 1,
+		"the attackers lined up behind the window are still lined up")
+
+
+func test_a_silenced_mana_source_is_not_lit_for_payment_at_either_seat() -> void:
+	# `cur_mana_abilities` is the one list the guest keeps PRINTED, and
+	# the payment cue read it: a Titania's Song-silenced Sol Ring lit as a
+	# source the player could click, where _click_permanent asks the
+	# referee's own options for that face and finds none.
+	advance_to_step(Mtg.Step.MAIN1)
+	var ring := put_battlefield(0, "Sol Ring")
+	put_battlefield(1, "Titania's Song")
+	g.recalculate()
+	assert_true(ring.cur_mana_abilities.is_empty(), "the Song silenced the Ring")
+	for seat in 2:
+		var screen := _screen(seat)
+		await _pump()
+		var local := _local(screen, ring)
+		assert_false(local.cur_mana_abilities.is_empty(), "the printed list is still there")
+		assert_false(screen._has_payment_mana(local),
+			"seat %d lights no source the host would refuse" % seat)

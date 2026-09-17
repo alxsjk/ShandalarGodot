@@ -63,8 +63,10 @@ tournament referee and does not claim to prevent modification of local files.
 
 The default folder is **`user://decks`**, so the deck appears in the ordinary deck
 collection. Browse or type an absolute custom folder; Default restores the normal
-location. The choice and event settings are remembered. Existing files are not
-moved or deleted.
+location. `Load deck` and the duel deck pickers read only `user://decks`, so the
+setup screen says when the chosen folder is elsewhere — such a draft is a real
+file that is opened with `Import deck` instead. The choice and event settings are
+remembered. Existing files are not moved or deleted.
 
 Each launch uses a fresh timestamp/random filename:
 
@@ -137,3 +139,7 @@ The replay algorithm is independent of Godot's random-generator implementation
 and current card-pool settings. Its frozen specification and reference vector
 are in [Draft replay v1](draft-replay-v1.md). Replay of card names is data-only;
 the in-game membership parser still needs the corresponding card packs enabled.
+A pool dealt with a numbered pack enabled is therefore checked only where that
+pack is enabled: with the pack off, both **Check deck** and **Reconstruct deck**
+name the pack they want rather than calling the pool corrupt, and the saved
+`.pool.json` records the same list in `required_packs`.

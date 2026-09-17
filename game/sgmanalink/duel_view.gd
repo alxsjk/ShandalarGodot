@@ -518,6 +518,21 @@ func _highlight_for(inst: CardInstance) -> int:
 	return super._highlight_for(inst)
 
 
+## THE PAYMENT CUE READS THE LIVE LIST, like everything else the board
+## lights. `cur_mana_abilities` is the one list [SgCardPresentation] leaves
+## PRINTED at a guest, so a Titania's Song-silenced Sol Ring kept lighting
+## in [constant DuelScreen.Mode.PAYING] — a promise that clicking it makes
+## mana, where [method _click_permanent] reads the referee's own options
+## and finds none. The host sends those options per face; this asks them.
+func _has_payment_mana(inst: CardInstance) -> bool:
+	for option in projection.faces.get(projection.handle(inst.id), {}).get("actions", []):
+		if option.kind != "mana": continue
+		# A live index past the printed list has no conflict to read.
+		if int(option.index) >= inst.cur_mana_abilities.size(): return true
+		if not _pending_mana_conflicts(inst, int(option.index)): return true
+	return false
+
+
 func _can_act_on(inst: CardInstance) -> bool:
 	if game.priority_player != 0: return false
 	for option in projection.faces.get(projection.handle(inst.id), {}).get("actions", []):
@@ -759,6 +774,24 @@ func _network_window(title: String, size := Vector2(560, 420)) -> OriginalDialog
 
 func _modal_open() -> bool:
 	return _tournament_panel_open or is_instance_valid(_intro_overlay) or is_instance_valid(_network_dialog) or is_instance_valid(_network_opening) or super._modal_open()
+
+
+## THE TOP RUNG OF THE CANCEL LADDER IS THE WINDOW THAT IS OPEN, and the
+## Manalink windows are bare [OriginalDialog]s exactly as `Give up this
+## duel?` and `Duel Options...` are — so [method DuelScreen._dialogs_open]
+## is already true for them and Escape was routed into the ladder. With no
+## rung of their own it peeled a layer of the duel UNDERNEATH instead: one
+## press over the connection window un-declared the attackers the player
+## had lined up while they were looking at a different window.
+func _on_escape() -> void:
+	if is_instance_valid(_network_dialog):
+		_network_dialog.dismiss()
+		return
+	# The opening and the introduction own the screen and carry their own
+	# answers; there is nothing under them for Escape to peel.
+	if is_instance_valid(_intro_overlay) or is_instance_valid(_network_opening):
+		return
+	super._on_escape()
 
 
 func toggle_menu() -> void:

@@ -9,7 +9,13 @@ static func make(card: Dictionary, seat: int, zone: int, existing: CardInstance 
 	var data: CardData = CardRegistry.get_card(card.name) if CardRegistry.has_card(card.name) else null
 	if data == null or card.masked:
 		# Tokens and masked creatures need no executable definition from a host.
-		data = CardData.new(card.name, "", int(card.types)).oracle(card.rules)
+		# The PRINT is still theirs: a token has no registry entry to read it
+		# from, and both the board's P/T ink and the enlarged card's pair and
+		# type line ask the definition rather than the live values. A masked
+		# face sends zeros and no subtypes, so the mask keeps everything.
+		data = CardData.new(card.name, "", int(card.types)).oracle(card.rules) \
+			.pt(int(card.print_power), int(card.print_toughness)) \
+			.with_subtypes(card.subtypes)
 	# Numeric ids are UI-local, not the referee's instance ids. Keep the opaque
 	# handle separately; never manufacture a command by guessing an engine id.
 	var instance := existing if existing != null else CardInstance.new(data, -1, seat)

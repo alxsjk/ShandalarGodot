@@ -415,6 +415,24 @@ func test_setup_defaults_and_pool_summary_are_visible() -> void:
 	assert_false(Settings.has_value(DraftPoolConfig.OPTIONS))
 
 
+## `Load deck` reads the two deck folders and nothing else, so a draft sent
+## anywhere else is a real file the pickers never list. Say so before the
+## draft starts rather than let "Saved to:" imply otherwise.
+func test_a_save_folder_the_deck_pickers_do_not_read_says_so_before_launching() -> void:
+	var setup := DraftSetup.new()
+	add_child_autofree(setup)
+	assert_eq(setup.folder.text, GamePaths.DEFAULT_DRAFTS)
+	assert_false(setup.status.text.contains("Import deck"), "the default folder is the one Load deck reads")
+	setup.folder.text = FOLDER
+	setup.folder.text_changed.emit(setup.folder.text)
+	assert_string_contains(setup.status.text, "Import deck")
+	assert_string_contains(setup.status.text, GamePaths.DEFAULT_DRAFTS)
+	setup.folder.text = GamePaths.DEFAULT_DRAFTS
+	setup.folder.text_changed.emit(setup.folder.text)
+	assert_false(setup.status.text.contains("Import deck"))
+	assert_string_contains(setup.status.text, "105 cards")
+
+
 func test_live_builder_fills_viewport_and_reserves_space_for_clock() -> void:
 	var session := _session()
 	await get_tree().process_frame

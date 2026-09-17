@@ -117,11 +117,17 @@ static func pool_refusal(receipt: Variant) -> String:
 	CardRegistry.ensure_loaded()
 	var expected: Dictionary = {}
 	var total := 0
+	var absent: Array[String] = []
 	for card_name in counts:
-		if not card_name is String or not CardRegistry.has_card(card_name) or not _whole(counts[card_name], MAX_CARDS):
+		if not card_name is String or not _whole(counts[card_name], MAX_CARDS):
 			return "Pool contains an unknown card or an invalid quantity."
+		if not CardRegistry.has_card(card_name):
+			absent.append(String(card_name))
+			continue
 		expected[card_name] = int(counts[card_name])
 		total += int(counts[card_name])
+	if not absent.is_empty():
+		return _absent_refusal(absent)
 	if total > MAX_CARDS: return "Pool exceeds the largest supported draft."
 	var actual: Dictionary = {}
 	var dealt := 0
@@ -135,6 +141,21 @@ static func pool_refusal(receipt: Variant) -> String:
 			actual[card_name] = int(actual.get(card_name, 0)) + 1
 	if actual != expected: return "Pack contents do not match pool counts."
 	return ""
+
+
+## A pool dealt with a card pack enabled is still a good pool on a machine
+## that has the pack switched off; name the shelf it wants instead of
+## calling the file corrupt (2026-09-17). The pack identities are trusted
+## game data, so this reads correctly with the ZIP absent as well.
+static func _absent_refusal(names: Array[String]) -> String:
+	var labels: Array[String] = []
+	for id in CardPacks.packs_required_by(names):
+		labels.append(CardPacks.label_for(id))
+	if labels.is_empty():
+		return "Pool contains an unknown card or an invalid quantity."
+	return ("This draft pool needs %s: %d of its card names are not in play here. "
+		+ "Enable %s in Options > Card Packs and check again.") % [" and ".join(labels),
+		names.size(), "it" if labels.size() == 1 else "them"]
 
 
 static func _whole(value: Variant, maximum: int) -> bool:

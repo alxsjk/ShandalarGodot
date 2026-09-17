@@ -3,8 +3,8 @@ extends RefCounted
 ## [QoL] Unrated loopback/LAN protocol. Data only; no Variant object decoding or RPC.
 ## Version this independently from the application release and future rated protocol.
 
-const VERSION := 17
-const SUBPROTOCOL := "sgmanalink-local-v17"
+const VERSION := 18
+const SUBPROTOCOL := "sgmanalink-local-v18"
 const NICKNAME_LIMIT := 20
 const MAX_BYTES := 2097152
 const MAX_COMMAND_BYTES := 32768
@@ -73,6 +73,13 @@ static func nickname(value: Variant) -> bool:
 		and value == value.strip_edges()
 
 
+## Is an UNTRUSTED field exactly this word? GDScript raises "Invalid
+## operands" on `5 == "hello"` instead of answering false, so a decoded
+## message's own text is compared through this, never with == directly.
+static func literal(value: Variant, expected: String) -> bool:
+	return value is String and value == expected
+
+
 static func decode(bytes: PackedByteArray) -> Dictionary:
 	if bytes.size() > MAX_COMMAND_BYTES:
 		return {}
@@ -116,16 +123,16 @@ static func decode_payload(bytes: PackedByteArray, max_depth := 12) -> Dictionar
 static func valid(message: Dictionary) -> bool:
 	if not integer(message.get("v"), VERSION, VERSION):
 		return false
-	if message.get("type") == "hello":
+	if literal(message.get("type"), "hello"):
 		return exact(message, ["v", "type", "access", "resume", "nickname", "build", "stamp"]) \
-			and token(message.access) and (message.resume == "" or token(message.resume)) \
+			and token(message.access) and (literal(message.resume, "") or token(message.resume)) \
 			and nickname(message.nickname) and token(message.build) and SgCompatibility.valid_stamp(message.stamp)
-	if message.get("type") == "abandon": return exact(message, ["v", "type"])
+	if literal(message.get("type"), "abandon"): return exact(message, ["v", "type"])
 	if not exact(message, ["v", "type", "seq", "room", "revision", "action"]):
 		return false
-	if message.room != "" and not short_text(message.room, 16):
+	if not message.room is String or (message.room != "" and not short_text(message.room, 16)):
 		return false
-	if message.type != "command" or not integer(message.seq, 1) \
+	if not literal(message.type, "command") or not integer(message.seq, 1) \
 		or not integer(message.revision) or not message.action is Dictionary:
 		return false
 	var action: Dictionary = message.action

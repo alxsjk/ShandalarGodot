@@ -101,7 +101,7 @@ regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
 Latest local verification ([second hunt over 0.32.0](docs/ROADMAP.md#2026-09-17--second-hunt-over-0320-and-the-sgmanalink-front-door)):
-**7,306 GUT tests / 324,815 assertions**, plus **273 Python tests**.
+**7,340 GUT tests / 325,875 assertions**, plus **273 Python tests**.
 
 ## Art and skins
 

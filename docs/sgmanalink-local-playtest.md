@@ -269,12 +269,13 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   dispatch. Duplicate/contradictory card locations, absent combat-card references
   and unknown keyword values are rejected before replacing the client view.
   Seat authorization comes from the connection, not a player
-  number submitted by the client. The data protocol is version 17 (all players
+  number submitted by the client. The data protocol is version 18 (all players
   need this updated build, including viewer-specific exile-play permissions,
-  public hack-effect reminders, live ability badges and the protection-from-
-  artifacts badge);
+  public hack-effect reminders, live ability badges, the protection-from-
+  artifacts badge, each face's printed power/toughness and the turn's
+  extra-block permission);
   the invitation keeps the `sglan1:` envelope prefix and carries the same
-  protocol-17 compatibility check inside it. A handshake fingerprint additionally
+  protocol-18 compatibility check inside it. A handshake fingerprint additionally
   checks the release version, maintained rules revision and printed card catalogue,
   and a readable stamp `{game, rules, packs}` travels beside it in the hello and
   in every LAN advert, so a refusal — and the game browser's BUILD column — can
@@ -337,6 +338,33 @@ SGMANALINK_SOAK_ROUNDS=4 ./run_tests.sh -gselect=test_sgmanalink_network.gd -gun
 
 Rounds are bounded to 2–20; each duel also has a command ceiling and each
 network wait a frame budget. These tests do not replace physical LAN playtests.
+
+## Two processes on this computer
+
+Every test above builds its host and its guest inside one process. For a
+rehearsal of the two-computer flow with a second copy of the game,
+`tools/lan_smoke.sh` starts **two** Godot processes with separate data
+homes, hosts on this computer's own private IPv4 address and plays one
+whole duel between them over `wss://`: the advert, the `sglan1:`
+invitation, the pinned certificate, both deck choices, the coin toss, a
+mulligan, a mid-duel disconnect and resume, and the host closing the table.
+
+```sh
+./tools/lan_smoke.sh --seed 4250 --keep
+```
+
+It prints the connect time, every action's round trip and the largest
+message each side sent, and it fails on any error line or on a run that
+never reached its verdict. Measured on one Linux laptop, 2026-09-17:
+connect 19–34 ms, 205 actions a seat at a 17–24 ms median round trip, a
+whole fifteen-turn duel in 11.6 s, largest command 926 bytes, largest room
+snapshot 56 KiB against the 2 MiB view limit.
+
+One thing it cannot prove: **a computer does not receive its own LAN
+broadcast**, so `Find LAN games` still needs the second computer. When the
+sweep is silent the smoke asks the host's address directly, which
+exercises the same query, reply, advert contents and fingerprint match.
+Two different physical computers remain the playtest this stands in for.
 
 Implementation notes: `SgCompatibility.RULES_REVISION` must change for engine
 or card-behaviour changes between release versions. The current optimized

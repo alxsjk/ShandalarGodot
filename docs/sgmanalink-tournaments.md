@@ -41,13 +41,20 @@ An already eliminated entrant cannot be withdrawn afterwards to rewrite results.
 The hall has five sections:
 
 - **Overview:** organiser controls, current tables, scores, turns and life totals.
+  A pairing that has not started names the players it is still waiting for,
+  rather than saying it waits for both after one of them has confirmed.
 - **Advancement:** a connected round diagram. Arrows follow actual published
   winners, not guessed future opponents. Scroll, zoom, fit the width or choose
   **Whole draw**; select a player to highlight their route through the event.
 - **Standings:** all entrants, played series W–L, games W–L–D, byes, forfeit
   awards/losses and status. Completion opens the final table automatically.
 - **Players:** connection/readiness status, deck titles and organiser withdrawals.
-- **My entry:** deck review, readiness, recovery code and return to the hall.
+- **My entry:** one plain line for the player's own seat, plus deck review,
+  readiness, recovery code and return to the hall. The line names the table
+  and opponent still to confirm, who the pairing waits for, a bye with no
+  game to play, the series just won or lost, the wait for the other tables,
+  the wait for the next draw, an elimination, a withdrawal and the finished
+  event. No screen in the hall leaves a waiting player without a sentence.
 
 Final places reflect elimination round, not an invented tiebreaker. With no
 third-place game, the semifinalists share third; other same-round eliminations
@@ -87,7 +94,9 @@ Completed game scores and pairings are saved. After an explicit restore the
 host issues a fresh invitation; entrants reclaim their entries with their
 codes. An interrupted game starts again from opening hands with both players
 ready; previously recorded wins remain. There is no seamless host migration.
-Save failure suspends tournament advancement and is shown to the organiser.
+Save failure suspends tournament advancement. The organiser reads the storage
+instruction they can act on; every other hall says that play resumes when the
+organiser retries the save and that recorded scores are kept.
 Recovery requires a matching build and the same enabled gameplay packs. Earlier
 protocol-8/9/10/11/12/13 development checkpoints remain untouched but are not migrated
 to the current protocol-14 compatibility contract.
@@ -125,16 +134,21 @@ application cannot reclaim an entry by matching its nickname.
    chooses **Ready for next game**. Both must be ready before their normal
    duel screen opens. The introduction shows the round, game and series score.
 6. Dismiss the result to return to the hall. If the series needs another game,
-   both confirm readiness again; otherwise wait for the next draw. The
-   organiser chooses **Draw next round** after all pairings finish. No draw
+   both confirm readiness again; otherwise wait for the next draw. **My entry**
+   says which of those is happening and updates as the other tables finish.
+   The organiser chooses **Draw next round** after all pairings finish. No draw
    can be rerolled and no client can report an arbitrary winner.
 
 **Expand Master Panel** opens a full-window overview. During the organiser's
 own duel, the **Tournament** button opens the same panel without disconnecting
-the host. It shows pairings, scores, drawn games, life totals, turns and entrant
+the host; their own table stands still behind it, like any other duel window,
+while the referee and every other table keep running. The panel is opaque and
+covers the ordinary notice line, so a control the host refuses — drawing the
+next round while an advancing player is still away, for instance — prints its
+answer inside the panel. It shows pairings, scores, drawn games, life totals, turns and entrant
 connections. Withdrawals and cancellation require a second confirmation click.
 **Return finished tables to hall** releases completed result screens without
-affecting live games. **Finish hosting this tournament** returns the service to
+affecting live games, and is offered only while a table is actually finished. **Finish hosting this tournament** returns the service to
 ordinary duel hosting after completion/cancellation and all tables are released.
 
 To recover after a host restart, choose the saved event under **Tournament**,

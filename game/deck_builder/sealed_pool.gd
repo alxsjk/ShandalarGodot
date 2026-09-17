@@ -226,9 +226,15 @@ func slot_counts() -> Dictionary:
 
 
 ## Which sheet a card is on, by name — `""` when it is on none.
+##
+## The QUIET existence check, for the same reason [method
+## DeckBuilderScreen._sealed_library] uses one: a pool dealt with a card
+## pack enabled still names cards the registry drops the moment that pack
+## goes off, and [method slot_counts] and the pack window's slot letters
+## ask this for every dealt name. `get_card` is the loud fetch and printed
+## one `CardRegistry: unknown card` per name (2026-09-17).
 static func slot_of(card_name: String) -> String:
-	var data := CardRegistry.get_card(card_name)
-	if data == null:
+	if not CardRegistry.has_card(card_name):
 		return ""
 	if LAND_NAMES.has(card_name):
 		return "land"

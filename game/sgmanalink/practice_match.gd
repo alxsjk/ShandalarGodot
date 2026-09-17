@@ -24,7 +24,6 @@ var _used_objects: Array = [{}, {}]
 var actions: SgDuelActions
 var deck_names: Array = ["Forest practice", "Forest practice"]
 var panel_colors: Array[String] = ["green", "green"]
-var _zones: Array = [{}, {}]
 var journal: SgJournal
 var state_generation := 0
 var bot_options: Array = [{}, {}]
@@ -111,9 +110,6 @@ func _retire_hidden() -> void:
 			if not _visible(pid, card):
 				_ids[pid].erase(_handles[pid][id])
 				_handles[pid].erase(id)
-				_zones[pid].erase(id)
-			else:
-				_zones[pid][id] = card.zone
 
 
 func _handle(pid: int, card: CardInstance) -> String:
@@ -122,7 +118,6 @@ func _handle(pid: int, card: CardInstance) -> String:
 		_next_handle[pid] += 1
 		_handles[pid][card.id] = handle
 		_ids[pid][handle] = card.id
-		_zones[pid][card.id] = card.zone
 	return _handles[pid][card.id]
 
 
@@ -141,6 +136,12 @@ func _cards(pid: int, list: Array) -> Array:
 		if blocked != null and blocked.zone == Mtg.Zone.BATTLEFIELD and game.combat.attackers.has(blocked.id):
 			blocking = _handle(pid, blocked)
 		var masked := card.face_down and not (card.zone == Mtg.Zone.EXILE and card.exile_visible_to == pid)
+		# An attachment is a link between two cards THIS seat holds: the aura
+		# gets no slot of its own and its host draws it again. Name a host only
+		# while this seat can see it, exactly as the blocking link above does,
+		# so a handle is never minted for a card outside this view.
+		var host := game.find_instance(card.attached_to)
+		var attached := _handle(pid, host) if host != null and _visible(pid, host) else ""
 		var chosen := ""
 		if not masked and card.data.chosen_type_key != "" and card.memory.has(card.data.chosen_type_key):
 			chosen = String(card.memory[card.data.chosen_type_key]).capitalize()
@@ -149,6 +150,13 @@ func _cards(pid: int, list: Array) -> Array:
 			"rules": "" if masked else card.data.oracle_text,
 			"cost": "" if card.is_land() else str(card.data.cost), "land": card.is_land(),
 			"power": card.cur_power, "toughness": card.cur_toughness,
+			# The PRINTED pair beside the live one. A guest reads a named
+			# card's print off its own registry, but a TOKEN has no entry
+			# there — so without this every token's P/T inked green
+			# ("pumped") and its enlarged card read 0/0. A masked face
+			# sends zeros: the print is exactly what the mask hides.
+			"print_power": 0 if masked else card.data.power,
+			"print_toughness": 0 if masked else card.data.toughness,
 			"tapped": card.tapped, "sick": card.summoning_sick,
 			"damage": card.damage, "attacking": game.combat.attackers.has(card.id),
 			"blocking": blocking,
@@ -163,8 +171,7 @@ func _cards(pid: int, list: Array) -> Array:
 			"shield": "" if card.prevention <= 0 or card.prevention_source == null \
 				else card.prevention_source.card_name,
 			"text_effects": [] if masked else _text_effects(card),
-			"attached": "" if card.attached_to < 0 or game.find_instance(card.attached_to) == null \
-				else _handle(pid, game.find_instance(card.attached_to)),
+			"attached": attached,
 			"abilities": [] if masked else _abilities(card),
 			"actions": [] if masked else SgDuelActions.options(card, pid),
 			"exile_playable": game.can_play_from_exile(pid, card)})
@@ -172,7 +179,7 @@ func _cards(pid: int, list: Array) -> Array:
 		if masked and card.zone != Mtg.Zone.BATTLEFIELD:
 			var hidden: Dictionary = out.back()
 			hidden.name = "Face-down card"
-			for key in ["types", "colors", "power", "toughness", "protection", "rampage", "prevention", "regeneration", "damage"]: hidden[key] = 0
+			for key in ["types", "colors", "power", "toughness", "print_power", "print_toughness", "protection", "rampage", "prevention", "regeneration", "damage"]: hidden[key] = 0
 			for key in ["keywords", "subtypes", "landwalk", "abilities"]: hidden[key] = []
 			hidden.counters = {}
 			hidden.shield = ""

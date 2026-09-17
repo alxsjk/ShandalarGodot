@@ -2128,12 +2128,20 @@ func _sealed_refusal(card_name: String) -> String:
 
 
 ## The dealt cards as [CardData], for the filter to walk.
+##
+## THE QUIET FETCH, and the reason is a card pack. A pool dealt with Pack 3
+## on holds names the registry drops the moment that pack goes off, and
+## [signal CardPacks.changed] refreshes this Inventory while they are still
+## in [member sealed]. [method CardRegistry.get_card] is the LOUD fetch —
+## it pushes `CardRegistry: unknown card 'X'` per name, so one toggle
+## printed one error per dealt pack card (reproduced 2026-09-17,
+## `tests/ui/test_draft_pack_fingerprints_2026_09_17.gd`). The shelf simply
+## has fewer cards on it until the pack returns.
 func _sealed_library() -> Array:
 	var out: Array = []
 	for card_name in sealed.names():
-		var data := CardRegistry.get_card(card_name)
-		if data != null:
-			out.append(data)
+		if CardRegistry.has_card(card_name):
+			out.append(CardRegistry.get_card(card_name))
 	return out
 
 

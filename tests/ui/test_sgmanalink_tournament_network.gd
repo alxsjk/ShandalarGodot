@@ -690,3 +690,198 @@ func test_checkpoint_backup_survives_a_damaged_primary_and_recovery_save() -> vo
 	assert_eq(SgTournamentStore.read_checkpoint(path + ".bak"), backup, "bad primary did not replace the last good backup")
 	assert_true(SgTournamentProtocol.checkpoint(SgTournamentStore.read_checkpoint(path)))
 	assert_true(owner.online)
+
+
+func test_master_panel_prints_the_host_answer_to_a_refused_organiser_control() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(1280, 800)
+	add_child_autofree(viewport)
+	var lobby := SgLobby.new()
+	viewport.add_child(lobby)
+	lobby.service = server
+	clients.append(lobby.client)
+	lobby.client.refused.connect(func(reason: String) -> void: refusals.append(reason))
+	assert_eq(lobby.client.connect_invitation(server.invitation(), "Organiser"), OK)
+	await _until(func() -> bool: return lobby.client.online)
+	assert_eq(server.open_tournament({"name": "LAN Cup", "limit": 8, "wins": 1, "policy": "fixed",
+		"decks": [{"name": "Knights", "cards": Array(StarterDecks.WHITE_KNIGHTS), "sideboard": []}]},
+		lobby.client._resume, scratch), "")
+	await _until(func() -> bool: return lobby.client.state.has("tournament"))
+	for i in 3:
+		var entrant := await _client("Entrant %d" % (i + 1))
+		await _act(entrant, "t_join")
+		await _act(entrant, "t_ready", {"value": true})
+	await _act(lobby.client, "t_start")
+	var pair: Dictionary = {}
+	for row: Dictionary in server.tournament.event.rounds[0]:
+		if row.status == "waiting": pair = row
+	assert_false(pair.is_empty())
+	if pair.is_empty(): return
+	var a := _by_member(int(pair.players[0]))
+	var b := _by_member(int(pair.players[1]))
+	for client in [a, b]: await _act(client, "t_ready", {"value": true})
+	await _act(b, "concede")
+	for client in [a, b]: await _act(client, "t_return")
+	assert_true(server.tournament.event.round_finished())
+	lobby._open_master()
+	for i in 4: await get_tree().process_frame
+	# The expanded panel is opaque and covers the lobby notice line, so the
+	# organiser must read the host's refusal inside the panel itself.
+	var notice := lobby._master_overlay.find_child("MasterPanelNotice", true, false) as Label
+	assert_not_null(notice, "the expanded Master Panel has somewhere to print the host answer")
+	if notice == null: return
+	a.forget()
+	await _until(func() -> bool: return not server.tournament.connected(int(pair.players[0])))
+	for i in 4: await get_tree().process_frame
+	var draw: Button
+	for button: Button in lobby._master_panel.find_children("*", "Button", true, false):
+		if button.text == "Draw next round": draw = button
+	assert_not_null(draw)
+	if draw == null: return
+	assert_false(draw.disabled, "every pairing has finished, so the draw is offered")
+	refusals.clear()
+	draw.pressed.emit()
+	await _until(func() -> bool: return not lobby.client.busy())
+	for i in 4: await get_tree().process_frame
+	assert_eq(refusals, ["Wait for advancing players to reconnect, or withdraw them explicitly."])
+	assert_eq(notice.text, "Wait for advancing players to reconnect, or withdraw them explicitly.")
+	assert_eq(server.tournament.event.rounds.size(), 1, "the refused draw published no second round")
+	refusals.clear()
+
+
+func _tournament_lobby(name_value: String) -> SgLobby:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(1280, 800)
+	add_child_autofree(viewport)
+	var lobby := SgLobby.new()
+	viewport.add_child(lobby)
+	clients.append(lobby.client)
+	lobby.client.refused.connect(func(reason: String) -> void: refusals.append(reason))
+	assert_eq(lobby.client.connect_invitation(server.invitation(), name_value), OK)
+	await _until(func() -> bool: return lobby.client.online)
+	return lobby
+
+
+func test_a_playing_organiser_reaches_the_master_panel_from_their_own_duel() -> void:
+	var owner := await _tournament_lobby("Organiser")
+	owner.service = server
+	assert_eq(server.open_tournament({"name": "LAN Cup", "limit": 8, "wins": 1, "policy": "fixed",
+		"decks": [{"name": "Knights", "cards": Array(StarterDecks.WHITE_KNIGHTS), "sideboard": []}]},
+		owner.client._resume, scratch), "")
+	await _until(func() -> bool: return owner.client.state.has("tournament"))
+	var guest := await _tournament_lobby("Guest")
+	for lobby in [owner, guest]:
+		await _act(lobby.client, "t_join")
+		await _act(lobby.client, "t_ready", {"value": true})
+	await _act(owner.client, "t_start")
+	for lobby in [owner, guest]: await _act(lobby.client, "t_ready", {"value": true})
+	await _until(func() -> bool: return not owner.client.state.room.is_empty() and not guest.client.state.room.is_empty())
+	for i in 8: await get_tree().process_frame
+	assert_true(is_instance_valid(owner._duel), "the organiser plays their own seat")
+	if not is_instance_valid(owner._duel): return
+	assert_eq(owner._duel._network_badge.text, "Tournament")
+	assert_false(owner._duel._tournament_panel_open, "no panel covers the table yet")
+	owner._duel._network_badge.pressed.emit()
+	for i in 4: await get_tree().process_frame
+	assert_true(is_instance_valid(owner._master_overlay), "the badge opens the panel without leaving the duel")
+	assert_true(owner._master_panel._view.organiser)
+	var captions := PackedStringArray()
+	for button: Button in owner._master_panel.find_children("*", "Button", true, false): captions.append(button.text)
+	assert_true(captions.has("Cancel tournament"), "the organiser keeps their controls inside their own duel")
+	assert_true(owner._duel._tournament_panel_open)
+	assert_true(owner._duel._modal_open(), "the organiser's table stands still behind the open panel")
+	assert_eq(server._rooms.size(), 1, "the table and the host survive the open panel")
+	assert_true(server._listener.is_listening())
+	var back: Button
+	for button: Button in owner._master_overlay.find_children("*", "Button", true, false):
+		if button.text == "Back to duel": back = button
+	assert_not_null(back)
+	if back == null: return
+	back.pressed.emit()
+	for i in 4: await get_tree().process_frame
+	assert_false(is_instance_valid(owner._master_overlay))
+	assert_false(owner._duel._tournament_panel_open, "returning to the duel gives the seat back its clicks")
+	# The other seat reaches the same hall and is given no organiser power.
+	assert_true(is_instance_valid(guest._duel))
+	if not is_instance_valid(guest._duel): return
+	guest._duel._network_badge.pressed.emit()
+	for i in 4: await get_tree().process_frame
+	assert_true(is_instance_valid(guest._master_panel))
+	assert_false(guest._master_panel._view.organiser)
+	captions.clear()
+	for button: Button in guest._master_panel.find_children("*", "Button", true, false): captions.append(button.text)
+	for forbidden in ["Start tournament", "Draw next round", "Cancel tournament", "Retry save", "Withdraw"]:
+		assert_false(captions.has(forbidden), "a guest is offered no organiser control: " + forbidden)
+	assert_eq(refusals, [])
+
+
+func _hall_of(halls: Array, pid: int) -> SgLobby:
+	for lobby: SgLobby in halls:
+		if int(lobby.client.state.get("tournament", {}).get("you", 0)) == pid: return lobby
+	return null
+
+
+func _show_entry(lobby: SgLobby) -> void:
+	lobby._tournament_panel._choose_section("entry")
+
+
+func _hall_line(lobby: SgLobby) -> String:
+	var line := lobby._tournament_panel.find_child("TournamentEntryStatus", true, false) as Label
+	assert_not_null(line, "a waiting player's hall states their own situation")
+	return "" if line == null else line.text
+
+
+func test_the_hall_tells_a_waiting_player_what_the_round_is_waiting_for() -> void:
+	var owner := await _client("Organiser")
+	await _open(owner, 1, "fixed", 8)
+	var halls: Array = []
+	for i in 4:
+		var lobby := await _tournament_lobby("Entrant %d" % (i + 1))
+		halls.append(lobby)
+		await _act(lobby.client, "t_join")
+		await _act(lobby.client, "t_ready", {"value": true})
+	await _act(owner, "t_start")
+	for lobby: SgLobby in halls: _show_entry(lobby)
+	var first: Dictionary = server.tournament.event.rounds[0][0]
+	var second: Dictionary = server.tournament.event.rounds[0][1]
+	var winner := _hall_of(halls, int(first.players[0]))
+	var loser := _hall_of(halls, int(first.players[1]))
+	assert_not_null(winner)
+	assert_not_null(loser)
+	if winner == null or loser == null: return
+	assert_eq(_hall_line(winner), "Round 1, table %d against %s. Select Ready for next game."
+		% [SgTournament.table_number(int(first.id)), server.tournament.event.entrant(int(first.players[1])).name])
+	for lobby in [winner, loser]: await _act(lobby.client, "t_ready", {"value": true})
+	await _act(loser.client, "concede")
+	for lobby in [winner, loser]: await _act(lobby.client, "t_return")
+	for i in 6: await get_tree().process_frame
+	assert_eq(_hall_line(winner), "You won your round 1 series. Waiting for the other tables to finish.")
+	assert_eq(_hall_line(loser), "%s won your round 1 series. You are out of the tournament."
+		% server.tournament.event.entrant(int(first.players[0])).name)
+	# The other pairing finishes. Nobody at the first table touches anything:
+	# the sentence has to change on its own.
+	var third := _hall_of(halls, int(second.players[0]))
+	var fourth := _hall_of(halls, int(second.players[1]))
+	assert_not_null(third)
+	assert_not_null(fourth)
+	if third == null or fourth == null: return
+	for lobby in [third, fourth]: await _act(lobby.client, "t_ready", {"value": true})
+	await _act(fourth.client, "concede")
+	for lobby in [third, fourth]: await _act(lobby.client, "t_return")
+	for i in 6: await get_tree().process_frame
+	assert_eq(_hall_line(winner), "You won your round 1 series. Waiting for the organiser to draw round 2.")
+	assert_eq(winner._page, "tournament", "a waiting player sits in the hall, not on an empty screen")
+	winner.client.reconnect()
+	await _until(func() -> bool: return winner.client.online)
+	for i in 8: await get_tree().process_frame
+	assert_eq(winner._page, "tournament", "a reconnect lands back in the hall")
+	assert_eq(_hall_line(winner), "You won your round 1 series. Waiting for the organiser to draw round 2.")
+	await _act(owner, "t_next")
+	for i in 6: await get_tree().process_frame
+	var final_pair: Dictionary = server.tournament.event.rounds[1][0]
+	var seat: int = 0 if int(final_pair.players[0]) == int(winner.client.state.tournament.you) else 1
+	assert_eq(_hall_line(winner), "Round 2, table %d against %s. Select Ready for next game."
+		% [SgTournament.table_number(int(final_pair.id)),
+		server.tournament.event.entrant(int(final_pair.players[1 - seat])).name])
+	assert_eq(_hall_line(loser), "You were knocked out. The hall stays open — the rest of the event is in Standings.")
+	assert_eq(refusals, [])

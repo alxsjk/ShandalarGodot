@@ -230,3 +230,175 @@ func test_all_tournament_tabs_work_without_network_side_effects() -> void:
 		assert_lte(panel.size.x, 920.0)
 	assert_signal_not_emitted(panel, "action_requested")
 	assert_signal_not_emitted(panel, "host_requested")
+
+func _wire(view: Dictionary) -> Dictionary:
+	# Every real client reads its hall out of decoded JSON, where an entrant
+	# identifier and a series score arrive as floats.
+	return SgProtocol.decode_payload(SgProtocol.encode(view).to_ascii_buffer())
+
+
+func _labels(panel: SgTournamentPanel) -> PackedStringArray:
+	var result := PackedStringArray()
+	for label in panel.find_children("*", "Label", true, false): result.append(label.text)
+	return result
+
+
+func _captions(panel: SgTournamentPanel) -> PackedStringArray:
+	var result := PackedStringArray()
+	for button: Button in panel.find_children("*", "Button", true, false): result.append(button.text)
+	return result
+
+
+func _small_event(count: int, wins := 1) -> SgTournament:
+	var event := SgTournament.new()
+	assert_eq(event.configure({"name": "Hall Cup", "limit": 8, "wins": wins, "policy": "fixed",
+		"decks": [{"name": "White Knights", "cards": Array(StarterDecks.WHITE_KNIGHTS), "sideboard": []}]}, 4242), "")
+	for i in count:
+		var pid := event.register("Player %d" % (i + 1), str(i).sha256_text())
+		event.set_ready(pid, true)
+	assert_eq(event.draw_round(), "")
+	return event
+
+
+## One seat's own hall, as it arrives: every entrant holds a live session, so
+## readiness and connection read the way a player sees them.
+func _seat_view(event: SgTournament, pid: int) -> Dictionary:
+	var server := SgLocalServer.new()
+	add_child_autofree(server)
+	var host := SgTournamentHost.new()
+	host.event = event
+	host.organiser = 99
+	server.add_child(host)
+	server._sessions[99] = {"peer": 99, "room": "", "nickname": "Organiser"}
+	for player: Dictionary in event.entrants:
+		var sid := 500 + int(player.id)
+		server._sessions[sid] = {"peer": sid, "room": "", "nickname": String(player.name)}
+		host.bindings[int(player.id)] = sid
+	return _wire(host.view(99 if pid == 0 else 500 + pid))
+
+
+func _entry_line(event: SgTournament, pid: int) -> String:
+	var panel := _panel()
+	panel.present(_seat_view(event, pid), true, false, false)
+	panel._choose_section("entry")
+	var line := panel.find_child("TournamentEntryStatus", true, false) as Label
+	assert_not_null(line, "every entry page states the player's own situation")
+	return "" if line == null else line.text
+
+
+func test_series_scores_never_read_as_decimal_fractions_on_a_real_client() -> void:
+	var event := _small_event(2, 2)
+	var pair: Dictionary = event.rounds[0][0]
+	for pid: int in pair.players: event.set_ready(pid, true)
+	assert_eq(event.begin_game(int(pair.id)), "")
+	assert_true(event.record_game(int(pair.id), int(pair.game), 0))
+	var panel := _panel()
+	panel.present(_seat_view(event, int(pair.players[0])), true, false, false)
+	panel._choose_section("overview")
+	for i in 3: await get_tree().process_frame
+	var texts := _labels(panel)
+	assert_true(texts.has("1"), "the winning seat shows one game won")
+	assert_false(texts.has("1.0"), "a series score is a whole number of games")
+	assert_false(texts.has("0.0"), "a series score is a whole number of games")
+
+
+func test_my_entry_says_what_each_waiting_player_is_waiting_for() -> void:
+	var event := _small_event(6)
+	var bye := 0
+	var playing: Dictionary = {}
+	for pair: Dictionary in event.rounds[0]:
+		if pair.status == "bye": bye = int(pair.winner)
+		elif playing.is_empty(): playing = pair
+	assert_ne(bye, 0)
+	var table := SgTournament.table_number(int(playing.id))
+	var waiting := int(playing.players[0])
+	var opponent := int(playing.players[1])
+	assert_eq(_entry_line(event, bye),
+		"You have a bye in round 1. There is no game to play; wait for the other tables.")
+	assert_eq(_entry_line(event, waiting),
+		"Round 1, table %d against Player %d. Select Ready for next game." % [table, opponent])
+	assert_eq(event.set_ready(waiting, true), "")
+	assert_eq(_entry_line(event, waiting), "You are ready. Waiting for Player %d to confirm." % opponent)
+	assert_eq(event.set_ready(opponent, true), "")
+	assert_eq(event.begin_game(int(playing.id)), "")
+	assert_true(event.record_game(int(playing.id), int(playing.game), 0))
+	assert_eq(_entry_line(event, waiting),
+		"You won your round 1 series. Waiting for the other tables to finish.")
+	assert_eq(_entry_line(event, opponent),
+		"Player %d won your round 1 series. You are out of the tournament." % waiting)
+	for pair: Dictionary in event.rounds[0]:
+		if pair.status != "waiting": continue
+		for pid: int in pair.players: event.set_ready(pid, true)
+		assert_eq(event.begin_game(int(pair.id)), "")
+		assert_true(event.record_game(int(pair.id), int(pair.game), 0))
+	assert_eq(_entry_line(event, waiting),
+		"You won your round 1 series. Waiting for the organiser to draw round 2.")
+	assert_eq(event.draw_round(), "")
+	assert_eq(_entry_line(event, opponent),
+		"You were knocked out. The hall stays open — the rest of the event is in Standings.")
+	var quitter := int(event.rounds[1][0].players[0])
+	assert_eq(event.withdraw(quitter), "")
+	assert_eq(_entry_line(event, quitter),
+		"You withdrew. Your seat is closed; the hall stays open to follow the rest.")
+
+
+func test_a_waiting_pairing_names_the_players_it_is_waiting_for() -> void:
+	var event := _small_event(2)
+	var pair: Dictionary = event.rounds[0][0]
+	var first := "Player %d" % int(pair.players[0])
+	var second := "Player %d" % int(pair.players[1])
+	var panel := _panel()
+	panel.present(_seat_view(event, int(pair.players[0])), true, false, false)
+	panel._choose_section("overview")
+	for i in 3: await get_tree().process_frame
+	assert_true(_labels(panel).has("Waiting for %s and %s" % [first, second]))
+	assert_eq(event.set_ready(int(pair.players[0]), true), "")
+	panel.present(_seat_view(event, int(pair.players[0])), true, false, false)
+	for i in 3: await get_tree().process_frame
+	assert_true(_labels(panel).has("Waiting for " + second), "a confirmed player is not still waited for")
+
+
+func test_return_finished_tables_appears_only_while_a_table_is_finished() -> void:
+	# First to two, so the recorded game leaves the pairing waiting for the
+	# next one rather than completing the whole event.
+	var event := _small_event(2, 2)
+	var pair: Dictionary = event.rounds[0][0]
+	for pid: int in pair.players: event.set_ready(pid, true)
+	assert_eq(event.begin_game(int(pair.id)), "")
+	var live := _seat_view(event, 0)
+	live.tables = [{"pair": int(pair.id), "life": [20, 20], "turn": 1, "step": "UNTAP"}]
+	var panel := _panel()
+	panel.present(live, true, false, true)
+	for i in 3: await get_tree().process_frame
+	assert_true(panel._view.organiser)
+	assert_false(_captions(panel).has("Return finished tables to hall"), "a live table has nothing to return")
+	assert_true(event.record_game(int(pair.id), int(pair.game), 0))
+	var after := _seat_view(event, 0)
+	after.tables = live.tables.duplicate(true)
+	panel.present(after, true, false, true)
+	for i in 3: await get_tree().process_frame
+	assert_true(_captions(panel).has("Return finished tables to hall"), "a finished table still holds its players")
+
+
+func test_a_paused_tournament_tells_a_guest_what_to_expect_not_what_to_press() -> void:
+	var event := _small_event(2)
+	var pair: Dictionary = event.rounds[0][0]
+	var view := _seat_view(event, int(pair.players[0]))
+	view.save_error = "Progress could not be saved. Tournament play is paused. Check storage, then Retry save in the Master Panel."
+	var panel := _panel()
+	panel.present(view, true, false, false)
+	for i in 3: await get_tree().process_frame
+	var notice := panel.find_child("TournamentPauseNotice", true, false) as Label
+	assert_not_null(notice)
+	if notice == null: return
+	assert_eq(notice.text, "The host could not save progress. Play resumes when the organiser retries the save. Scores already recorded are kept.")
+	assert_false(notice.text.contains("Master Panel"), "a guest cannot reach the organiser's controls")
+	var master := _seat_view(event, 0)
+	master.save_error = view.save_error
+	var organiser_panel := _panel()
+	organiser_panel.present(master, true, false, true)
+	for i in 3: await get_tree().process_frame
+	var own := organiser_panel.find_child("TournamentPauseNotice", true, false) as Label
+	assert_not_null(own)
+	if own == null: return
+	assert_eq(own.text, view.save_error, "the organiser keeps the instruction they can act on")

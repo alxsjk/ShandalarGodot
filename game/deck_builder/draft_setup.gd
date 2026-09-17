@@ -102,6 +102,7 @@ func _ready() -> void:
 	folder.text = GamePaths.drafts_folder()
 	folder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	folder.editable = not OS.has_feature("web")
+	folder.text_changed.connect(func(_typed: String) -> void: _refresh())
 	file_row.add_child(folder)
 	var browse := OriginalDialog.button("Browse…")
 	browse.disabled = OS.has_feature("web")
@@ -139,7 +140,7 @@ func options() -> Dictionary:
 
 
 func _refresh() -> void:
-	if pool_summary == null or status == null: return
+	if pool_summary == null or status == null or folder == null: return
 	var names := DraftPoolConfig.selected()
 	var sets: Dictionary = {}
 	for card_name in names: sets[CardRegistry.get_card(card_name).set_code] = true
@@ -148,6 +149,21 @@ func _refresh() -> void:
 	var refusal := DraftPoolConfig.validate(config, names)
 	var total := int(config.boosters) * 15 + int(config.starters) * 60 + int(config.free_lands) * 5 + int(config.extras)
 	status.text = refusal if refusal != "" else "%d cards to build with · aim for at least %d cards in your deck" % [total, DeckModel.MIN_CARDS]
+	if refusal == "" and not _folder_the_deck_pickers_read():
+		status.text += "\nLoad deck lists only %s. A draft saved elsewhere is opened with Import deck." % DeckStore.USER_DIR
+
+
+## `Load deck` walks [constant DeckStore.SHIPPED_DIR] and the top level of
+## [constant DeckStore.USER_DIR] and nothing else, so a draft sent to any
+## other folder is a real file that neither the builder's list nor Magic
+## Battle ever shows. Say it here rather than let the result screen's
+## "Saved to:" imply otherwise (2026-09-17).
+func _folder_the_deck_pickers_read() -> bool:
+	return _resolved(GamePaths.expand(folder.text.strip_edges())) == _resolved(DeckStore.USER_DIR)
+
+
+static func _resolved(path: String) -> String:
+	return ProjectSettings.globalize_path(path.replace("\\", "/")).simplify_path().trim_suffix("/")
 
 
 ## One chooser at a time, for the reason [method _open_verifier] states:

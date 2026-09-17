@@ -99,9 +99,12 @@ static func valid_advert(data: Dictionary) -> bool:
 
 
 func accept_reply(data: Dictionary, source: String, now: int) -> bool:
+	# A UDP packet is anyone's: read every field through a typed check, since
+	# GDScript raises on `5 != "sg-lan-host"` instead of answering false.
 	if not scanning or not SgProtocol.exact(data, ["v", "type", "nonce", "host"]) \
-		or data.get("v") != SgProtocol.VERSION or data.get("type") != "sg-lan-host" \
-		or data.get("nonce") != _nonce or not SgLanInvite.address(source) \
+		or not SgProtocol.integer(data.v, SgProtocol.VERSION, SgProtocol.VERSION) \
+		or not SgProtocol.literal(data.type, "sg-lan-host") \
+		or not SgProtocol.literal(data.nonce, _nonce) or not SgLanInvite.address(source) \
 		or not data.get("host") is Dictionary or not valid_advert(data.host):
 		return false
 	var advert: Dictionary = data.host
@@ -154,8 +157,9 @@ func _process(_delta: float) -> void:
 			accept_reply(data, source, now)
 		elif advertising and _replies < 16 \
 			and SgProtocol.exact(data, ["v", "type", "nonce"]) \
-			and data.get("v") == SgProtocol.VERSION and data.get("type") == "sg-lan-query" \
-			and SgProtocol.token(data.get("nonce")):
+			and SgProtocol.integer(data.v, SgProtocol.VERSION, SgProtocol.VERSION) \
+			and SgProtocol.literal(data.type, "sg-lan-query") \
+			and SgProtocol.token(data.nonce):
 			_replies += 1
 			var reply := {"v": SgProtocol.VERSION, "type": "sg-lan-host",
 				"nonce": data.nonce, "host": _advert}

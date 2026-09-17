@@ -76,6 +76,11 @@ needed); card files have NO class_name (they register by name instead);
   completely, and reopen afterwards.
 - `tests/ui/test_booster_draft.gd`: pack composition, eligibility, setup lifecycle,
   pool enforcement, real input at expiry, layout, close handling and save recovery.
+- `tests/ui/test_draft_pack_fingerprints_2026_09_17.gd`: the pre-build commitment
+  over every card-pack combination — base set alone, each numbered pack, all five
+  — order-independent fingerprints, the widest pool inside the recipe/file bounds,
+  every implemented pack card on exactly one rarity sheet, and the refusal that
+  names the pack a switched-off machine is missing.
 
 ## SGManalink design (2026-09-14)
 
@@ -105,7 +110,8 @@ needed); card files have NO class_name (they register by name instead);
   checkpoint replacement, last-good fallback and compatible saved-event discovery.
 - `game/sgmanalink/tournament_panel.gd` (`SgTournamentPanel`): styled configuration,
   name/welcome, host-local remembered save-folder picker and saved-event list,
-  full deck review, round scorecards, tabbed Master Panel, standings and entrant hall.
+  full deck review, round scorecards, tabbed Master Panel, standings and entrant hall,
+  and the per-seat waiting line that names what each player's hall is waiting for.
 - `game/sgmanalink/tournament_results.gd` (`SgTournamentResults`): read-only shared
   places, separate played/bye/forfeit accounting and published advancement links.
 - `game/sgmanalink/tournament_bracket.gd` (`SgTournamentBracket`, `BracketCanvas`):
@@ -118,17 +124,25 @@ needed); card files have NO class_name (they register by name instead);
   knockout/series flows, privacy, authority, restart/capability recovery, save
   failure, organiser participation, concurrent readiness and multi-table full-game
   coverage pilots (optional `SG_TOURNAMENT_CAMPAIGN_PLAYERS=20` full knockout),
-  seeded varied-deck tournaments, duplicate/lost-ACK stress, credential-free journals
-  and cross-client final-standings/recovery checks.
+  seeded varied-deck tournaments, duplicate/lost-ACK stress, credential-free journals,
+  the playing organiser's Master Panel and its printed refusals, the waiting player's
+  live hall line across a reconnect, and cross-client final-standings/recovery checks.
 - `tests/ui/test_sgmanalink_tournament_panel.gd`: opt-in setup controls,
   small-window layout, graph containment/zoom/path persistence, twenty-row final
-  standings and truthful cancelled-table labels.
+  standings, truthful cancelled-table labels, whole-number series scores on a real
+  client, per-seat waiting lines and the gated finished-table control.
 
 - `docs/sgmanalink-design.md`: proposed online personas, passkey recovery,
   authoritative duels, secure transport, hidden-information boundaries and
   player MElo; phased work on `sgmanalink`, no public online service.
 - `docs/sgmanalink-local-playtest.md`: desktop LAN/loopback instructions,
   pinned invitations, discovery/firewall help, full-pool deck selection and test gates.
+- `tools/lan_smoke.gd/.tscn`, `tools/lan_smoke.sh`: THE LAN SMOKE — two
+  separate Godot processes with separate data homes playing one whole duel
+  over the encrypted LAN path (advert, invitation, pinned certificate,
+  `wss://`), with a mid-duel disconnect/resume, the host closing the table,
+  and round-trip/message-size numbers. One computer cannot hear its own UDP
+  broadcast, so the sweep falls back to a query addressed at the host.
 - `docs/sgmanalink-network-campaign.md`: fair-information network self-play
   design, reproducible fault campaign, evidence and two-machine limitations.
 - `tests/support/sg_network_pilot.gd`: DTO-only coverage pilot and normalized
@@ -260,6 +274,11 @@ needed); card files have NO class_name (they register by name instead);
 - `tests/unit/test_sgmanalink_full_pool.gd`: registry-wide DTO/render checks,
   targeting, modes, X, abilities, private questions, authorized reveals,
   masked zones, special actions and hidden-handle retirement.
+- `tests/ui/test_sgmanalink_lan_pair_2026_09_17.gd`: a started LAN host's own
+  advert against its own invitation — address, port actually taken, certificate
+  fingerprint, build and stamp — plus the open-table count moving without naming
+  the table and carrying no access or resume secret; an ephemeral discovery port,
+  never the system-wide UDP 17898.
 - `tests/ui/test_sgmanalink_network.gd`: real sockets, GUI room flow,
   authentication/seat bounds, stale/duplicate commands, disconnects,
   lost acknowledgements, controller replacement, real UDP discovery, TLS LAN
@@ -286,6 +305,13 @@ needed); card files have NO class_name (they register by name instead);
   leaves the same question open, and the next click answers it.
 - `tests/ui/test_sgmanalink_opening_order_2026_09_17.gd`: only keeping or
   redrawing spends the toss winner's play/draw choice.
+- `tests/ui/test_sgmanalink_session_2026_09_17.gd`: readiness that outlived a
+  disconnection — the returning seat starts the duel both players already
+  agreed to — and a closed room leaving no memoized view behind.
+- `tests/unit/test_sgmanalink_dto_types_2026_09_17.gd`: a wire command, a
+  discovery packet, a host snapshot and a saved checkpoint whose fields carry
+  the wrong TYPE are refused quietly rather than raising an operator error,
+  and an attachment must name a card the same view carries.
 
 `MtgGame.reveal_information` is a presentation-only, viewer-scoped channel for
 rule-authorized looks/reveals. Choice preflight records only information preceding
@@ -2934,6 +2960,13 @@ shandalar/
 │   │                          offline build of set + bundle archives and
 │   │                          index.json. Run: python3 -m unittest
 │   │                          discover -s tools -p 'test_*.py'
+│   ├── lan_smoke.sh         LAN-smoke entry point: two data homes, two
+│   │                          Godots on one private IPv4 address, and a
+│   │                          FAILURE on any ERROR/WARNING/LAN FAIL line
+│   │                          or on a run that never reached its verdict;
+│   │                          exit 1 a failed check, 2 a deadline, 3 bad
+│   │                          argument, 124 the whole-run guard (manual
+│   │                          in the file)
 │   ├── deck_convert.gd      Deck-format converter (community .deck/.dec ⇄
 │   │                          the original MicroProse .dck); entry point
 │   │                          ./deck_convert.sh
@@ -2961,6 +2994,18 @@ shandalar/
 │   │                          --headless --path . -s res://tools/bench_undo.gd
 │   ├── screenshot_tour.gd   Screenshot tour of the UI (main session's tool;
 │   │   screenshot_tour.tscn   off limits to engine passes)
+│   ├── lan_smoke.gd         THE LAN SMOKE (a SCENE, not a `-s` script:
+│   │   lan_smoke.tscn         Godot registers the autoloads after it
+│   │                          loads a `--script` main loop, so a `-s`
+│   │                          tool naming SgLocalServer never compiles)
+│   │                          — TWO Godot processes, their own XDG data
+│   │                          homes, one whole SGManalink duel between
+│   │                          them over `wss://` with the advert, the
+│   │                          `sglan1:` invitation and the pinned
+│   │                          certificate; one mid-duel disconnect and
+│   │                          resume, the host closing the table, and
+│   │                          the round trips and largest messages
+│   │                          measured. Run via tools/lan_smoke.sh
 │   ├── reset_test_packs.gd  A canceled pack test can skip after_each, so
 │   │                          run_tests.sh clears `enabled_card_packs`
 │   │                          between GUT processes. REFUSES to run outside

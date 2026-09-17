@@ -66,7 +66,12 @@ func open_tournament(options: Dictionary, resume_code: String, folder: String, r
 	return ""
 
 
-func start_lan(address: String, requested_port := 17897, visible := true, nickname := "") -> Error:
+## [param discovery_port] exists so a test — or a second service on one
+## development machine — need not take the single system-wide UDP 17898;
+## [method SgLanDiscovery.advertise] already carries it for that reason.
+## A player's host always uses the default.
+func start_lan(address: String, requested_port := 17897, visible := true, nickname := "",
+	discovery_port := SgLanDiscovery.PORT) -> Error:
 	if OS.has_feature("web") or _listener.is_listening():
 		return ERR_UNAVAILABLE
 	if not SgLanInvite.address(address) or not IP.get_local_addresses().has(address) \
@@ -103,7 +108,7 @@ func start_lan(address: String, requested_port := 17897, visible := true, nickna
 		discovery_error = discovery.advertise({"address": address, "port": port,
 			"name": nickname if not nickname.is_empty() else "Guest host",
 			"fingerprint": pem.sha256_text(), "rooms": 0,
-			"build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()})
+			"build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}, discovery_port)
 	return OK
 
 
@@ -358,6 +363,11 @@ func _receive(id: int, message: Dictionary) -> void:
 			_peers[previous].session = 0
 			_peers[previous].opened = Time.get_ticks_msec()
 			_peers[previous].socket.close(4001, "Session moved")
+		# Readiness survives a reconnect, so a seat that readied while the other
+		# one was away comes back to a room already marked [true, true]. Nothing
+		# else re-read those marks, and the waiting room then offered "Not ready"
+		# at both seats: the duel had to be un-readied and readied again.
+		_start_if_both_ready(_rooms.get(session.room, {}))
 		_bump_room(session.room)
 		_send(id, {"type": "welcome", "v": SgProtocol.VERSION,
 			"resume": resume, "seq": session.seq, "guest": _guest_name(sid), "build": SgCompatibility.fingerprint()})
@@ -569,9 +579,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		if room.match != null:
 			return "The duel has started."
 		room.ready[seat] = action.value
-		if room.ready == [true, true] and _connected(room.seats[0]) and _connected(room.seats[1]):
-			room.match = _create_match(room.decks, [_guest_name(room.seats[0]), _guest_name(room.seats[1])])
-			_attach_bots(room)
+		_start_if_both_ready(room)
 		room.revision += 1
 		return ""
 	if room.match == null:
@@ -589,6 +597,17 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		var storage_error := tournament.collect_result(room)
 		if not storage_error.is_empty(): return storage_error
 	return error
+
+
+## Two Ready marks and two live connections are the whole condition for a
+## duel, whichever of them arrives last: a Ready click, or a reconnection.
+func _start_if_both_ready(room: Dictionary) -> void:
+	if room.is_empty() or room.match != null or room.ready != [true, true]:
+		return
+	if not _connected(room.seats[0]) or not _connected(room.seats[1]):
+		return
+	room.match = _create_match(room.decks, [_guest_name(room.seats[0]), _guest_name(room.seats[1])])
+	_attach_bots(room)
 
 
 func _create_match(decks: Array, names: Array) -> SgPracticeMatch:
