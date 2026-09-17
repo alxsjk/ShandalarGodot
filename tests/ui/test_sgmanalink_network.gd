@@ -192,7 +192,11 @@ func test_lost_ack_reconnect_resumes_same_seat_and_retries_same_command() -> voi
 	assert_eq(server._sessions.size(), 2, "reconnect did not create another identity")
 
 
-func test_outsider_and_stale_revision_cannot_modify_a_match() -> void:
+func test_outsider_and_wrong_room_cannot_modify_a_match() -> void:
+	# A stale revision refuses an ordinary move and lets a concession
+	# through; that pair is pinned below. Here the room's NAME is the gate:
+	# a stranger outside it and a seat naming another room are both refused,
+	# concession included.
 	await _start_duel()
 	var room_id := String(a.state.room.id)
 	var stranger := SgLocalClient.new()
@@ -204,10 +208,6 @@ func test_outsider_and_stale_revision_cannot_modify_a_match() -> void:
 	await _act(stranger, {"op": "concede"})
 	assert_false(server._rooms[room_id].match.game.game_over)
 	var revision := int(server._rooms[room_id].revision)
-	a.state.room.revision = 0
-	await _act(a, {"op": "concede"})
-	assert_eq(server._rooms[room_id].revision, revision)
-	assert_false(server._rooms[room_id].match.game.game_over)
 	a.state.room.id = "r999"
 	await _act(a, {"op": "concede"})
 	assert_eq(server._rooms[room_id].revision, revision)
@@ -732,13 +732,25 @@ func _practice_action(view: Dictionary, seat: int, played_land: Dictionary) -> D
 			for card: Dictionary in view.hand:
 				if card.land:
 					continue
-				var cost := ManaCost.parse(card.cost).mana_value()
+				var cost := ManaCost.parse(_announced_cost(view, card.id)).mana_value()
 				var pool := int(view.players[seat].mana)
 				if cost <= pool:
 					return {"op": "play", "card": card.id}
 				if cost <= pool + lands.size():
 					return {"op": "tap", "card": lands[0].id}
 	return {"op": "pass"}
+
+
+## What casting the hand card [param handle] is announced at, where
+## protocol 20 leaves it: on the presentation row's own spell option,
+## which is where the seat's UI reads a cost from, rather than on the
+## face — the face's copy was dead weight nothing consumed.
+func _announced_cost(view: Dictionary, handle: String) -> String:
+	for row in view.presentation.cards:
+		if row.id != handle: continue
+		for option in row.abilities:
+			if option.kind == "spell": return String(option.cost)
+	return ""
 
 
 func test_varied_deck_rematches_with_latency_disconnects_and_duplicate_commands() -> void:
@@ -839,3 +851,25 @@ func _soak_action(view: Dictionary, seat: int, skipped: Dictionary) -> Dictionar
 				if option.kind == "spell":
 					return {"op":"autoprepare", "card":row.id, "kind":"spell", "index":0, "mode":0, "count":1, "excluded":[]}
 	return {"op":"pass"}
+
+
+func test_a_concession_is_accepted_over_a_revision_the_client_has_not_seen() -> void:
+	# A bot's polling bumps the room while a human is still deciding to
+	# give up; the one move a fresher room cannot make wrong is that one.
+	var refused: Array = []
+	a.refused.connect(func(reason: String) -> void: refused.append(reason))
+	await _pair()
+	await _act(a, {"op": "host", "name": "Practice room"})
+	await _act(b, {"op": "join", "room": a.state.room.id})
+	await _act(a, {"op": "ready", "value": true})
+	await _act(b, {"op": "ready", "value": true})
+	await _until(func() -> bool: return not a.state.room.game.is_empty())
+	server._rooms[a.state.room.id].revision += 1
+	await _act(a, {"op": "keep"})
+	assert_eq(refused, ["The room changed. Please try again."], "an ordinary move still waits for the fresh room")
+	refused.clear()
+	server._rooms[a.state.room.id].revision += 1
+	await _act(a, {"op": "concede"})
+	assert_eq(refused, [], "the concession went through over the stale revision")
+	assert_eq(int(a.state.room.game.winner), 1)
+	assert_eq(int(b.state.room.game.winner), 1)

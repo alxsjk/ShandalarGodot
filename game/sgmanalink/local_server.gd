@@ -279,7 +279,14 @@ func _abandon(sid: int) -> void:
 	var session: Dictionary = _sessions[sid]
 	var room_id: String = session.room
 	var room: Dictionary = _rooms.get(room_id, {})
-	if tournament != null and tournament.member(sid) != 0:
+	if tournament != null and sid == tournament.organiser \
+			and tournament.event.phase in ["registration", "running"]:
+		# The organiser walking away must not leave an event nobody can end:
+		# the session is gone with its resume code, so the event is cancelled
+		# for every entrant rather than orphaned with its controls unreachable.
+		tournament.abandoned_by_organiser()
+		room = {}
+	elif tournament != null and tournament.member(sid) != 0:
 		tournament.departed(sid)
 		room = {}
 	if not room.is_empty():
@@ -497,7 +504,10 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		if op in ["host", "join", "deck", "ready", "remove_guest", "leave", "add_bot", "remove_bot"]:
 			return "Use the Tournament Hall while this host runs a tournament."
 		if not tournament.hold().is_empty(): return tournament.hold()
-	if not room.is_empty() and revision != int(room.revision):
+	# A concession is not a move that a fresher room can make wrong: it asks
+	# for the one outcome no later state changes, and a bot's polling bumps
+	# the revision while a human is still deciding to give up.
+	if not room.is_empty() and revision != int(room.revision) and op != "concede":
 		return "The room changed. Please try again."
 	if op == "host":
 		if not room.is_empty() or _rooms.size() >= MAX_ROOMS:

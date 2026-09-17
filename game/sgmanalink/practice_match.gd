@@ -147,8 +147,7 @@ func _cards(pid: int, list: Array) -> Array:
 			chosen = String(card.memory[card.data.chosen_type_key]).capitalize()
 			if chosen.is_empty(): chosen = "No creatures"
 		out.append({"id": _handle(pid, card), "name": "Face-down creature" if masked else card.data.card_name,
-			"rules": "" if masked else card.data.oracle_text,
-			"cost": "" if card.is_land() else str(card.data.cost), "land": card.is_land(),
+			"rules": "" if masked else card.data.oracle_text, "land": card.is_land(),
 			"power": card.cur_power, "toughness": card.cur_toughness,
 			# The PRINTED pair beside the live one. A guest reads a named
 			# card's print off its own registry, but a TOKEN has no entry
@@ -175,7 +174,6 @@ func _cards(pid: int, list: Array) -> Array:
 			"abilities": [] if masked else _abilities(card),
 			"actions": [] if masked else SgDuelActions.options(card, pid),
 			"exile_playable": game.can_play_from_exile(pid, card)})
-		if masked: out.back().cost = ""
 		if masked and card.zone != Mtg.Zone.BATTLEFIELD:
 			var hidden: Dictionary = out.back()
 			hidden.name = "Face-down card"

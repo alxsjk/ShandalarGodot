@@ -46,7 +46,9 @@ table is refused with the pause notice, and **Draw next round** waits for
 **Resume tournament**. Withdrawals, rulings and cancellation stay available
 while paused. The pause lives in the host application: a host restart lifts
 it. A failed save pauses the event the same way, with **Retry save** as the
-way out.
+way out — and **Cancel tournament** and **Close** still work under it, so a
+folder that has stopped taking saves never keeps an event alive that the
+organiser wants ended.
 
 **Declare … winner** on a table of the current round ends that series at once
 with the named player as its winner; a game in progress ends there, the way a
@@ -119,6 +121,9 @@ ready; previously recorded wins remain. There is no seamless host migration.
 Save failure suspends tournament advancement. The organiser reads the storage
 instruction they can act on; every other hall says that play resumes when the
 organiser retries the save and that recorded scores are kept.
+The organiser's own **Forget** is the end of the event: the resume code goes
+with it, so an event in registration or under way is cancelled for every
+entrant rather than left running with its controls unreachable.
 Recovery requires a matching build and the same enabled gameplay packs. Earlier
 protocol-8/9/10/11/12/13 development checkpoints remain untouched but are not migrated
 to the current protocol-14 compatibility contract.

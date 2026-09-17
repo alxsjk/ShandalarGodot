@@ -750,7 +750,11 @@ func _waiting_room(room: Dictionary) -> void:
 		var state_label := _label(status, 16)
 		state_label.add_theme_color_override("font_color", Color8(44,82,38) if room.connected[seat] and room.ready[seat] else UiChrome.ACCENT)
 		column.add_child(state_label)
-		column.add_child(_label("Deck: " + String(room.deck_names[seat]), 17))
+		# The referee's default deck is honest for a player who has not chosen
+		# yet; an empty seat has nobody to play it.
+		var deck_line := "Deck: " + String(room.deck_names[seat])
+		if room.names[seat] == "Empty seat": deck_line = "Deck: —"
+		column.add_child(_label(deck_line, 17))
 	var rules := SgLobbyStyle.column(_body, "Duel rules")
 	rules.add_child(_label(TABLE_RULES, 16))
 	var actions := SgLobbyStyle.row(rules)

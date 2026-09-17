@@ -183,7 +183,8 @@ needed); card files have NO class_name (they register by name instead);
   referee, explicit player actions, public/seat-private views and retiring hidden-zone
   handles; retains the Forest practice list as an optional default fixture.
 - `game/sgmanalink/deck_catalog.gd` (`SgDeckCatalog`): shipped/saved deck discovery,
-  full main/sideboard lists and registry-only Unrestricted deck validation.
+  full main/sideboard lists, registry-only Unrestricted deck validation at the
+  Deck Builder's forty-card floor, and each row's shelf or player-folder tooltip.
 - `game/sgmanalink/duel_actions.gd` (`SgDuelActions`): referee-owned announcements,
   targets, modes, X, live abilities, private choices, special actions and authorized
   information history; never serializes Callables, instances or library order.
@@ -5497,7 +5498,13 @@ shandalar/
 │   │                          Go! after every gate, read back with a
 │   │                          fallback per control) — 2026-09-07, "all
 │   │                          selections you make should keep as
-│   │                          default on your next run"
+│   │                          default on your next run". Honours a deck
+│   │                          file's `# requires-pack:` line the way the
+│   │                          Deck Builder does (2026-09-17): with the
+│   │                          pack off the row reads "(needs Pack N)",
+│   │                          the note and Go! name the pack, and
+│   │                          `<random deck>` skips it; the listed floor
+│   │                          is DeckModel.MIN_CARDS on every screen.
 │   ├── deck_groups.gd       class DeckGroups — WHERE A DECK CAME FROM,
 │   │                          the heading it appears under in the deck
 │   │                          list. `User-created` is DERIVED from the

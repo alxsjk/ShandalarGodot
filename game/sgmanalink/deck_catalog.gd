@@ -5,8 +5,8 @@ extends RefCounted
 ## review; a friendly single duel does not have a between-games sideboard step.
 
 static func validate(cards: Array, sideboard: Array = []) -> String:
-	if cards.size() < 40 or cards.size() > 250 or sideboard.size() > 250:
-		return "Choose a deck with 40-250 cards and at most 250 sideboard cards."
+	if cards.size() < DeckModel.MIN_CARDS or cards.size() > 250 or sideboard.size() > 250:
+		return "Choose a deck with %d-250 cards and at most 250 sideboard cards." % DeckModel.MIN_CARDS
 	CardRegistry.ensure_loaded()
 	for card_name in cards + sideboard:
 		if not CardRegistry.has_card(card_name):
@@ -21,5 +21,15 @@ static func available() -> Array:
 		if not deck.errors.is_empty() or not validate(deck.cards, deck.sideboard).is_empty():
 			continue
 		result.append({"name": deck.deck_name, "cards": Array(deck.cards),
-			"sideboard": Array(deck.sideboard), "group": path.get_base_dir().trim_prefix("res://decks")})
+			"sideboard": Array(deck.sideboard), "group": _group(path)})
 	return result
+
+
+## The lobby's tooltip for a deck row: the shelf under the shipped decks
+## (`/1997`, `/tournament`…) or the player's own folder as they see it.
+## The user directory kept the literal `user://decks` before this: only
+## the shipped prefix was trimmed, whichever directory the file came from.
+static func _group(path: String) -> String:
+	if path.begins_with(DeckStore.SHIPPED_DIR):
+		return path.get_base_dir().trim_prefix(DeckStore.SHIPPED_DIR)
+	return GamePaths.shown(path.get_base_dir())

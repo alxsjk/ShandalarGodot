@@ -102,7 +102,9 @@ func command(sid: int, action: Dictionary, revision: int) -> String:
 		retire_empty_tables()
 		server()._publish("", 0, true)
 		return ""
-	if not save_error.is_empty(): return save_error
+	# A failed save holds play, not the way out: cancelling and closing are
+	# how the organiser ends an event whose storage will not come back.
+	if not save_error.is_empty() and op not in ["t_cancel", "t_close"]: return save_error
 	if op == "t_close":
 		if event.phase not in ["complete", "cancelled"] or not server()._rooms.is_empty():
 			return "Finish or cancel the tournament and return all tables to the hall first."
@@ -256,6 +258,20 @@ func collect_result(room: Dictionary) -> String:
 		save()
 		server()._publish("", 0, true)
 	return save_error
+
+
+## The organiser's session abandoned with a live event: cancel it, so the
+## entrants read a cancelled event instead of one whose controls nobody
+## holds. A dropped connection is not this — [method departed] and the
+## resume code cover that.
+func abandoned_by_organiser() -> void:
+	if event.phase not in ["registration", "running"]: return
+	event.cancel()
+	for session: Dictionary in server()._sessions.values(): session.room = ""
+	server()._rooms.clear()
+	server()._view_cache.clear()
+	paused = false
+	save()
 
 
 func departed(sid: int) -> void:

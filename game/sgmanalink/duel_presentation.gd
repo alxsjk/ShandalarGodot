@@ -51,11 +51,18 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 		"chain": [], "packets": [], "bands": [], "blocks": [], "blocked": [],
 		"attackable": [], "blockable": [], "assignment": {}, "targets": [],
 		"prevention": g.awaiting_damage_prevention, "regeneration": g.awaiting_regeneration,
-		"draft": {}, "respond": false, "floating": false, "untap_capped": not g.untap_caps.is_empty()}
+		"doomed": [], "draft": {}, "respond": false, "floating": false,
+		"untap_capped": not g.untap_caps.is_empty()}
 	for key in RULES: result.rules[key] = g.rules.get(key)
 	for seat in 2:
 		var p := g.players[seat]
+		# The land drop as the whole rule, not just the counter: a seat's
+		# allowance (Storm Cauldron's extra play, Fastbond's "any number")
+		# is what MtgGame.land_drop_available reads beside it, and without
+		# both the other end can only ever offer the turn's first land.
 		result.players.append({"poison": p.poison, "lands": p.lands_played_this_turn,
+			"extra_lands": int(g.extra_land_plays.get(seat, 0)),
+			"unlimited_lands": g.unlimited_land_plays.has(seat),
 			"hand_revealed": p.hand_revealed, "color": m.panel_colors[seat]})
 		var visible: Array = p.battlefield + p.graveyard + p.exile + p.ante
 		for card in p.hand:
@@ -133,13 +140,30 @@ static func build(m: SgPracticeMatch, pid: int, view: Dictionary) -> Dictionary:
 	for id in g.combat.blocked_attackers:
 		var card := g.find_instance(id)
 		if card != null: result.blocked.append(m._handle(pid, card))
+	# WHO THE OPEN REGENERATION WINDOW IS ABOUT. The bool alone says a
+	# window is open; the doomed creatures are the question it asks, and
+	# they are public — they are standing on a battlefield holding lethal
+	# damage. Empty whenever no window is open, so this costs nothing.
+	for id in g.regeneration_candidates:
+		var card := g.find_instance(id)
+		if m._visible(pid, card): result.doomed.append(m._handle(pid, card))
 	if g.awaiting_damage_assignment:
 		var request := g.damage_assignment_request()
 		var assigned: Array = []
 		for id in request.assigned:
 			var card := g.find_instance(id)
 			if card != null: assigned.append([m._handle(pid, card), int(request.assigned[id])])
+		# The division's AMOUNT and its TARGETS are public — the source's
+		# power and the creatures blocking or blocked, all of them already
+		# on the board — so the watching seat's own board can paint the
+		# groups the assigner has answered. The per-target "lethal" hint
+		# stays private, in `damage_request`, for the assigner alone.
+		var targets: Array = []
+		for id: int in request.targets:
+			var target := g.find_instance(id)
+			if target != null: targets.append(m._handle(pid, target))
 		result.assignment = {"source": m._handle(pid, request.source), "assigner": int(request.assigner),
+			"amount": int(request.amount), "targets": targets,
 			"trample": bool(request.trample), "assigned": assigned}
 	if not view.announcement.is_empty():
 		for slot in view.announcement.slots:

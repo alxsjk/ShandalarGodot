@@ -351,3 +351,57 @@ func test_cleanup_requires_exactly_the_owners_distinct_cards() -> void:
 	assert_ne(duel.act(0, {"op": "discard", "cards": [hand[0].id, hand[0].id]}), "")
 	assert_eq(duel.act(0, {"op": "discard", "cards": [hand[0].id, hand[1].id]}), "")
 	assert_eq(g.players[0].hand.size(), 7)
+
+
+func test_protocol_20_pins_the_land_allowance_the_public_division_and_the_dropped_cost() -> void:
+	assert_eq(SgProtocol.SUBPROTOCOL, "sgmanalink-local-v%d" % SgProtocol.VERSION)
+	var duel := SgPracticeMatch.new(42)
+	var view := duel.view(0)
+	assert_true(SgViewProtocol.game(view))
+	# THE LAND DROP crosses as the whole rule — the turn's counter AND the
+	# seat's allowance — because that is what land_drop_available reads.
+	# Neither half is optional, and a negative allowance is not a number
+	# of land plays.
+	for row in view.presentation.players:
+		assert_eq(int(row.extra_lands), 0)
+		assert_false(row.unlimited_lands)
+	for change in [["erase", "extra_lands"], ["erase", "unlimited_lands"],
+		["extra_lands", -1], ["extra_lands", "many"], ["unlimited_lands", 1]]:
+		var broken := view.duplicate(true)
+		if change[0] == "erase": broken.presentation.players[0].erase(change[1])
+		else: broken.presentation.players[0][change[0]] = change[1]
+		assert_false(SgViewProtocol.game(broken), str(change))
+	# A FACE no longer carries its printed cost: nothing read it — the
+	# client prices a named card off its own registry — and an unknown key
+	# is not this protocol's face.
+	assert_false(view.hand[0].has("cost"))
+	var extra := view.duplicate(true)
+	extra.hand[0]["cost"] = "{1}{G}"
+	assert_false(SgViewProtocol.game(extra), "a face with a cost is refused")
+	# THE PUBLIC HALF OF A DAMAGE DIVISION reaches both seats. Without the
+	# amount or the targets the watching board could paint no group at all.
+	var division := {"source": "c1", "assigner": 0, "amount": 6,
+		"targets": ["c2", "c3"], "trample": false, "assigned": [["c2", 3]]}
+	var shape: Dictionary = view.presentation.duplicate(true)
+	shape.assignment = division.duplicate(true)
+	assert_true(SgViewProtocol.presentation(shape))
+	for key in division.keys():
+		shape.assignment = division.duplicate(true)
+		shape.assignment.erase(key)
+		assert_false(SgViewProtocol.presentation(shape), "required assignment field: " + key)
+	for bad in [{"amount": -1}, {"amount": "six"}, {"targets": "c2"}, {"targets": [42]}]:
+		shape.assignment = division.duplicate(true)
+		shape.assignment.merge(bad, true)
+		assert_false(SgViewProtocol.presentation(shape), str(bad))
+	# The regeneration window's doomed list is bounded handles, and the key
+	# is required whether or not a window is open.
+	shape = view.presentation.duplicate(true)
+	assert_eq(shape.doomed, [])
+	shape.doomed = ["c2"]
+	assert_true(SgViewProtocol.presentation(shape))
+	for bad_value in [[42], "c2", [""]]:
+		shape.doomed = bad_value
+		assert_false(SgViewProtocol.presentation(shape), str(bad_value))
+	shape = view.presentation.duplicate(true)
+	shape.erase("doomed")
+	assert_false(SgViewProtocol.presentation(shape))

@@ -45,6 +45,18 @@ func test_registry_wide_presentation_roundtrips_every_printed_card() -> void:
 	assert_gt(SgDeckCatalog.available().size(), 100)
 
 
+func test_a_deck_row_s_group_is_its_shelf_or_the_player_s_own_folder() -> void:
+	# The lobby's tooltip: a shipped deck names its shelf under the
+	# shipped folder; a deck of the player's own names the folder as the
+	# player sees it, not the literal `user://decks` (2026-09-17, item 6).
+	assert_eq(SgDeckCatalog._group(DeckStore.SHIPPED_DIR + "/1997/knights.deck"), "/1997")
+	assert_eq(SgDeckCatalog._group(DeckStore.SHIPPED_DIR + "/tournament/x/y.deck"), "/tournament/x")
+	var own := SgDeckCatalog._group(DeckStore.USER_DIR + "/mine.deck")
+	assert_false(own.begins_with("user://"), own)
+	assert_eq(own, GamePaths.shown(DeckStore.USER_DIR))
+	assert_true(SgDeckCatalog.validate([]).begins_with("Choose a deck with %d-250 cards" % DeckModel.MIN_CARDS))
+
+
 func test_targeted_spell_counterspell_and_private_announcements() -> void:
 	var duel := _match()
 	advance_to_step(Mtg.Step.MAIN1)

@@ -875,6 +875,100 @@ func test_a_deck_of_proxies_is_listed_rather_than_hidden() -> void:
 	_drop_proxy_deck()
 
 
+# ============================ THE DECLARED PACK (2026-09-17, item 8) ==
+# A deck file may say `# requires-pack: pack-3`. The Deck Builder reads
+# that line and offers to enable the pack; this screen threw it away, so
+# with the pack off a Pack 3 deck was listed as "(N proxy)" and refused
+# with a list of cards to replace — the wrong remedy for a deck that only
+# needs its pack turned on. Now the declared pack is the FIRST thing the
+# screen says about the deck, on the row, in the note and on `Go!`, and
+# `<random deck>` never draws it while the pack is off.
+
+const PACK_DECK := "user://decks/_gut_pack_seat.deck"
+
+
+func _write_pack_deck() -> String:
+	DirAccess.make_dir_recursive_absolute(
+		ProjectSettings.globalize_path(DeckStore.USER_DIR))
+	var file := FileAccess.open(PACK_DECK, FileAccess.WRITE)
+	# Forty Forests: the deck LOADS with the pack off. The line is the
+	# only thing that keeps it out of a duel, which is the point.
+	file.store_string("# requires-pack: %s\nname: Ice Seat\n40 Forest\n" % IceAgePack.ID)
+	file.close()
+	return PACK_DECK
+
+
+func _drop_pack_deck() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PACK_DECK))
+
+
+func _restore_packs(was_enabled: Array[String]) -> void:
+	Settings.set_enabled_card_packs(was_enabled)
+	CardPacks._configure_registry()
+	CardRegistry.ensure_loaded()
+
+
+func test_a_deck_that_declares_a_disabled_pack_is_listed_marked_and_refused() -> void:
+	var was_enabled := Settings.enabled_card_packs()
+	CardPacks.set_enabled(IceAgePack.ID, false)
+	var path := _write_pack_deck()
+	var fresh: SetupScreen = load("res://game/setup_screen.tscn").instantiate()
+	add_child_autofree(fresh)
+	await get_tree().process_frame
+	assert_true(fresh._deck_paths.has(path), "it is in the list")
+	assert_false(fresh._playable_paths.has(path),
+		"...but never in the random pool")
+	assert_false(fresh._proxy_paths.has(path),
+		"and it is NOT a proxy deck — the remedy is the pack, not the Deck Builder")
+	assert_eq(fresh._pack_paths.get(path, []), [IceAgePack.ID])
+	var marked := false
+	var picker: OptionButton = fresh._deck_options[0]
+	for i in picker.item_count:
+		if str(picker.get_item_metadata(i)) == path:
+			marked = picker.get_item_text(i).contains("needs Pack 3")
+			assert_true(picker.get_item_tooltip(i).contains("Pack 3"),
+				"and its tooltip names the pack")
+			assert_true(picker.get_item_tooltip(i).contains("Options"),
+				"and where to turn it on")
+	assert_true(marked, "the row says which pack the deck needs")
+	# Live, on the note under the picker...
+	fresh._deck_options[0].select(0)
+	for i in picker.item_count:
+		if str(picker.get_item_metadata(i)) == path:
+			picker.select(i)
+	fresh._refresh_format_note()
+	assert_true(fresh._format_note.text.contains("Seat 1"), "the note says which seat")
+	assert_true(fresh._format_note.text.contains("requires Pack 3"),
+		"and names the pack rather than a list of cards")
+	# ...and again on Go!, before any duel exists.
+	var before := get_tree().current_scene
+	fresh._start_battle()
+	assert_eq(get_tree().current_scene, before, "no duel was started")
+	assert_true(is_instance_valid(fresh), "the setup screen is still here")
+	_drop_pack_deck()
+	_restore_packs(was_enabled)
+
+
+func test_the_same_deck_is_playable_once_its_pack_is_on() -> void:
+	# The mark is about the pack's switch, not the file: flip the switch
+	# and the deck is an ordinary playable deck, in the random pool too.
+	var was_enabled := Settings.enabled_card_packs()
+	assert_true(CardPacks.set_enabled(IceAgePack.ID, true), "Pack 3 is available to the suite")
+	var path := _write_pack_deck()
+	var fresh: SetupScreen = load("res://game/setup_screen.tscn").instantiate()
+	add_child_autofree(fresh)
+	await get_tree().process_frame
+	assert_true(fresh._playable_paths.has(path), "playable, and in the random pool")
+	assert_false(fresh._pack_paths.has(path))
+	var picker: OptionButton = fresh._deck_options[0]
+	for i in picker.item_count:
+		if str(picker.get_item_metadata(i)) == path:
+			assert_false(picker.get_item_text(i).contains("needs"))
+			assert_eq(picker.get_item_tooltip(i), "")
+	_drop_pack_deck()
+	_restore_packs(was_enabled)
+
+
 ## THE SCREEN HAS TO FIT THE WINDOW IT SHIPS WITH.
 ##
 ## Godot's OptionButton defaults to `fit_to_longest_item = true`: its

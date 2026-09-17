@@ -739,7 +739,12 @@ Proxy-free (the gauntlet deals these): `os_workshop_aggro_menendian.deck`.
 - **Battle setup screen** (`game/setup_screen.gd`): the picker shows each
   deck under its group's separator using the deck's own `name:`
   (`_deck_titles`); a proxy deck is listed "(N proxy)" and refused, as
-  before.
+  before. Since 2026-09-17 a deck whose file declares `# requires-pack:`
+  for a pack that is off is listed "(needs Pack N)" and refused with the
+  pack's name — on the row, in the note under the picker and on **Go!**
+  — the way the Deck Builder acts on that line, rather than as a proxy
+  deck whose "remedy" would be replacing the pack's own cards; the floor
+  for a listed deck is the Deck Builder's forty cards on every screen.
 - **Gauntlet** (`game/duel/gauntlet_screen.gd`): the default roster is
   `default_roster()` — every deck the store sees that a round would not
   refuse (strict load, `GauntletState.opponent_deck_problem`). **[QoL]**

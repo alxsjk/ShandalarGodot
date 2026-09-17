@@ -14709,6 +14709,112 @@ re-ran 3/3, so the tree stands at **7,347/7,347**. **273 Python tests**;
 boot smoke clean. Version stays 0.32.0 in `project.godot`; no release,
 no art.
 
+## 2026-09-17 — The owner's nine calls (protocol 20)
+
+The "Seen, not fixed, across the lanes" list above, ruled on one by one.
+Eight are fixed; the ninth — the life line under another pairing's card
+in a guest's hall can be stale until that game ends — stays as it is on
+the owner's word, since publishing every click to every hall is the
+bandwidth decision it always was.
+
+- **Concede is exempt from the room revision check.** `_poll_bots` bumps
+  the revision on polls where the computer declines to act, so a human's
+  `concede` could bounce with "The room changed. Please try again." while
+  the bot was still thinking. A concession asks for the one outcome no
+  fresher room changes, so `SgLocalServer._command` lets it through on
+  any revision; every other op is still refused. Network test: `keep`
+  refused over a bumped revision, `concede` accepted over the next one,
+  winner 1 at both ends. The older
+  `test_outsider_and_stale_revision_cannot_modify_a_match` asserted the
+  opposite for a stale concession and failed the first full gate; it is
+  now `test_outsider_and_wrong_room_cannot_modify_a_match`, keeping the
+  two checks the ruling leaves standing — a stranger outside the room and
+  a seat naming another room are refused, concession included.
+- **An organiser's abandon cancels the event.** `Forget` on the organiser's
+  client sends `abandon` and discards its own resume code, so refusing
+  the abandon would have been a refusal nobody could read; instead
+  `SgTournamentHost.abandoned_by_organiser()` cancels an event in
+  registration or under way for every entrant — rooms cleared, view cache
+  dropped, the pause lifted, checkpoint saved — rather than leaving it
+  running with its controls unreachable. Network test: the owner forgets,
+  the entrant's hall reads cancelled, the checkpoint on disk agrees.
+- **A failed save no longer blocks `t_cancel` and `t_close`.** The hold
+  still refuses every advancing word; the two ways OUT go through, so a
+  folder that has stopped taking saves cannot keep an event alive that the
+  organiser wants ended. The cancel's own save may still fail and say so;
+  close then works. Network test under a blocked folder: `t_next` refused
+  with the storage sentence, cancel and close accepted.
+- **"Deck: —" under an empty seat.** The seat view keeps the referee's
+  honest "Forest practice" default for a seated player who has not
+  chosen; the lobby now draws a dash for the seat nobody sits in, so the
+  host who watched their guest `leave` no longer reads a deck title
+  under nobody. No wire change; lobby test on both readings.
+- **The lobby's deck tooltip names the player's own folder.**
+  `SgDeckCatalog._group` used to trim `res://decks` from every path, so a
+  player-saved deck advertised the literal `user://decks`; it now names
+  the shipped shelf (`/1997`, `/tournament`…) or the player's folder as
+  `GamePaths.shown` prints it.
+- **One deck floor.** The battle setup screen listed twenty-card decks
+  while the Deck Builder and the gauntlet held forty; both the setup
+  screen's scan and the catalogue's `validate` now read
+  `DeckModel.MIN_CARDS`, and the refusal sentence carries the number.
+- **The setup screen honours `# requires-pack:`.** The Deck Builder acts
+  on that line (it offers to enable the pack); the setup screen threw it
+  away, so with Pack 3 off a Pack 3 deck was listed "(N proxy)" and
+  refused with a list of cards to replace — the wrong remedy for a deck
+  that only needs its pack on. The declared pack is now the FIRST thing
+  the screen says about the deck: `_pack_paths` marks the row
+  "(needs Pack N)", the tooltip, the note under the picker and the `Go!`
+  refusal all name the pack and where it is switched on, and
+  `<random deck>` never draws it. Flip the switch and it is an ordinary
+  playable deck again. Two setup-screen tests, one each way.
+- **Protocol 20 — four wire fixes in one bump.** `SgProtocol.VERSION` is
+  **20** (`sgmanalink-local-v20`); both players need this build and the
+  invitation's check says so. (a) *Fastbond's extra land plays did not
+  cross:* `players[seat].lands` was only half the land-drop rule, so the
+  guest's Situation Bar dropped ", play land" after the first land and
+  its hand stopped lighting the second while the referee went on
+  accepting them. Each player row now carries `extra_lands` and
+  `unlimited_lands`; `SgDuelProjection.ingest` rebuilds both containers
+  from the view every present, so the inherited `land_drop_available`
+  is right at the guest and no grant lingers. (b) *The face's `cost` was
+  dead on the wire:* nothing read it — the client prices a named card
+  off its own registry and the spell option on the presentation row
+  carries the announced cost — so the key is gone and a face that
+  carries one is refused. (c) *The watching seat saw no damage division
+  in progress:* `damage_request` goes to the assigner alone and the
+  projection answered `{}` to everyone else, so the groups the assigner
+  had confirmed were painted on nobody else's board. The public half —
+  `amount` and `targets`, both already on the table — rides on
+  `presentation.assignment`; the per-target lethal hint stays private.
+  The watcher's board now paints the assigned groups without entering
+  `Mode.DAMAGE`. (d) *The guest's `regeneration_candidates` were never
+  filled:* `presentation.regeneration` said a window was open and nothing
+  said who it was about, so the guest's `damage_prevention_request`
+  named no creature to shield. `presentation.doomed` carries the visible
+  handles and the projection refills the list each present, cleared
+  first so it belongs to one window. Tests: three shared-duel tests (the
+  guest's land drop with and without Fastbond, the watching seat's
+  painted groups, the doomed list at both seats and its clearing) and a
+  protocol test pinning every new field's shape and the dropped `cost`.
+  Seen, not fixed, on the way:
+  `test_sgmanalink_visual_parity.gd::test_online_introduction_maps_both_players_and_contains_long_deck_names`
+  fails when run in the sgmanalink subset alone — two three-line deck
+  names push the introduction's bottom note 21 px out of the fixed-size
+  opening dialog (`duel_opening.gd:41`, `opening_window.gd:180`); it
+  passes in the full suite, and it is an opening-window layout
+  decision, not a wire one.
+
+Docs: `docs/sgmanalink-tournaments.md` (the organiser's Forget, cancel
+and close under a failed save), `docs/sgmanalink-local-playtest.md`
+(protocol 20), `docs/decks-1997.md` (the setup screen's pack line),
+`docs/CODE_MAP.md` rows.
+
+Gate on the tree as committed: 467 scripts, **7,358/7,358 tests, 327,197
+asserts**, exit 0 in 971 s (the first run had the one red above, the
+older concede test, and every other script green); Python 273; boot
+0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

@@ -96,6 +96,14 @@ var _playable_paths: Array[String] = []
 ## any. Worked out once in [method _scan_decks]; the picker's row text and
 ## its tooltip both read it, and so does the note.
 var _proxy_paths: Dictionary = {}
+## Deck path -> the pack ids its `# requires-pack:` lines declare that are
+## not enabled. The Deck Builder acts on that line (it offers to enable
+## the pack); this screen threw it away, so a Pack 3 deck with the pack
+## off was listed as a proxy deck and refused with a list of cards to
+## replace — the wrong remedy for a deck that only needs its pack on.
+## Such a deck is listed, marked, kept out of `<random deck>` and refused
+## with the pack's name.
+var _pack_paths: Dictionary = {}
 ## Deck path -> the `name:` its file declares, for the picker's row text.
 ## A file name is all the 1997 list could show (an eight-character DOS
 ## name); ours carry a title, and `Kzzy'n - The Dragon Lord` reads better
@@ -261,14 +269,25 @@ func _shell_music_call(method: StringName) -> void:
 func _scan_decks() -> void:
 	for path in DeckStore.all_deck_paths():
 		var deck := DeckList.load_file(path, true)
-		if deck.errors.is_empty() and deck.cards.size() >= 20:
+		# THE DECLARED PACK COMES FIRST. With its pack off such a deck may
+		# still load strictly (the pack only reprints its cards) or only
+		# leniently (the pack is where its cards live); either way the
+		# remedy is the pack, so the row says so and nothing else.
+		var lenient := DeckList.load_file(path, false)
+		var missing := CardPacks.missing_requirements(lenient.required_packs)
+		if not missing.is_empty() and lenient.errors.is_empty() \
+				and lenient.cards.size() >= DeckModel.MIN_CARDS:
+			_deck_paths.append(path)
+			_pack_paths[path] = missing
+			_deck_titles[path] = lenient.deck_name
+			continue
+		if deck.errors.is_empty() and deck.cards.size() >= DeckModel.MIN_CARDS:
 			_deck_paths.append(path)
 			_playable_paths.append(path)
 			_deck_titles[path] = deck.deck_name
 			continue
-		var lenient := DeckList.load_file(path, false)
 		if lenient.errors.is_empty() and not lenient.proxies.is_empty() \
-				and lenient.cards.size() >= 20:
+				and lenient.cards.size() >= DeckModel.MIN_CARDS:
 			_deck_paths.append(path)
 			_proxy_paths[path] = lenient.proxies
 			_deck_titles[path] = lenient.deck_name
@@ -972,11 +991,17 @@ func _fill_deck_options(option: OptionButton) -> void:
 			# it. The refusal itself, with the names, is one selection
 			# away on the note under the picker.
 			var proxies: Array = _proxy_paths.get(path, [])
-			if not proxies.is_empty():
+			var packs: Array = _pack_paths.get(path, [])
+			if not packs.is_empty():
+				label += "  (needs %s)" % CardPacks.label_for(packs[0])
+			elif not proxies.is_empty():
 				label += "  (%d proxy)" % proxies.size()
 			option.add_item(label)
 			option.set_item_metadata(option.item_count - 1, path)
-			if not proxies.is_empty():
+			if not packs.is_empty():
+				option.set_item_tooltip(option.item_count - 1,
+					_pack_refusal(path))
+			elif not proxies.is_empty():
 				option.set_item_tooltip(option.item_count - 1,
 					ProxyCard.refusal(proxies))
 
@@ -995,6 +1020,19 @@ func _deck_label(path: String, title := "") -> String:
 	if label == "" or label == path.get_file().get_basename():
 		label = path.get_file().get_basename().capitalize()
 	return label
+
+
+## Why a deck under [member _pack_paths] cannot be played, in the Deck
+## Builder's own words for the same line: the pack it declares, and where
+## it is turned on. One sentence for the row's tooltip, the note under the
+## picker and the refusal on `Go!`.
+func _pack_refusal(path: String) -> String:
+	var labels := PackedStringArray()
+	for pack_id in _pack_paths.get(path, []):
+		labels.append(CardPacks.label_for(String(pack_id)))
+	var noun := "pack" if labels.size() == 1 else "packs"
+	return "This deck requires %s, which is disabled. Enable the %s under Options, Card packs, and come back." \
+		% [", ".join(labels), noun]
 
 
 ## The row of the pooled `<random from …>` entry for [param group], or -1.
@@ -1118,6 +1156,9 @@ func _refresh_format_note() -> void:
 		var path := str(meta) if meta != null else ""
 		if path == "":
 			continue     # `<random deck>`: nothing to check until "Go!"
+		if _pack_paths.has(path):
+			text += "\n Seat %d — %s" % [pid + 1, _pack_refusal(path)]
+			continue
 		var listed := DeckList.load_file(path, false)
 		var proxied := ProxyCard.refusal_for(listed.cards, listed.sideboard)
 		if proxied != "":
@@ -1432,6 +1473,14 @@ func _build_config() -> DuelConfig:
 	# LENIENT on purpose, and BEFORE the format check: a strict load hides
 	# the very names this refusal has to print.
 	for pid in 2:
+		# The declared pack before the proxies: with the pack off, the
+		# proxies ARE the pack's cards, and naming them would send the
+		# player to the Deck Builder to replace cards that only need
+		# their pack enabled.
+		if _pack_paths.has(paths[pid]):
+			UiChrome.explain_popup(self,
+				"Seat %d cannot play this deck" % (pid + 1), _pack_refusal(paths[pid]))
+			return null
 		var listed := DeckList.load_file(paths[pid], false)
 		var proxied := ProxyCard.refusal_for(listed.cards, listed.sideboard)
 		if proxied != "":

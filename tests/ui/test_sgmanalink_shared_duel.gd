@@ -828,3 +828,125 @@ func test_a_silenced_mana_source_is_not_lit_for_payment_at_either_seat() -> void
 		assert_false(local.cur_mana_abilities.is_empty(), "the printed list is still there")
 		assert_false(screen._has_payment_mana(local),
 			"seat %d lights no source the host would refuse" % seat)
+
+
+func test_the_guests_land_drop_follows_the_seats_own_allowance(fastbond = use_parameters([true, false])) -> void:
+	# `players[seat].lands` is only half the land-drop rule: what
+	# land_drop_available reads beside the counter is the seat's ALLOWANCE
+	# (Fastbond's "any number", a world's extra play), and until protocol
+	# 20 no part of it crossed. With a Fastbond out, the guest's own
+	# Situation Bar dropped ", play land" after the first land and its
+	# hand stopped lighting the second — while the referee went on
+	# accepting them.
+	advance_to_step(Mtg.Step.MAIN1)
+	assert_true(CardRegistry.has_card("Fastbond"))
+	if fastbond:
+		put_battlefield(0, "Fastbond")
+		g.recalculate()
+	var first := give_hand(0, "Forest")
+	var second := give_hand(0, "Forest")
+	var screen := _screen()
+	await _pump()
+	assert_true(screen.game.land_drop_available(0), "the turn's first land is always offered")
+	screen._on_card_clicked(_local(screen, first))
+	await _pump()
+	assert_eq(g.players[0].lands_played_this_turn, 1, "the referee took the first land")
+	assert_eq(screen.game.land_drop_available(0), fastbond,
+		"the guest reads the same allowance the host does")
+	assert_eq(screen._phase_status_message().ends_with(", play land"), fastbond,
+		screen._phase_status_message())
+	if not fastbond:
+		assert_string_ends_with(screen._phase_status_message(), "cast spells")
+		return
+	assert_eq(_local(screen, second).id, screen.game.players[0].hand[0].id,
+		"the second land is still in the guest's hand")
+	screen._on_card_clicked(_local(screen, second))
+	await _pump()
+	assert_eq(g.players[0].lands_played_this_turn, 2, "the referee took the second land too")
+	assert_eq(refusals, [])
+
+
+func test_the_watching_seat_paints_the_damage_groups_already_assigned() -> void:
+	# `damage_request` — the amounts and the per-target lethal hint — goes
+	# to the ASSIGNER alone, and the projection used to answer `{}` to
+	# every other seat. The groups the assigner had already confirmed were
+	# therefore painted on nobody else's board. The public half of the
+	# question rides on `presentation.assignment` instead: the source's
+	# power and the creatures it is facing are both already on the table.
+	g.rules.free_damage_assignment = true
+	var wurms: Array = [put_battlefield(0, "Craw Wurm"), put_battlefield(0, "Craw Wurm")]
+	var bears: Array = []
+	for i in 4: bears.append(put_battlefield(1, "Grizzly Bears"))
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_ok(g.declare_attackers(0, [wurms[0].id, wurms[1].id]))
+	advance_to_step(Mtg.Step.DECLARE_BLOCKERS)
+	assert_ok(g.declare_blockers(1, {bears[0].id: wurms[0].id, bears[1].id: wurms[0].id,
+		bears[2].id: wurms[1].id, bears[3].id: wurms[1].id}))
+	for i in 8:
+		if g.awaiting_damage_assignment: break
+		assert_ok(g.pass_priority(g.priority_player))
+	assert_true(g.awaiting_damage_assignment, str(Mtg.Step.keys()[g.current_step()]))
+	# One wurm's six points answered; the other division is still owed, so
+	# the step stays open with the first one's marks on the running total.
+	var answered := g.damage_assignment_request()
+	var split := {}
+	for id: int in answered.targets: split[id] = 3
+	assert_ok(g.assign_combat_damage(int(answered.assigner), split))
+	assert_true(g.awaiting_damage_assignment, "the second group is still owed")
+	var watcher := _screen(1)
+	await _pump()
+	assert_ne(watcher.mode, DuelScreen.Mode.DAMAGE, "the watching seat is not the assigner")
+	var request: Dictionary = watcher.game.damage_assignment_request()
+	assert_false(request.is_empty(), "the public half of the division reaches both seats")
+	assert_eq(request.assigner, 1, "the assigner is the seat across the table")
+	assert_eq(int(request.amount), 6, "the source's power is public")
+	assert_eq(request.source.data.card_name, "Craw Wurm")
+	assert_eq((request.targets as Array).size(), 2, "both blockers of the open group")
+	for id: int in answered.targets:
+		assert_eq(watcher._pending_damage_for(_local(watcher, g.find_instance(id)).id), 3,
+			"the watching board paints the group already assigned")
+	assert_eq(refusals, [])
+	# ...and the seat that IS being asked still sees its own question.
+	var assigner := _screen(0)
+	await _pump()
+	assert_eq(assigner.mode, DuelScreen.Mode.DAMAGE)
+	assert_eq(int(assigner.game.damage_assignment_request().amount), 6)
+
+
+func test_the_guest_names_the_creatures_the_regeneration_window_is_about() -> void:
+	# `presentation.regeneration` said a window was open and nothing said
+	# WHO it was about, so the guest's inherited damage_prevention_request
+	# answered with an empty `creatures` list and the board had nobody to
+	# offer a shield to. The doomed are public: they are standing on a
+	# battlefield holding lethal damage.
+	g.rules.damage_prevention_window = true
+	var wurm := put_battlefield(0, "Craw Wurm")
+	var bones := put_battlefield(1, "Drudge Skeletons")
+	advance_to_step(Mtg.Step.DECLARE_ATTACKERS)
+	assert_ok(g.declare_attackers(0, [wurm.id]))
+	advance_to_step(Mtg.Step.DECLARE_BLOCKERS)
+	assert_ok(g.declare_blockers(1, {bones.id: wurm.id}))
+	advance_to_step(Mtg.Step.COMBAT_DAMAGE)
+	assert_true(g.awaiting_regeneration, "about to go to the graveyard")
+	assert_eq(Array(g.regeneration_candidates), [bones.id])
+	for seat in 2:
+		var screen := _screen(seat)
+		await _pump()
+		var local := _local(screen, bones)
+		assert_eq(Array(screen.game.regeneration_candidates), [local.id],
+			"seat %d names the doomed creature" % seat)
+		var window: Dictionary = screen.game.damage_prevention_request()
+		assert_eq(String(window.kind), "regeneration", "seat %d is in the second window" % seat)
+		assert_eq((window.creatures as Array).size(), 1,
+			"seat %d has a creature to offer the shield to" % seat)
+		assert_eq(window.creatures[0], local)
+	# The list belongs to one window: nothing lingers once it has closed.
+	assert_ok(g.end_damage_prevention(g.priority_player))
+	if g.awaiting_regeneration: assert_ok(g.end_damage_prevention(g.priority_player))
+	assert_false(g.awaiting_regeneration)
+	revision += 1
+	var after := _screen(0)
+	await _pump()
+	assert_true(after.game.regeneration_candidates.is_empty())
+	assert_true(after.game.damage_prevention_request().is_empty())
+	assert_eq(refusals, [])

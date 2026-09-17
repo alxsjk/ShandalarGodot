@@ -61,6 +61,11 @@ func ingest(room: Dictionary) -> void:
 	if players.is_empty():
 		players = [MtgPlayer.new(0, "", 20), MtgPlayer.new(1, "", 20)]
 	for key in SgDuelPresentation.RULES: rules.set(key, presentation.rules[key])
+	# Both land-drop containers are rebuilt from the view every present, the
+	# way the host's own recalculation rebuilds them, so a grant that has
+	# left the battlefield never lingers as a stale allowance here.
+	extra_land_plays.clear()
+	unlimited_land_plays.clear()
 	for remote in 2:
 		var pid := local_seat(remote)
 		var p := players[pid]
@@ -69,6 +74,8 @@ func ingest(room: Dictionary) -> void:
 		p.life = int(dto.life)
 		p.poison = int(presentation.players[remote].poison)
 		p.lands_played_this_turn = int(presentation.players[remote].lands)
+		extra_land_plays[pid] = int(presentation.players[remote].extra_lands)
+		if presentation.players[remote].unlimited_lands: unlimited_land_plays[pid] = true
 		p.hand_revealed = presentation.players[remote].hand_revealed
 		p.deck_names.assign(room.deck.cards if pid == 0 and not room.deck.is_empty() else [])
 		p.mana_pool.clear()
@@ -155,6 +162,11 @@ func ingest(room: Dictionary) -> void:
 	awaiting_damage_assignment = view.mode == "damage"
 	awaiting_damage_prevention = presentation.prevention
 	awaiting_regeneration = presentation.regeneration
+	# The creatures the open regeneration window is about, so this seat's
+	# own damage_prevention_request names them as the host's does. Cleared
+	# first: the list belongs to one window and no window after it.
+	regeneration_candidates.clear()
+	for key in presentation.doomed: regeneration_candidates.append(local_id(key))
 	awaiting_choice = null
 	if view.mode == "choice":
 		awaiting_choice = PlayerChoice.new(PlayerChoice.Kind.OPTION, local_seat(int(view.actor)), "Waiting for opponent's choice.")
@@ -321,17 +333,20 @@ func activate_ability(_pid: int, _inst: CardInstance, _index: int, _targets: Arr
 	return "Use a host-authorized announcement."
 
 
+## The public half of the division under way, which is all of it the board
+## needs: the WATCHING seat gets no `damage_request` of its own and used
+## to read an empty request here, so the groups the assigner had already
+## confirmed were painted on nobody's board. Only the per-target "lethal"
+## hint stays private, and the board does not draw it.
 func damage_assignment_request() -> Dictionary:
-	if view.get("damage_request", {}).is_empty(): return {}
-	var d: Dictionary = view.damage_request
-	var a: Dictionary = presentation.assignment
+	var a: Dictionary = presentation.get("assignment", {})
+	if a.is_empty(): return {}
 	var targets: Array = []
+	for key in a.targets: targets.append(local_id(key))
 	var assigned := {}
-	for row in d.targets:
-		if row.id != "player": targets.append(local_id(row.id))
 	for pair in a.assigned: assigned[local_id(pair[0])] = int(pair[1])
 	return {"source": find_instance(local_id(a.source)), "assigner": local_seat(int(a.assigner)),
-		"amount": int(d.amount), "targets": targets, "trample": a.trample, "assigned": assigned}
+		"amount": int(a.amount), "targets": targets, "trample": a.trample, "assigned": assigned}
 
 
 func attack_refusal(card: CardInstance) -> String:

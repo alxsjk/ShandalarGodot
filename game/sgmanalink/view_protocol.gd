@@ -97,13 +97,13 @@ static func cards(value: Variant) -> bool:
 	if not value is Array or value.size() > SgProtocol.MAX_CARDS:
 		return false
 	for card in value:
-		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "cost", "land",
+		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "land",
 			"power", "toughness", "print_power", "print_toughness", "tapped", "sick", "damage",
 			"attacking", "blocking", "playable",
 			"creature", "owner", "controller", "masked", "types", "colors", "keywords", "subtypes", "counters",
 			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "shield", "attached", "abilities", "actions", "exile_playable", "text_effects", "warded"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card_name(card.name) \
-			or not text(card.rules, 4096) or not text(card.cost, 128) \
+			or not text(card.rules, 4096) \
 			or not text(card.shield, 128) \
 			or not text(card.blocking, 16) \
 			or (card.blocking != "" and not SgProtocol.short_text(card.blocking, 16)) \
@@ -407,7 +407,8 @@ static func block_matrix(value: Variant) -> bool:
 static func presentation(value: Variant) -> bool:
 	if not value is Dictionary or not SgProtocol.exact(value, ["priority", "toss", "order", "rules", "cues",
 		"cards", "players", "chain", "packets", "bands", "blocks", "blocked", "attackable", "blockable", "events",
-		"assignment", "targets", "prevention", "regeneration", "draft", "respond", "floating", "untap_capped"]): return false
+		"assignment", "targets", "prevention", "regeneration", "doomed", "draft", "respond", "floating",
+		"untap_capped"]): return false
 	for key in ["priority", "toss"]:
 		if not SgProtocol.integer(value[key], 0, 1): return false
 	for key in ["order", "prevention", "regeneration", "respond", "floating", "untap_capped"]:
@@ -419,6 +420,7 @@ static func presentation(value: Variant) -> bool:
 		if not value[key] is Array or value[key].size() > SgProtocol.MAX_CARDS: return false
 	if value.players.size() != 2 or value.cues.size() > 64: return false
 	if not SgProtocol.handles(value.blocked) or not SgProtocol.handles(value.attackable) \
+		or not SgProtocol.handles(value.doomed) \
 		or not pairs(value.blocks, false, true) or not block_matrix(value.blockable): return false
 	for cue in value.cues:
 		if not cue is Dictionary or not SgProtocol.exact(cue, ["serial", "cue"]) or not SgProtocol.integer(cue.serial, 1): return false
@@ -430,8 +432,11 @@ static func presentation(value: Variant) -> bool:
 			or not SgProtocol.integer(event.serial, 1) or event.kind not in ["draw", "dies"] \
 			or not SgProtocol.short_text(event.card, 16) or not event.sacrificed is bool: return false
 	for player in value.players:
-		if not player is Dictionary or not SgProtocol.exact(player, ["poison", "lands", "hand_revealed", "color"]) \
-			or not SgProtocol.integer(player.poison) or not SgProtocol.integer(player.lands) or not player.hand_revealed is bool \
+		if not player is Dictionary or not SgProtocol.exact(player, ["poison", "lands", "extra_lands",
+			"unlimited_lands", "hand_revealed", "color"]) \
+			or not SgProtocol.integer(player.poison) or not SgProtocol.integer(player.lands) \
+			or not SgProtocol.integer(player.extra_lands) or not player.unlimited_lands is bool \
+			or not player.hand_revealed is bool \
 			or player.color not in ["white", "blue", "black", "red", "green"]: return false
 	for card in value.cards:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "flags", "abilities", "castable"]) \
@@ -468,6 +473,8 @@ static func presentation(value: Variant) -> bool:
 		or not SgProtocol.integer(value.draft.index, 0, 63) or not SgProtocol.integer(value.draft.x, 0, 1000) \
 		or not SgProtocol.integer(value.draft.mode, 0, 63)): return false
 	if not value.assignment is Dictionary: return false
-	return value.assignment.is_empty() or (SgProtocol.exact(value.assignment, ["source", "assigner", "trample", "assigned"]) \
+	return value.assignment.is_empty() or (SgProtocol.exact(value.assignment, ["source", "assigner", "amount",
+		"targets", "trample", "assigned"]) \
 		and SgProtocol.short_text(value.assignment.source, 16) and SgProtocol.integer(value.assignment.assigner, 0, 1) \
+		and SgProtocol.integer(value.assignment.amount, 0, 1000000) and SgProtocol.handles(value.assignment.targets) \
 		and value.assignment.trample is bool and pairs(value.assignment.assigned, true))

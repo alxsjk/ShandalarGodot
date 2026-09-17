@@ -108,6 +108,30 @@ func test_unchanged_waiting_room_keeps_its_widgets() -> void:
 	lobby._refresh()
 	assert_same(lobby._body.get_child(0), first)
 
+func test_an_empty_seat_shows_no_deck_title() -> void:
+	# The seat view keeps the referee's default "Forest practice" for a
+	# player who has not chosen yet — honest, since that IS what they
+	# would play. An EMPTY seat has nobody to play it, so the host who
+	# just watched their guest leave used to read a deck title under
+	# nobody; the lobby now draws a dash there (2026-09-17, item 5).
+	var lobby := _lobby()
+	lobby.client.state.room.names = ["Azure Fox", "Empty seat"]
+	lobby.client.state.room.connected = [true, false]
+	lobby.client.state.room.deck_names = ["Knights", "Forest practice"]
+	lobby._refresh()
+	var lines: Array = []
+	for node in lobby._body.find_children("*", "Label", true, false):
+		if String(node.text).begins_with("Deck: "): lines.append(String(node.text))
+	assert_eq(lines, ["Deck: Knights", "Deck: —"])
+	lobby.client.state.room.names = ["Azure Fox", "Amber Owl"]
+	lobby.client.state.room.connected = [true, true]
+	lobby._refresh()
+	lines.clear()
+	for node in lobby._body.find_children("*", "Label", true, false):
+		if String(node.text).begins_with("Deck: "): lines.append(String(node.text))
+	assert_eq(lines, ["Deck: Knights", "Deck: Forest practice"],
+		"a seated player who has not chosen still reads the honest default")
+
 func test_deck_chooser_closes_when_its_room_disappears() -> void:
 	var lobby := _lobby()
 	lobby._open_decks()

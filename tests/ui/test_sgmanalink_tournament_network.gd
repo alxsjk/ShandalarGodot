@@ -992,3 +992,44 @@ func test_the_organisers_ruling_ends_a_live_table_and_a_correction_is_flagged_ev
 	assert_true(server._rooms.is_empty())
 	await _act(owner, "t_close")
 	assert_null(server.tournament)
+
+
+func test_an_organiser_who_abandons_the_host_session_cancels_the_event_for_everyone() -> void:
+	var owner := await _register(2)
+	var pair: Dictionary = server.tournament.event.rounds[0][0]
+	var a := _by_member(pair.players[0])
+	var b := _by_member(pair.players[1])
+	for client in [a, b]: await _act(client, "t_ready", {"value": true})
+	assert_eq(server._rooms.size(), 1)
+	# `forget` is the abandon message: the organiser's session and its
+	# resume code are gone for good, so the event ends rather than lingering
+	# with controls nobody can reach.
+	owner.forget()
+	assert_true(await _until(func() -> bool: return server.tournament.event.phase == "cancelled"))
+	assert_true(server._rooms.is_empty(), "every table was cleared with the event")
+	assert_true(await _until(func() -> bool: return String(a.state.get("tournament", {}).get("phase", "")) == "cancelled"))
+	assert_true(a.state.room.is_empty(), "the entrant is back in the hall")
+	assert_eq(SgTournamentStore.read_checkpoint(scratch.path_join(server.tournament.event.id + ".json")).phase, "cancelled")
+
+
+func test_a_failed_save_still_lets_the_organiser_cancel_and_close() -> void:
+	var owner := await _register(2)
+	var pair: Dictionary = server.tournament.event.rounds[0][0]
+	var a := _by_member(pair.players[0])
+	var blocked := scratch.path_join("blocked")
+	var file := FileAccess.open(blocked, FileAccess.WRITE)
+	file.store_string("test fixture")
+	file.close()
+	server.tournament.folder = blocked
+	await _act(a, "t_ready", {"value": true})
+	assert_false(server.tournament.save_error.is_empty())
+	await _act(owner, "t_next")
+	assert_eq(refusals.back(), server.tournament.save_error, "advancement still waits on storage")
+	# Storage that never comes back must not trap the event: cancel takes
+	# effect in memory (the save of it fails and says so), and close follows.
+	await _act(owner, "t_cancel")
+	assert_eq(server.tournament.event.phase, "cancelled")
+	assert_true(server._rooms.is_empty())
+	await _act(owner, "t_close")
+	assert_true(await _until(func() -> bool: return server.tournament == null))
+	assert_true(await _until(func() -> bool: return not owner.state.has("tournament")))
