@@ -95,7 +95,7 @@ static func cards(value: Variant) -> bool:
 		if not card is Dictionary or not SgProtocol.exact(card, ["id", "name", "rules", "cost", "land",
 			"power", "toughness", "tapped", "sick", "damage", "attacking", "blocking", "playable",
 			"creature", "owner", "controller", "masked", "types", "colors", "keywords", "subtypes", "counters",
-			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "shield", "attached", "abilities", "actions", "exile_playable", "text_effects"]) \
+			"protection", "landwalk", "rampage", "prevention", "regeneration", "chosen", "shield", "attached", "abilities", "actions", "exile_playable", "text_effects", "warded"]) \
 			or not SgProtocol.short_text(card.id, 16) or not card_name(card.name) \
 			or not text(card.rules, 4096) or not text(card.cost, 128) \
 			or not text(card.shield, 128) \
@@ -107,9 +107,12 @@ static func cards(value: Variant) -> bool:
 			or not text_effects(card.text_effects) or (card.masked and not card.text_effects.is_empty()) \
 			or not abilities(card.abilities) or (card.masked and not card.abilities.is_empty()):
 			return false
-		for key in ["land", "tapped", "sick", "attacking", "playable", "creature", "masked", "exile_playable"]:
+		for key in ["land", "tapped", "sick", "attacking", "playable", "creature", "masked", "exile_playable", "warded"]:
 			if not card[key] is bool:
 				return false
+		# A masked face carries no ward: the board badges nothing on a
+		# face-down card, and the flag would name what the mask hides.
+		if card.masked and card.warded: return false
 		for key in ["power", "toughness", "damage", "rampage", "prevention", "regeneration"]:
 			if not SgProtocol.integer(card[key], -1000000 if key in ["power", "toughness"] else 0, 1000000):
 				return false

@@ -642,3 +642,55 @@ func test_granted_and_silenced_abilities_badge_the_same_at_both_seats() -> void:
 			elif card.instance == local_tome:
 				assert_false(card.regenerates_itself())
 		assert_true(local_zombie.memory.is_empty(), "no private host memory crosses the wire")
+
+
+func test_locks_compulsions_and_wards_mark_the_same_at_both_seats() -> void:
+	# The board reads LIVE per-instance state for four of its marks: the
+	# untap promise (Meekstone's lock), the sickness spiral (Instill
+	# Energy lifts the attack gate without HASTE), the mandatory combat
+	# highlights (Lure, a Nettling Imp's compulsion) and the
+	# protection-from-artifacts badge (Artifact Ward, two desc-named
+	# clauses). The flags cross in the presentation rows
+	# (SgDuelPresentation.FLAGS, applied over each face); the ward is
+	# one bool as of protocol 17 — until then the guest badged nothing.
+	advance_to_step(Mtg.Step.MAIN1)
+	var wurm := put_battlefield(0, "Craw Wurm")
+	put_battlefield(0, "Meekstone")
+	wurm.tapped = true
+	var elves := put_battlefield(0, "Llanowar Elves", true)
+	var bait := put_battlefield(0, "Grizzly Bears")
+	var warded := put_battlefield(0, "Scryb Sprites")
+	var conscript := put_battlefield(1, "Grizzly Bears")
+	conscript.must_attack_this_turn = true
+	add_mana(0, Mtg.ManaColor.G, 4)
+	add_mana(0, Mtg.ManaColor.W)
+	for pair in [["Instill Energy", elves], ["Lure", bait], ["Artifact Ward", warded]]:
+		var aura := give_hand(0, pair[0])
+		assert_ok(g.cast_spell(0, aura, [TargetRef.card(pair[1])]))
+		resolve_stack()
+	g.recalculate()
+	assert_true(wurm.cur_skips_untap, "Meekstone holds the Wurm")
+	assert_true(elves.cur_attacks_as_if_hasty and elves.summoning_sick, "Instill Energy on a sick Elf")
+	assert_true(bait.cur_must_be_blocked, "Lure")
+	assert_false(warded.cur_damage_immunity.is_empty(), "Artifact Ward")
+	for seat in 2:
+		assert_true(SgViewProtocol.room(_room(seat)), "seat %d's room validates" % seat)
+		var screen := _screen(seat)
+		await _pump()
+		var marks := {}
+		for card in screen.find_children("*", "MiniCard", true, false):
+			if card.instance != null: marks[card.instance] = card
+		var local_wurm := _local(screen, wurm)
+		assert_true(local_wurm.tapped and local_wurm.cur_skips_untap, "seat %d sees the Meekstone lock" % seat)
+		assert_does_not_have(marks[local_wurm].active_states(), MiniCard.State.WILL_UNTAP,
+			"seat %d promises no untap the host will not give" % seat)
+		var local_elves := _local(screen, elves)
+		assert_true(local_elves.summoning_sick and local_elves.cur_attacks_as_if_hasty, "seat %d sees Instill Energy" % seat)
+		assert_does_not_have(marks[local_elves].active_states(), MiniCard.State.SUMMONING_SICK,
+			"seat %d draws no spiral on a creature that may attack" % seat)
+		assert_true(_local(screen, bait).cur_must_be_blocked, "seat %d sees the Lure" % seat)
+		assert_true(_local(screen, conscript).must_attack_this_turn, "seat %d sees the compulsion" % seat)
+		var local_warded := _local(screen, warded)
+		assert_true(marks[local_warded].warded_from_artifacts(), "seat %d badges protection from artifacts" % seat)
+		assert_true(local_warded.memory.is_empty(), "no private host memory crosses the wire")
+		assert_true(_local(screen, conscript).cur_damage_immunity.is_empty(), "seat %d wards only the warded" % seat)

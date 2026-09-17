@@ -159,6 +159,7 @@ func _cards(pid: int, list: Array) -> Array:
 			"protection": card.cur_protection, "landwalk": Array(card.cur_landwalk),
 			"rampage": card.cur_rampage, "prevention": card.prevention,
 			"regeneration": card.regeneration_shields, "chosen": chosen,
+			"warded": false if masked else _warded_from_artifacts(card),
 			"shield": "" if card.prevention <= 0 or card.prevention_source == null \
 				else card.prevention_source.card_name,
 			"text_effects": [] if masked else _text_effects(card),
@@ -178,6 +179,22 @@ func _cards(pid: int, list: Array) -> Array:
 			hidden.land = false
 			hidden.creature = false
 	return out
+
+
+## PROTECTION FROM ARTIFACTS, as the board's badge asks it: the two
+## source-filtered clauses Artifact Ward raises (damage from artifact
+## sources is prevented AND artifact sources may not target it), each a
+## `desc` and a Callable on the live lists. One bool crosses — the
+## filters never do — and the guest's [SgCardPresentation] rebuilds the
+## same two descs for [method MiniCard.warded_from_artifacts] to find.
+func _warded_from_artifacts(card: CardInstance) -> bool:
+	return _names_artifacts(card.cur_damage_immunity) and _names_artifacts(card.cur_target_bans)
+
+
+static func _names_artifacts(entries: Array) -> bool:
+	for entry in entries:
+		if String(entry.get("desc", "")).contains("artifact"): return true
+	return false
 
 
 ## The LIVE activated abilities as the board badges them — a cost and

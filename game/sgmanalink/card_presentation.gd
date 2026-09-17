@@ -46,6 +46,18 @@ static func make(card: Dictionary, seat: int, zone: int, existing: CardInstance 
 	for row in card.abilities:
 		var effects: Array = [RegenerateEffect.new()] if row.regen else []
 		instance.cur_activated_abilities.append(ActivatedAbility.new(String(row.cost), false, effects))
+	# PROTECTION FROM ARTIFACTS (Artifact Ward) is the two source-filtered
+	# clauses the badge reads by their `desc`, so the same two descs are
+	# rebuilt here. The filters are inert stand-ins of the engine's arity:
+	# this projection never deals damage or checks a target, and the host's
+	# own Callables never cross the wire.
+	instance.cur_damage_immunity.clear()
+	instance.cur_target_bans.clear()
+	if card.warded:
+		instance.cur_damage_immunity.append({"desc": "artifact sources",
+			"filter": func(_game: MtgGame, _source: CardInstance) -> bool: return false})
+		instance.cur_target_bans.append({"desc": "artifact sources",
+			"filter": func(_game: MtgGame, _targeting: CardInstance, _spec: TargetSpec) -> bool: return false})
 	instance.face_down = card.masked
 	var effects: Array = card.text_effects.duplicate(true)
 	for effect in effects:

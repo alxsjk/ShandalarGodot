@@ -14199,6 +14199,30 @@ nesting before parsing (discovery four levels, the hello six); the worst
 advert — `MAX_PACKS` packs and a `NICKNAME_LIMIT` tournament name — is
 pinned under `SgLanDiscovery.MAX_PACKET`. Both players need this build.
 
+**Protocol 17 — the last live badge (2026-09-17, later).** The owner asked
+whether the guest's `SgCardPresentation.make()` now follows every
+runtime-granted ability. It follows the activated list (protocol 15), and
+the per-instance flags the board's marks read — the untap locks
+(Meekstone, Barl's Cage, Telekinesis), Instill Energy's attack-as-if-hasty,
+Lure's must-be-blocked, a Nettling Imp's compulsion, indestructible —
+already crossed in the presentation rows (`SgDuelPresentation.FLAGS`,
+applied over each face in `duel_projection.gd`), only no test said so.
+The one badge that did not cross was Artifact Ward's: protection from
+artifacts is two `desc`-named clauses on `cur_damage_immunity` and
+`cur_target_bans`, and `MiniCard.warded_from_artifacts()` found neither
+at the guest. Each face now carries `warded` (one bool, `false` on a
+masked face, refused if a masked face claims it); the guest rebuilds the
+two descs with inert filters of the engine's arity, and the badge shows at
+both seats. What stays printed at the guest is `cur_mana_abilities`,
+which nothing on the board reads except the small-card menu's "Don't auto
+tap" enable (a Titania's Song-silenced Sol Ring is still lockable there —
+the host tap paths are its own, so the lock is idle, not wrong).
+`test_locks_compulsions_and_wards_mark_the_same_at_both_seats` pins all of
+it at both seats (red on the old guest at exactly the ward). Both players
+need this build. Gate after it: **7,306/7,306 tests / 324,815 assertions /
+463 scripts**, strict exit **0** in **902.12 seconds**; 273 Python tests;
+boot smoke clean.
+
 **The Manalink front door (the owner's word, 2026-09-17).**
 
 - *"The welcome page does not need redundant buttons."* The Overview
