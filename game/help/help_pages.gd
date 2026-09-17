@@ -1048,8 +1048,10 @@ static func _page_builder() -> Dictionary:
 			+ "whatever the pointer rests on, exactly as it does at the "
 			+ "dueling table."),
 		_heading("The bar under the deck"),
-		_text("STATS opens the statistics window — five pages: Deck, "
-			+ "Draws, Mana, Speed and Matchups — and carries the deck's "
+		_text("STATS opens the statistics window — six pages: Deck, "
+			+ "Draws, Mana, Speed, Matchups and Hand, the last a sample "
+			+ "opening hand dealt from the deck, with the duel's own "
+			+ "mulligan and a card a turn — and carries the deck's "
 			+ "card count on its face. RARITY letters every card on "
 			+ "the deck surface C, U, R or L for common, uncommon, rare or "
 			+ "legendary; COST lays every card's mana cost on its "

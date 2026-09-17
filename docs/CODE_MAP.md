@@ -4421,6 +4421,13 @@ shandalar/
 │    by name, and the copy rules DO apply to it (five proxies break the
 │    four-of, a proxy Contract from Below is still banned). Also the two
 │    ProxyFace sizes and that it is paper rather than a coloured frame;
+│    tests/unit/test_sample_hand.gd — the sample hand's rules held to the
+│    duel's: a deal is a permutation of the main deck (the sideboard out),
+│    a seed deals the same seven twice, the mulligan is one card fewer
+│    each time down to an empty hand and then refused, a small deck never
+│    promises more than it has, a turn draws the top card and stops at an
+│    empty library, lands are the registry's word and a proxy is not one,
+│    no-land and all-land are the 1997 hands and an empty hand is neither;
 │    tests/ui/test_deck_builder.gd — the screen: every region and every
 │    @DECKSURFACE_STANDALONE command present, add/remove, the paged
 │    Inventory, Clear/Restore, Stats, Load, Save, and that the main
@@ -4491,6 +4498,14 @@ shandalar/
 │    shipped deck having one, and the four TIERS — a legend a legend
 │    before it is the uncommon it was printed at, and the tier tally
 │    counting it once;
+│    tests/ui/test_sample_hand_page.gd — the Hand page, drawn: Hand is
+│    the sixth tab and six still fit the window, a deal is seven MiniCards
+│    of the one size in holders of the same, in hand order, a proxy is
+│    plain paper here too, New hand / Mulligan to N / Next turn move the
+│    sample and the page follows (the button counts down and greys after
+│    the seventh, Next turn greys on an empty library), the 1997 advice
+│    is spoken for the two hands only and enforced never, and the deal
+│    survives a page swap but not a reopening. Runs without the skin;
 │    tests/ui/test_help_screen.gd — the paged reference: every page
 │    renders and shows its title, titles are unique, every QUOTE cites a
 │    source, paging cannot run off either end by button or key, the Help
@@ -6449,6 +6464,20 @@ shandalar/
 │   │   │                      first, by supertype, because the pool's 61
 │   │   │                      legends were printed at uncommon and rare
 │   │   │                      both)
+│   │   ├── sample_hand.gd   class SampleHand — **[QoL]** the Stats
+│   │   │                      window's sixth page, Hand (2026-09-17), as
+│   │   │                      a MODEL: seven names off a shuffled copy of
+│   │   │                      the main deck (the engine's own Fisher-Yates,
+│   │   │                      its own seedable dice), the Paris mulligan
+│   │   │                      the duel plays since 2026-09-08 (one card
+│   │   │                      fewer each time, down to nothing, never
+│   │   │                      refused while a hand is left), one card a
+│   │   │                      turn after that on the play, and the 1997
+│   │   │                      no-land / all-land test as ADVICE
+│   │   │                      (`is_mulligan_hand`, an empty hand neither).
+│   │   │                      Names only — a proxy is dealt by name and
+│   │   │                      counts as a spell. The page itself is
+│   │   │                      DeckBuilderScreen._stats_page_hand
 │   │   ├── deck_filter.gd   class DeckFilter — the four Filter groups'
 │   │   │                      logic, ported from s30's collectionFilter
 │   │   │                      with the ORIGINAL's polarity (every button

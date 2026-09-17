@@ -15142,6 +15142,50 @@ Gate on the tree as committed: 469 scripts, **7,378/7,378 tests,
 328,652 asserts**, exit 0 in 197 s over 6 shards; Python 291
 (277 + 14 for the deal), exit 0; boot 0 errors.
 
+## 2026-09-17 — A sample hand in the Deck Builder
+
+The third item off the list (*"Do 1. 2. And 6.!"*): the Stats window's
+Draws page says how often a build holds two to five lands, and nothing
+in the builder showed a hand. Every paper player runs the goldfish
+before a deck is sleeved — draw seven, look, throw it back, draw one a
+turn — and the 1997 game made the player leave for the dueling table to
+do it.
+
+THE HAND PAGE. A sixth tab beside Deck, Draws, Mana, Speed and
+Matchups (the six at 88 px fill the 560 the scroller has). It deals
+seven off a shuffled copy of the main deck — the sideboard is not in the
+library at the opening — and draws them as the small cards the deck
+surface uses, four to a row, a proxy as the same plain paper it is
+everywhere else; hover one and the Showcase shows it large. A line above
+says what the opening window would announce — the turn, the count, the
+lands, the library — and names a no-land or all-land hand the way
+`Duel.hlp`'s mulligan topic did, as ADVICE in the warning colour: the
+button is never forced. Three buttons: `New hand` deals again from turn
+one; `Mulligan to N` says on its face what it costs and greys after the
+seventh, when there is nothing left to throw back; `Next turn` draws
+one and greys on an empty library. The deal survives a swap to another
+page and back; opening the window again deals fresh, because the deck
+may have changed.
+
+THE RULES ARE THE DUEL'S, not a third set. `SampleHand`
+(game/deck_builder/sample_hand.gd) is a model of names — no
+CardInstance, no game — whose shuffle is the engine's Fisher-Yates on
+its own seedable dice, whose mulligan is the Paris rule the opening
+block has played since the owner's ruling of 2026-09-08 (any hand may go
+back, one card fewer each time, down to an empty hand after the seventh,
+no bottoming), whose turns are the first player's (no draw on turn one —
+the harder case, and the one a deck is tuned for), and whose land test
+is the registry's word, so a proxy counts as the spell it stands in for.
+Thirteen unit tests hold it to that without a screen; ten page tests
+measure the picture, and run on the bare clone — no skin is needed to
+count seven faces of `MiniCard.SIZE`. The help page's line on STATS now
+says six pages.
+
+Gate on the tree as committed: 471 scripts, **7,401/7,401 tests,
+329,280 asserts**, exit 0 in 198 s over 6 shards (the two new scripts
+13 + 10); Python 291, exit 0; boot 0 errors; the two new scripts also
+green on the bare clone, no skin.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

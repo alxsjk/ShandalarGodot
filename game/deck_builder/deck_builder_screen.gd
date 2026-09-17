@@ -4141,8 +4141,13 @@ func _open_stats() -> void:
 	scroll.add_child(page)
 	dialog.body().add_child(scroll)
 	_stats_pages = page
+	# A fresh deal each time the window opens: the deck may have changed
+	# since the last one, and a sample from the old deck would lie.
+	_sample = null
 	for i in STATS_PAGES.size():
-		var tab := OriginalDialog.button(String(STATS_PAGES[i]), Vector2(96, 24))
+		# 88 wide: six of them and five gaps fill the 560 the scroller has,
+		# and `Matchups` still sits inside its bevel at that width.
+		var tab := OriginalDialog.button(String(STATS_PAGES[i]), Vector2(88, 24))
 		tab.toggle_mode = true
 		tab.button_pressed = i == 0
 		tab.pressed.connect(_show_stats_page.bind(i, tabs))
@@ -4323,10 +4328,15 @@ func _stats_page_deck(page: VBoxContainer) -> void:
 ## and is built by [method _open_stats] itself; the rest are this
 ## project's, and every number on them comes from [DeckStats], which is
 ## pure and tested so the window stays a view.
-const STATS_PAGES: Array[String] = ["Deck", "Draws", "Mana", "Speed", "Matchups"]
+const STATS_PAGES: Array[String] = ["Deck", "Draws", "Mana", "Speed", "Matchups", "Hand"]
 
 ## The Stats window's page holder, while it is open.
 var _stats_pages: VBoxContainer = null
+
+## The Hand page's deal, kept across page swaps so a player can look at
+## the Mana page and come back to the same seven. Dealt on the page's
+## first showing; dropped when the window opens again.
+var _sample: SampleHand = null
 
 
 ## Swap to page [param index], and let the tab row show which one it is.
@@ -4351,6 +4361,7 @@ func _show_stats_page(index: int, tabs: HBoxContainer) -> void:
 		2: _stats_page_mana(_stats_pages)
 		3: _stats_page_speed(_stats_pages)
 		4: _stats_page_matchups(_stats_pages)
+		5: _stats_page_hand(_stats_pages)
 
 
 ## A heading inside a page.
@@ -4604,6 +4615,122 @@ const MANA_BAR := {
 	Mtg.ManaColor.R: Color8(206, 102, 80),
 	Mtg.ManaColor.G: Color8(120, 168, 116),
 }
+
+
+## [QoL] PAGE SIX: a sample hand — the goldfish.
+##
+## The five pages before this one are arithmetic; this one is a DEAL.
+## Seven off the top of a shuffled copy of the deck, drawn as the small
+## cards the deck surface uses, with the duel's own mulligan (one card
+## fewer each time, the owner's rule of 2026-09-08) and a card a turn
+## after that. The rules and the dice are [SampleHand]'s, which is pure
+## and tested; this is the picture. Hover a card and the Showcase shows
+## it large, as everywhere else in the builder.
+##
+## THREE BUTTONS AND A LINE. `New hand` deals again from turn one;
+## `Mulligan to N` says on its face what it costs, and goes grey when
+## there is nothing left to throw back; `Next turn` draws one. The line
+## above the cards is what the opening window would announce — the
+## turn, the count, the lands — and it names a no-land or all-land hand
+## the way the 1997 rule did, as advice: the button is never forced.
+func _stats_page_hand(page: VBoxContainer) -> void:
+	if deck.total() == 0:
+		page.add_child(OriginalDialog.label("Add some cards first.", 13))
+		return
+	if _sample == null:
+		_sample = SampleHand.new(deck)
+		_sample.new_hand()
+	var sample := _sample
+	var lands := sample.lands_in_hand()
+	page.add_child(_stats_head("Turn %d%s" % [sample.turn,
+		"" if sample.mulligans == 0 else "  —  after %d mulligan%s" % [
+			sample.mulligans, "" if sample.mulligans == 1 else "s"]]))
+	page.add_child(OriginalDialog.label(
+		"%d card%s in hand, %d land%s;  %d in the library." % [
+			sample.hand.size(), "" if sample.hand.size() == 1 else "s",
+			lands, "" if lands == 1 else "s", sample.library_size()], 12))
+	if sample.is_mulligan_hand():
+		var advice := OriginalDialog.label(
+			("No land in hand" if lands == 0 else "Nothing but land in hand")
+			+ " — the hand the 1997 rule offered a mulligan for.", 12)
+		advice.add_theme_color_override("font_color", Color8(232, 176, 96))
+		page.add_child(advice)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	var fresh := OriginalDialog.button("New hand", Vector2(96, 24))
+	fresh.pressed.connect(func() -> void:
+		sample.new_hand()
+		_refill_hand_page())
+	buttons.add_child(fresh)
+	var again := OriginalDialog.button("Mulligan to %d" % sample.next_hand_size(),
+		Vector2(112, 24))
+	again.disabled = not sample.may_mulligan()
+	again.pressed.connect(func() -> void:
+		sample.mulligan()
+		_refill_hand_page())
+	buttons.add_child(again)
+	var draw := OriginalDialog.button("Next turn", Vector2(96, 24))
+	draw.disabled = sample.library_size() == 0
+	draw.pressed.connect(func() -> void:
+		sample.next_turn()
+		_refill_hand_page())
+	buttons.add_child(draw)
+	page.add_child(buttons)
+	# The cards, four to a row: 4 x 132 and three 8 px gaps is 552 of the
+	# scroller's 560. A CardArea would bring paging, badges and a drag
+	# payload the page has no use for; the faces are dressed the way its
+	# `_dress_face` dresses them, so a proxy is the same plain paper here.
+	var fan := HFlowContainer.new()
+	fan.add_theme_constant_override("h_separation", 8)
+	fan.add_theme_constant_override("v_separation", 8)
+	for card_name in sample.hand:
+		fan.add_child(_hand_card(String(card_name)))
+	page.add_child(fan)
+	if sample.hand.is_empty():
+		page.add_child(OriginalDialog.label(
+			"An empty hand — the seventh mulligan draws nothing.", 12))
+
+
+## The Hand page again, after a button: the page holder is emptied and
+## rebuilt from [member _sample], which the button already moved.
+func _refill_hand_page() -> void:
+	if _stats_pages == null or not is_instance_valid(_stats_pages):
+		return
+	for child in _stats_pages.get_children():
+		_stats_pages.remove_child(child)
+		child.queue_free()
+	_stats_page_hand(_stats_pages)
+
+
+## One card of the sample hand: a holder of [constant MiniCard.SIZE]
+## carrying a [MiniCard] — or a [ProxyFace] for a name the registry does
+## not have — dressed as [method CardArea._dress_face] dresses a cell.
+## The holder takes the pointer, so hovering shows the card in the
+## Showcase and the tooltip carries its text.
+func _hand_card(card_name: String) -> Control:
+	var data: CardData = CardRegistry.get_card(card_name) \
+		if CardRegistry.has_card(card_name) else ProxyCard.data_for(card_name)
+	var holder := Control.new()
+	holder.custom_minimum_size = MiniCard.SIZE
+	holder.size = MiniCard.SIZE
+	var face: Control
+	if ProxyCard.is_proxy_data(data):
+		face = ProxyFace.new(data.card_name)
+		holder.tooltip_text = (face as ProxyFace).tooltip_text
+	else:
+		var card := MiniCard.new(CardInstance.new(data, -1, 0))
+		card.art_override = CardPacks.art_texture(data.card_name,
+			filter.preferred_printing(data))
+		card.refresh()
+		face = card
+		holder.tooltip_text = "%s\n%s" % [data.card_name, data.oracle_text]
+	face.size = MiniCard.SIZE
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.focus_mode = Control.FOCUS_NONE
+	(face as Button).disabled = true
+	holder.add_child(face)
+	holder.mouse_entered.connect(_show_in_showcase.bind(data))
+	return holder
 
 
 ## [QoL] ONE HORIZONTAL BAR: a name, a sunken 1997 track, the bar itself,

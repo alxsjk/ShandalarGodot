@@ -101,8 +101,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([The gate in shards, and the gate on GitHub](docs/ROADMAP.md#2026-09-17--the-gate-in-shards-and-the-gate-on-github)):
-**7,378 GUT tests / 328,652 assertions**, plus **291 Python tests**
+Latest local verification ([A sample hand in the Deck Builder](docs/ROADMAP.md#2026-09-17--a-sample-hand-in-the-deck-builder)):
+**7,401 GUT tests / 329,280 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 
