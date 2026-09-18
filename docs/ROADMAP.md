@@ -15388,6 +15388,80 @@ Gate on the tree as committed: 474 scripts, **7,464/7,464 tests,
 22 + 12 + 29, none needing the skin, so the bare clone's gate is 457);
 Python 291, exit 0; boot 0 errors.
 
+## 2026-09-18 — The speed is the cost of the cards: the AI deck builder's second pass
+
+THE ORDER, verbatim: *"For the speed of the deck at the AI builder I
+also meant the cost of the creatures and spells. Faster deck has more
+cheap first turn castables, slower does not. Implement this and do one
+pass over the AI deck builder and optimise and improve it!"* The first
+cut's speed set the land count and NUDGED the curve — a 0.9 a share,
+floored at -1.5 — and a probe over the whole library with seed 7 showed
+how little that held: a slow sixty kept five or six one-drops, a fast
+sixty ran its two-drops a third under the wish and its three-drops over,
+and the score of a card knew nothing of the speed at all, so a slow deck
+took Ghazbán Ogre four times over Force of Nature. Four changes in
+`game/deck_builder/auto_deck.gd`, each written into the method at the
+head of the file:
+
+THE SPEED PRICES THE MANA VALUE. `worth(data)` is `score(data)` times
+the speed's `TEMPO` for the card's curve bucket — fast `[1.2, 1.1, 1.0,
+0.85, 0.7]` for mana values 1, 2, 3, 4 and 5+, slow `[0.8, 0.9, 1.0,
+1.1, 1.15]`, medium all ones — and it is what the colour choice and
+the fill go by. So a fast deck is drawn to the colours with the best
+one-drops and a slow deck to the colours with the best big spells:
+the same library and seed now build Red-Green when fast and Blue-Red
+when slow (Serendib Djinn, Juggernaut, Air Elemental, Counterspell),
+where before every speed chose Red-Green.
+
+THE CURVE IS HELD, NOT NUDGED. `CURVES` are now fast `[0.30, 0.34,
+0.22, 0.10, 0.04]` — three spells in ten first-turn castables — medium
+`[0.12, 0.28, 0.28, 0.18, 0.14]` and slow `[0.04, 0.18, 0.28, 0.26,
+0.24]`, and the fill's curve nudge is as firm as the lean's (`NUDGE`
+3.0 a share, capped at `NUDGE_CAP` 2.5, about what a good card scores).
+Measured over the library and over Fourth Edition, both sizes, every
+lean, seed 7: a fast sixty has 15-16 one-drops of 38 spells and
+averages 2.0-2.4 mana; medium 5-6 and 2.9-3.0; slow 2 and 3.4-3.7. A
+fast forty has 8-11 of 25, a slow forty 1. The fast deck is now Ghazbán
+Ogre, Lightning Bolt, Chain Lightning, Grizzly Bears and Fire Sprites
+with two Erhnam Djinn at the top; the slow deck's one-drops are its two
+X spells.
+
+THE LEAN WEIGHS THE ROLES. `LEAN_ROLE_SCALE` multiplies `ROLE_WORTH`
+by the lean: a deck of creatures prices pump at 1.6, tokens at 1.2 and
+a sweeper at 0.5 (Wrath of God kills its own); a deck of spells prices
+the sweeper at 1.3, counters and card draw at 1.2 and pump at 0.6.
+Removal is removal in any deck.
+
+THE OPTIMISATION. The fill priced every castable candidate on every
+pass of its loop — score, pip strain and off-colour rock, forty times
+over for a sixty from the whole library. The candidates are now priced
+once into `[data, copies, value, bucket]` after the colours are chosen
+and the loop adds only the nudges. A library build is 41-51 ms, a
+Fourth Edition build 7-9 ms.
+
+THE WINDOW'S SPEED TOOLTIPS say what the speed now does: *"Three spells
+in ten cast on the first turn, few above three mana; 22 lands in 60"*,
+*"A curve that peaks at two and three; 24 lands in 60"*, *"Hardly a
+one-drop; big spells and the lands to cast them, 25 in 60"*. The land
+counts are unchanged.
+
+THE TESTS. `test_the_speed_sets_the_lands_and_the_curve` now counts
+the first-turn castables — a fast sixty ten at least, a slow sixty
+three at most, medium between the two, the fast forty seven and the
+slow forty two — and tightens the averages (fast under 2.5, slow over
+3.2, medium 2.6 to 3.2). A new `test_the_speed_prices_the_cost_and_the_lean_the_roles`
+holds `worth` to the table (a fast Bolt a fifth over its score, a fast
+Dragon at seven tenths, medium at the score, the score itself the same
+at every speed) and the lean scale to its words (Giant Growth scores
+higher in a deck of creatures, Wrath of God and Counterspell in a deck
+of spells, Terror the same in both). `tests/unit/test_auto_deck.gd` is
+23 tests; the window's and the mana page's suites are unchanged and
+still pass against the new decks.
+
+Gate on the tree as committed: 474 scripts, **7,465/7,465 tests,
+331,094 asserts**, exit 0 in 196 s over 6 shards; Python 291, exit 0;
+boot 0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

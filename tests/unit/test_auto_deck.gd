@@ -38,6 +38,16 @@ func _creatures(deck: DeckModel) -> int:
 	return n
 
 
+## The first-turn castables: non-land cards of mana value 0 or 1.
+func _one_drops(deck: DeckModel) -> int:
+	var n := 0
+	for name in deck.names():
+		var data := DeckModel._card(name)
+		if not data.is_land() and data.cost.mana_value() <= 1:
+			n += int(deck.counts[name])
+	return n
+
+
 func _average_mana(deck: DeckModel) -> float:
 	var mana := 0
 	var spells := 0
@@ -207,12 +217,26 @@ func test_the_speed_sets_the_lands_and_the_curve() -> void:
 	assert_lt(_average_mana(fast_deck), _average_mana(slow_deck),
 		"the fast deck's spells are cheaper: %.2f against %.2f" % [
 			_average_mana(fast_deck), _average_mana(slow_deck)])
-	assert_lt(_average_mana(fast_deck), 2.6, "a fast deck lives at one and two")
-	assert_gt(_average_mana(slow_deck), 2.8, "a slow deck reaches for the big spells")
+	assert_lt(_average_mana(fast_deck), 2.5, "a fast deck lives at one and two")
+	assert_gt(_average_mana(slow_deck), 3.2, "a slow deck reaches for the big spells")
+	# The speed is the cost of the creatures and the spells (2026-09-18):
+	# a fast deck is full of first-turn castables, a slow deck nearly
+	# without — the curve is held firmly, not nudged.
+	var medium := _builder(_library())
+	var medium_deck := medium.build()
+	assert_gte(_one_drops(fast_deck), 10, "fast: three in ten of 38 spells cost one, got %d" % _one_drops(fast_deck))
+	assert_lte(_one_drops(slow_deck), 3, "slow: hardly any one-drops, got %d" % _one_drops(slow_deck))
+	assert_gt(_one_drops(fast_deck), _one_drops(medium_deck), "fast has more one-drops than medium")
+	assert_gt(_one_drops(medium_deck), _one_drops(slow_deck), "medium has more than slow")
+	assert_between(_average_mana(medium_deck), 2.6, 3.2, "medium sits between")
 	fast.size = 40
-	assert_eq(_lands(fast.build()), 15, "fast: 15 lands in 40")
+	var fast_forty := fast.build()
+	assert_eq(_lands(fast_forty), 15, "fast: 15 lands in 40")
+	assert_gte(_one_drops(fast_forty), 7, "and the curve scales with the size: %d one-drops" % _one_drops(fast_forty))
 	slow.size = 40
-	assert_eq(_lands(slow.build()), 17, "slow: 17 lands in 40")
+	var slow_forty := slow.build()
+	assert_eq(_lands(slow_forty), 17, "slow: 17 lands in 40")
+	assert_lte(_one_drops(slow_forty), 2, "slow: %d one-drops in 40" % _one_drops(slow_forty))
 
 
 func test_the_lean_sets_the_creature_share() -> void:
@@ -385,6 +409,39 @@ func test_a_role_scores_a_spell_and_a_narrow_answer_is_marked_down() -> void:
 	assert_gt(terror, shatter, "artifact removal is narrower than creature removal")
 	assert_gt(shatter, cop, "and colour hate is narrower still")
 	assert_eq(auto.score(_card("Lightning Bolt")), bolt, "cached")
+
+
+## The speed prices the mana value ([constant AutoDeck.TEMPO]) and the
+## lean the roles ([constant AutoDeck.LEAN_ROLE_SCALE]); the score
+## itself knows neither the curve nor the speed.
+func test_the_speed_prices_the_cost_and_the_lean_the_roles() -> void:
+	var fast := _builder({})
+	fast.speed = AutoDeck.SPEED_FAST
+	var medium := _builder({})
+	var slow := _builder({})
+	slow.speed = AutoDeck.SPEED_SLOW
+	var bolt := _card("Lightning Bolt")
+	var dragon := _card("Shivan Dragon")
+	assert_eq(fast.score(bolt), slow.score(bolt), "the score is the card's own")
+	assert_gt(fast.worth(bolt), medium.worth(bolt), "a fast deck prizes its one-drops")
+	assert_gt(medium.worth(bolt), slow.worth(bolt), "a slow deck does not")
+	assert_gt(slow.worth(dragon), medium.worth(dragon), "a slow deck prizes its six-drops")
+	assert_gt(medium.worth(dragon), fast.worth(dragon), "a fast deck discounts them")
+	assert_eq(medium.worth(dragon), medium.score(dragon), "medium takes the card at its score")
+	assert_almost_eq(fast.worth(bolt), fast.score(bolt) * 1.2, 0.001, "a fifth over")
+	assert_almost_eq(fast.worth(dragon), fast.score(dragon) * 0.7, 0.001, "seven tenths")
+	var creatures := _builder({})
+	creatures.lean = AutoDeck.LEAN_CREATURES
+	var spells := _builder({})
+	spells.lean = AutoDeck.LEAN_SPELLS
+	assert_gt(creatures.score(_card("Giant Growth")), spells.score(_card("Giant Growth")),
+		"a deck of creatures wants its pump")
+	assert_gt(spells.score(_card("Wrath of God")), creatures.score(_card("Wrath of God")),
+		"a deck of spells wants the sweeper that a deck of creatures fears")
+	assert_gt(spells.score(_card("Counterspell")), creatures.score(_card("Counterspell")),
+		"and the counters")
+	assert_eq(medium.score(_card("Terror")), creatures.score(_card("Terror")),
+		"removal is removal in any deck")
 
 
 func test_castable_and_produces_read_the_card() -> void:

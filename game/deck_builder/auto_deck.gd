@@ -14,17 +14,24 @@ extends RefCounted
 ##    little for each ability, less its drawbacks and less again when its
 ##    mana value is one a game rarely reaches; a spell by the roles the duel AI reads off it
 ##    ([method AiDeckStudy.classify] — removal, burn, counters, card draw
-##    and the rest), cheaper being better; a narrow answer (colour hate, a
-##    Circle of Protection) is marked down, since the deck is built blind
-##    to its opponent.
+##    and the rest), cheaper being better and the lean weighing the roles
+##    ([constant LEAN_ROLE_SCALE]: a deck of creatures wants its pump and
+##    not a sweeper); a narrow answer (colour hate, a Circle of
+##    Protection) is marked down, since the deck is built blind to its
+##    opponent. The SPEED then prices the mana value ([method worth],
+##    [constant TEMPO]): a fast deck prizes what it can cast on the first
+##    turn and discounts what it cannot cast before the fourth, a slow
+##    deck the other way round.
 ## 2. CHOOSE THE COLOURS ([method _choose_colors]): every colour set the
 ##    wishes allow is rated by the sum of its best castable cards, a few
 ##    per cent off for every extra colour, and the best one wins; the
 ##    colours asked for are always in it.
 ## 3. FILL THE SPELLS ([method _fill_spells]) greedily, one card at a
-##    time: the best score after a nudge towards the speed's mana curve
-##    and the creature share asked for, and a growing reluctance to take
-##    a third and fourth copy of the same card. The four-of rule is
+##    time: the best worth after two firm nudges — towards the speed's
+##    mana curve ([constant CURVES]: a fast deck is three parts in ten
+##    first-turn castables, a slow deck one part in twenty-five) and
+##    towards the creature share asked for — and a growing reluctance to
+##    take a third and fourth copy of the same card. The four-of rule is
 ##    [method DeckModel.duplicates_allowed]'s, restricted cards are one
 ##    copy and banned cards never come under tournament rules.
 ## 4. LAY THE LANDS ([method _lay_lands]): the count the speed asks for,
@@ -56,12 +63,32 @@ const LANDS := {
 	60: {SPEED_FAST: 22, SPEED_MEDIUM: 24, SPEED_SLOW: 25},
 }
 ## The share of the spells at each mana value — 1 (and 0), 2, 3, 4 and 5
-## or more — the fill leans towards, by speed.
+## or more — the fill holds to, by speed. The first bucket is the
+## first-turn castables: a fast deck is three parts in ten of them and
+## averages about 2.3 mana a spell, a slow deck one part in twenty-five
+## and averages about 3.6.
 const CURVES := {
-	SPEED_FAST: [0.22, 0.36, 0.24, 0.12, 0.06],
-	SPEED_MEDIUM: [0.10, 0.26, 0.28, 0.20, 0.16],
-	SPEED_SLOW: [0.06, 0.18, 0.26, 0.24, 0.26],
+	SPEED_FAST: [0.30, 0.34, 0.22, 0.10, 0.04],
+	SPEED_MEDIUM: [0.12, 0.28, 0.28, 0.18, 0.14],
+	SPEED_SLOW: [0.04, 0.18, 0.28, 0.26, 0.24],
 }
+## What the speed makes of a mana value: a factor on the score by curve
+## bucket ([method worth]). A fast deck prizes its one-drops a fifth
+## over and takes a five-drop at seven tenths; a slow deck the other
+## way round, less sharply, since it still wants a two-drop or two;
+## medium takes every card at its score.
+const TEMPO := {
+	SPEED_FAST: [1.2, 1.1, 1.0, 0.85, 0.7],
+	SPEED_MEDIUM: [1.0, 1.0, 1.0, 1.0, 1.0],
+	SPEED_SLOW: [0.8, 0.9, 1.0, 1.1, 1.15],
+}
+## The firm nudges of the fill: a bucket of the curve, or the creature
+## share, a whole share over or under the wish moves a card's value by
+## [constant NUDGE], capped at [constant NUDGE_CAP] — about what a good
+## card scores, so what was asked for is met unless the pool has only
+## junk left where it wants more.
+const NUDGE := 3.0
+const NUDGE_CAP := 2.5
 ## The rarity ceilings: anything, no rares (and no legends), commons only.
 const RARITY_ANY := ""
 const RARITY_CAPS: Array[String] = [RARITY_ANY, "uncommon", "common"]
@@ -100,6 +127,15 @@ const ROLE_WORTH := {
 	"reanimation": 1.2, "recursion": 0.9, "pump": 0.9, "land_denial": 0.8,
 	"tap_payoff": 0.8, "untap": 0.6, "mill": 0.6, "life_mana": 0.6,
 	"x_damage": 0.3, "sacrifice_outlet": 0.3,
+}
+## What the lean makes of a role, a factor on [constant ROLE_WORTH]: a
+## deck of creatures wants its pump and its tokens and not a sweeper
+## that kills its own; a deck of spells wants the sweeper, the counters
+## and the card draw the more, and has little to pump.
+const LEAN_ROLE_SCALE := {
+	LEAN_CREATURES: {"pump": 1.6, "tokens": 1.2, "sweeper": 0.5},
+	LEAN_BALANCED: {},
+	LEAN_SPELLS: {"sweeper": 1.3, "counter": 1.2, "draw": 1.2, "pump": 0.6},
 }
 ## The answer keys ([method AiSideboard.answers]) that make a card BROAD
 ## — it answers creatures, which every deck has.
@@ -360,7 +396,7 @@ func _mask_worth(candidates: Array, mask: int, slots: int) -> float:
 		var data: CardData = entry[0]
 		if data.is_land() or not castable(data, mask):
 			continue
-		var value := score(data)
+		var value := worth(data)
 		for n in int(entry[1]):
 			values.append(value - COPY_PENALTY[mini(n, COPY_PENALTY.size() - 1)])
 	values.sort()
@@ -376,7 +412,7 @@ static func castable(data: CardData, mask: int) -> bool:
 	return (data.color_mask() & ~Mtg.ManaColor.C & ~mask) == 0
 
 
-## The greedy fill: [param slots] non-land cards, each the best score
+## The greedy fill: [param slots] non-land cards, each the best worth
 ## after the nudges. Nothing castable left stops it short, and the lands
 ## make up the difference ([method _lay_lands]).
 func _fill_spells(out: DeckModel, candidates: Array, slots: int) -> void:
@@ -385,6 +421,7 @@ func _fill_spells(out: DeckModel, candidates: Array, slots: int) -> void:
 	for share in curve:
 		wanted.append(float(share) * slots)
 	var creatures_wanted := float(CREATURE_SHARE[lean]) * slots
+	var spells_wanted := slots - creatures_wanted
 	var have: Array[int] = [0, 0, 0, 0, 0]
 	var creatures_have := 0
 	var placed := 0
@@ -398,31 +435,43 @@ func _fill_spells(out: DeckModel, candidates: Array, slots: int) -> void:
 		if data.is_creature():
 			creatures_have += copies
 		placed += copies
+	# The castable candidates priced once — `[data, copies, value,
+	# bucket]` — since the colours are chosen and the strains do not move
+	# while the deck fills; the loop below adds only the nudges. (Priced
+	# in the loop, a 60-card build from the whole library scored every
+	# card forty times over.)
+	var picks: Array = []
+	for entry in candidates:
+		var data: CardData = entry[0]
+		if data.is_land() or not castable(data, chosen_colors):
+			continue
+		picks.append([data, int(entry[1]),
+			worth(data) - _pip_strain(data) - _off_color_mana(data), _bucket(data)])
 	var copy_scale := FAST_COPY_SCALE if speed == SPEED_FAST else 1.0
 	while placed < slots:
 		var best: CardData = null
 		var best_value := -INF
-		for entry in candidates:
-			var data: CardData = entry[0]
-			if data.is_land() or not castable(data, chosen_colors):
-				continue
+		for pick in picks:
+			var data: CardData = pick[0]
 			var n := out.count_of(data.card_name)
-			if n >= int(entry[1]):
+			if n >= int(pick[1]):
 				continue
-			var bucket := _bucket(data)
-			var value := score(data) - _pip_strain(data) - _off_color_mana(data)
-			value += clampf(0.9 * (wanted[bucket] - have[bucket]) / maxf(wanted[bucket], 1.0), -1.5, 0.9)
-			# The lean is a firm nudge: a full share of one kind over the
-			# wish costs a card about what a good card scores, so the
-			# share asked for is met unless the pool has only junk left
-			# of the kind it wants (a 0.8 here left a "more spells" deck
-			# at the balanced share, the library's creatures being that
-			# much deeper than its spells).
+			var bucket := int(pick[3])
+			var value: float = pick[2]
+			# The curve and the lean are both firm nudges ([constant
+			# NUDGE]). A soft curve — 0.9 a share, floored at -1.5 — let
+			# the score walk over it: a slow deck kept six one-drops and
+			# a fast deck ran its two-drops a third under the wish; a 0.8
+			# lean left a "more spells" deck at the balanced share, the
+			# library's creatures being that much deeper than its spells.
+			value += clampf(NUDGE * (wanted[bucket] - have[bucket]) / maxf(wanted[bucket], 1.0),
+				-NUDGE_CAP, NUDGE_CAP)
 			if data.is_creature():
-				value += clampf(3.0 * (creatures_wanted - creatures_have) / maxf(creatures_wanted, 1.0), -2.5, 2.5)
+				value += clampf(NUDGE * (creatures_wanted - creatures_have) / maxf(creatures_wanted, 1.0),
+					-NUDGE_CAP, NUDGE_CAP)
 			else:
-				var spells_wanted := slots - creatures_wanted
-				value += clampf(3.0 * (spells_wanted - (placed - creatures_have)) / maxf(spells_wanted, 1.0), -2.5, 2.5)
+				value += clampf(NUDGE * (spells_wanted - (placed - creatures_have)) / maxf(spells_wanted, 1.0),
+					-NUDGE_CAP, NUDGE_CAP)
 			value -= COPY_PENALTY[mini(n, COPY_PENALTY.size() - 1)] * copy_scale
 			# A hair of chance, so two builds from one pool are not one deck.
 			value += _rng.randf() * 0.05
@@ -579,6 +628,15 @@ func score(data: CardData) -> float:
 	return value
 
 
+## The score priced for the speed: [method score] times the speed's
+## [constant TEMPO] for the card's mana value. This is what the colour
+## choice and the fill go by, so a fast deck is drawn to the colours
+## with the best one-drops and a slow deck to the colours with the best
+## big spells.
+func worth(data: CardData) -> float:
+	return score(data) * float(TEMPO[speed][_bucket(data)])
+
+
 ## Power counts for more than toughness — the deck is built to win —
 ## and a creature that cannot hurt anyone (no power, or a defender) is
 ## worth half its body, its abilities apart. The body's worth is then
@@ -646,8 +704,9 @@ func _spell_score(data: CardData) -> float:
 	var answers := AiSideboard.answers(data)
 	var best := 0.0
 	var others := 0
+	var scale: Dictionary = LEAN_ROLE_SCALE[lean]
 	for role in roles:
-		var worth := float(ROLE_WORTH.get(role, 0.0))
+		var worth := float(ROLE_WORTH.get(role, 0.0)) * float(scale.get(role, 1.0))
 		if role == "removal" and answers.is_empty():
 			# Removal the sideboard reads no answer off is removal of
 			# something no deck need have — a Wall (Tunnel), a land

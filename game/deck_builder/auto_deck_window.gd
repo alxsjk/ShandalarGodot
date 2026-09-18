@@ -180,9 +180,9 @@ func _build() -> void:
 		[AutoDeck.LEAN_BALANCED, "Balanced", "A little over half creatures."],
 		[AutoDeck.LEAN_SPELLS, "More spells", "Under four in ten are creatures; the rest do things."]])
 	_choice_row(body, "Speed", "speed", [
-		[AutoDeck.SPEED_FAST, "Fast", "Cheap cards and fewer lands: %d in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_FAST])],
-		[AutoDeck.SPEED_MEDIUM, "Medium", "A curve that peaks at three: %d lands in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_MEDIUM])],
-		[AutoDeck.SPEED_SLOW, "Slow", "Big spells and the lands to cast them: %d in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_SLOW])]])
+		[AutoDeck.SPEED_FAST, "Fast", "Three spells in ten cast on the first turn, few above three mana; %d lands in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_FAST])],
+		[AutoDeck.SPEED_MEDIUM, "Medium", "A curve that peaks at two and three; %d lands in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_MEDIUM])],
+		[AutoDeck.SPEED_SLOW, "Slow", "Hardly a one-drop; big spells and the lands to cast them, %d in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_SLOW])]])
 	_choice_row(body, "Rarity", "rarity", [
 		[AutoDeck.RARITY_ANY, "Any", "Every card in the pool."],
 		["uncommon", "No rares", "Commons and uncommons only — no rares, no legends."],

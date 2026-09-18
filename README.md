@@ -103,8 +103,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([The AI deck builder, the pool medallion, and a mana base audited](docs/ROADMAP.md#2026-09-18--the-ai-deck-builder-the-pool-medallion-and-a-mana-base-audited)):
-**7,464 GUT tests / 331,393 assertions**, plus **291 Python tests**
+Latest local verification ([The speed is the cost of the cards](docs/ROADMAP.md#2026-09-18--the-speed-is-the-cost-of-the-cards-the-ai-deck-builders-second-pass)):
+**7,465 GUT tests / 331,094 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 

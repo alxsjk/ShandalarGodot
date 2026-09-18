@@ -23,6 +23,8 @@ needed); card files have NO class_name (they register by name instead);
 - `game/deck_builder/auto_deck.gd` (`AutoDeck`): a card pool and the wishes in, a
   legal deck out — score, choose the colours, fill the spells, lay the lands;
   the method is at the head of the file. Seeded, so a test can hold it still.
+  The speed is the cost of the cards: `TEMPO` prices the mana value and the
+  curve is held firmly (fast: three spells in ten first-turn castables).
 - `game/deck_builder/auto_deck_window.gd` (`AutoDeckWindow`): the dialog — the pool
   (sets, the dealt cards, a file or a paste), the wishes, a summary line, `Build
   me a deck`; the wishes remembered under `auto_deck_options`.
@@ -4449,8 +4451,12 @@ shandalar/
 │    reported), every deck LEGAL (the size, no sideboard, every card in
 │    the pool and within the copy limit, castable in the chosen
 │    colours), the colours asked for the deck's and mono when one at
-│    most, three asked widening the cap, the speed's lands and curve,
-│    the lean's creature share within twelve points, the rarity cap,
+│    most, three asked widening the cap, the speed's lands and curve
+│    (a fast sixty ten one-drops at least, a slow one three at most,
+│    medium between; `worth` a fifth over for a fast Bolt and seven
+│    tenths for a fast Dragon; a deck of creatures scoring Giant Growth
+│    over a deck of spells and Wrath of God the other way round), the
+│    lean's creature share within twelve points, the rarity cap,
 │    the tournament rules (Contract from Below never, Black Lotus once,
 │    and four with the rules off), a legend twice at most, the kept
 │    cards first and setting the colours, a seed a deck and a fresh
@@ -6682,10 +6688,18 @@ shandalar/
 │   │   │                      its damage, a steal Aura removal — and a
 │   │   │                      narrow answer marked down), `_choose_colors`
 │   │   │                      (every set the wishes allow, rated by its
-│   │   │                      best castable cards), `_fill_spells`
-│   │   │                      (greedy, nudged towards the curve and the
-│   │   │                      lean, copies dearer each time, a legend
-│   │   │                      twice at most), `_lay_lands` (the speed's
+│   │   │                      best castable cards, priced for the speed:
+│   │   │                      `worth` is the score times the speed's
+│   │   │                      `TEMPO` for the mana value, a fast deck
+│   │   │                      prizing its one-drops and discounting its
+│   │   │                      five-drops, a slow deck the reverse; the
+│   │   │                      lean scales the roles, `LEAN_ROLE_SCALE`),
+│   │   │                      `_fill_spells` (greedy, held firmly to the
+│   │   │                      speed's curve — three spells in ten
+│   │   │                      first-turn castables when fast, one in
+│   │   │                      twenty-five when slow — and to the lean's
+│   │   │                      creature share, copies dearer each time, a
+│   │   │                      legend twice at most), `_lay_lands` (the speed's
 │   │   │                      count, duals first, basics by pip share;
 │   │   │                      basics fill what the pool cannot, `short_by`
 │   │   │                      says how many). `to_sealed_pool` is what
