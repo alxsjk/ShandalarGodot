@@ -33,10 +33,17 @@ extends Control
 ## lays containers out AFTER the rebuild returns — asking a freshly added
 ## card where it is would read a stale rect.
 ##
-## Divergence from s30, deliberate and marked: s30 draws stack arrows only
+## Divergences from s30, deliberate and marked: s30 draws stack arrows only
 ## once a spell is ON the stack. We also draw them WHILE the player is
 ## picking targets (the same amber), so a half-declared Fireball shows what
-## it has caught so far. Same vocabulary, one moment earlier.
+## it has caught so far. Same vocabulary, one moment earlier. And the
+## blocker arrows run CENTRE TO CENTRE, not top-centre to bottom-centre:
+## in the Combat window the two lanes stand a few pixels apart, so s30's
+## edge-to-edge shaft was the width of that gap and the owner could not
+## find it (playtest, 2026-09-18: *"Can the arrows start from the center
+## of the minicard to the center of target minicard?"*). The arrow layer
+## is lifted above the window (duel_screen.gd), so the shaft crosses both
+## cards and the head lands on the attacker's face.
 ## Attacker→defender arrows are NOT drawn: s30 has none, and the original
 ## marks attackers by lifting them instead.
 
@@ -51,7 +58,9 @@ const BLOCK_COLOR := Color8(255, 0, 0)
 ## Spell/ability → target.
 const SPELL_COLOR := Color8(255, 200, 0)
 
-## Which point of an anchor's rectangle an arrow touches.
+## Which point of an anchor's rectangle an arrow touches. Every live
+## arrow is CENTER since 2026-09-18 (see the class doc); TOP and BOTTOM
+## stay for the s30 port's geometry and whoever wants an edge again.
 enum Edge { CENTER, TOP, BOTTOM }
 
 ## The subtree scanned for MiniCard widgets — the duel screen itself.
@@ -141,8 +150,8 @@ func _add_block_links(p_game: MtgGame, p_block_map: Dictionary) -> void:
 	for blocker_id in declared:
 		for attacker_id in declared[blocker_id]:
 			_links.append({
-				"from": blocker_id, "from_edge": Edge.TOP,
-				"to": attacker_id, "to_edge": Edge.BOTTOM,
+				"from": blocker_id, "from_edge": Edge.CENTER,
+				"to": attacker_id, "to_edge": Edge.CENTER,
 				"color": BLOCK_COLOR,
 			})
 

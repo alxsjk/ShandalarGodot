@@ -15919,6 +15919,46 @@ order gating the clicks only when switched on; a new unit suite pins the
 six shapes of the migration. Gate: 480 scripts, **7,537/7,537 tests,
 333,232 asserts**, exit 0 in 199 s over 6 shards; Python 291, exit 0.
 
+## 2026-09-18 — The arrows and the coin
+
+Two more from the same playtest.
+
+**The arrows, centre to centre.** *"Sometimes it is hard to see the
+arrows in battle menu. Can the arrows start from the center of the
+minicard to the center of target minicard?"* — `TargetArrows` was a
+line-for-line port of s30's `drawBlockerArrows`: red, from the blocker's
+TOP-centre to the attacker's BOTTOM-centre. On s30's board the two
+creatures stand a territory apart; in our Combat window they stand in two
+lanes a few pixels apart, so the shaft was the width of that gap and the
+head sat in it. The block arrows now run centre to centre
+(`_add_block_links`: `Edge.CENTER` both ends; the amber spell arrows
+already did). The layer is lifted above the window, so the shaft crosses
+both cards and the head lands on the attacker's face. `Edge.TOP` /
+`Edge.BOTTOM` stay as geometry.
+
+**The coin, measured.** *"I have subjective feeling that opponent wins
+most coin tosses. Please examine this is truly random!"* — The roll is
+`game.rng.randi() % 2` in `DuelScreen._new_game`: the game's own PCG32,
+seeded with the duel seed, after both libraries are shuffled. The seed is
+`randi() | 1` from Godot's global RNG (randomised at start-up) on the
+setup screen, or a draw from the match / gauntlet screens' own seeded
+RNG — never a counter. A probe replayed exactly that shape 20,000 times
+per deck shape: seat 0 won 49.78 % (40/40 cards), 49.85 % (60/60),
+50.13 % (40/60) and 49.49 % (40/40 with an ante), all inside one and a
+half standard deviations of a fair coin; the longest run of one seat in
+20,000 tosses was 15-17, and runs of four and five are routine — which
+is what the feeling is made of. One structural finding, not on the play
+path: SEQUENTIAL odd seeds (1, 3, 5, …) put seat 0 at 48.7 % over
+20,000 — PCG32 outputs at a fixed draw index are correlated across an
+arithmetic progression of seeds — so a tool that derives seeds by
+counting should not read the toss as fair to the third decimal.
+`tests/unit/test_coin_toss_fairness_2026_09_18.gd` pins the production
+shape over 3,000 fixed-seeder seeds (seat 0: 1,498; longest streak 14),
+the same with equal decks and the ante on the stream, and the roll on
+the seeded stream (a replayed seed replays its leader). Gate: 481
+scripts, **7,540/7,540 tests, 333,594 asserts**, exit 0 in 212 s over 6
+shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

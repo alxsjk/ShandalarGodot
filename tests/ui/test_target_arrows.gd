@@ -93,10 +93,13 @@ func test_a_pending_block_draws_a_red_arrow_to_its_attacker() -> void:
 	var found := _find_link(blocker.id, attacker.id)
 	assert_false(found.is_empty(), "the pending block has an arrow")
 	assert_eq(found["color"], TargetArrows.BLOCK_COLOR)
-	assert_eq(found["from_edge"], TargetArrows.Edge.TOP,
-		"s30: from the blocker's top-centre")
-	assert_eq(found["to_edge"], TargetArrows.Edge.BOTTOM,
-		"s30: to the attacker's bottom-centre")
+	# s30 ran it top-centre to bottom-centre; across the Combat window's
+	# lane gap that shaft was a few pixels long and the owner could not
+	# find it (2026-09-18), so the arrow runs centre to centre.
+	assert_eq(found["from_edge"], TargetArrows.Edge.CENTER,
+		"from the blocker's centre")
+	assert_eq(found["to_edge"], TargetArrows.Edge.CENTER,
+		"to the attacker's centre")
 
 
 func test_declared_blocks_keep_their_arrows_through_the_damage_step() -> void:

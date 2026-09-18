@@ -3902,6 +3902,10 @@ shandalar/
 │    what counts as the board being "stirred", that DuelConfig.pace still
 │    means what it meant for the demo and for vs-AI, and that
 │    _maybe_schedule_ai still creates exactly one timer;
+│    tests/unit/test_coin_toss_fairness_2026_09_18.gd — the opening toss
+│    replayed over thousands of fixed seeds through the production shape
+│    (odd seed, two shuffles, `game.rng.randi() % 2`): a fair split, the
+│    streaks a fair coin has, and the roll on the seeded stream;
 │    tests/unit/test_damage_packet.gd — damage as an OBJECT (§6.8 slice 1):
 │    every DAMAGE_DEALT event carries its DamagePacket, a packet records
 │    how much was PREVENTED as well as dealt, ids are never reused, and
@@ -7594,8 +7598,11 @@ shandalar/
 │       │                      chip instead.
 │       ├── target_arrows.gd class TargetArrows — the arrow overlay above
 │       │                      the board (s30 duel.go:3449-3554): RED from
-│       │                      each blocker's top-centre to its attacker's
-│       │                      bottom-centre, AMBER from the caster's hand
+│       │                      each blocker's centre to its attacker's
+│       │                      centre (s30 ran edge to edge; across the
+│       │                      Combat window's lane gap that was a shaft
+│       │                      a few pixels long, 2026-09-18), AMBER from
+│       │                      the caster's hand
 │       │                      window to every target on the stack (and to
 │       │                      the targets picked so far while aiming);
 │       │                      a targeted PLAYER terminates on their life
