@@ -19,8 +19,11 @@ extends RefCounted
 ## or 60 cards; more creatures or more spells; fast, medium or slow; a
 ## rarity — commons only, no rares, uncommons and up, rares and legends
 ## only; classic lands (the basics) or non-classic (the pool's duals and
-## lands with abilities preferred); the tournament rules on or off;
-## whether to build around the cards already on the surface; and a seed
+## lands with abilities preferred); the tournament rules on or off; the
+## Power Nine on or off — off by default, the builder avoids them, on it
+## puts the Lotus and the Moxen in every deck and the blue three in a
+## blue deck, when the pool has them; whether to build around the cards
+## already on the surface; and a seed
 ## — blank for a fresh roll every build, a number for the same deck
 ## again, since the builder is seeded and its notes give the roll back
 ## (`Seed 565933: …`). All of it is remembered between visits under one
@@ -29,7 +32,7 @@ extends RefCounted
 ## the same deck.
 
 const TITLE := "AutoDeck"
-const WINDOW_SIZE := Vector2(680, 730)
+const WINDOW_SIZE := Vector2(680, 770)
 ## The `[Settings]` key the wishes are kept under.
 const OPTIONS_SETTING := "auto_deck_options"
 ## The three pools.
@@ -41,7 +44,7 @@ const DEFAULTS := {
 	"source": SOURCE_SETS, "sets": ["4ed"], "colors": 0, "max_colors": 2, "gold": false,
 	"size": 60, "lean": AutoDeck.LEAN_BALANCED, "speed": AutoDeck.SPEED_MEDIUM,
 	"rarity": AutoDeck.RARITY_ANY, "lands": AutoDeck.LANDS_CLASSIC,
-	"tournament": true, "keep": false, "seed": 0, "last_seed": 0,
+	"tournament": true, "power_nine": false, "keep": false, "seed": 0, "last_seed": 0,
 }
 ## The seed field's word for a blank, and the most a seed may be — what
 ## [method AutoDeck.build] rolls.
@@ -53,6 +56,8 @@ const RARITY_LABELS := {AutoDeck.RARITY_ANY: "Any", AutoDeck.RARITY_PAUPER: "Com
 	AutoDeck.RARITY_NO_RARES: "No rares", AutoDeck.RARITY_UNCOMMON_UP: "Uncommon up",
 	AutoDeck.RARITY_RARES: "Only rares"}
 const GOLD_TEXT := "Gold deck — multicoloured cards preferred"
+const POWER_TEXT := "Use the Power Nine — Lotus, Moxen, and the blue three in a blue deck"
+const POWER_TIP := "Black Lotus and the five Moxen go into every deck for first-turn mana; Ancestral Recall, Time Walk and Timetwister into a blue deck. Only when the pool holds them — Unlimited does, Fourth Edition does not — and one copy each under the tournament rules. Off, the builder avoids all nine."
 
 const BRIEF := "Pick a card pool, say what you like, and the builder lays out a deck. Basic lands are always free."
 const NO_LIST := "No list yet — a file or a paste of card lines, `4 Lightning Bolt` a line."
@@ -74,6 +79,7 @@ var _groups: Dictionary = {}
 var _color_buttons: Dictionary = {}
 var _tournament_line: Button
 var _gold_line: Button
+var _power_line: Button
 var _keep_line: Button
 var _seed_edit: LineEdit
 var _last_seed_button: Button
@@ -227,6 +233,11 @@ func _build() -> void:
 			options["tournament"] = not bool(options["tournament"])
 			_refresh())
 	body.add_child(_tournament_line)
+	_power_line = _tick_line(POWER_TEXT, "PowerNineLine", func() -> void:
+		options["power_nine"] = not bool(options["power_nine"])
+		_refresh())
+	_power_line.tooltip_text = POWER_TIP
+	body.add_child(_power_line)
 	_keep_line = _tick_line("", "KeepLine", func() -> void:
 		options["keep"] = not bool(options["keep"])
 		_refresh())
@@ -457,6 +468,7 @@ func _refresh() -> void:
 	_tournament_line.text = _tick_text(bool(options["tournament"]),
 		"Tournament rules — no banned cards, restricted cards once")
 	_gold_line.text = _tick_text(bool(options["gold"]), GOLD_TEXT)
+	_power_line.text = _tick_text(bool(options["power_nine"]), POWER_TEXT)
 	var keepable := _keepable()
 	_keep_line.text = _tick_text(bool(options["keep"]) and keepable > 0,
 		"Build around the %d non-land card%s already on the surface" % [keepable, "" if keepable == 1 else "s"]
@@ -483,6 +495,8 @@ func _refresh() -> void:
 		extras.append(String(RARITY_LABELS.get(options["rarity"], "")).to_lower())
 	if String(options["lands"]) == AutoDeck.LANDS_NONCLASSIC:
 		extras.append("non-classic lands")
+	if bool(options["power_nine"]):
+		extras.append("the Power Nine")
 	if not extras.is_empty():
 		var sentence := ", ".join(extras)
 		_summary.text += " %s%s." % [sentence.left(1).to_upper(), sentence.substr(1)]
@@ -566,6 +580,7 @@ func builder() -> AutoDeck:
 	auto.rarity = String(options["rarity"])
 	auto.land_kind = String(options["lands"])
 	auto.tournament = bool(options["tournament"])
+	auto.power_nine = bool(options["power_nine"])
 	auto.seed = int(options["seed"])
 	if bool(options["keep"]) and _keepable() > 0:
 		auto.keep = screen.deck.duplicate_model()

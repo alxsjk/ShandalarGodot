@@ -135,6 +135,18 @@ func test_the_window_shows_the_pool_and_the_wishes_with_their_defaults() -> void
 	for n in [1, 2, 3, 4, 5]:
 		assert_not_null(_in("MaxColors_%d" % n), "up to five colours (2026-09-18)")
 	assert_eq((_in("GoldLine") as Button).text, "[  ] " + AutoDeckWindow.GOLD_TEXT, "not a gold deck")
+	assert_eq((_in("PowerNineLine") as Button).text, "[  ] " + AutoDeckWindow.POWER_TEXT,
+		"the Power Nine off by default (2026-09-18)")
+	assert_eq((_in("PowerNineLine") as Button).tooltip_text, AutoDeckWindow.POWER_TIP)
+	assert_false(_window_of().builder().power_nine)
+	# One more line (2026-09-18) and the wishes still fit the window, the
+	# window the 1280x800 viewport.
+	await get_tree().process_frame
+	var body := _window().body()
+	gut.p("AutoDeck window: body needs %.0f of %.0f; window %.0f tall" % [
+		body.get_combined_minimum_size().y, body.size.y, _window().size.y])
+	assert_lte(body.get_combined_minimum_size().y, body.size.y, "the wishes fit the window")
+	assert_lte(_window().size.y, 800.0, "the window fits the viewport")
 	assert_true((_in("Size_60") as Button).button_pressed, "sixty")
 	assert_true((_in("Lean_balanced") as Button).button_pressed)
 	assert_true((_in("Speed_medium") as Button).button_pressed)
@@ -226,12 +238,16 @@ func test_the_wishes_reach_the_builder() -> void:
 	assert_true(summary.text.contains("blue-black, up to 2; creatures, fast."), summary.text)
 	assert_true(summary.text.ends_with("creatures, fast."), "nothing beyond the defaults yet: " + summary.text)
 	assert_true((_in("TournamentLine") as Button).text.begins_with("[  ]"), "the rules off")
-	# The wishes of 2026-09-18: a gold deck, a rarity, the lands.
+	# The wishes of 2026-09-18: a gold deck, a rarity, the lands, the
+	# Power Nine.
 	_in("GoldLine").pressed.emit()
 	_in("Rarity_uncommon_up").pressed.emit()
 	_in("Lands_nonclassic").pressed.emit()
+	_in("PowerNineLine").pressed.emit()
 	assert_eq((_in("GoldLine") as Button).text, "[x] " + AutoDeckWindow.GOLD_TEXT)
-	assert_true(summary.text.ends_with("creatures, fast. A gold deck, uncommon up, non-classic lands."), summary.text)
+	assert_eq((_in("PowerNineLine") as Button).text, "[x] " + AutoDeckWindow.POWER_TEXT)
+	assert_true(summary.text.ends_with("creatures, fast. A gold deck, uncommon up, non-classic lands, the Power Nine."), summary.text)
+	assert_true(_window_of().builder().power_nine, "the wish reaches the builder")
 	_in("BuildButton").pressed.emit()
 	await get_tree().process_frame
 	assert_eq(screen.deck.total(), 40)
@@ -243,6 +259,8 @@ func test_the_wishes_reach_the_builder() -> void:
 		"Fourth Edition has no gold card: " + screen.deck.notes)
 	assert_true(screen.deck.notes.contains("Rarity: uncommons, rares and legends."), screen.deck.notes)
 	assert_true(screen.deck.notes.contains("Non-classic lands:"), screen.deck.notes)
+	assert_true(screen.deck.notes.contains("The Power Nine asked for, but the pool, the rarity wish and the colours allowed none."),
+		"Fourth Edition has none of the nine: " + screen.deck.notes)
 	for land in ["Plains", "Mountain", "Forest"]:
 		assert_eq(screen.deck.count_of(land), 0, "no %s" % land)
 	for name in screen.deck.names():
@@ -262,6 +280,10 @@ func test_the_wishes_reach_the_builder() -> void:
 	assert_true((_in("GoldLine") as Button).text.begins_with("[x]"))
 	assert_true((_in("Rarity_uncommon_up") as Button).button_pressed)
 	assert_true((_in("Lands_nonclassic") as Button).button_pressed)
+	assert_true((_in("PowerNineLine") as Button).text.begins_with("[x]"), "the Power Nine remembered")
+	_in("PowerNineLine").pressed.emit()
+	assert_true((_in("PowerNineLine") as Button).text.begins_with("[  ]"))
+	assert_false((_in("SummaryLine") as Label).text.contains("Power Nine"), (_in("SummaryLine") as Label).text)
 	# A gold deck is two colours at least, whatever the cap says.
 	_in("Color_U").pressed.emit()
 	_in("Color_B").pressed.emit()

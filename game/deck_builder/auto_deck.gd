@@ -39,6 +39,12 @@ extends RefCounted
 ##    copy and banned cards never come under tournament rules. The
 ##    RARITY wish ([member rarity]) is a floor and a ceiling on the pool:
 ##    commons only, no rares, uncommons and up, rares and legends only.
+##    THE POWER NINE ([member power_nine], [constant POWER_NINE]) are a
+##    switch of their own, off by default: off, the builder avoids all
+##    nine; on, it places them ahead of the fill ([method _place_power])
+##    — the Lotus and the five Moxen in every deck, the three blue cards
+##    in a blue deck — as far as the pool, the rarity wish and the
+##    tournament rules' one copy allow.
 ## 4. LAY THE LANDS ([method _lay_lands]): the count the speed asks for.
 ##    CLASSIC lands are the five basics alone, in the proportion of the
 ##    coloured pips; NON-CLASSIC lands take the pool's dual lands, City
@@ -119,6 +125,18 @@ const RARITY_RANGE := {RARITY_ANY: [0, 3], RARITY_PAUPER: [0, 0], RARITY_NO_RARE
 ## look in. (A point and a half left a blue-black deck of the library
 ## five gold cards in thirty-six.)
 const GOLD_BONUS := 2.5
+## The Power Nine — the nine cards of Alpha every Vintage deck wants:
+## Black Lotus and the five Moxen for mana on the first turn, whatever
+## the deck's colours, and the three blue cards that draw three, take a
+## turn and reshuffle the game. A switch of their own ([member
+## power_nine]): off, the builder avoids all nine; on, it places them
+## ahead of the fill ([method _place_power]) and [constant POWER_BONUS]
+## goes on their worth, so the colour choice counts the blue three in a
+## blue deck's favour and a build without the tournament rules reaches
+## for the further copies.
+const POWER_NINE: Array[String] = ["Black Lotus", "Mox Pearl", "Mox Sapphire", "Mox Jet",
+	"Mox Ruby", "Mox Emerald", "Ancestral Recall", "Time Walk", "Timetwister"]
+const POWER_BONUS := 2.5
 ## The five basic lands and the colour each makes.
 const BASICS := {"Plains": Mtg.ManaColor.W, "Island": Mtg.ManaColor.U,
 	"Swamp": Mtg.ManaColor.B, "Mountain": Mtg.ManaColor.R, "Forest": Mtg.ManaColor.G}
@@ -209,6 +227,9 @@ var max_colors := 2
 ## A gold deck: multicoloured cards preferred ([constant GOLD_BONUS]),
 ## and two colours at least.
 var gold := false
+## The Power Nine ([constant POWER_NINE]): avoided when off, placed
+## ahead of the fill when on.
+var power_nine := false
 var lean := LEAN_BALANCED
 var speed := SPEED_MEDIUM
 var rarity := RARITY_ANY
@@ -367,6 +388,8 @@ func build() -> DeckModel:
 	var candidates := _candidates(limit)
 	chosen_colors = _choose_colors(candidates, required)
 	var land_total := int(LANDS[size][speed])
+	if power_nine:
+		_place_power(out, candidates, size - land_total)
 	_fill_spells(out, candidates, size - land_total)
 	_lay_lands(out, candidates, land_total)
 	out.deck_name = deck_name()
@@ -415,6 +438,8 @@ func _candidates(limit: int) -> Array:
 			var span: Array = RARITY_RANGE[rarity]
 			if rank < int(span[0]) or rank > int(span[1]):
 				continue
+		if not power_nine and POWER_NINE.has(card_name):
+			continue
 		var cap := mini(int(pool[card_name]), limit)
 		if tournament:
 			if DeckFormat.BANNED.has(card_name):
@@ -485,6 +510,29 @@ func _mask_worth(candidates: Array, mask: int, slots: int) -> float:
 ## Whether every coloured pip of [param data] is in [param mask].
 static func castable(data: CardData, mask: int) -> bool:
 	return (data.color_mask() & ~Mtg.ManaColor.C & ~mask) == 0
+
+
+## The Power Nine ahead of the fill: one copy of each the pool and the
+## rules allow — the Lotus and the Moxen whatever the colours, the blue
+## three when the deck is blue — as long as the spell slots last. The
+## fill then counts them in its curve (a Mox is a first-turn play) and
+## may take further copies where the rules allow four.
+func _place_power(out: DeckModel, candidates: Array, slots: int) -> void:
+	var placed := 0
+	for name in out.names():
+		var data := DeckModel._card(String(name))
+		if data != null and not data.is_land():
+			placed += int(out.counts[name])
+	for entry in candidates:
+		if placed >= slots:
+			break
+		var data: CardData = entry[0]
+		if not POWER_NINE.has(data.card_name) or not castable(data, chosen_colors):
+			continue
+		if out.count_of(data.card_name) >= int(entry[1]):
+			continue
+		out.add(data.card_name)
+		placed += 1
 
 
 ## The greedy fill: [param slots] non-land cards, each the best worth
@@ -774,14 +822,18 @@ func score(data: CardData) -> float:
 
 ## The score priced for the speed: [method score] times the speed's
 ## [constant TEMPO] for the card's mana value, and [constant GOLD_BONUS]
-## on top for a multicoloured card in a gold deck. This is what the
-## colour choice and the fill go by, so a fast deck is drawn to the
-## colours with the best one-drops, a slow deck to the colours with the
-## best big spells and a gold deck to the colours with the gold cards.
+## on top for a multicoloured card in a gold deck, [constant
+## POWER_BONUS] for one of the Power Nine when they are allowed. This is
+## what the colour choice and the fill go by, so a fast deck is drawn to
+## the colours with the best one-drops, a slow deck to the colours with
+## the best big spells, a gold deck to the colours with the gold cards
+## and a Power Nine deck towards blue when blue is close.
 func worth(data: CardData) -> float:
 	var value := score(data) * float(TEMPO[speed][_bucket(data)])
 	if gold and is_gold(data):
 		value += GOLD_BONUS
+	if power_nine and POWER_NINE.has(data.card_name):
+		value += POWER_BONUS
 	return value
 
 
@@ -975,6 +1027,21 @@ func _write_report(out: DeckModel, kept: int) -> void:
 			report.append("A gold deck: multicoloured cards preferred; %d of the %d spells are gold." % [gold_cards, spells])
 		else:
 			report.append("A gold deck: multicoloured cards preferred, but the pool had none the deck could cast.")
+	if power_nine:
+		var power: PackedStringArray = []
+		for name in POWER_NINE:
+			var copies := out.count_of(name)
+			if copies > 0:
+				power.append(name if copies == 1 else "%d %s" % [copies, name])
+		if power.is_empty():
+			report.append("The Power Nine asked for, but the pool, the rarity wish and the colours allowed none.")
+		else:
+			report.append("The Power Nine in play: %s." % ", ".join(power))
+	else:
+		for name in POWER_NINE:
+			if pool.has(name):
+				report.append("The Power Nine left out: the switch is off.")
+				break
 	if rarity != RARITY_ANY:
 		report.append("Rarity: %s." % String(RARITY_WORDS[rarity]))
 	if land_kind == LANDS_NONCLASSIC:

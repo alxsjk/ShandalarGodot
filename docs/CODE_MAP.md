@@ -30,7 +30,11 @@ needed); card files have NO class_name (they register by name instead);
   ceiling (`RARITY_RANGE`: common-pauper, no rares, uncommon up, only rares);
   classic lands (the basics alone) or non-classic (`land_worth` prices the
   pool's duals, City of Brass and the lands with abilities; `_lay_nonbasics`
-  lays the best up to half the lands, the colourless ones within a room).
+  lays the best up to half the lands, the colourless ones within a room);
+  the Power Nine (`POWER_NINE`, `power_nine`, off by default: `_candidates`
+  skips all nine; on, `_place_power` puts the Lotus and the Moxen in every
+  deck and the blue three in a blue deck ahead of the fill, `POWER_BONUS` on
+  their worth).
 - `game/deck_builder/auto_deck_window.gd` (`AutoDeckWindow`): the dialog — the pool
   (sets, the dealt cards, a file or a paste), the wishes, the seed (blank for a
   fresh roll, `Last build` puts the roll back), a summary line, `Build me a

@@ -148,7 +148,9 @@ func test_sixty_from_the_library_is_legal_and_two_coloured() -> void:
 	assert_false(deck.notes.contains("ran out"), "no ran-short line")
 	assert_false(deck.notes.contains("Built around"), "nothing was kept")
 	assert_false(deck.notes.contains("without the tournament rules"))
-	assert_eq(auto.report.size(), 5)
+	assert_true(deck.notes.contains("The Power Nine left out: the switch is off."),
+		"the library holds them; the notes say why none is in (2026-09-18): " + deck.notes)
+	assert_eq(auto.report.size(), 6)
 
 
 func test_forty_from_a_set_is_legal_with_three_of_a_card() -> void:
@@ -316,6 +318,7 @@ func test_the_tournament_rules_bar_the_banned_and_cap_the_restricted() -> void:
 	var pool := {"Contract from Below": 4, "Black Lotus": 4, "Lightning Bolt": 4, "Hypnotic Specter": 4}
 	var auto := _builder(pool)
 	auto.colors = Mtg.ManaColor.B | Mtg.ManaColor.R
+	auto.power_nine = true   # the Lotus is one of the nine (2026-09-18)
 	var deck := auto.build()
 	_assert_legal(deck, auto, 60)
 	assert_eq(deck.count_of("Contract from Below"), 0, "banned")
@@ -486,6 +489,80 @@ func test_a_gold_deck_prefers_multicoloured_cards() -> void:
 	assert_eq(_gold_cards(none_deck), 0)
 	assert_true(none_deck.notes.contains("A gold deck: multicoloured cards preferred, but the pool had none the deck could cast."),
 		none_deck.notes)
+
+
+## The Power Nine (2026-09-18, the owner's playtest): a switch of their
+## own, off by default. Off, the builder avoids all nine even from a
+## pool that holds them; on, it puts the Lotus and the five Moxen in
+## every deck and the blue three in a blue deck, one copy each under the
+## tournament rules, and the notes say which.
+func _power_cards(deck: DeckModel) -> Dictionary:
+	var out := {}
+	for name in AutoDeck.POWER_NINE:
+		if deck.count_of(name) > 0:
+			out[name] = deck.count_of(name)
+	return out
+
+
+func test_the_power_nine_are_avoided_unless_asked_for() -> void:
+	var unlimited := AutoDeck.pool_from_sets(["2ed"])
+	for name in AutoDeck.POWER_NINE:
+		assert_true(unlimited.has(name), "Unlimited holds %s" % name)
+	var plain := _builder(unlimited)
+	plain.colors = Mtg.ManaColor.U | Mtg.ManaColor.R
+	assert_false(plain.power_nine, "off by default")
+	var plain_deck := plain.build()
+	_assert_legal(plain_deck, plain, 60)
+	assert_eq(_power_cards(plain_deck), {}, "not one of the nine")
+	assert_true(plain_deck.notes.contains("The Power Nine left out: the switch is off."), plain_deck.notes)
+	# On, in a blue deck: all nine, one copy each.
+	var blue := _builder(unlimited)
+	blue.colors = Mtg.ManaColor.U | Mtg.ManaColor.R
+	blue.power_nine = true
+	var blue_deck := blue.build()
+	_assert_legal(blue_deck, blue, 60)
+	var all_nine := {}
+	for name in AutoDeck.POWER_NINE:
+		all_nine[name] = 1
+	assert_eq(_power_cards(blue_deck), all_nine, "all nine, once each under the tournament rules")
+	assert_true(blue_deck.notes.contains("The Power Nine in play: Black Lotus, Mox Pearl, Mox Sapphire, Mox Jet, "
+		+ "Mox Ruby, Mox Emerald, Ancestral Recall, Time Walk, Timetwister."), blue_deck.notes)
+	assert_false(blue_deck.notes.contains("left out"), blue_deck.notes)
+	# On, in a deck without blue: the Lotus and the Moxen — every Mox,
+	# an off-colour one still pays the colourless part of a cost.
+	var green := _builder(unlimited)
+	green.colors = Mtg.ManaColor.R | Mtg.ManaColor.G
+	green.power_nine = true
+	var green_deck := green.build()
+	_assert_legal(green_deck, green, 60)
+	assert_eq(_power_cards(green_deck), {"Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1,
+		"Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1}, "the mana six; the blue three need blue")
+	assert_true(green_deck.notes.contains("The Power Nine in play: Black Lotus, Mox Pearl, Mox Sapphire, Mox Jet, Mox Ruby, Mox Emerald."),
+		green_deck.notes)
+	# The bonus on their worth, and only theirs.
+	var lotus := _card("Black Lotus")
+	assert_almost_eq(blue.worth(lotus), plain.worth(lotus) + AutoDeck.POWER_BONUS, 0.001, "the bonus")
+	assert_eq(blue.worth(_card("Lightning Bolt")), plain.worth(_card("Lightning Bolt")), "and none for a plain card")
+	assert_eq(blue.score(lotus), plain.score(lotus), "the score is the card's own")
+	# The pool must hold them: Fourth Edition has none.
+	var fourth := _builder(AutoDeck.pool_from_sets(["4ed"]))
+	fourth.colors = Mtg.ManaColor.U | Mtg.ManaColor.R
+	fourth.power_nine = true
+	var fourth_deck := fourth.build()
+	_assert_legal(fourth_deck, fourth, 60)
+	assert_eq(_power_cards(fourth_deck), {})
+	assert_true(fourth_deck.notes.contains("The Power Nine asked for, but the pool, the rarity wish and the colours allowed none."),
+		fourth_deck.notes)
+	# And the rarity wish still holds: a pauper deck has no rares.
+	var pauper := _builder(unlimited)
+	pauper.colors = Mtg.ManaColor.U | Mtg.ManaColor.R
+	pauper.power_nine = true
+	pauper.rarity = AutoDeck.RARITY_PAUPER
+	var pauper_deck := pauper.build()
+	_assert_legal(pauper_deck, pauper, 60)
+	assert_eq(_power_cards(pauper_deck), {}, "rares, all nine")
+	assert_true(pauper_deck.notes.contains("The Power Nine asked for, but the pool, the rarity wish and the colours allowed none."),
+		pauper_deck.notes)
 
 
 ## Classic lands (2026-09-18) are the five basics alone, whatever the

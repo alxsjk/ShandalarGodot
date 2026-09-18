@@ -15959,6 +15959,44 @@ the seeded stream (a replayed seed replays its leader). Gate: 481
 scripts, **7,540/7,540 tests, 333,594 asserts**, exit 0 in 212 s over 6
 shards; Python 291, exit 0.
 
+## 2026-09-18 — AutoDeck and the Power Nine
+
+*"To the AutoDeck add switch also: Use power 9. If applicable these cards
+empower every deck. Moxes and lotuses for quick mana on every deck and
+blue cards for extra advantage in blue-deck combos. If switch is on the
+generator tries to use them, if it is off (by default) it avoids those
+cards!"* — A switch of their own, under the tournament line: `Use the
+Power Nine — Lotus, Moxen, and the blue three in a blue deck`, off by
+default and remembered with the other wishes. OFF, `AutoDeck._candidates`
+skips all nine (`POWER_NINE`), whatever the pool holds — Unlimited and
+the whole library hold all nine — and the notes say so: `The Power Nine
+left out: the switch is off.` ON, `_place_power` puts them in AHEAD of the
+greedy fill rather than trusting the fill to find them (a slow creature
+deck's two nudges at -2.5 each would have outweighed any bonus a
+zero-mana artifact could carry): Black Lotus and the five Moxen in every
+deck, an off-colour Mox still paying the colourless part of a cost;
+Ancestral Recall, Time Walk and Timetwister when blue is among the
+chosen colours. One copy each under the tournament rules (all nine are
+on `DeckFormat.RESTRICTED`); without the rules the fill may take further
+copies, `POWER_BONUS` (2.5, the gold bonus's size) on their worth. The
+same bonus reaches `_mask_worth`, so a pool where blue is close tips
+blue when the switch is on — the builder's own choice from Unlimited
+goes Red-Green off and Blue-Red on — which is the "tries to use them".
+Every other wish still holds: the pool must hold them (Fourth Edition
+has none), the rarity wish bars them from a pauper deck, and the notes
+then say `The Power Nine asked for, but the pool, the rarity wish and
+the colours allowed none.` The window grew a line (770 tall; the wishes
+fit with room, and the test now measures it) and the Deck Builder help
+page names the switch. Tests: `test_auto_deck.gd` (avoided by default
+from Unlimited; all nine once in a blue deck, the mana six in a
+red-green one; the bonus on their worth alone; Fourth Edition and the
+pauper wish yield none; the tournament test's Lotus turns the switch
+on), `test_auto_deck_window.gd` (off by default, the tooltip, the
+summary's "the Power Nine", the wish reaching the builder, remembered
+between visits, the fit), `test_help_screen.gd`. Gate: 481 scripts,
+**7,541/7,541 tests, 333,439 asserts**, exit 0 in 207 s over 6 shards;
+Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

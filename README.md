@@ -57,7 +57,8 @@ entries, for **1,270 set entries / 901 unique rules identities**. The Deck Build
 supports large cards, live filters and keyboard browsing, **AutoDeck**, which
 builds a deck from a set, a dealt pool or a pasted list to your wishes —
 colours up to five, a gold deck, the rarity from pauper to rares only, classic
-or non-classic lands — and a Stats window that audits the mana base. The duel's keys are rebindable
+or non-classic lands, the Power Nine on or off — and a Stats window that audits
+the mana base. The duel's keys are rebindable
 under Options, Controls, and a controller's face buttons play beside the mouse.
 Further optional packs
 add **Fallen Empires, Ice Age, Homelands and Alliances**, with engine and AI support.
@@ -111,8 +112,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([The arrows and the coin](docs/ROADMAP.md#2026-09-18--the-arrows-and-the-coin)):
-**7,540 GUT tests / 333,594 assertions**, plus **291 Python tests**
+Latest local verification ([AutoDeck and the Power Nine](docs/ROADMAP.md#2026-09-18--autodeck-and-the-power-nine)):
+**7,541 GUT tests / 333,439 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 
