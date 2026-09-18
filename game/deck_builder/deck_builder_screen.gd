@@ -829,7 +829,14 @@ func _build_command_bar() -> void:
 	_pool_button.pressed.connect(_on_pool_pressed)
 	add_child(_pool_button)
 
-	var extras := OriginalDialog.button("Extras", Vector2(72, COMMAND_BAR_H))
+	# THE ROW GIVES THE POOL MEDALLION ITS 34 PX (2026-09-18): Extras and
+	# Rarity 72 -> 68, Deck and Load 72 -> 64 (Cost's width, four letters
+	# each), Done 140 -> 130, so the row's minimum is exactly what it was
+	# before the disc and Done keeps the spare width rather than losing it.
+	# The first cut (Deck and Load alone) fit on a desk with the skin and
+	# stood six pixels past the edge on the skinless runner, whose fallback
+	# font is the wider — the gate on GitHub caught it.
+	var extras := OriginalDialog.button("Extras", Vector2(68, COMMAND_BAR_H))
 	extras.name = "ExtrasButton"
 	extras.tooltip_text = "Live set filters for enabled expansion packs"
 	extras.pressed.connect(_open_extra_sets)
@@ -845,7 +852,7 @@ func _build_command_bar() -> void:
 	# rarity button"*. A SWITCH, not a command: it stays down while the
 	# marks are up, the way the Stats tabs do, and it is the one button
 	# on this bar that remembers its state ([constant RARITY_SETTING]).
-	_rarity_button = OriginalDialog.button("Rarity", Vector2(72, COMMAND_BAR_H))
+	_rarity_button = OriginalDialog.button("Rarity", Vector2(68, COMMAND_BAR_H))
 	_rarity_button.name = "RarityButton"
 	_rarity_button.toggle_mode = true
 	_rarity_button.tooltip_text = "Letter every card with its rarity — " \
@@ -865,10 +872,6 @@ func _build_command_bar() -> void:
 	_cost_button.toggled.connect(_set_cost_marks)
 	_command_row.add_child(_cost_button)
 
-	# Deck and Load are four-letter buttons at Cost's 64 since the pool
-	# medallion took its 34 px off the row's left (2026-09-18): at 72 each
-	# the row's minimum stood ten pixels past the screen's edge, and Done
-	# is the button that should keep the spare width, not lose it.
 	var menu := OriginalDialog.button("Deck", Vector2(64, COMMAND_BAR_H))
 	menu.tooltip_text = "@DECKSURFACE_STANDALONE — the deck surface's mini-menu"
 	menu.pressed.connect(_open_mini_menu)
@@ -895,7 +898,7 @@ func _build_command_bar() -> void:
 
 	# `@DIALOGBUTTONS`' third word, and the screenshot's last button.
 	# Stats stays compact; the primary exit action takes the spare width.
-	var done := OriginalDialog.button("Done", Vector2(140, COMMAND_BAR_H))
+	var done := OriginalDialog.button("Done", Vector2(130, COMMAND_BAR_H))
 	done.name = "DoneButton"
 	done.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_style_emerald_done(done)

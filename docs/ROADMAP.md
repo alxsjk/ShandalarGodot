@@ -15321,9 +15321,14 @@ the disc opens the builder and stays up. The Booster Draft locks it
 with the dice. The help's icon glossary has the disc, and the DECK
 BUILDER page has the paragraph. The disc's 34 px came off the command
 row's left, and the row's minimum then stood ten pixels past the
-screen's edge (`test_deck_layout` caught it on the full gate): `Deck`
-and `Load` are four-letter buttons at `Cost`'s 64 now, not 72, so
-`Done` keeps the spare width rather than losing it.
+screen's edge (`test_deck_layout` caught it on the full gate, not in
+the neighbouring suites); the row gives the 34 back — Extras and Rarity
+68, Deck and Load 64 (Cost's width, four letters each), Done 130 — so
+its minimum is exactly what it was and `Done` keeps the spare width
+rather than losing it. A first cut that trimmed Deck and Load alone fit
+on a desk with the skin and stood six pixels past the edge on the
+skinless runner, whose fallback font is the wider: the gate on GitHub
+caught what the desk could not.
 
 MANA ANALYSIS IN THE STATS WINDOW (the agent's work, merged after the
 builder). The Mana page had pips against sources and a colour-by-turn
@@ -15379,7 +15384,7 @@ medallion down at a time, the glossary entry. `tests/ui/test_mana_analysis.gd`
 (29) as above. None of the three needs the skin.
 
 Gate on the tree as committed: 474 scripts, **7,464/7,464 tests,
-331,701 asserts**, exit 0 in 199 s over 6 shards (the three new scripts
+331,393 asserts**, exit 0 in 198 s over 6 shards (the three new scripts
 22 + 12 + 29, none needing the skin, so the bare clone's gate is 457);
 Python 291, exit 0; boot 0 errors.
 

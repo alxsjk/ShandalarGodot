@@ -104,7 +104,7 @@ regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
 Latest local verification ([The AI deck builder, the pool medallion, and a mana base audited](docs/ROADMAP.md#2026-09-18--the-ai-deck-builder-the-pool-medallion-and-a-mana-base-audited)):
-**7,464 GUT tests / 331,701 assertions**, plus **291 Python tests**
+**7,464 GUT tests / 331,393 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 
