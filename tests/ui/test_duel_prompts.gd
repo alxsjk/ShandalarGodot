@@ -111,14 +111,37 @@ func test_the_screen_runs_the_1997_points_left_loop() -> void:
 	assert_eq(cast[2].damage, 1, "the second took the remainder")
 
 
-func test_the_order_gates_the_clicks_under_modern_rules() -> void:
+func test_a_fresh_duel_opens_every_blocker_at_once() -> void:
+	# The owner's playtest (2026-09-18): blocked by two, every click on the
+	# second blocker answered "Illegal target (wrong attack group)". That
+	# was the 2009-2024 damage assignment order, then the modern default;
+	# Foundations (2024) dropped it, so a duel with the rules as they come
+	# divides freely — no Settings, no preset, no fork touched here.
 	var game: MtgGame = screen.game
 	var cast := _gang_block()
 	game._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
 	screen._refresh()
-	# CR 510.1c: nothing may be assigned to the second blocker until the
-	# first has lethal, so the screen refuses the click instead of letting
-	# the engine refuse the whole division later.
+	assert_eq(screen._damage_candidates(), [cast[1].id, cast[2].id] as Array[int],
+		"both blockers are open before either has lethal")
+	screen._on_card_clicked(cast[2])
+	assert_string_contains(screen._prompt_label.text, "2 points left")
+	assert_false(screen._prompt_label.text.contains("Illegal target"))
+	screen._on_card_clicked(cast[2])
+	screen._on_card_clicked(cast[1])
+	assert_false(game.awaiting_damage_assignment)
+	assert_eq(cast[2].zone, Mtg.Zone.GRAVEYARD, "the second blocker took lethal")
+	assert_eq(cast[1].damage, 1)
+
+
+func test_the_2009_order_gates_the_clicks_when_switched_on() -> void:
+	var game: MtgGame = screen.game
+	game.rules.free_damage_assignment = false
+	var cast := _gang_block()
+	game._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
+	screen._refresh()
+	# CR 510.1c as it read 2009-2024: nothing may be assigned to the second
+	# blocker until the first has lethal, so the screen refuses the click
+	# instead of letting the engine refuse the whole division later.
 	screen._on_card_clicked(cast[2])
 	assert_string_contains(screen._prompt_label.text, "Illegal target")
 	assert_true(game.awaiting_damage_assignment)
@@ -230,9 +253,9 @@ func test_the_overlay_cannot_be_escaped_only_answered() -> void:
 	game.awaiting_choice = null
 
 
-func test_the_1997_fork_opens_every_blocker_at_once() -> void:
+func test_the_1997_preset_opens_every_blocker_at_once() -> void:
 	var game: MtgGame = screen.game
-	game.rules.free_damage_assignment = true
+	game.rules.set_edition("fifth")
 	var cast := _gang_block()
 	game._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.COMBAT_DAMAGE))
 	screen._refresh()

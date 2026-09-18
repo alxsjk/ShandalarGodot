@@ -264,7 +264,7 @@ static func _page_combat() -> Dictionary:
 		]),
 		_heading("4 · Assign and deal damage"),
 		_text("When asked to divide damage, each click assigns one point. Cyan (ice-blue) dagger counts show the points assigned so far, including earlier groups. This is a damage preview, not a counter. Once all assignments are complete, damage is dealt; red damage counts show the damage actually marked on surviving creatures."),
-		_text("Under ordered assignment, give the first blocker lethal damage before the next. Free combat damage division lets you split it freely. Trample can put excess damage on the defending player after blockers have lethal assigned."),
+		_text("The division is free: put each point on whichever blocker you like, in any order. With Free combat damage division switched off in Options, the 2009-2024 order applies: give the first blocker lethal damage before the next. Trample can put excess damage on the defending player after blockers have lethal assigned."),
 		_heading("First strike and blocked attackers"),
 		_text("First strike deals damage in an earlier step. A blocked attacker stays blocked even if its blockers leave combat; without trample it does not hit the player."),
 	]}

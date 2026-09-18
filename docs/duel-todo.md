@@ -640,7 +640,10 @@ the blockers however they liked, which is exactly what a `%d points left`
 click loop IS. The announced order with "lethal to each before the next"
 is CR 509.2/510.1c, a SIXTH EDITION invention from 1999, two years after
 this game shipped. So §1.4 is not one behaviour but two, and it is now
-`RulesOptions.free_damage_assignment` (default modern, as every fork does).
+`RulesOptions.free_damage_assignment` (default modern, as every fork does
+— and since 2026-09-18 the modern answer IS free division: Foundations,
+November 2024, dropped the order from CR 510.1c, so the fork defaults on
+under both presets and off is the 2009-2024 order; `docs/ROADMAP.md`).
 Trample's own rule — every blocker lethal before a point spills to the
 player — holds under both, because the original enforced it too (`Assign
 trample damage to blockers` is its own later prompt).
@@ -3715,7 +3718,9 @@ is untouched 1997 code.
 a running total has no room for a damage assignment ORDER, and it does not
 need one: Fifth Edition had none. The order is CR 509.2, introduced in
 Sixth Edition in 1999. `RulesOptions.free_damage_assignment` is that fork
-— on for the 1997 ruleset, off (the modern order, enforced) by default.
+— on for the 1997 ruleset and, since 2026-09-18, on by default for the
+modern one too (Foundations 2024 dropped the order); off is the 2009-2024
+order, still enforced when asked.
 See §1.4 for what was built. The second pass and the two refusal reasons
 are both BANDING-shaped and stay as written: our band damage goes through
 the same hook, and `Illegal target (wrong attack group)` is the string the

@@ -11,9 +11,10 @@ extends GameTest
 ## THE FORK: the 1997 game ran Fifth Edition rules, which had NO damage
 ## assignment order — the attacker divided the damage among the blockers
 ## however they liked, which is exactly what a `%d points left` click loop
-## is. The announced order with "lethal to each before the next" arrived in
-## Sixth Edition (CR 509.2/510.1c) and is our default.
-## RulesOptions.free_damage_assignment switches between them.
+## is. The announced order with "lethal to each before the next" came with
+## Magic 2010 (CR 509.2/510.1c) and left with Foundations (2024), so free
+## division is the default again (owner's playtest, 2026-09-18) and
+## RulesOptions.free_damage_assignment = false is the 2009-2024 order.
 
 
 ## A seat that puts one chosen blocker first in the order and hands it the
@@ -65,6 +66,30 @@ func _gang_block(attacker_name := "Hill Giant") -> Array:
 	return [attacker, a, b]
 
 
+func test_free_division_is_the_default_and_both_editions_agree() -> void:
+	# The owner's playtest (2026-09-18): blocked by two, they could only
+	# put damage on the first blocker. The 2009-2024 order was the modern
+	# default; Foundations (2024) dropped it, so a fresh engine, the
+	# modern preset and the 1997 preset all divide freely.
+	assert_true(RulesOptions.new().free_damage_assignment, "a fresh engine")
+	for edition in ["modern", "fifth"]:
+		var rules := RulesOptions.new()
+		rules.set_edition(edition)
+		assert_true(rules.free_damage_assignment, edition)
+		assert_eq(rules.edition(), edition, "the shared answer keeps the preset readable")
+	var rules := RulesOptions.new()
+	rules.set_edition("modern")
+	rules.free_damage_assignment = false
+	assert_eq(rules.edition(), "custom", "the 2009-2024 order is a custom choice")
+	g.agents[0] = PromptAgent.new()
+	var cast := _gang_block()
+	advance_to_step(Mtg.Step.COMBAT_DAMAGE)
+	assert_eq(g.assign_combat_damage(0, {cast[1].id: 1, cast[2].id: 2}), "",
+		"the second blocker may take the points first")
+	assert_eq(cast[1].damage, 1)
+	assert_eq(cast[2].zone, Mtg.Zone.GRAVEYARD)
+
+
 func test_the_default_spread_is_still_lethal_first_in_order() -> void:
 	var cast := _gang_block()
 	advance_to_step(Mtg.Step.COMBAT_END)
@@ -74,6 +99,7 @@ func test_the_default_spread_is_still_lethal_first_in_order() -> void:
 
 
 func test_the_attacker_chooses_which_blocker_dies() -> void:
+	g.rules.free_damage_assignment = false     # the 2009-2024 order
 	var picky := PickyAgent.new()
 	g.agents[0] = picky
 	var giant := put_battlefield(0, "Hill Giant")
@@ -90,6 +116,7 @@ func test_the_attacker_chooses_which_blocker_dies() -> void:
 
 
 func test_the_declaration_order_can_be_reordered() -> void:
+	g.rules.free_damage_assignment = false     # the 2009-2024 order
 	g.agents[0] = ReversingAgent.new()
 	var cast := _gang_block()
 	assert_eq(g.combat.ordered_blockers_of_band([cast[0].id]),
@@ -130,7 +157,8 @@ func test_every_point_must_be_assigned() -> void:
 	assert_true(g.awaiting_damage_assignment, "a refusal leaves the split open")
 
 
-func test_modern_rules_enforce_lethal_before_the_next_blocker() -> void:
+func test_the_2009_order_enforces_lethal_before_the_next_blocker() -> void:
+	g.rules.free_damage_assignment = false
 	g.agents[0] = PromptAgent.new()
 	var cast := _gang_block()
 	advance_to_step(Mtg.Step.COMBAT_DAMAGE)
@@ -151,7 +179,7 @@ func test_overkill_must_be_assigned_even_after_all_blockers_have_lethal() -> voi
 		assert_ok(g.assign_combat_damage(0, {cast[1].id: 2, cast[2].id: 4}))
 
 
-func test_the_1997_fork_lets_the_attacker_split_freely() -> void:
+func test_the_1997_rule_lets_the_attacker_split_freely() -> void:
 	g.rules.free_damage_assignment = true
 	g.agents[0] = PromptAgent.new()
 	var cast := _gang_block()

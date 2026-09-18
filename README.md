@@ -111,8 +111,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([Open tables](docs/ROADMAP.md#2026-09-18--open-tables-the-lan-lobby-uncluttered-protocol-21)):
-**7,529 GUT tests / 333,313 assertions**, plus **291 Python tests**
+Latest local verification ([The division is free again](docs/ROADMAP.md#2026-09-18--the-division-is-free-again)):
+**7,537 GUT tests / 333,232 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 

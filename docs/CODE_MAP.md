@@ -3422,9 +3422,14 @@ shandalar/
 │   │   │                      and full-state undo
 │   │   ├── test_discard_phase.gd  §1.1: the cleanup step holds open for
 │   │   │                      a seat that wants to pick its own discard
-│   │   ├── test_damage_assignment.gd  §1.4: the attacker orders and
-│   │   │                      divides its combat damage; the modern
-│   │   │                      order vs the 1997 free-division fork
+│   │   ├── test_damage_assignment.gd  §1.4: the attacker divides its
+│   │   │                      combat damage freely (1997 and, since
+│   │   │                      Foundations 2024, modern too); the
+│   │   │                      2009-2024 order as the opt-in fork
+│   │   ├── test_rules_migration_2026_09_18.gd  Settings._migrate_rules:
+│   │   │                      an older file's "Modern" preset wrote the
+│   │   │                      2009-2024 order; looked at once, moved
+│   │   │                      with the preset, a mixed file left alone
 │   │   ├── test_mulligan.gd  §1.5: the PARIS mulligan (2026-09-08, on
 │   │   │                      the owner's word) — any hand, one card
 │   │   │                      fewer each redraw down to an empty hand

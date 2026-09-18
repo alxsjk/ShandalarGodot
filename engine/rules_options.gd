@@ -100,11 +100,15 @@ const FORKS := [
 		"key": "free_damage_assignment",
 		"label": "Free combat damage division",
 		"fifth_value": true,
+		"modern_value": true,
 		"fifth": "Divide an attacker's damage among its blockers however you like.",
-		"modern": "Assign lethal damage to each blocker in order before the next.",
+		"modern": "The same: Foundations (2024) dropped the damage assignment "
+			+ "order. Switch this off for the 2009-2024 rule, which assigned "
+			+ "lethal damage to each blocker in order before the next.",
 		"source": "UIStrings @PROMPT_RESOLVECOMBAT (\"%s: Assign damage to "
-			+ "blockers, %d points left\"); the damage assignment order is a "
-			+ "Sixth Edition invention (CR 509.2/510.1c)",
+			+ "blockers, %d points left\"); the damage assignment order came "
+			+ "with Magic 2010 (CR 509.2/510.1c, 2009) and left with "
+			+ "Foundations (CR 510.1c, November 2024)",
 	},
 ]
 
@@ -151,14 +155,21 @@ var pool_empties_on_attack := false
 ## announced ORDER and no "lethal to each before the next" constraint —
 ## which is what the 1997 game's own click loop was
 ## (`@PROMPT_RESOLVECOMBAT`: "%s: Assign damage to blockers, %d points
-## left"). The damage assignment order arrived with Sixth Edition in 1999,
-## two years after this game shipped; modern CR 509.2/510.1c is our
-## default. Trample's own rule — every blocker must have lethal before any
-## point spills to the player (CR 702.19b) — holds under BOTH, because the
-## original enforced it too ("Assign trample damage to blockers" is its own
-## later prompt). LIVE — MtgGame validates a split against whichever
-## applies (docs/duel-todo.md §1.4, §6.9).
-var free_damage_assignment := false
+## left"). The damage assignment order came with Magic 2010 (CR
+## 509.2/510.1c, 2009) and LEFT with Foundations (November 2024): the
+## current rules divide freely again, so the 1997 game and modern Magic
+## agree and this is the only fork whose `modern_value` is its
+## `fifth_value`. It stays on the switchboard because the 2009-2024 order
+## is a real rule real players learned, and because the engine still
+## enforces it when asked. The owner's playtest (2026-09-18) — *"I should
+## be able to assign damage arbitrarily amongst all blockers"* — is what
+## turned the default from the 2009 answer to the 2024 one. Trample's
+## own rule — every blocker must have lethal before any point spills to
+## the player (CR 702.19b) — holds under BOTH, because the original
+## enforced it too ("Assign trample damage to blockers" is its own later
+## prompt). LIVE — MtgGame validates a split against whichever applies
+## (docs/duel-todo.md §1.4, §6.9).
+var free_damage_assignment := true
 
 ## THE DAMAGE-PREVENTION WINDOW (docs/duel-todo.md §6.8). 1997 makes
 ## damage an object that sits on the table for a moment: `Duel.hlp`, topic
@@ -199,23 +210,41 @@ func set_fork(key: String, value: bool) -> void:
 		set(key, value)
 
 
+## What modern Magic answers for [param fork]: the opposite of the 1997
+## answer unless the entry says otherwise with a `modern_value` — the two
+## rulesets have converged on one fork since (free combat damage
+## division, Foundations 2024).
+static func modern_answer(fork: Dictionary) -> bool:
+	return bool(fork.get("modern_value", not bool(fork["fifth_value"])))
+
+
 ## Turn every fork to one edition's answer. "fifth" is the 1997 game's
 ## ruleset (manual p.108); anything else is modern Magic.
 func set_edition(edition: String) -> void:
 	var fifth := edition == "fifth"
 	for fork in FORKS:
-		var wants: bool = fork["fifth_value"]
-		set_fork(fork["key"], wants if fifth else not wants)
+		set_fork(fork["key"], fork["fifth_value"] if fifth else modern_answer(fork))
 
 
 ## Which edition the current flags amount to: "fifth", "modern", or
-## "custom" when they are mixed. The Options screen shows this back.
+## "custom" when they are mixed. The Options screen shows this back. A
+## fork the two editions agree on cannot tell them apart; it only says
+## "custom" when it is off its shared answer.
 func edition() -> String:
 	var as_fifth := 0
+	var as_modern := 0
 	for fork in FORKS:
-		if get_fork(fork["key"]) == fork["fifth_value"]:
+		var fifth_value: bool = fork["fifth_value"]
+		var modern_value := modern_answer(fork)
+		var value := get_fork(fork["key"])
+		if fifth_value == modern_value:
+			if value != fifth_value:
+				return "custom"
+		elif value == fifth_value:
 			as_fifth += 1
-	if as_fifth == FORKS.size():
+		else:
+			as_modern += 1
+	if as_modern == 0:
 		return "fifth"
 	if as_fifth == 0:
 		return "modern"

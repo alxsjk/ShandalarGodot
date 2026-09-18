@@ -126,7 +126,7 @@ func test_the_preset_writes_the_settings_file_once() -> void:
 	preset.item_selected.emit(0)          # Modern rules
 	assert_eq(Settings.write_count - before, 1, "and back, in one write")
 	for fork in RulesOptions.FORKS:
-		assert_eq(Settings.rule(fork["key"]), not fork["fifth_value"], fork["key"])
+		assert_eq(Settings.rule(fork["key"]), RulesOptions.modern_answer(fork), fork["key"])
 
 
 func test_the_custom_readout_is_not_a_command() -> void:

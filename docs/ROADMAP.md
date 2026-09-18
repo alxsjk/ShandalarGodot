@@ -15874,6 +15874,51 @@ verified on a bare clone (no `assets/`) before pushing — the lesson of
 2026-09-18 06:00 again. Gate: 479 scripts, **7,529/7,529 tests,
 333,313 asserts**, exit 0 in 204 s over 6 shards; Python 291, exit 0.
 
+## 2026-09-18 — The division is free again
+
+THE ORDER, from the playtest: *"I attack with a creature and it gets
+blocked by 2 creature blockers. I should be able to assign damage
+arbitrarily amongst all blockers blocking my attacking creature. Now I
+can only assign damage to the first declared blocker? If i assign to the
+second blocker i get wrong attack group? Please examine this in detail
+and fix."*
+
+**What it was.** Not a bug in the click loop: a rules fork answering
+with the wrong era. `RulesOptions.free_damage_assignment` carried the
+damage assignment ORDER — lethal to the first blocker before a point may
+go to the next (CR 510.1c) — as the modern default, and the 1997 free
+division as the Fifth Edition side of the fork. The screen's
+`_damage_candidates()` therefore opened only the first blocker still
+short of lethal, and a click on the second answered with the original's
+own refusal, `Illegal target (wrong attack group)`. That order came with
+Magic 2010 (2009) and **left with Foundations (November 2024)**: the
+current Comprehensive Rules divide freely again, as the 1997 game did.
+So the two rulesets agree on this one, and the "modern" answer the fork
+was built with was fifteen years of Magic that are over.
+
+**What changed.** `FORKS` entries may now carry a `modern_value`;
+`RulesOptions.modern_answer(fork)` reads it and falls back to
+`not fifth_value`, so the other six forks are untouched. The free
+division is `true` under both presets and in a fresh engine, and
+`edition()` treats a fork whose two answers agree as a tie-breaker only
+in the custom direction (off = "Custom", never a vote for either era).
+The fork stays on the switchboard — the 2009-2024 order is a real rule
+real players learned, the engine still enforces it when asked, and the
+Options row's Modern text says so. **The settings file:** an older
+build's "Modern rules" preset wrote `rule_free_damage_assignment = false`
+to disk, which would have kept the order in force and shown the preset as
+"Custom" for a player who never chose either. `Settings._migrate_rules`
+looks at each file once (a `rules_revision` marker): if every stored fork
+reads modern, the false was the preset's and moves with it; a mixed file
+is a custom choice and is left alone; a file that never stored the fork
+is not written. Help's *Combat* page and the fork's own texts now read
+the current rule, with the order as the switch-off. Tests: the engine
+suite pins the fresh default, both presets and the "Custom" reading;
+the prompt suite pins a fresh duel opening every blocker at once and the
+order gating the clicks only when switched on; a new unit suite pins the
+six shapes of the migration. Gate: 480 scripts, **7,537/7,537 tests,
+333,232 asserts**, exit 0 in 199 s over 6 shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

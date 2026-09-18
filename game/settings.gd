@@ -28,6 +28,41 @@ static func _ensure() -> void:
 	if _config == null:
 		_config = ConfigFile.new()
 		_config.load(PATH)   # missing file is fine — defaults apply
+		_migrate_rules()
+
+
+## The marker a file carries once [method _migrate_rules] has looked at it.
+const RULES_REVISION_KEY := "rules_revision"
+const RULES_REVISION := 2
+
+## ONE fork changed its modern answer (2026-09-18): free combat damage
+## division is now what modern Magic does too (Foundations, 2024), so a
+## stored `rule_free_damage_assignment = false` written by an older
+## build's "Modern rules" preset would keep the 2009-2024 order in force
+## and show the preset as "Custom". If the other stored forks all read
+## modern, that false was the preset's, not the player's, and it moves
+## with the preset; a mixed file is a custom choice and is left alone.
+## The marker means each file is looked at once.
+static func _migrate_rules() -> void:
+	if int(_config.get_value("options", RULES_REVISION_KEY, 1)) >= RULES_REVISION:
+		return
+	if not _config.has_section_key("options", "rule_free_damage_assignment"):
+		return       # nothing stored: the built-in default applies
+	var all_modern := not bool(_config.get_value("options", "rule_free_damage_assignment", true))
+	for fork in RulesOptions.FORKS:
+		var key: String = fork["key"]
+		if key == "free_damage_assignment":
+			continue
+		# An unstored fork already reads modern; a stored one has to —
+		# and "modern" here is the OLD answer, `not fifth_value` for every
+		# fork, because that is what a revision-1 file was written under.
+		if _config.has_section_key("options", "rule_" + key) \
+				and bool(_config.get_value("options", "rule_" + key)) == bool(fork["fifth_value"]):
+			all_modern = false
+	if all_modern:
+		_config.set_value("options", "rule_free_damage_assignment", true)
+	_config.set_value("options", RULES_REVISION_KEY, RULES_REVISION)
+	_save()
 
 
 static func get_value(key: String, default_value):
@@ -82,6 +117,7 @@ static func reload() -> void:
 	_config = ConfigFile.new()
 	_config.load(PATH)
 	_dirty = false
+	_migrate_rules()
 
 
 ## Remove a key so the built-in default applies again. Tests use this to
