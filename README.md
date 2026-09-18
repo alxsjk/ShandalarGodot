@@ -107,8 +107,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([AutoDeck's rarity, five colours, gold and the non-classic lands](docs/ROADMAP.md#2026-09-18--autodecks-rarity-five-colours-gold-and-the-non-classic-lands)):
-**7,505 GUT tests / 333,003 assertions**, plus **291 Python tests**
+Latest local verification ([The band question](docs/ROADMAP.md#2026-09-18--the-band-question)):
+**7,518 GUT tests / 332,785 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 

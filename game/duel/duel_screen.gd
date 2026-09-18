@@ -120,6 +120,14 @@ var _humans: Dictionary = {}
 
 # --- combat declaration state ---
 var _selected_attackers: Array[int] = []
+## THE BANDS PENCILLED IN WITH THE ATTACKERS (CR 702.22c): arrays of
+## attacker ids, every member also in [member _selected_attackers], handed
+## to [method MtgGame.declare_attackers] as its `band_list` when Done
+## declares. Formed by the band question — see [method _toggle_attacker].
+var _selected_bands: Array = []
+## The attacker the Situation Bar is asking "Band with which attacker?"
+## about, or -1 while no band question is open.
+var _band_candidate := -1
 ## blocker id -> the attacker ids it is set to block. AN ARRAY PER
 ## BLOCKER since one-to-many blocks landed (CR 509.1b): almost every entry
 ## is one long, and [method MtgGame.declare_blockers] takes both shapes,
@@ -2918,7 +2926,42 @@ func _combat_body(inst: CardInstance) -> CardInstance:
 	return host
 
 
+## THE BAND QUESTION (2026-09-18). The engine has taken attack bands since
+## banding landed — [method MtgGame.declare_attackers] validates a
+## `band_list`, the AI declares one, the SGManalink wire carries one — and
+## this screen never sent one: Done declared [member _selected_attackers]
+## alone, so a Benalish Hero and anything beside it always attacked as
+## two. The owner's playtest: *"When i declare 2 attackers during combat
+## (for example "benalish hero" - i should be able to form a band)."*
+##
+## THE 1997 GESTURE, `Duel.hlp` topic **Combat**: *"If you select a
+## banding creature for the attack, you can choose to have it band with
+## another attacker, rather than attacking on its own. You're prompted to
+## decide this. If you wish to band the creature with another, click on
+## the attacker with which the creature you're ordering around is to
+## band. Otherwise, click the Done button. (To skip the option and have
+## the creature not band, you can also double-click.)"* The prompt is
+## `@PROMPT_BANDWITHWHOM` (UIStrings.txt:1031): `Band with which
+## attacker?` / `Illegal band.` / `That isn't an attacker.`
+##
+## Ours asks the question whenever the creature just added COULD legally
+## band with an attacker already in the lineup ([method _band_partners]) —
+## which is the original's "banding creature" case and one more: a plain
+## creature added after a bander, since a band may carry one creature
+## without banding (CR 702.22c) and the original only offered it when the
+## bander was clicked second. The answer is a click on the attacker to
+## band with (its whole band, if it has one), a click on the creature
+## itself to attack alone (the manual's double-click), or Done — which
+## answers "alone" AND declares, because Done is what the manual names
+## for "otherwise" and the lineup on screen is exactly what goes in.
+## While the question stands the attackers it may band with wear the
+## yellow "click one of these" ring and the bar keeps the question up
+## after every refusal, so a player who clicked something else is never
+## left without the sentence that says what to click.
 func _toggle_attacker(inst: CardInstance) -> void:
+	if _band_candidate != -1:
+		_answer_band_question(inst)
+		return
 	if inst.controller_id != game.active_player or not inst.is_creature():
 		# A CLICK THAT CAN DECLARE NOTHING SAYS SO, when it was on one of
 		# YOUR OWN permanents — silence is what let the defect above look
@@ -2937,6 +2980,7 @@ func _toggle_attacker(inst: CardInstance) -> void:
 				% inst.data.card_name)
 			return
 		_selected_attackers.erase(inst.id)
+		_unband(inst.id)
 	else:
 		var why := _attack_refusal(inst)
 		if why != "":
@@ -2946,7 +2990,118 @@ func _toggle_attacker(inst: CardInstance) -> void:
 			_set_prompt("Illegal attacker. %s" % why)
 			return
 		_selected_attackers.append(inst.id)
+		if not _band_partners(inst.id).is_empty():
+			# @PROMPT_BANDWITHWHOM entry 1 — see the block above.
+			_band_candidate = inst.id
+			_set_prompt(BAND_QUESTION)
 	_refresh()
+
+
+## `@PROMPT_BANDWITHWHOM` entry 1, UIStrings.txt:1031, verbatim.
+const BAND_QUESTION := "Band with which attacker?"
+## @PROMPT_MAIN entry 5 — the standing instruction the question returns to.
+const CHOOSE_ATTACKERS := "Combat phase: Choose attackers."
+
+
+## The click that answers [constant BAND_QUESTION] — see [method
+## _toggle_attacker]. A refusal keeps the question on the bar behind it.
+func _answer_band_question(inst: CardInstance) -> void:
+	var candidate := game.find_instance(_band_candidate)
+	if candidate == null or not _selected_attackers.has(_band_candidate):
+		_close_band_question()
+		_refresh()
+		return
+	if inst.id == _band_candidate:
+		# The manual's double-click: the creature attacks on its own.
+		_close_band_question()
+		_refresh()
+		return
+	if not _selected_attackers.has(inst.id):
+		# @PROMPT_BANDWITHWHOM entry 3, then the two ways to answer.
+		_set_prompt("That isn't an attacker. %s Click an attacker to band with, or click %s again to attack alone." % [
+			BAND_QUESTION, candidate.data.card_name])
+		return
+	var band: Array = _pencilled_band_of(inst.id).duplicate()
+	band.append(_band_candidate)
+	var why := _band_refusal(band)
+	if why != "":
+		# @PROMPT_BANDWITHWHOM entry 2, with the engine's reason after it
+		# ("Illegal attacker." gets the same treatment).
+		_set_prompt("Illegal band. %s. %s" % [why, BAND_QUESTION])
+		return
+	_selected_bands = _selected_bands.filter(
+		func(other: Array) -> bool: return not other.has(inst.id))
+	_selected_bands.append(band)
+	_close_band_question()
+	_refresh()
+
+
+func _close_band_question() -> void:
+	_band_candidate = -1
+	_set_prompt(CHOOSE_ATTACKERS)
+
+
+## The attackers already in the lineup that [param attacker_id] could
+## legally band with — each one's whole pencilled band plus this creature,
+## judged by [method _band_refusal]. Empty means no band question.
+func _band_partners(attacker_id: int) -> Array:
+	var partners: Array = []
+	for other in _selected_attackers:
+		if other == attacker_id:
+			continue
+		var band: Array = _pencilled_band_of(other).duplicate()
+		if band.has(attacker_id):
+			continue
+		band.append(attacker_id)
+		if _band_refusal(band) == "":
+			partners.append(other)
+	return partners
+
+
+## The pencilled band [param attacker_id] is in, or `[attacker_id]` alone.
+func _pencilled_band_of(attacker_id: int) -> Array:
+	for band in _selected_bands:
+		if band.has(attacker_id):
+			return band
+	return [attacker_id]
+
+
+## Take a creature out of every pencilled band; a band left with one
+## member is no band ([method CombatState.remove_from_bands]' shape).
+func _unband(attacker_id: int) -> void:
+	for i in range(_selected_bands.size() - 1, -1, -1):
+		var band: Array = _selected_bands[i]
+		band.erase(attacker_id)
+		if band.size() < 2:
+			_selected_bands.remove_at(i)
+
+
+## Why [param band] is not a legal attack band, or "" — the engine's own
+## judge ([method CombatState.band_illegality]), asked of the ids as the
+## declaration will name them.
+func _band_refusal(band: Array) -> String:
+	return CombatState.band_illegality(game, band)
+
+
+## Attackers, bands and the open band question, all forgotten at once —
+## every door out of the attack declaration goes through here.
+func _clear_attack_lineup() -> void:
+	_selected_attackers = []
+	_selected_bands = []
+	_band_candidate = -1
+
+
+## The bands the Combat window frames: the engine's own once declared
+## (ours, the AI's, or the host's over SGManalink) plus whatever is
+## pencilled in and not yet submitted. The two never overlap in time.
+func _combat_bands() -> Array:
+	var bands: Array = []
+	for band in game.combat.bands:
+		bands.append(Array(band))
+	if mode == Mode.ATTACKERS:
+		for band in _selected_bands:
+			bands.append(Array(band))
+	return bands
 
 
 ## THE BLOCK GESTURE: click your creature to pick it up, click an attacker
@@ -3083,9 +3238,14 @@ func _blocks_left_for(blocker: CardInstance) -> int:
 func _on_confirm() -> void:
 	match mode:
 		Mode.ATTACKERS:
-			var err := game.declare_attackers(game.active_player, _selected_attackers)
+			# An open band question is answered "alone" by Done — the
+			# manual's "Otherwise, click the Done button" — and the
+			# lineup goes in as the window shows it.
+			_band_candidate = -1
+			var err := game.declare_attackers(game.active_player,
+				_selected_attackers, _selected_bands)
 			if err == "":
-				_selected_attackers = []
+				_clear_attack_lineup()
 				mode = Mode.NORMAL
 			_report(err)
 		Mode.BLOCKERS:
@@ -3150,7 +3310,7 @@ func _on_cancel() -> void:
 			# now keeps the key and the Situation Bar's button off it; this
 			# is the guard for every OTHER door into this method.
 			if game.rules.attackers_revocable:
-				_selected_attackers = []
+				_clear_attack_lineup()
 		Mode.BLOCKERS:
 			# Blockers are not forked: manual p.86 is about the ATTACK
 			# declaration, and a half-made block is still cancellable under
@@ -4697,7 +4857,7 @@ func _drive_advance() -> void:
 				_report(refused)
 				_cancel_advance()
 				break
-			_selected_attackers = []
+			_clear_attack_lineup()
 			mode = Mode.NORMAL
 			if config.private_hotseat():
 				_refresh()
@@ -5071,7 +5231,7 @@ func _refresh() -> void:
 	if game.awaiting_attackers and mode != Mode.ATTACKERS \
 			and _is_human(game.active_player):
 		mode = Mode.ATTACKERS
-		_selected_attackers = []
+		_clear_attack_lineup()
 		# The 1997 line, verbatim — @PROMPT_MAIN entry 5, UIStrings.txt:1063,
 		# full stop included. What stood here was ours, and it borrowed the
 		# "?..." form: that form belongs to @PROMPT_FASTEFFECTS and to
@@ -5094,7 +5254,7 @@ func _refresh() -> void:
 	# as phantom arrows on the board.
 	elif mode == Mode.ATTACKERS \
 			and game.current_step() != Mtg.Step.DECLARE_ATTACKERS:
-		_selected_attackers = []
+		_clear_attack_lineup()
 		mode = Mode.NORMAL
 	elif mode == Mode.BLOCKERS \
 			and game.current_step() != Mtg.Step.DECLARE_BLOCKERS:
@@ -5594,7 +5754,7 @@ func _update_combat() -> void:
 				_windowed_ids[id] = true
 			_combat_window.fit(_board_area())
 			_combat_window.present(game, lineup[0], lineup[1],
-				game.active_player, _human_seat())
+				game.active_player, _human_seat(), _combat_bands())
 		# Keep the window's own flag in step with ours FIRST — leaving it
 		# stuck true after combat ended would make the next attack's
 		# minimise button a no-op (its setter short-circuits on no change).
@@ -7933,8 +8093,17 @@ func _highlight_for(inst: CardInstance) -> int:
 				if spec.is_legal(game, TargetRef.card(inst), _pending_card):
 					return MiniCard.Highlight.TARGET_LEGAL
 		Mode.ATTACKERS:
+			if _band_candidate != -1 and inst.id != _band_candidate \
+					and _band_partners(_band_candidate).has(inst.id):
+				# "Band with which attacker?" — one of these.
+				return MiniCard.Highlight.TARGET_LEGAL
 			if _selected_attackers.has(inst.id):
 				return MiniCard.Highlight.COMMITTED
+			if _band_candidate != -1:
+				# While the band question is up only its answers light:
+				# the partners (yellow) and the attackers already chosen
+				# (green). The rest of the table waits for the answer.
+				return MiniCard.Highlight.NONE
 			if inst.controller_id == game.active_player \
 					and inst.is_creature() \
 					and _attack_refusal(inst) == "":

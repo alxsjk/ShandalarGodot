@@ -258,7 +258,7 @@ static func _page_casting() -> Dictionary:
 
 static func _page_combat() -> Dictionary:
 	return {"title": "Combat", "blocks": [
-		_cards([["Hill Giant", "1 · Choose attackers", "Click the creatures you want to attack with, then Done. Attacking usually taps them. You attack the other player, not their creatures."],
+		_cards([["Hill Giant", "1 · Choose attackers", "Click the creatures you want to attack with, then Done. Attacking usually taps them. You attack the other player, not their creatures. A creature that can band with an attacker already chosen is asked \"Band with which attacker?\" — click that attacker to form the band, or click the creature again to attack alone. A band stands in one blue frame in the Combat window."],
 			["Grizzly Bears", "2 · Choose blockers", "Click your blocker, then the attacker it should block. Repeat, then Done. Several creatures can block the same attacker."],
 			["Will-o'-the-Wisp", "3 · Use fast effects before damage", "After blocks are declared, use instants and activated abilities. With modern damage timing, buy regeneration now: click the creature, select its regeneration ability, and pay the cost."],
 		]),
@@ -421,6 +421,11 @@ static func _page_icons_abilities() -> Dictionary:
 			"An old and unusual ability. Creatures with banding may attack "
 			+ "together as one group, which must be blocked as one, and "
 			+ "their controller divides the blockers' damage among them. "
+			+ "A band may also carry one creature without banding. "
+			+ "The band is formed while choosing attackers: when a creature "
+			+ "that can band with an attacker already chosen is added, the "
+			+ "Situation Bar asks \"Band with which attacker?\" — click that "
+			+ "attacker, or click the creature again to attack alone. "
 			+ "A blocker with banding lets its controller divide the "
 			+ "attacker's damage among that attacker's blockers."),
 	]

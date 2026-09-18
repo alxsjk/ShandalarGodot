@@ -139,7 +139,7 @@ func _refresh() -> void:
 	var gates := {Mode.ATTACKERS: "attack", Mode.BLOCKERS: "block", Mode.DISCARD: "discard", Mode.DAMAGE: "damage"}
 	if gates.has(mode) and projection.view.mode != gates[mode]:
 		mode = Mode.NORMAL
-		_selected_attackers.clear()
+		_clear_attack_lineup()
 		_block_map.clear()
 		_selected_blocker = -1
 		_discard_picks.clear()

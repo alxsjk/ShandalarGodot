@@ -15702,6 +15702,67 @@ asserts**, exit 0 in 201 s over 6 shards; Python 291, exit 0. The seed
 commit: 476 scripts, **7,505/7,505 tests, 333,003 asserts**, exit 0 in 198 s
 over 6 shards; Python 291, exit 0.
 
+## 2026-09-18 — The band question
+
+THE ORDER: *"Examine banding. When i declare 2 attackers during combat
+(for example "benalish hero" - i should be able to form a band). Fix
+this."*
+
+**The defect.** The engine had banding whole — `CombatState.bands`,
+`band_illegality`, one blocker fighting the whole band, the AI banding
+its own attackers — and `MtgGame.declare_attackers` took a band list.
+The duel screen never passed one. Two Benalish Heroes went in as two
+lone attackers, and the human had no gesture to say otherwise.
+
+**The 1997 gesture** (Duel.hlp, *Combat*: "If you select a banding
+creature for the attack, you can choose to have it band with another
+attacker… click on the attacker with which the creature you're ordering
+around is to band. Otherwise, click the Done button"; `UIStrings.txt`
+@PROMPT_BANDWITHWHOM: `Band with which attacker?` / `Illegal band.` /
+`That isn't an attacker.`). When a creature is added to the lineup and
+`_band_partners` finds an attacker already chosen that it may band with
+— the engine's own `band_illegality` asked about each candidate band —
+the Situation Bar asks **Band with which attacker?** and only the
+answers light: the partners yellow, the attackers chosen green, the rest
+of the table dark. Click a partner and the creature joins that
+attacker's band (a third bander clicked onto either member joins the
+whole); click the creature again, or Done, and it attacks alone — Done
+declares the attack in the same press. A click on anything else says
+`That isn't an attacker.` and keeps the question; a band the engine
+refuses (two creatures without banding riding one Hero) says `Illegal
+band.` with the engine's reason and asks again. Taking an attacker back
+dissolves its band; Cancel and the step advancing forget the bands and
+the question. The question also comes for a plain creature added after
+a bander — the 1997 game asked only about the banding creature, but a
+Grizzly Bears may ride with the Hero and the player should be able to
+say so — and never for two plain creatures.
+
+**The band frame.** The Combat window draws each band as one blue-ruled
+frame around its members (`CombatWindow.BAND_INK`, `BAND_RULE`),
+pencilled while the lineup is chosen and turned once declared; the
+opponent's bands, the AI's included, are framed in their lane the same
+way. The attack line in the log names the band: `… attacks with:
+Benalish Hero, Mesa Pegasus, Grizzly Bears (a band: Benalish Hero +
+Mesa Pegasus)`. The Help's Combat page and the Banding badge describe
+the gesture.
+
+**Over SGManaLink** the lineup's bands already travelled (`attack_bands`
+op, protocol 20 unchanged) and the host's engine rules on them; the
+guest's screen asks the same question against its projection. The
+projection carries a creature's keywords but not its "bands with other"
+grants (`cur_bands_with` — the five Legends lands and their kin), so a
+band that is legal only by such a grant is refused on the guest's
+screen before it is sent. Noted, not fixed: the guest would need the
+grants in the presentation.
+
+Tests: `test_attack_bands_2026_09_18.gd` 13 tests (the question and its
+lighting; the band formed and declared; one blocker fighting the whole
+band; alone by the creature or by Done; the rider allowed and the
+second refused; two plain creatures never asked; the non-attacker; the
+third bander; the take-back; Cancel; the engine's refusal; the
+opponent's frame). Gate on the tree as committed: 477 scripts, **7,518/7,518 tests,
+332,785 asserts**, exit 0 in 206 s over 6 shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

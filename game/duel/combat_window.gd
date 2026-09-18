@@ -95,6 +95,22 @@ var _bottom_marker: TextureRect
 ## Instance ids currently laid out, top lane then bottom (tests read this).
 var _top_ids: Array = []
 var _bottom_ids: Array = []
+## The attack bands as laid out: one Array of member ids per framed group,
+## in lane order (tests read this).
+var _band_groups: Array = []
+
+## THE BAND FRAME (2026-09-18). A band attacks as one body — blocked as
+## one, its blockers' damage divided by its controller (CR 702.22j-k) —
+## and the window says so by standing its members SIDE BY SIDE inside one
+## ruled frame, the way the lineup already puts a creature "in combat" by
+## moving it into the window at all. The ink is the banding badge's own
+## blue (docs/card-states.md: *"Blue cross — banding"*), which none of the
+## card rings use: yellow is "you may", orange "you must", green "chosen".
+## The frame is drawn UNDER the cards, in the 4px of clear holder around
+## each of them, so it costs the lane no height (a lane is exactly one
+## tapped card tall — see the class docs).
+const BAND_INK := Color(0.45, 0.65, 1.0)
+const BAND_RULE := 3
 
 
 func _init() -> void:
@@ -300,15 +316,20 @@ func fit(area: Rect2) -> void:
 ## sits on the attacking player's own side of the window (manual p.126,
 ## "Your attackers line up on your side"), so the player's own attack fills
 ## the BOTTOM lane and the opponent's fills the TOP one.
+##
+## [param bands] are the attack bands (arrays of attacker ids, declared or
+## pencilled in); each one's members are framed together in the attackers'
+## lane — see [constant BAND_INK].
 func present(game: MtgGame, attacker_ids: Array, blocker_ids: Array,
-		attacking_pid: int, human_pid: int) -> void:
+		attacking_pid: int, human_pid: int, bands: Array = []) -> void:
 	_title.text = title_for(attacking_pid, human_pid,
 		game.players[attacking_pid].player_name)
 	var attackers_on_bottom := attacking_pid == human_pid
 	_top_ids = blocker_ids if attackers_on_bottom else attacker_ids
 	_bottom_ids = attacker_ids if attackers_on_bottom else blocker_ids
-	_fill(_top_lane, game, _top_ids)
-	_fill(_bottom_lane, game, _bottom_ids)
+	_band_groups = []
+	_fill(_top_lane, game, _top_ids, [] if attackers_on_bottom else bands)
+	_fill(_bottom_lane, game, _bottom_ids, bands if attackers_on_bottom else [])
 	var sword := MiniCard.masked_sprite("attack_sword")
 	var shield := MiniCard.masked_sprite("attack_shield")
 	_top_marker.texture = shield if attackers_on_bottom else sword
@@ -317,23 +338,92 @@ func present(game: MtgGame, attacker_ids: Array, blocker_ids: Array,
 		_bones.texture = MiniCard.masked_sprite("attack_bones", true)
 
 
-func _fill(lane: HFlowContainer, game: MtgGame, ids: Array) -> void:
+func _fill(lane: HFlowContainer, game: MtgGame, ids: Array,
+		bands: Array = []) -> void:
 	for child in lane.get_children():
 		lane.remove_child(child)
 		child.queue_free()
 	if not card_builder.is_valid():
 		return
+	var laid := {}
 	for id in ids:
-		var inst: CardInstance = game.find_instance(id)
-		if inst == null:
+		if laid.has(id):
 			continue
-		lane.add_child(card_builder.call(inst) as Control)
+		var band := _band_holding(bands, id)
+		if band.size() < 2:
+			var inst: CardInstance = game.find_instance(id)
+			if inst == null:
+				continue
+			lane.add_child(card_builder.call(inst) as Control)
+			laid[id] = true
+			continue
+		# A BAND: its members stand together at the first one's place, in
+		# lane order, inside one frame.
+		var frame := _make_band_frame()
+		var row: HBoxContainer = frame.get_child(0)
+		var members: Array = []
+		for member_id in ids:
+			if not band.has(member_id) or laid.has(member_id):
+				continue
+			var inst: CardInstance = game.find_instance(member_id)
+			if inst == null:
+				continue
+			row.add_child(card_builder.call(inst) as Control)
+			laid[member_id] = true
+			members.append(member_id)
+		# The rule needs clear ground to show on: a turned card's holder
+		# has 4px of it on every side and the lane has no height to spare,
+		# so the frame hugs the row; a flat card (pencilled in, or
+		# attacking with vigilance) has none, so the frame steps out by
+		# its own width — it has the room, a flat card being 106 tall.
+		var tallest := 0.0
+		for child in row.get_children():
+			tallest = maxf(tallest, (child as Control).get_combined_minimum_size().y)
+		var box: StyleBoxFlat = frame.get_theme_stylebox("panel")
+		box.set_content_margin_all(
+			BAND_RULE if tallest + 2.0 * BAND_RULE <= LANE_H else 0.0)
+		lane.add_child(frame)
+		_band_groups.append(members)
+
+
+## The band in [param bands] that holds [param id], or `[]`.
+static func _band_holding(bands: Array, id: int) -> Array:
+	for band in bands:
+		if (band as Array).has(id):
+			return band
+	return []
+
+
+## One band's frame: a ruled box with no ground of its own ([constant
+## BAND_INK]) over a row that puts its cards edge to edge — the holders'
+## own clear margin is the spacing. Neither takes the pointer, so the
+## cards stay as clickable as they are loose in the lane.
+func _make_band_frame() -> PanelContainer:
+	var frame := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.draw_center = false
+	box.border_color = BAND_INK
+	box.set_border_width_all(BAND_RULE)
+	box.set_corner_radius_all(6)
+	box.set_content_margin_all(0)
+	frame.add_theme_stylebox_override("panel", box)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 0)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(row)
+	return frame
 
 
 ## Ids in the top lane, then the bottom — what a test reads to prove the
 ## lineup landed on the right side of the window.
 func lane_ids() -> Array:
 	return [_top_ids.duplicate(), _bottom_ids.duplicate()]
+
+
+## The framed bands, in lane order, each an Array of member ids.
+func band_groups() -> Array:
+	return _band_groups.duplicate(true)
 
 
 func _on_minimize_pressed() -> void:

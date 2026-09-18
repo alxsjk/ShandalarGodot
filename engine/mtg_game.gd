@@ -2974,8 +2974,17 @@ func declare_attackers(pid: int, attacker_ids: Array, band_list: Array = []) -> 
 		var names := PackedStringArray()
 		for inst in declared:
 			names.append(inst.data.card_name)
-		log_line("%s attacks with: %s" % [players[pid].player_name, ", ".join(names)],
-			null, "attack", pid)
+		var line := "%s attacks with: %s" % [players[pid].player_name, ", ".join(names)]
+		# The bands, named — the log is the one record of a declaration
+		# the window has already folded away (2026-09-18).
+		for band in live_bands:
+			var members := PackedStringArray()
+			for id in band:
+				var member := find_instance(id)
+				if member != null:
+					members.append(member.data.card_name)
+			line += " (a band: %s)" % " + ".join(members)
+		log_line(line, null, "attack", pid)
 		if undo_log != null: _rec(players[pid], &"attacked_this_turn")
 		players[pid].attacked_this_turn = true
 		dispatch_event(Mtg.EventType.DECLARED_ATTACKERS, {"attackers": declared})

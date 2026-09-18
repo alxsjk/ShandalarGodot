@@ -4194,6 +4194,17 @@ shandalar/
 │    report of the same afternoon — Hurr Jackal wearing TWO auras, where
 │    the outer band is the one the pointer meets and the inner one shows
 │    a strip between them, both meaning the creature, three deep as well;
+│    tests/ui/test_attack_bands_2026_09_18.gd — THE BAND QUESTION
+│    (2026-09-18): a second bander asked `Band with which attacker?` with
+│    the partner lit and the rest of the table dark; the click forming
+│    the band, Done declaring it into CombatState.bands, the window's
+│    frame before and after, the log naming the band; one blocker
+│    fighting the whole band; the creature clicked again and Done both
+│    meaning alone; a plain rider allowed and a second refused; two plain
+│    creatures never asked; a non-attacker keeping the question up; a
+│    third bander joining the whole; a take-back dissolving the band;
+│    Cancel forgetting all; `Illegal band.` with the engine's reason; the
+│    opponent's declared band framed in its lane;
 │    tests/ui/test_enchanted_permanent_2026_09_06.gd — THE AURA THAT WAS
 │    NEVER DRAWN: Psychic Venom on one of MY lands is on the battlefield
 │    and the player could see nothing, because lands and the other
@@ -7154,6 +7165,31 @@ shandalar/
 │       │                      caption; automatic battlefield rows reserve
 │       │                      headroom inside the territory's clip.
 │       │                      No extra engine objects/targets.
+│       │                      THE BAND QUESTION (2026-09-18): the screen
+│       │                      declared attackers with NO band list, so a
+│       │                      Benalish Hero and a Mesa Pegasus could
+│       │                      never band (the owner's report). Now
+│       │                      _toggle_attacker, on adding a creature
+│       │                      that _band_partners can band with, sets
+│       │                      _band_candidate and the bar asks
+│       │                      BAND_QUESTION (`Band with which
+│       │                      attacker?`, @PROMPT_BANDWITHWHOM);
+│       │                      _answer_band_question takes the click —
+│       │                      an attacker joins the candidate to that
+│       │                      attacker's pencilled band (a third bander
+│       │                      joins the whole), the candidate itself or
+│       │                      Done means alone, a non-attacker says
+│       │                      `That isn't an attacker.` and keeps the
+│       │                      question, a refusal quotes the engine's
+│       │                      band_illegality after `Illegal band.`.
+│       │                      Only the answers light meanwhile (partners
+│       │                      TARGET_LEGAL, the chosen COMMITTED, the
+│       │                      rest NONE). _selected_bands travels with
+│       │                      the lineup into declare_attackers and
+│       │                      _combat_bands into the Combat window's
+│       │                      frames; a take-back _unband()s, Cancel and
+│       │                      the step advancing _clear_attack_lineup().
+│       │                      tests/ui/test_attack_bands_2026_09_18.gd
 │       ├── human_agent.gd   class HumanAgent — DecisionAgent for human
 │       │                      seats: pre-selection mailbox the UI fills
 │       │                      BEFORE casting (tutor picks) plus park(),
@@ -7846,7 +7882,15 @@ shandalar/
 │       │                      the blocker arrows run between the lanes.
 │       │                      Minimises from its upper-right corner into
 │       │                      the WINDOW ICON in the Phase Bar's centre
-│       │                      band (Winbk_Attackmin, 39x70)
+│       │                      band (Winbk_Attackmin, 39x70). THE BAND
+│       │                      FRAME (2026-09-18): present() takes the
+│       │                      attack's bands and _fill lays each one as
+│       │                      one blue-ruled PanelContainer (BAND_INK,
+│       │                      BAND_RULE) holding its members side by
+│       │                      side in lane order — pencilled bands while
+│       │                      the lineup is chosen, declared ones (the
+│       │                      AI's too) after; band_groups() is the test
+│       │                      seam
 │       ├── original_dialog.gd  class OriginalDialog — THE 1997 POPUP:
 │       │                      one component for every centre dialog,
 │       │                      message box and button in the duel, so the
