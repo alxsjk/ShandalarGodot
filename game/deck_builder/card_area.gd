@@ -1190,56 +1190,21 @@ class Cell extends Control:
 	## Animate Dead in a 1899px-wide popup inside a 1280px window. Give
 	## Godot a wrapped, bounded label BEFORE it positions the popup; the
 	## engine still owns its delay, theme, edge clamping and dismissal.
+	## The shaping is [method UiChrome.shape_tooltip] since 2026-09-18,
+	## when every stock tooltip in the game learned the same manners.
 	func _make_custom_tooltip(for_text: String) -> Object:
 		var label := Label.new()
 		label.theme_type_variation = &"TooltipLabel"
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		label.text = for_text
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var font := get_theme_font("font", "TooltipLabel")
 		var font_size := get_theme_font_size("font_size", "TooltipLabel")
 		var spacing := get_theme_constant("line_spacing", "TooltipLabel")
 		label.add_theme_font_override("font", font)
 		label.add_theme_font_size_override("font_size", font_size)
 		label.add_theme_constant_override("line_spacing", spacing)
-		var panel := get_theme_stylebox("panel", "TooltipPanel")
-		# Leave room for the popup's own border and a margin at both edges.
-		var room := get_viewport_rect().size - panel.get_minimum_size() - Vector2(32, 32)
-		room = room.max(Vector2.ONE)
-		var width := minf(420.0, room.x)
-		label.custom_minimum_size.x = width
-		label.size.x = width
-		# Label's final minimum height is not available before it enters
-		# the tree. Shape with the same font and smart word wrapping now.
-		var paragraph := TextParagraph.new()
-		paragraph.break_flags = TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
-		paragraph.width = width
-		# Label counts the empty rules line on vanilla cards. A zero-width
-		# space makes TextParagraph count a trailing empty line as well.
-		paragraph.add_string(for_text + "\u200b", font, font_size)
-		var height := paragraph.get_size().y + paragraph.get_line_count() * spacing
-		# Very long rules get a wider column before we ever shorten them.
-		if height > room.y:
-			label.custom_minimum_size.x = room.x
-			label.size.x = room.x
-			paragraph.width = room.x
-			height = paragraph.get_size().y + paragraph.get_line_count() * spacing
-		# An arbitrarily long imported proxy name must not grow off-screen
-		# either. Ordinary cards retain every line; pathological text gets
-		# a clipped holder so its minimum height cannot inflate the popup.
-		if height > room.y:
-			var line_height := font.get_height(font_size) + spacing
-			label.max_lines_visible = maxi(1, floori(room.y / line_height))
-			label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			var bounded := Control.new()
-			bounded.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			bounded.custom_minimum_size = Vector2(room.x, room.y)
-			bounded.clip_contents = true
-			bounded.add_child(label)
-			return bounded
-		# Popup placement happens before Label enters the tree. Reserve the
-		# shaped height now so the popup cannot grow past an edge afterward.
-		label.custom_minimum_size.y = ceilf(height)
+		UiChrome.shape_tooltip(label, get_viewport_rect().size, font, font_size, spacing,
+			get_theme_stylebox("panel", "TooltipPanel"))
 		return label
 
 	## Whichever face this cell is holding, for the callers that only need

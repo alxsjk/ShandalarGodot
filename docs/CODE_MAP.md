@@ -383,6 +383,14 @@ needed); card files have NO class_name (they register by name instead);
   hall read against the ground they sit on (a luminance gap of 0.4 or more);
   a label re-inked when it lands on parchment or stone, a caller's own colour
   kept, a check button pale on the stone and seated on the parchment.
+- `tests/ui/test_tooltips_fit_2026_09_18.gd`: hover text that fits the window —
+  the tree's `node_added` hook (`UiChrome.fit_tooltip`, hung by `Lifecycle`)
+  wraps the engine's own one-line tooltip label as it enters; every hover text
+  of the Options screen and the AutoDeck window is built the way
+  `_gui_show_tooltip` builds it and measured whole inside a 640×480 room, a
+  sentence that ran 1486px wide wraps to a 420px column, pathological text is
+  widened then shortened with an ellipsis, and a tooltip a control shaped for
+  itself is left alone.
 - `tests/ui/test_sgmanalink_network.gd`: real sockets, GUI room flow,
   authentication/seat bounds, stale/duplicate commands, disconnects,
   lost acknowledgements, controller replacement, real UDP discovery, TLS LAN

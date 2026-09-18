@@ -20,6 +20,23 @@ extends RefCounted
 ## A player with no imported art now gets sandstone too, so ONE ink colour
 ## serves both grounds and neither can drift. `tests/ui/
 ## test_ui_chrome_contrast.gd` pins the pair.
+##
+## HOVER TEXT THAT FITS THE WINDOW (2026-09-18). Godot's stock tooltip is
+## ONE LINE: a Label with word wrapping off inside a PopupPanel, and the
+## engine only clamps the popup's POSITION to the window — a sentence of
+## `tooltip_text` on the Options screen measured 1486px wide in a 1280px
+## window, so the owner read *"sometimes this hovertext overflows the
+## window size and cannot be read."* The deck builder's cells had shaped
+## their own tooltips since playtest #8 ([method
+## CardArea.Cell._make_custom_tooltip]); that shaping lives here now
+## ([method shape_tooltip]), and [method watch_tooltips] applies it to
+## every stock tooltip in the process: [Lifecycle] connects the tree's
+## `node_added` to [method fit_tooltip], which recognises the engine's own
+## label the moment it enters the tree — synchronously inside `add_child`,
+## BEFORE `_gui_show_tooltip` measures the popup — and wraps it to the
+## viewport it will open in. A custom tooltip that already wraps is left
+## alone. `tests/ui/test_tooltips_fit_2026_09_18.gd` reads every tooltip
+## of the Options screen through the same path.
 
 ## Letters on a light face — the same ink [OriginalDialog] uses.
 const INK := Color8(28, 24, 26)
@@ -362,3 +379,85 @@ static func shadowed_button(button: Control) -> void:
 	button.add_theme_constant_override("shadow_offset_x", 2)
 	button.add_theme_constant_override("shadow_offset_y", 2)
 	button.add_theme_constant_override("shadow_outline_size", 1)
+
+
+## Have every stock tooltip in `tree` shaped by [method fit_tooltip] as it
+## appears. Safe to call twice.
+static func watch_tooltips(tree: SceneTree) -> void:
+	if not tree.node_added.is_connected(fit_tooltip):
+		tree.node_added.connect(fit_tooltip)
+
+
+## The `node_added` hook: the engine's own tooltip label — a `TooltipLabel`
+## with wrapping off, inside a `TooltipPanel` hung on the control it
+## describes — gets wrapped to that control's viewport. Anything else,
+## including a custom tooltip a control shaped for itself, passes through.
+static func fit_tooltip(node: Node) -> void:
+	var label := node as Label
+	if label == null or label.theme_type_variation != &"TooltipLabel" \
+			or label.autowrap_mode != TextServer.AUTOWRAP_OFF:
+		return
+	var popup := label.get_parent() as PopupPanel
+	if popup == null or popup.theme_type_variation != &"TooltipPanel":
+		return
+	var holder := popup.get_parent() as Control
+	if holder == null:
+		return
+	var panel := popup.get_theme_stylebox("panel")
+	shape_tooltip(label, holder.get_viewport().get_visible_rect().size,
+		label.get_theme_font("font"), label.get_theme_font_size("font_size"),
+		label.get_theme_constant("line_spacing"), panel)
+	# The popup measures itself from its children's minimum sizes, and a
+	# Label's minimum HEIGHT is its text wrapped at the width it has NOW —
+	# whatever the engine's default window left it with, not the column
+	# just chosen. Give the popup that column first, so the measurement
+	# reads the shaped text and the reserved height is the truth.
+	popup.size = Vector2i((label.custom_minimum_size + panel.get_minimum_size()).ceil())
+
+
+## Wrap a tooltip label to the viewport it will open in: a column of at
+## most 420px; the full width when the text would otherwise run taller
+## than the viewport; and, for a pathological text that still would, as
+## many lines as fit, with an ellipsis. `font`, `font_size` and `spacing`
+## are the label's own theme items, read by the caller because a label
+## outside the tree cannot read them for itself; `panel` is the popup's
+## stylebox, whose border comes off the room. The shaped column goes into
+## the label's minimum size, so a popup placed BEFORE the label is laid
+## out already knows it.
+static func shape_tooltip(label: Label, viewport_size: Vector2, font: Font,
+		font_size: int, spacing: int, panel: StyleBox) -> void:
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Leave room for the popup's own border and a margin at both edges.
+	var room := viewport_size - panel.get_minimum_size() - Vector2(32, 32)
+	room = room.max(Vector2.ONE)
+	var width := minf(420.0, room.x)
+	# Label's final minimum height is not available before it enters
+	# the tree. Shape with the same font and smart word wrapping now.
+	var paragraph := TextParagraph.new()
+	paragraph.break_flags = TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND \
+		| TextServer.BREAK_ADAPTIVE
+	paragraph.width = width
+	# Label counts the empty rules line on vanilla cards. A zero-width
+	# space makes TextParagraph count a trailing empty line as well.
+	paragraph.add_string(label.text + "\u200b", font, font_size)
+	var height := paragraph.get_size().y + paragraph.get_line_count() * spacing
+	# Very long text gets a wider column before we ever shorten it.
+	if height > room.y:
+		width = room.x
+		paragraph.width = width
+		height = paragraph.get_size().y + paragraph.get_line_count() * spacing
+	# An arbitrarily long imported proxy name must not grow off-screen
+	# either. Ordinary text keeps every line; pathological text shows as
+	# many lines as fit, and a Label's minimum height counts only the
+	# lines it shows, so the popup cannot inflate past them.
+	if height > room.y:
+		var line_height := font.get_height(font_size) + spacing
+		label.max_lines_visible = maxi(1, floori(room.y / line_height))
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		height = label.max_lines_visible * line_height
+	label.custom_minimum_size = Vector2(width, ceilf(height))
+	# A label outside the tree wraps at the width it has, and reads it
+	# back as its minimum height the moment it is mounted: give it the
+	# column. One inside is sized by its popup (see [method fit_tooltip]).
+	if not label.is_inside_tree():
+		label.size.x = width

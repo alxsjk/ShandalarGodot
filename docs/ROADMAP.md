@@ -16033,6 +16033,42 @@ version: every commit now bumps the patch number (owner's word, the same
 day), so `config/version` reads 0.40.1. Gate: 482 scripts, **7,544/7,544 tests,
 334,159 asserts**, exit 0 in 209 s over 6 shards; Python 291, exit 0.
 
+## 2026-09-18 — Hover text that fits the window (0.40.2)
+
+*"In options menu if you have a mouse on the setting there is hover
+text. But sometimes this hovertext overflows the window size and cannot
+be read. Fix this."* — Godot's stock tooltip is ONE LINE: a `Label` with
+word wrapping off inside a `PopupPanel`, and `_gui_show_tooltip` only
+clamps the popup's position to the window, so a sentence of
+`tooltip_text` measured 1486px wide in a 1280px window and its tail was
+simply not there. The deck builder's cells had shaped their own
+tooltips since playtest #8 (`CardArea.Cell._make_custom_tooltip`,
+2026-09-13); that shaping is `UiChrome.shape_tooltip` now — a column of
+at most 420px, the full width when the text would run taller than the
+window, and for a pathological text as many lines as fit with an
+ellipsis, the shaped column written into the label's minimum size so a
+popup placed before the label is laid out already knows it — and
+`UiChrome.watch_tooltips` applies it to every stock tooltip in the
+process: `Lifecycle` connects the tree's `node_added` to
+`UiChrome.fit_tooltip`, which recognises the engine's own label (a
+`TooltipLabel` with wrapping off under a `TooltipPanel` hung on the
+control it describes) the moment it enters the tree — synchronously
+inside `add_child`, before the engine measures the popup — wraps it to
+that control's viewport and gives the popup the column first, so the
+label's own minimum height is measured at the right width. A custom
+tooltip that already wraps passes through untouched; the cells' path
+calls the same shaper and its playtest #8 tests still hold. Test:
+`test_tooltips_fit_2026_09_18.gd` — the shaper is on the tree at start;
+every hover text of the Options screen and the AutoDeck window is built
+the way the engine builds it and fits whole (no line shortened) inside
+a 640×480 room; the sentence that overflowed wraps to a 420px column;
+long unbroken names and two hundred explicit lines are widened then
+shortened to a 320×240 room; a tooltip a control shaped for itself and
+a plain label wearing the tooltip theme are left alone. With the hook
+off it names the overflow: 1092px and 1190px popups in a 640px room.
+Gate: 483 scripts, **7,549/7,549 tests, 334,302 asserts**, exit 0 in 204 s
+over 6 shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

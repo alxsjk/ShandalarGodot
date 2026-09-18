@@ -23,7 +23,9 @@ extends Node
 ## window before anything is drawn — `[QoL]` `Full screen`, [GameDisplay]
 ## — goes on here, once, and the title screen opens into it. Nothing in
 ## the scenes has to remember to do it, which is the property the exit
-## hook was built for.
+## hook was built for. The tooltip shaper ([method UiChrome.watch_tooltips],
+## 2026-09-18) hangs on the tree here for the same reason: one process,
+## one hook, every hover text wrapped to the window.
 
 
 func _ready() -> void:
@@ -31,6 +33,7 @@ func _ready() -> void:
 	# The player's own keys over the project's defaults ([Controls]),
 	# before any screen reads the map.
 	Controls.apply()
+	UiChrome.watch_tooltips(get_tree())
 
 
 func _exit_tree() -> void:
