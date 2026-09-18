@@ -39,11 +39,25 @@ func before_each() -> void:
 	g._enter_step(Mtg.STEP_ORDER.find(Mtg.Step.MAIN1))
 
 
+func after_each() -> void:
+	Controls.reset()   # the rebinding tests below leave the map as they found it
+
+
 func _send_key(code: int) -> void:
 	var ev := InputEventKey.new()
 	ev.keycode = code
 	ev.pressed = true
 	screen._unhandled_key_input(ev)
+
+
+## A controller button — these arrive through `_unhandled_input`, not
+## the key handler (the engine's split, and [Controls]'s reason for the
+## second override in `duel_screen.gd`).
+func _send_pad(button: JoyButton) -> void:
+	var ev := InputEventJoypadButton.new()
+	ev.button_index = button
+	ev.pressed = true
+	screen._unhandled_input(ev)
 
 
 func _give(card_name: String) -> CardInstance:
@@ -139,6 +153,42 @@ func test_q_closes_it_again() -> void:
 	assert_true(screen.is_paused())
 	_send_key(KEY_Q)
 	assert_false(screen.is_paused(), "the same key toggles it shut")
+
+
+func test_start_on_the_pad_opens_it_and_b_closes_it() -> void:
+	# 2026-09-18: the keys became actions (`project.godot [input]`) and a
+	# controller got the same duties — Start is Q, B is Esc.
+	assert_false(screen.is_paused())
+	_send_pad(JOY_BUTTON_START)
+	assert_true(screen.is_paused(), "Start opens the Pause window")
+	_send_pad(JOY_BUTTON_B)
+	assert_false(screen.is_paused(), "B closes it, as Esc does")
+	var release := InputEventJoypadButton.new()
+	release.button_index = JOY_BUTTON_START
+	release.pressed = false
+	screen._unhandled_input(release)
+	assert_false(screen.is_paused(), "a release is not a press")
+	var key := InputEventKey.new()
+	key.keycode = KEY_Q
+	key.pressed = true
+	screen._unhandled_input(key)
+	assert_false(screen.is_paused(),
+		"the pad handler leaves keys to the key handler — one press, one road")
+
+
+func test_a_rebound_key_is_the_one_the_duel_listens_for() -> void:
+	# The handler reads the map, not the letter: move Pause to P and Q
+	# is nothing, P is the window.
+	var p := InputEventKey.new()
+	p.keycode = KEY_P
+	p.pressed = true
+	assert_true(Controls.bind("duel_pause", p))
+	_send_key(KEY_Q)
+	assert_false(screen.is_paused(), "Q left the duel")
+	_send_key(KEY_P)
+	assert_true(screen.is_paused(), "P opens it")
+	_send_key(KEY_P)
+	assert_false(screen.is_paused())
 
 
 func test_escape_opens_it_when_there_is_nothing_to_cancel() -> void:

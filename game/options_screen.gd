@@ -25,6 +25,12 @@ const PANEL_MARGIN := 24.0
 ## The `Touch controls` row's items, in the order they are listed: the
 ## index the OptionButton reports IS the index into this.
 const TOUCH_MODES: Array[String] = ["auto", "on", "off"]
+## The `Controls:` rows' two slots, by action: `action -> [key button,
+## pad button]`, so a rebind can redraw every row (a key that moved off
+## another action changes two of them).
+var _control_slots: Dictionary = {}
+## The `Press a key` popup while one is up, and the listener under it.
+var _listening: Control = null
 
 
 func _ready() -> void:
@@ -86,6 +92,8 @@ func _ready() -> void:
 	content.add_child(title)
 
 	_add_display_section(content)
+
+	_add_controls_section(content)
 
 	_add_skin_section(content)
 
@@ -180,6 +188,101 @@ func _add_display_section(content: VBoxContainer) -> void:
 	UiChrome.shadowed_button(touch)
 	touch_row.add_child(touch)
 	content.add_child(touch_row)
+
+
+## `[QoL]` CONTROLS — the duel's keys as actions ([Controls],
+## `project.godot [input]`), one row an action: the word, its key and
+## its controller button, each a button that listens for the next press
+## ([method _listen]). The rows are VIEWS of the input map the way the
+## rows above are views of a stored key: they read what is bound and
+## write what is pressed, at once, through [method Controls.bind], which
+## also remembers it. `Reset controls` is the project's defaults again.
+func _add_controls_section(content: VBoxContainer) -> void:
+	var head := UiChrome.body_label("Controls:")
+	head.tooltip_text = "The duel's keys and controller buttons. Click a " \
+		+ "slot and press the key or button you want there; a key already " \
+		+ "on another action moves. The deck builder's Ctrl accelerators " \
+		+ "are the 1997 menu's own and stay as they are."
+	content.add_child(head)
+	_control_slots.clear()
+	for entry in Controls.ACTIONS:
+		var action := String(entry["name"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var word := UiChrome.body_label(String(entry["label"]))
+		word.custom_minimum_size.x = 210
+		word.tooltip_text = String(entry["tip"])
+		row.add_child(word)
+		var key := UiChrome.menu_button("", Vector2(118, 28), 13)
+		key.name = "Key_" + action
+		key.tooltip_text = "The key for %s. Click, then press a key." % String(entry["label"]).to_lower()
+		key.pressed.connect(_listen.bind(action, "key"))
+		row.add_child(key)
+		var pad := UiChrome.menu_button("", Vector2(84, 28), 13)
+		pad.name = "Pad_" + action
+		pad.tooltip_text = "The controller button for %s. Click, then press a button." % String(entry["label"]).to_lower()
+		pad.pressed.connect(_listen.bind(action, "pad"))
+		row.add_child(pad)
+		_control_slots[action] = [key, pad]
+		content.add_child(row)
+	var reset := UiChrome.menu_button("Reset controls", Vector2(180, 32), 14)
+	reset.name = "ResetControls"
+	reset.tooltip_text = "Every key and button back to the defaults."
+	reset.pressed.connect(func() -> void:
+		Controls.reset()
+		_refresh_control_rows())
+	content.add_child(reset)
+	_refresh_control_rows()
+
+
+## Every row says what the map says.
+func _refresh_control_rows() -> void:
+	for action in _control_slots:
+		var slots: Array = _control_slots[action]
+		slots[0].text = Controls.key_text(action)
+		slots[1].text = Controls.pad_text(action)
+
+
+## The `Press a key` popup: the next key (or pad button, for the pad
+## slot) goes on [param action] and the popup closes; Cancel leaves the
+## binding alone. Esc is a key like any other here — it is bindable —
+## so the only way out without binding is the button.
+func _listen(action: String, kind: String) -> void:
+	if _listening != null:
+		return
+	var label := ""
+	for entry in Controls.ACTIONS:
+		if String(entry["name"]) == action:
+			label = String(entry["label"])
+	var now := Controls.key_text(action) if kind == "key" else Controls.pad_text(action)
+	var ask := "Press the key for %s (now %s)." % [label.to_lower(), now] if kind == "key" \
+		else "Press the controller button for %s (now %s)." % [label.to_lower(), now]
+	var veil := UiChrome.action_popup(self, label, ask, [
+		{"label": "Cancel", "name": "Cancel", "callable": func() -> void: _listening = null}])
+	veil.name = "ControlsListener"
+	var listener := ControlsListener.new()
+	listener.kind = kind
+	listener.bound.connect(func(event: InputEvent) -> void:
+		Controls.bind(action, event)
+		_refresh_control_rows()
+		_listening = null
+		veil.queue_free())
+	veil.add_child(listener)
+	_listening = veil
+
+
+## Under the popup: the first bindable press of the kind asked for.
+class ControlsListener:
+	extends Node
+	signal bound(event: InputEvent)
+	var kind := "key"
+
+	func _input(event: InputEvent) -> void:
+		var wanted := (event is InputEventKey) if kind == "key" else (event is InputEventJoypadButton)
+		if not wanted or not Controls.bindable(event):
+			return
+		get_viewport().set_input_as_handled()
+		bound.emit(event)
 
 
 ## Numbered gameplay packs get their own compact management page. Keeping

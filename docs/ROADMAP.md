@@ -15462,6 +15462,120 @@ Gate on the tree as committed: 474 scripts, **7,465/7,465 tests,
 331,094 asserts**, exit 0 in 196 s over 6 shards; Python 291, exit 0;
 boot 0 errors.
 
+## 2026-09-18 — The input map: the duel's keys as actions, a controller, and Controls on the Options screen
+
+THE ORDER, verbatim: *"implement also controls in options: 8. Input map
++ controller. project.godot has no [input] section; keys are hard-coded
+in duel_screen.gd:9223-9320. Declaring actions is prerequisite for
+rebinding, gamepad, and Steam Deck — and it's mechanical."* It was.
+The 1997 game had a keyboard and a mouse and no way to change what a
+key did, and the duel screen carried that over as one `match` on
+keycodes: Space, Return and the keypad's Enter, Esc, Q, H, L, M, Ctrl+T,
+Ctrl+I, Ctrl+U, F12 and the digits 1-9 under a numbered prompt. Godot's
+own way is the input map — an action is a name, the map holds what
+presses it, and the screen asks `is_action_pressed("duel_done")` without
+knowing whether that was Return or a pad's X. Declaring the actions is
+the one move that buys all three things at once: rebinding, a
+controller, and Steam Input, which reads the declared actions off the
+project and offers them in its own binding screen.
+
+THE ACTIONS. `project.godot [input]` now declares twenty, each with its
+1997 key as the default and, for the six a pad can carry, a default
+button: `duel_space` (Space, A — the one button), `duel_done` (Enter and
+Kp Enter, X), `duel_cancel` (Escape, B), `duel_pause` (Q, Start),
+`duel_hand` (H, Y), `duel_log` (L, Back), `duel_mute` (M), `duel_id_tags`
+(Ctrl+T), `duel_invisible` (Ctrl+I), `duel_sickness` (Ctrl+U),
+`duel_screenshot` (F12) and `duel_choice_1` … `duel_choice_9`. The map
+compares KEYCODES, not positions (`physical_keycode` 0), so a binding
+means the same key on every layout and a synthesized key in a test
+matches the way a real one does. `game/input/controls.gd` (`Controls`,
+a static RefCounted) is the one file that knows the list — the words
+(`ACTIONS`: name, label, tip), the two slots, the file — and it keeps
+NO second table of defaults: `defaults()` reads
+`ProjectSettings.get_setting("input/…")`, so the project is the source
+and nothing can drift from it.
+
+THE MATCH IS EXACT. `Controls.pressed(event, action)` is
+`is_action_pressed(action, false, true)` — the action's modifiers and
+no others, a release never, a key echo never — so `Show ID tags` on
+Ctrl+T leaves a bare T free the way the old `match` did, and the Q
+action ignores Ctrl+Q. The duel's handler became three small functions:
+`_unhandled_key_input` forwards a pressed, non-echo key;
+`_unhandled_input` forwards a pressed `InputEventJoypadButton` (a pad
+button is not a key and comes by the other road — the engine's split,
+measured); both land in `_on_control`, which is the old body with every
+comment kept and every keycode replaced by an action. `MatchScreen`
+switches both roads off while its own windows are up. The tooltips that
+named a key (`Pass priority [Space]`, `Cancel [Esc]`) now read
+`Controls.hint(action)` and follow a rebinding; so does the Help
+screen's *Keep these keys handy* line, which is built on each visit and
+adds the controller's four buttons and the way to change any of them.
+
+CONTROLS ON THE OPTIONS SCREEN, after Display: one row per listed
+action — its word, its key in a 118-px slot, its pad button in an 84-px
+slot — and `Reset controls`. A slot opens ONE popup (`UiChrome.action_popup`,
+named for the action, saying what is there now) whose listener node
+takes the next press OF ITS KIND — a key for the key slot, a pad button
+for the pad slot, never the other, never a bare modifier — binds it
+through `Controls.bind` and closes; the popup's only button is Cancel,
+because Esc under it is a key like any other and bindable. `bind`
+replaces the slot of the event's kind and leaves the other (a new key
+for the one button keeps the pad's A), and takes the same event off any
+other listed action, whose row then shows a dash — two actions on one
+key would answer at once. The digits have no row: nine rows of 1..9
+would say nothing, and they are actions so that a digit moved onto
+another action stops answering the prompt.
+
+THE FILE. `Settings.controls` is a Dictionary `action -> [words]` that
+holds ONLY the actions that differ from the defaults, written at once
+and empty (the key cleared) when nothing differs — a player who never
+rebinds has nothing in the file, and `Reset controls` is the project
+read again. The words are the engine's own key names and the pad's:
+`key:Ctrl+T`, `key:Kp Enter`, `pad:A`, `pad:Button 25` for a button
+without a name. `Controls.apply`, run at boot by `Lifecycle` beside the
+window mode, lays the file over the defaults and cannot lose the
+keyboard to an old file: an action that no longer exists is not created,
+a word that does not decode is skipped, a value that is not a list
+leaves the defaults.
+
+WHAT IS NOT HERE, on purpose. The deck builder's Ctrl accelerators and
+its Q are the 1997 menu's own letters (`@MENU_*`, §6.1) and stay where
+the original put them; the Help screen's Left/Right/Home/End are a
+reader's keys. A pad has no pointer: the duel is played with the mouse
+or a finger (the touch layer) and the buttons answer beside it, which
+is what a Steam Deck's trackpad and its face buttons want — a
+stick-driven cursor over the 1997 table would be a worse mouse, not a
+controller.
+
+THE TESTS. `tests/unit/test_controls.gd` (23): the project declares
+every action with the 1997 keys and both Enters, the defaults come from
+`project.godot` and not a second table, the exact match (a bare T is
+not Ctrl+T, Ctrl+Q is not Q, Shift+Space is not Space; a release, an
+echo and a pad release press nothing), the six pad buttons, the digits,
+a key replacing the key and keeping the pad and the other way round, a
+binding moving off another action (and off a digit), the modifiers
+carried, the refusals (a modifier alone, no key, a release, an echo, the
+mouse, an unknown action — and nothing written), the binding a released
+copy from any device, the file holding only what differs and forgetting
+an action bound back to its default, reset, `apply` over a stored file
+and over an old one, the encode/decode round trip over eleven events,
+the player's words, and the Help line following a rebinding.
+`tests/ui/test_options_controls.gd` (10): every listed action's row and
+what it says, the section after Display with its tip, the rows opening
+on what is stored, the popup binding a key and closing, the key slot
+ignoring the pad and the pad slot the keys, a press moving the key off
+the other action with both rows following, one popup at a time, Cancel
+leaving the binding alone, Esc under the popup being a key, and `Reset
+controls`. `tests/ui/test_duel_pause.gd` gains two: Start on the pad
+opening the window and B closing it (a release nothing, a key on the
+pad's road nothing) and a rebound key being the one the duel listens
+for. Neither new script needs the skin.
+
+Gate on the tree as committed: 476 scripts, **7,500/7,500 tests,
+331,988 asserts**, exit 0 in 203 s over 6 shards (the two new scripts
+23 + 10, plus two in the pause suite, none needing the skin, so the
+bare clone's gate is 459); Python 291, exit 0; boot 0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

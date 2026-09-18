@@ -255,6 +255,7 @@ func _show_window() -> void:
 	# leak into a finished duel while the player reads the match's word.
 	if is_instance_valid(_duel):
 		_duel.set_process_unhandled_key_input(false)
+		_duel.set_process_unhandled_input(false)   # and the pad's buttons
 	dialog.body().add_child(_centred(state.progress_line(), 14))
 	if over:
 		dialog.body().add_child(_centred(state.verdict(), 16, true))

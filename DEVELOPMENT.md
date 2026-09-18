@@ -135,8 +135,8 @@ runners hold no card art and upload only logs. Without the imported 1997
 skin (`assets/original`, see `tools/import_original.py`) the seventeen
 scripts that pin that look are left out by name and counted as such —
 the log's first lines list them and its last line says "(17 left out: no
-1997 skin)". A fresh clone is therefore green at 457 scripts; the whole
-474 need the skin, and a script that needs it must say so on its first
+1997 skin)". A fresh clone is therefore green at 459 scripts; the whole
+476 need the skin, and a script that needs it must say so on its first
 doc line (`## Needs the imported 1997 skin`) or it goes red where there
 is none.
 

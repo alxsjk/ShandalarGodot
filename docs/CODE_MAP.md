@@ -35,6 +35,26 @@ needed); card files have NO class_name (they register by name instead);
   `tests/ui/test_mana_analysis.gd`: the three held to the words above; none
   needs the skin.
 
+## The input map and Controls (2026-09-18)
+
+- `project.godot [input]`: the duel's keys as twenty ACTIONS (`duel_space`,
+  `duel_done`, `duel_cancel`, `duel_pause`, `duel_hand`, `duel_log`, `duel_mute`,
+  `duel_id_tags`, `duel_invisible`, `duel_sickness`, `duel_screenshot`,
+  `duel_choice_1..9`), each with its 1997 key as the default and, for six, a
+  controller button (A, X, B, Start, Y, Back). Keycodes, not positions.
+- `game/input/controls.gd` (`Controls`): the one file that knows the list — the
+  words, the two slots an action has (a key and a pad button), the exact-modifier
+  match (`pressed`), `bind` (replaces the slot of its kind, moves the event off
+  any other action), the file (`Settings.controls`, only what differs from the
+  defaults, which stay in `project.godot`), `apply` at boot from `Lifecycle`.
+- `game/duel/duel_screen.gd`: `_unhandled_key_input` (keys) and `_unhandled_input`
+  (pad buttons) both feed `_on_control`, the old `match` rewritten on actions;
+  the tooltips and the Help screen's key line read the live bindings.
+- `game/options_screen.gd`: the `Controls:` section — a row per listed action
+  with a key slot and a pad slot, each a `Press a key` popup, and `Reset controls`.
+- `tests/unit/test_controls.gd`, `tests/ui/test_options_controls.gd`, and two pad
+  tests in `tests/ui/test_duel_pause.gd`; none needs the skin.
+
 ## Packs + SGManalink integration (2026-09-16)
 
 - `docs/packs-sgmanalink-integration.md`: merge basis, reproduced boundary
@@ -3648,6 +3668,9 @@ shandalar/
 │    reaching the table under it, and the promise the word makes — the
 │    auto-pass off, the AI's dwell neither armed nor fired, no clock of
 │    its own — plus Concede asking the original's own question first;
+│    since 2026-09-18 also the pad's Start opening it and B closing it
+│    (a release nothing, a key on the pad's road nothing) and a rebound
+│    key (Pause moved to P) being the one the duel listens for;
 │    tests/ui/test_fellwar_stone_auto_tap.gd — FELLWAR STONE UNDER THE
 │    DOUBLE-CLICK (2026-09-17): the Stone's colour question holding the
 │    cast instead of dropping it (answered -> cast; cancelled -> parked in
@@ -4207,6 +4230,17 @@ shandalar/
 │    writes to disk at once, survives Settings.reload), the Display row
 │    above Sound, borderless not exclusive, applying silent headless,
 │    and the Lifecycle autoload applying it at boot;
+│    tests/ui/test_options_controls.gd — [QoL] CONTROLS ON THE OPTIONS
+│    SCREEN (2026-09-18): a row per listed action saying what the map
+│    says (Space / A, Ctrl+T, a dash for nothing; the digits have no
+│    row), the section after Display with its tip, the rows opening on
+│    what is stored, a slot's popup binding the next key and closing
+│    (the row and the file following), the key slot ignoring the pad and
+│    the pad slot the keys and both ignoring a bare modifier, a press
+│    moving the key off the other action with both rows saying so, one
+│    popup at a time, Cancel leaving the binding alone, Esc under the
+│    popup a key (bindable) and not a way out, and `Reset controls`
+│    the defaults again with the file forgetting;
 │    tests/ui/test_options_skin.gd — [QoL] the Skin rows (2026-09-08):
 │    one row per zip kind, each a status line ("Skin:" / "Card folder:")
 │    + Choose... button, the card row naming the card folder (which
@@ -4237,6 +4271,21 @@ shandalar/
 │    notches with the content following the finger, and the refusals — an
 │    unknown lift, a third finger deadening until all are up, a stray
 │    finger mid-drag ignored, a cancel ending a drag without a tap;
+│    tests/unit/test_controls.gd — THE INPUT MAP (Controls, 2026-09-18):
+│    the project declaring every action with the 1997 keys and both
+│    Enters, the defaults read from project.godot and not a second
+│    table, the exact match (a bare T is not Ctrl+T, Ctrl+Q is not Q,
+│    Shift+Space is not Space; a release, an echo, a pad release press
+│    nothing), the six pad buttons, the digits as choice_index, a key
+│    replacing the key and keeping the pad and the other way round, a
+│    binding moving off another action and off a digit, the modifiers
+│    carried, the refusals (a modifier alone, no key, a release, an
+│    echo, the mouse, an unknown action — nothing written), the bound
+│    event a released copy from any device, the file holding only what
+│    differs and forgetting an action bound back, reset, apply over a
+│    stored file and over an old one that cannot lose the keyboard, the
+│    encode/decode round trip over eleven events, the player's words,
+│    and the Help line following a rebinding;
 │    tests/ui/test_touch_controls.gd — THE TOUCH LAYER (TouchControls)
 │    driven through Input.parse_input_event, emulation and all: headless
 │    `auto` is off and processes nothing, a real mouse click is the same
@@ -5756,7 +5805,13 @@ shandalar/
 │   │                          screen): the Display row's `Full screen`
 │   │                          switch (GameDisplay, 2026-09-07) and its
 │   │                          `Touch controls: Auto / On / Off` choice
-│   │                          (TouchControls, 2026-09-07), the SKIN rows
+│   │                          (TouchControls, 2026-09-07), the CONTROLS
+│   │                          section (Controls, 2026-09-18: a row per
+│   │                          duel action — its word, a key slot, a
+│   │                          pad slot — each slot a `Press a key`
+│   │                          popup with a listener node that takes the
+│   │                          next press of its kind and binds it at
+│   │                          once; `Reset controls`), the SKIN rows
 │   │                          (2026-09-08, "a menu options to select
 │   │                          asset art skin by file choosing"): per zip
 │   │                          kind a SkinPack.status_line + Choose...
@@ -5816,7 +5871,8 @@ shandalar/
 │   │                          The Options switch writes it, Lifecycle
 │   │                          applies it at boot
 │   ├── lifecycle.gd         AUTOLOAD `Lifecycle` — enters the tree
-│   │                          first (applies GameDisplay at boot) and
+│   │                          first (applies GameDisplay and the
+│   │                          player's Controls at boot) and
 │   │                          leaves it last, dropping the card database
 │   │                          while the card scripts are still loaded
 │   │                          (CardRegistry.unload) so quit() never
@@ -5843,7 +5899,33 @@ shandalar/
 │   │                          online web export and play via mobiles/
 │   │                          tablets"). Nothing in the 1997 screens
 │   │                          knows a finger; these two type the mouse
-│   │                          for it and no screen learns a new event
+│   │                          for it and no screen learns a new event.
+│   │                          And, since 2026-09-18, THE INPUT MAP
+│   │   ├── controls.gd        class Controls — THE INPUT MAP ([QoL],
+│   │   │                        2026-09-18: "Input map + controller …
+│   │   │                        prerequisite for rebinding, gamepad,
+│   │   │                        and Steam Deck"): the duel's keys as
+│   │   │                        ACTIONS declared in `project.godot
+│   │   │                        [input]` — the ONE source of defaults,
+│   │   │                        read back through ProjectSettings, never
+│   │   │                        a second table — each with a key slot
+│   │   │                        and a pad-button slot. `pressed` is the
+│   │   │                        exact-modifier match (a bare T is not
+│   │   │                        Ctrl+T), `choice_index` the digits;
+│   │   │                        `bind` replaces the slot of the event's
+│   │   │                        kind, keeps the other, and takes the
+│   │   │                        same event off any other listed action;
+│   │   │                        `Settings.controls` holds only the
+│   │   │                        actions that differ (`key:Ctrl+T`,
+│   │   │                        `pad:A`), `apply` (Lifecycle, at boot)
+│   │   │                        lays it over the defaults and skips what
+│   │   │                        an old file cannot say; `key_text` /
+│   │   │                        `pad_text` / `text` / `hint` are the
+│   │   │                        player's words for the tooltips and the
+│   │   │                        Help line. Not here: the deck builder's
+│   │   │                        Ctrl accelerators (§6.1) and a pad
+│   │   │                        pointer (the trackpad or a finger is the
+│   │   │                        mouse; the face buttons are the keys)
 │   │   ├── touch_gestures.gd  class TouchGestures — THE GESTURE
 │   │   │                        VOCABULARY, a pure RefCounted state
 │   │   │                        machine with the clock as an argument
@@ -6894,7 +6976,11 @@ shandalar/
 │       │                      wiring via public API only, full-rebuild
 │       │                      refresh, X dialog, ability menu, mode menu
 │       │                      (modal spells), library picker (tutors),
-│       │                      keyboard shortcuts, fast-forward.
+│       │                      keyboard shortcuts — since 2026-09-18 the
+│       │                      duel's ACTIONS (Controls): keys by
+│       │                      _unhandled_key_input, pad buttons by
+│       │                      _unhandled_input, both into _on_control —
+│       │                      fast-forward.
 │       │                      THE CHOICE OVERLAY (§1.3): one dim + Primal
 │       │                      Clay window for all four question kinds,
 │       │                      raised from _refresh whenever

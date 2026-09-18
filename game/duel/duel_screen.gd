@@ -5239,8 +5239,8 @@ func _refresh() -> void:
 	# Skip stands beside it (2026-09-08, [constant SKIP_OFFER]).
 	var offer := _skip_offer_applies()
 	_pass_button.text = "Begin" if offer else "Done"
-	_pass_button.tooltip_text = "Begin combat  [Space]" if offer \
-		else "Pass priority  [Space]"
+	_pass_button.tooltip_text = ("Begin combat" if offer else "Pass priority") \
+		+ Controls.hint("duel_space")
 	if _skip_button != null:
 		_skip_button.visible = offer
 	# The table-wide toggle reads back the per-territory flags the menu
@@ -8497,7 +8497,7 @@ func _build_ui() -> void:
 	# `allow_cancel` bit spec's whole point. Until now the targeting prompt
 	# said "(Cancel to abort)" and offered no control to click.
 	_cancel_button = OriginalDialog.button("Cancel", Vector2(64, 26))
-	_cancel_button.tooltip_text = "Cancel  [Esc]"
+	_cancel_button.tooltip_text = "Cancel" + Controls.hint("duel_cancel")
 	_cancel_button.pressed.connect(_on_escape)
 	_cancel_button.visible = false
 	msg_row.add_child(_cancel_button)
@@ -9204,7 +9204,7 @@ func _make_done_button() -> Button:
 	# in dark ink on its light face. A phone photograph of a CRT is not a
 	# colour reference; the art is.
 	var done := OriginalDialog.button("Done", Vector2(64, 26))
-	done.tooltip_text = "Pass priority  [Space]"
+	done.tooltip_text = "Pass priority" + Controls.hint("duel_space")
 	done.pressed.connect(_on_done)
 	return done
 
@@ -9222,127 +9222,142 @@ func _toggle_hand() -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		# NOTHING UNDER THE COIN TOSS. The toss and the opening hand play
-		# over a table the engine has not started (turn 0): a Return here
-		# used to leave a standing Done order that auto-passed the first
-		# main phase, and a Space walked turn 0's steps (2026-09-02).
-		if _toss_active:
-			return
-		# THE PAUSE WINDOW owns both its keys while it is up, and nothing
-		# else reaches the table under it (§ the Pause block above).
-		if is_paused():
-			if event.keycode == KEY_ESCAPE or event.keycode == KEY_Q:
-				_close_pause()
-			return
-		# s30's choice overlay answers to the NUMBER KEYS (`duel.go:2643-2649`
-		# — `ebiten.Key1 + ebiten.Key(i)` for the first nine options), and so
-		# does ours; while it is up they mean nothing else (§1.3) — except
-		# Esc, which withdraws a COST question and nothing else
-		# ([method _on_escape]).
-		if _choice_overlay != null:
-			if event.keycode >= KEY_1 and event.keycode <= KEY_9:
-				_on_choice_option(event.keycode - KEY_1)
-			elif event.keycode == KEY_ESCAPE:
-				_on_escape()
-			return
-		match event.keycode:
-			KEY_SPACE:
-				# THE SPACEBAR RULE, verbatim (`Duel.hlp`, Situation Bar):
-				# *"if there is only one button, pressing this is the same
-				# as clicking that button."* Done is always on the bar, so
-				# Space is Done — right up until Cancel joins it, at which
-				# point the bar has two buttons and the key is ambiguous.
-				# The original says so; Return and Esc still name one each.
-				# Under the End of Duel window the one button is its OK.
-				if result_window_up():
-					_answer_result()
-				elif not _can_cancel() and not _dialogs_open():
-					_on_done()
-			KEY_ENTER, KEY_KP_ENTER:
-				# Manual p.116: "Return has the same effect as clicking the
-				# Done button", and Done (p.112) is the STANDING instruction
-				# — run on until a Stop, a required decision, or a fast
-				# effect you can afford (docs/duel-todo.md §6.20a). It used
-				# to be a blind 60-pass fast-forward that burned every
-				# priority window on the way.
-				#
-				# In every mode BUT normal, Done means what the button
-				# means: confirm the declaration, finish the discard or the
-				# damage division, or close a variable target slot. Return
-				# used to dead-end in all four of those (_on_pass_turn
-				# returns at once unless the mode is NORMAL), so the one
-				# keystroke the manual names could not answer the prompts
-				# that most need answering.
-				if result_window_up():
-					_answer_result()
-				elif _modal_open() or _dialogs_open():
-					pass          # the dialog's own OK answers it
-				elif mode == Mode.NORMAL:
-					_on_pass_turn()
-				else:
-					_on_done()
-			KEY_ESCAPE:
-				# *"Esc is just like Cancel"* — one door, and it peels
-				# exactly one layer per press (§3.2). ONLY when there is
-				# something to peel: with nothing pending the same key
-				# opens the Pause window, and a player mid-cast who
-				# presses it wants their cast back, not a quit dialog.
-				# [method _can_cancel] is the same predicate the Situation
-				# Bar's Cancel button uses, so the key and the button can
-				# never disagree about whether there is anything to undo.
-				if result_window_up():
-					_answer_result()
-				elif _can_cancel() or _dialogs_open():
-					_on_escape()
-				else:
-					_toggle_pause()
-			KEY_Q:
-				# The Pause window's own key, and it carries no 1997 duty
-				# of any kind — so unlike Esc it opens the window whatever
-				# else is going on, and closes it again.
-				_toggle_pause()
-			KEY_H:
-				# s30's one-key hand fold (`duel.go:1172-1174`). §3.6: the
-				# control exists so the hand stops covering your own
-				# attackers, which is a thing you need MID-DECLARATION,
-				# with the pointer already busy on the board — so it has
-				# to be reachable without aiming at a 22px title bar.
-				_toggle_hand()
-			KEY_L:
-				# The Duel Log window (§ THE DUEL LOG). `[QoL]`, and on a
-				# bare key for the reason `H` and `M` are: it carries no
-				# 1997 duty and the 1997 menus are not ours to grow.
-				# NOT under the choice overlay (returned above), where the
-				# keys are the answers; anywhere else, because a log is
-				# something you want to read exactly when a question is
-				# up.
-				_toggle_duel_log()
-			KEY_M:
-				# A SESSION HUSH, not a preference: `M` silences both
-				# buses and writes nothing to `user://settings.cfg`
-				# ([GameAudio.set_hushed]). Muting to take a phone call
-				# must not still be muted next week.
-				GameAudio.set_hushed(not GameAudio.is_hushed())
-				_set_prompt("Sound %s" %
-					("muted" if GameAudio.is_hushed() else "on"))
-			KEY_T:
-				# `Show ID tags\tCtrl+T` (§6.3a). Ctrl is load-bearing: a
-				# bare T stays free, so each arm checks it itself rather
-				# than a table that could eat the plain key.
-				if event.ctrl_pressed:
-					_accelerate_toggle("ShowIDTagsOnCards")
-			KEY_I:
-				# `Show invisible effects\tCtrl+I` — dark, so it does
-				# nothing, through the same gate the menu obeys.
-				if event.ctrl_pressed:
-					_accelerate_toggle("ShowInvisibleEffectCards")
-			KEY_U:
-				# `Show all cards' summoning sickness\tCtrl+U`.
-				if event.ctrl_pressed:
-					_accelerate_toggle("ShowAllCardsSummonSickness")
-			KEY_F12:
-				var shot := get_viewport().get_texture().get_image()
-				var shot_path := "user://screenshot_%d.png" % Time.get_ticks_msec()
-				shot.save_png(shot_path)
-				_set_prompt("Screenshot: %s" %
-					ProjectSettings.globalize_path(shot_path))
+		_on_control(event)
+
+
+## THE CONTROLLER reaches the same table as the keyboard: a pad button
+## is not a key, so it comes by `_unhandled_input`, and only a press of
+## one is a keystroke — the mouse, the motion and the releases pass.
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton and event.pressed:
+		_on_control(event)
+
+
+## ONE KEYSTROKE — a key or a pad button — against the duel's ACTIONS
+## (`project.godot [input]`, [Controls]; 2026-09-18). The keys used to
+## be a `match` on keycodes here; they are the same keys, now the
+## defaults of actions the player can rebind on the Options screen and
+## press from a controller. [method Controls.pressed] matches exactly —
+## the action's modifiers and no others — so `Show ID tags` on Ctrl+T
+## leaves a bare T free, as the 1997 accelerator did (§6.3a).
+func _on_control(event: InputEvent) -> void:
+	# NOTHING UNDER THE COIN TOSS. The toss and the opening hand play
+	# over a table the engine has not started (turn 0): a Return here
+	# used to leave a standing Done order that auto-passed the first
+	# main phase, and a Space walked turn 0's steps (2026-09-02).
+	if _toss_active:
+		return
+	# THE PAUSE WINDOW owns both its keys while it is up, and nothing
+	# else reaches the table under it (§ the Pause block above).
+	if is_paused():
+		if Controls.pressed(event, "duel_cancel") or Controls.pressed(event, "duel_pause"):
+			_close_pause()
+		return
+	# s30's choice overlay answers to the NUMBER KEYS (`duel.go:2643-2649`
+	# — `ebiten.Key1 + ebiten.Key(i)` for the first nine options), and so
+	# does ours; while it is up they mean nothing else (§1.3) — except
+	# Esc, which withdraws a COST question and nothing else
+	# ([method _on_escape]).
+	if _choice_overlay != null:
+		var choice := Controls.choice_index(event)
+		if choice >= 0:
+			_on_choice_option(choice)
+		elif Controls.pressed(event, "duel_cancel"):
+			_on_escape()
+		return
+	if Controls.pressed(event, "duel_space"):
+		# THE SPACEBAR RULE, verbatim (`Duel.hlp`, Situation Bar):
+		# *"if there is only one button, pressing this is the same
+		# as clicking that button."* Done is always on the bar, so
+		# Space is Done — right up until Cancel joins it, at which
+		# point the bar has two buttons and the key is ambiguous.
+		# The original says so; Return and Esc still name one each.
+		# Under the End of Duel window the one button is its OK.
+		if result_window_up():
+			_answer_result()
+		elif not _can_cancel() and not _dialogs_open():
+			_on_done()
+	elif Controls.pressed(event, "duel_done"):
+		# Manual p.116: "Return has the same effect as clicking the
+		# Done button", and Done (p.112) is the STANDING instruction
+		# — run on until a Stop, a required decision, or a fast
+		# effect you can afford (docs/duel-todo.md §6.20a). It used
+		# to be a blind 60-pass fast-forward that burned every
+		# priority window on the way.
+		#
+		# In every mode BUT normal, Done means what the button
+		# means: confirm the declaration, finish the discard or the
+		# damage division, or close a variable target slot. Return
+		# used to dead-end in all four of those (_on_pass_turn
+		# returns at once unless the mode is NORMAL), so the one
+		# keystroke the manual names could not answer the prompts
+		# that most need answering.
+		if result_window_up():
+			_answer_result()
+		elif _modal_open() or _dialogs_open():
+			pass          # the dialog's own OK answers it
+		elif mode == Mode.NORMAL:
+			_on_pass_turn()
+		else:
+			_on_done()
+	elif Controls.pressed(event, "duel_cancel"):
+		# *"Esc is just like Cancel"* — one door, and it peels
+		# exactly one layer per press (§3.2). ONLY when there is
+		# something to peel: with nothing pending the same key
+		# opens the Pause window, and a player mid-cast who
+		# presses it wants their cast back, not a quit dialog.
+		# [method _can_cancel] is the same predicate the Situation
+		# Bar's Cancel button uses, so the key and the button can
+		# never disagree about whether there is anything to undo.
+		if result_window_up():
+			_answer_result()
+		elif _can_cancel() or _dialogs_open():
+			_on_escape()
+		else:
+			_toggle_pause()
+	elif Controls.pressed(event, "duel_pause"):
+		# The Pause window's own key, and it carries no 1997 duty
+		# of any kind — so unlike Esc it opens the window whatever
+		# else is going on, and closes it again.
+		_toggle_pause()
+	elif Controls.pressed(event, "duel_hand"):
+		# s30's one-key hand fold (`duel.go:1172-1174`). §3.6: the
+		# control exists so the hand stops covering your own
+		# attackers, which is a thing you need MID-DECLARATION,
+		# with the pointer already busy on the board — so it has
+		# to be reachable without aiming at a 22px title bar.
+		_toggle_hand()
+	elif Controls.pressed(event, "duel_log"):
+		# The Duel Log window (§ THE DUEL LOG). `[QoL]`, and on a
+		# bare key for the reason `H` and `M` are: it carries no
+		# 1997 duty and the 1997 menus are not ours to grow.
+		# NOT under the choice overlay (returned above), where the
+		# keys are the answers; anywhere else, because a log is
+		# something you want to read exactly when a question is
+		# up.
+		_toggle_duel_log()
+	elif Controls.pressed(event, "duel_mute"):
+		# A SESSION HUSH, not a preference: `M` silences both
+		# buses and writes nothing to `user://settings.cfg`
+		# ([GameAudio.set_hushed]). Muting to take a phone call
+		# must not still be muted next week.
+		GameAudio.set_hushed(not GameAudio.is_hushed())
+		_set_prompt("Sound %s" %
+			("muted" if GameAudio.is_hushed() else "on"))
+	elif Controls.pressed(event, "duel_id_tags"):
+		# `Show ID tags\tCtrl+T` (§6.3a). Ctrl is load-bearing: a
+		# bare T stays free, which the exact match keeps.
+		_accelerate_toggle("ShowIDTagsOnCards")
+	elif Controls.pressed(event, "duel_invisible"):
+		# `Show invisible effects\tCtrl+I` — dark, so it does
+		# nothing, through the same gate the menu obeys.
+		_accelerate_toggle("ShowInvisibleEffectCards")
+	elif Controls.pressed(event, "duel_sickness"):
+		# `Show all cards' summoning sickness\tCtrl+U`.
+		_accelerate_toggle("ShowAllCardsSummonSickness")
+	elif Controls.pressed(event, "duel_screenshot"):
+		var shot := get_viewport().get_texture().get_image()
+		var shot_path := "user://screenshot_%d.png" % Time.get_ticks_msec()
+		shot.save_png(shot_path)
+		_set_prompt("Screenshot: %s" %
+			ProjectSettings.globalize_path(shot_path))

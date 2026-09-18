@@ -55,7 +55,9 @@ checklists: its title-screen `1-tDotP` button can enable 373 additional set
 entries, for **1,270 set entries / 901 unique rules identities**. The Deck Builder
 supports large cards, live filters and keyboard browsing, an **AI deck builder**
 that builds a deck from a set, a dealt pool or a pasted list to your wishes, and
-a Stats window that audits the mana base. Further optional packs
+a Stats window that audits the mana base. The duel's keys are rebindable
+under Options, Controls, and a controller's face buttons play beside the mouse.
+Further optional packs
 add **Fallen Empires, Ice Age, Homelands and Alliances**, with engine and AI support.
 Adventure and public Internet matchmaking remain future work.
 
@@ -103,8 +105,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([The speed is the cost of the cards](docs/ROADMAP.md#2026-09-18--the-speed-is-the-cost-of-the-cards-the-ai-deck-builders-second-pass)):
-**7,465 GUT tests / 331,094 assertions**, plus **291 Python tests**
+Latest local verification ([The input map](docs/ROADMAP.md#2026-09-18--the-input-map-the-duels-keys-as-actions-a-controller-and-controls-on-the-options-screen)):
+**7,500 GUT tests / 331,988 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 

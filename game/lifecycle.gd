@@ -28,6 +28,9 @@ extends Node
 
 func _ready() -> void:
 	GameDisplay.apply_settings()
+	# The player's own keys over the project's defaults ([Controls]),
+	# before any screen reads the map.
+	Controls.apply()
 
 
 func _exit_tree() -> void:
