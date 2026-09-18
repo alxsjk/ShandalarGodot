@@ -87,10 +87,12 @@ two at 3, four at 5, eight at 9 and four at 17. Alphabetical display within a
 shared place is not a competitive advantage. Cancellation or completion without
 a champion does not assign final ranks. These are event results, not MElo points.
 
-Discoverable tournaments appear by name in the normal **Game Browser**.
-Selecting a discovery result is not authentication: guests still paste the
-host's private invitation and connect, then the Tournament Hall opens.
-Invitation-only hosts remain absent from discovery and can be joined directly.
+Discoverable tournaments appear by name in the normal **Game Browser**. An
+open event (the default) publishes its invitation in that listing, so **Join**
+connects a guest at once and the Tournament Hall opens. An invitation-only
+event is listed by name but its listing is not authentication: guests still
+paste the organiser's private invitation and connect. A host unlisted in the
+game browser can be joined directly with its invitation.
 
 The organiser chooses the tournament name and an optional **280-character
 welcome message** before opening registration. The greeting appears as plain
@@ -98,7 +100,7 @@ text in every visitor's hall, before and after joining, and stays available
 without interrupting duels. It is saved with the event and restored on reload;
 it is not broadcast in discovery packets.
 
-Players join through the ordinary invitation, register and choose a deck,
+Players join from the Game Browser or with the invitation, register and choose a deck,
 then confirm readiness. A finished duel returns to the Tournament Hall rather
 than closing the hosting application. Human players confirm before another game
 in a series starts. The organiser can open the Master Panel during their duel.
@@ -151,16 +153,24 @@ application cannot reclaim an entry by matching its nickname.
 
 ## Play on a LAN
 
-1. Use matching 0.40.0 builds (protocol 20) and enabled card packs. Open the globe, choose a
-   temporary name, and select the appropriate LAN address/port in **Host Game**.
-2. Open **Tournament**. Name the event, optionally write a welcome message,
-   choose the save folder, 2–20 maximum entrants, a
-   first-to-1/2/3 win target, and one of the three deck policies. For fixed or
-   approved decks, search, review and add the required list(s), then **Open
-   registration**. Up to sixteen approved decks may be offered.
-3. Share **Copy invitation** privately. Guests find the host in **Game Browser**
-   or paste the invitation directly; its tournament name is shown in discovery.
-   Both routes require the invitation. Connecting opens the hall and its welcome.
+1. Use matching 0.40.0 builds (protocol 21) and enabled card packs. Open the globe, choose a
+   temporary name, and check the LAN address/port under **Host Game →
+   Network settings…** if the computer has several adapters.
+2. Open **Tournament**. Name the event, choose 2–20 maximum entrants and a
+   first-to-1/2/3 win target. **DECKS → Change…** opens the deck policy
+   (own, fixed or approved decks); for fixed or approved decks, search,
+   review and add the required list(s) there. Up to sixteen approved decks
+   may be offered. **Welcome message…**, **Save folder…** and **Saved
+   tournaments…** open their own windows. The event is **open** by default:
+   players on the network find it in their Game Browser and register with a
+   click. Switch on **Invitation only** to admit only the players you send
+   the invitation to; **Copy invitation** sits beside the switch and again
+   in the hall's header. Then **Open registration**.
+3. Guests find the tournament in **Game Browser** (one row, named after the
+   event) and choose **Join**. An open event connects them at once; an
+   invitation-only event asks for the invitation the organiser sent, which
+   **Join by invitation…** also accepts directly. Connecting opens the hall
+   and its welcome.
 4. Each entrant chooses **Join tournament**, selects/reviews a deck, copies
    their private recovery code, and selects **Ready for tournament**. The
    organiser can join too, or keep all twenty places for guests.

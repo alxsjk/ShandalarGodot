@@ -82,7 +82,7 @@ func _open(owner: SgLocalClient, wins := 1, policy := "fixed", limit := 8) -> vo
 
 func test_room_bot_is_a_real_wizard_private_pausable_and_cleaned_after_departure() -> void:
 	var player := await _client("Player")
-	await _act(player, {"op": "host", "name": "Computer duel"})
+	await _act(player, {"op": "host", "name": "Computer duel", "decks": "own", "deck": {}})
 	await _act(player, {"op": "add_bot", "bot": SgBotPlayer.defaults(), "deck": _deck()})
 	assert_eq(int(player.state.room.bots[1].level), 3)
 	assert_eq(player.state.room.ready, [false, true])

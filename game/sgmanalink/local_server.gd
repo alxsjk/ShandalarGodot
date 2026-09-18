@@ -21,6 +21,10 @@ var _next_peer := 1
 var _next_session := 1
 var _next_room := 1
 var lan_address := ""
+## THE OPEN TABLE (2026-09-18): an open host publishes its invitation in
+## its LAN advert, so any player on the LAN joins from the Game Browser.
+## Invitation-only keeps the 2026-09-17 rule: the secret travels by hand.
+var open_to_lan := true
 var lan_certificate: X509Certificate
 var _lan_pem := ""
 var discovery: SgLanDiscovery
@@ -89,7 +93,7 @@ func reclaim_tournament(resume_code: String) -> String:
 ## [method SgLanDiscovery.advertise] already carries it for that reason.
 ## A player's host always uses the default.
 func start_lan(address: String, requested_port := 17897, visible := true, nickname := "",
-	discovery_port := SgLanDiscovery.PORT) -> Error:
+	discovery_port := SgLanDiscovery.PORT, open := true) -> Error:
 	if OS.has_feature("web") or _listener.is_listening():
 		return ERR_UNAVAILABLE
 	if not SgLanInvite.address(address) or not IP.get_local_addresses().has(address) \
@@ -120,13 +124,17 @@ func start_lan(address: String, requested_port := 17897, visible := true, nickna
 	if not SgProtocol.token(access_code):
 		stop()
 		return ERR_CANT_CREATE
+	open_to_lan = open
 	if visible:
 		discovery = SgLanDiscovery.new()
 		add_child(discovery)
-		discovery_error = discovery.advertise({"address": address, "port": port,
+		var advert := {"address": address, "port": port,
 			"name": nickname if not nickname.is_empty() else "Guest host",
-			"fingerprint": pem.sha256_text(), "rooms": 0,
-			"build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}, discovery_port)
+			"fingerprint": pem.sha256_text(), "rooms": 0, "tables": [],
+			"access": "open" if open else "invitation",
+			"build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}
+		if open: advert.invitation = invitation()
+		discovery_error = discovery.advertise(advert, discovery_port)
 	return OK
 
 
@@ -198,10 +206,15 @@ func poll() -> void:
 		var available := 0
 		discovery.update_tournament("" if tournament == null else String(tournament.event.config.name))
 		if tournament != null and tournament.event.phase == "registration": available += 1
+		var tables: Array = []
 		for room: Dictionary in _rooms.values():
-			if room.match == null and room.seats[1] == 0 and _connected(room.seats[0]):
-				available += 1
+			if room.has("t_pair"): continue
+			var open: bool = room.match == null and room.seats[1] == 0 and _connected(room.seats[0])
+			if open: available += 1
+			tables.append({"name": room.name, "decks": _deck_rule(room),
+				"deck": String(room.get("fixed", {}).get("name", "")), "open": open})
 		discovery.update_rooms(available)
+		discovery.update_tables(tables)
 	# Bounded work per frame, even if an unauthenticated local process floods us.
 	for i in 8:
 		if not _listener.is_connection_available():
@@ -311,7 +324,7 @@ func _abandon(sid: int) -> void:
 			if room.match != null and not room.match.game.game_over: room.match.game.concede(seat)
 			room.seats[seat] = 0
 			room.ready = [false, false]
-			room.decks[seat] = {}
+			room.decks[seat] = _table_deck(room)
 			room.revision += 1
 			if room.seats == [0, 0] or (room.match == null and seat == 0):
 				for member in room.seats:
@@ -530,9 +543,12 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 			return "Leave your room first, or wait for room space."
 		var room_id := "r%d" % _next_room
 		_next_room += 1
+		# An assigned-deck table deals the host's deck to both seats; it is
+		# the table's, not the seat's, so a departure never takes it away.
+		var fixed: Dictionary = action.deck.duplicate(true) if action.decks == "fixed" else {}
 		_rooms[room_id] = {"id": room_id, "name": action.name.strip_edges(),
 			"seats": [sid, 0], "ready": [false, false], "revision": 1, "match": null,
-			"decks": [{}, {}]}
+			"decks": [fixed.duplicate(true), fixed.duplicate(true)], "fixed": fixed}
 		session.room = room_id
 		return ""
 	if op == "join":
@@ -543,6 +559,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 			return "Room unavailable."
 		target.seats[1] = sid
 		target.ready = [false, false]
+		target.decks[1] = _table_deck(target)
 		target.revision += 1
 		session.room = action.room
 		return ""
@@ -557,7 +574,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 			if not _is_bot(room.seats[1]): return "No computer seat to remove."
 			_sessions.erase(room.seats[1])
 			room.seats[1] = 0
-			room.decks[1] = {}
+			room.decks[1] = _table_deck(room)
 			room.ready = [false, false]
 		else:
 			if room.seats[1] != 0: return "The opponent's seat is occupied."
@@ -566,7 +583,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 			if bot_sid == 0: return "Host is full."
 			room.seats[1] = bot_sid
 			_sessions[bot_sid].room = room.id
-			room.decks[1] = action.deck.duplicate(true)
+			room.decks[1] = _table_deck(room) if _deck_rule(room) == "fixed" else action.deck.duplicate(true)
 			room.ready = [false, true]
 		room.revision += 1
 		return ""
@@ -587,7 +604,7 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 		else:
 			room.seats[seat] = 0
 			room.ready = [false, false]
-			room.decks[seat] = {}
+			room.decks[seat] = _table_deck(room)
 			room.revision += 1
 			if room.seats == [0, 0]:
 				_rooms.erase(room.id)
@@ -595,6 +612,8 @@ func _command(sid: int, action: Dictionary, revision: int) -> String:
 	if op == "deck":
 		if room.match != null:
 			return "The duel has started."
+		if _deck_rule(room) == "fixed":
+			return "This table plays the host's assigned deck: %s." % room.fixed.name
 		var error := SgDeckCatalog.validate(action.cards, action.sideboard)
 		if not error.is_empty(): return error
 		room.decks[seat] = {"name": action.name, "cards": action.cards.duplicate(), "sideboard": action.sideboard.duplicate()}
@@ -651,11 +670,21 @@ func _guest_name(sid: int) -> String:
 	return "Guest %d" % sid if nickname.is_empty() else "%s (Guest %d)" % [nickname, sid]
 
 
+## "own" when every seat brings a deck, "fixed" when the table deals one.
+func _deck_rule(room: Dictionary) -> String:
+	return "fixed" if not room.get("fixed", {}).is_empty() else "own"
+
+
+func _table_deck(room: Dictionary) -> Dictionary:
+	return room.get("fixed", {}).duplicate(true)
+
+
 func _state(sid: int) -> Dictionary:
 	var rooms: Array = []
 	for room: Dictionary in _rooms.values():
 		rooms.append({"id": room.id, "name": room.name, "host": _guest_name(room.seats[0]),
-			"open": room.match == null and room.seats[1] == 0 and _connected(room.seats[0])})
+			"open": room.match == null and room.seats[1] == 0 and _connected(room.seats[0]),
+			"decks": _deck_rule(room), "deck": String(room.get("fixed", {}).get("name", ""))})
 	var own: Dictionary = _rooms.get(_sessions[sid].room, {})
 	var view: Dictionary = {}
 	if not own.is_empty():
@@ -666,6 +695,7 @@ func _state(sid: int) -> Dictionary:
 			"connected": [_connected(own.seats[0]), _connected(own.seats[1])],
 			"deck_names": [own.decks[0].get("name", "Forest practice"), own.decks[1].get("name", "Forest practice")],
 			"deck": own.decks[seat].duplicate(true),
+			"decks": _deck_rule(own), "fixed_deck": String(own.get("fixed", {}).get("name", "")),
 			"game": _room_game(own, seat)}
 		if _is_bot(own.seats[0]) or _is_bot(own.seats[1]):
 			view.bots = []

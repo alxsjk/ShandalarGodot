@@ -691,7 +691,9 @@ func test_manalink_opens_a_closeable_local_lobby_without_connecting() -> void:
 	for node in notice.find_children("*", "", true, false):
 		if node is Label:
 			explanation += node.text + "\n"
-		if node is Button and node.text == "Close":
+		# The lobby's sub-window sheets (2026-09-18) carry their own hidden
+		# Close buttons; the player can only press the visible one.
+		if node is Button and node.text == "Close" and node.is_visible_in_tree():
 			ok = node
 	assert_string_contains(explanation, "Manalink")
 	assert_string_contains(explanation, "Full implemented card pool")

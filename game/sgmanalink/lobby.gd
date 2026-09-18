@@ -65,6 +65,22 @@ var _master_panel: SgTournamentPanel
 var _master_notice: Label
 var _expand_tournament: Button
 var _bot_draft: Dictionary = {}
+# THE OPEN TABLE (2026-09-18). The host page keeps its key settings — the
+# duel's name, its deck rule, its access — and the rest sits in sub-windows.
+var _host_decks: OptionButton
+var _host_deck_button: Button
+var _host_deck_label: Label
+var _host_deck: Dictionary = {}
+var _host_deck_window: VBoxContainer
+var _invite_only: CheckButton
+var _access_hint: Label
+var _rules_window: VBoxContainer
+var _network_window: VBoxContainer
+var _network_button_open: Button
+var _invite_window: VBoxContainer
+var _invite_prompt: Label
+var _pending_join := ""
+var _room_copy: Button
 
 
 func _ready() -> void:
@@ -136,6 +152,7 @@ func _ready() -> void:
 	_tournament_panel = SgTournamentPanel.new()
 	_tournament_panel.host_requested.connect(_host_tournament)
 	_tournament_panel.action_requested.connect(_send)
+	_tournament_panel.copy_requested.connect(_copy_invitation)
 	_pages.tournament.add_child(_tournament_panel)
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", 12)
@@ -188,8 +205,8 @@ func _build_home(page: VBoxContainer) -> void:
 	lines.add_theme_constant_override("v_separation", 8)
 	guide.add_child(lines)
 	for entry in [["IDENTITY", "Pick a temporary name, or play as a guest. Names are unrated; the host adds a guest number when two match."],
-		["HOST", "Host Game opens a table on this computer. Send the private invitation and keep the game open: your computer runs the referee."],
-		["JOIN", "Game Browser lists the hosts on your network, or takes a friend's pasted invitation. Join only hosts you trust."],
+		["HOST", "Host Game opens a table on this computer, open to your LAN unless you tick Invitation only. Keep the game open: your computer runs the referee."],
+		["JOIN", "Game Browser lists the tables on your network; one click joins an open one. An invitation-only host needs the invitation they send you. Join only hosts you trust."],
 		["TOURNAMENT", "The Tournament hall runs a knockout for up to 20 players on one host, with brackets, live results and standings."]]:
 		var caption := _label(entry[0], 13)
 		caption.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -240,9 +257,64 @@ func _build_host(page: VBoxContainer) -> void:
 		if not _lan_start.disabled: _host_game())
 	SgLobbyStyle.field(_room_name)
 	body.add_child(_room_name)
+	# The deck rule: everyone brings a deck, or the host assigns one to both seats.
+	body.add_child(_label("DECKS", 13))
+	var decks_row := SgLobbyStyle.row(body)
+	_host_decks = OptionButton.new()
+	_host_decks.name = "HostDecks"
+	_host_decks.custom_minimum_size = Vector2(240, 38)
+	_host_decks.add_item("Bring your own deck")
+	_host_decks.add_item("Assigned deck")
+	UiChrome.shadowed_button(_host_decks)
+	SgLobbyStyle.option(_host_decks)
+	_host_decks.item_selected.connect(func(_index: int) -> void: _refresh())
+	decks_row.add_child(_host_decks)
+	_host_deck_button = _button("Choose deck…", func() -> void: SgLobbyStyle.open_window(_host_deck_window), Vector2(150, 38))
+	_host_deck_button.name = "HostDeckChoose"
+	decks_row.add_child(_host_deck_button)
+	_host_deck_label = _label("", 16)
+	_host_deck_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_host_deck_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	decks_row.add_child(_host_deck_label)
+	_host_deck_window = SgLobbyStyle.window(page, "Assigned deck", "HostDeckWindow")
+	_host_deck_window.add_child(_label("Both seats play this deck. Browse shipped and saved decks; the guest sees its full list in the room.", 16))
+	_deck_chooser(_host_deck_window, "HostDeck", "Assign this deck", func(deck: Dictionary) -> void:
+		_host_deck = deck
+		SgLobbyStyle.close_window(_host_deck_window)
+		_refresh())
+	# Access: open by default. Copy invitation sits right beside the switch,
+	# so nobody searches for it (owner's word, 2026-09-18).
+	body.add_child(_label("ACCESS", 13))
+	var access_row := SgLobbyStyle.row(body)
+	_invite_only = CheckButton.new()
+	_invite_only.name = "InviteOnly"
+	_invite_only.text = "Invitation only"
+	_invite_only.button_pressed = false
+	UiChrome.shadowed_button(_invite_only)
+	_invite_only.toggled.connect(func(_value: bool) -> void: _refresh())
+	access_row.add_child(_invite_only)
+	_copy = SgLobbyStyle.button("Copy invitation", _copy_invitation, Vector2(170, 38))
+	_copy.name = "CopyInvitation"
+	access_row.add_child(_copy)
+	_access_hint = _label("", 15)
+	body.add_child(_access_hint)
+	var actions := SgLobbyStyle.row(body)
+	_lan_start = SgLobbyStyle.button("Host on LAN", _host_game)
+	_lan_start.name = "StartLan"
+	actions.add_child(_lan_start)
+	actions.add_child(_button("Back", _show_page.bind("home")))
+	# Everything else opens in a sub-window.
+	var more := SgLobbyStyle.row(page)
+	more.add_child(_button("Table rules…", func() -> void: SgLobbyStyle.open_window(_rules_window)))
+	_network_button_open = _button("Network settings…", func() -> void: SgLobbyStyle.open_window(_network_window))
+	more.add_child(_network_button_open)
+	_rules_window = SgLobbyStyle.window(page, "At this table", "TableRulesWindow")
+	_rules_window.add_child(_label(TABLE_RULES, 16))
+	_rules_window.add_child(_label("Both players confirm Ready before play begins. Your guest needs the same game version and enabled packs: " + SgCompatibility.summary() + ".", 15))
+	_network_window = SgLobbyStyle.window(page, "Network settings", "NetworkWindow")
 	_host_controls = VBoxContainer.new()
 	_host_controls.add_theme_constant_override("separation", 10)
-	body.add_child(_host_controls)
+	_network_window.add_child(_host_controls)
 	var row := SgLobbyStyle.row(_host_controls)
 	var address_label := _label("LAN address", 16)
 	address_label.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -266,36 +338,109 @@ func _build_host(page: VBoxContainer) -> void:
 	SgLobbyStyle.field(_port.get_line_edit())
 	row.add_child(_port)
 	_advertise = CheckButton.new()
-	_advertise.text = "Visible in the LAN game browser"
+	_advertise.text = "Listed in the LAN game browser"
 	_advertise.button_pressed = true
 	UiChrome.shadowed_button(_advertise)
 	_host_controls.add_child(_advertise)
-	_host_controls.add_child(_label("Switch off for invitation-only hosting. In either mode, send your private invitation to the player you want to join.", 15))
-	var actions := SgLobbyStyle.row(body)
-	_lan_start = SgLobbyStyle.button("Host on LAN", _host_game)
-	_lan_start.name = "StartLan"
-	actions.add_child(_lan_start)
-	actions.add_child(_button("Back", _show_page.bind("home")))
-	var rules := SgLobbyStyle.column(page, "At this table", false)
-	rules.add_child(SgLobbyStyle.label(TABLE_RULES, 16, true))
-	rules.add_child(SgLobbyStyle.label("Both players choose a deck and confirm Ready before play begins. Your guest needs the same game version and enabled packs: " + SgCompatibility.summary() + ".", 15, true))
-	var advanced := SgLobbyStyle.column(page)
-	advanced.add_child(_button("Same-computer testing", func() -> void: _start.visible = not _start.visible))
-	_start = _button("Start local service", _start_service)
+	_host_controls.add_child(_label("Switch off to keep this host off every game browser; only the invitation reaches it then.", 15))
+	var advanced := SgLobbyStyle.column(_network_window, "Same-computer testing", false)
+	advanced.add_child(SgLobbyStyle.label("A second window on this computer connects with the local access code and port.", 15, true))
+	_start = SgLobbyStyle.button("Start local service", _start_service)
 	_start.name = "StartService"
-	_start.hide()
 	advanced.add_child(_start)
+
+
+## A deck picker: a search, the list and the complete text, and one button
+## that hands the chosen deck to [param choose]. Node names take [param prefix].
+func _deck_chooser(parent: Control, prefix: String, caption: String, choose: Callable) -> Button:
+	var search := LineEdit.new()
+	search.name = prefix + "Search"
+	search.placeholder_text = "Search shipped and saved decks"
+	SgLobbyStyle.field(search)
+	parent.add_child(search)
+	var split := SgLobbyStyle.row(parent)
+	split.custom_minimum_size.y = 260
+	var list := ItemList.new()
+	list.name = prefix + "List"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.custom_minimum_size.x = 220
+	SgLobbyStyle.deck_list(list)
+	split.add_child(list)
+	var details := RichTextLabel.new()
+	details.name = prefix + "Contents"
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details.custom_minimum_size.x = 200
+	SgLobbyStyle.rich_text(details)
+	split.add_child(details)
+	var use := SgLobbyStyle.button(caption, func() -> void:
+		var selected := list.get_selected_items()
+		if selected.is_empty(): return
+		var deck: Dictionary = _catalog[int(list.get_item_metadata(selected[0]))]
+		choose.call({"name": deck.name, "cards": deck.cards.duplicate(), "sideboard": deck.sideboard.duplicate()}))
+	use.name = prefix + "Use"
+	use.disabled = true
+	use.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	parent.add_child(use)
+	list.item_selected.connect(func(index: int) -> void:
+		details.text = _deck_text(_catalog[int(list.get_item_metadata(index))])
+		use.disabled = false)
+	var refill := func(query: String) -> void:
+		if _catalog.is_empty(): _catalog = SgDeckCatalog.available()
+		list.clear()
+		use.disabled = true
+		details.text = "Select a deck to review its complete list."
+		for index in _catalog.size():
+			var deck: Dictionary = _catalog[index]
+			if not query.is_empty() and not String(deck.name).to_lower().contains(query.to_lower()): continue
+			list.add_item("%s (%d)" % [deck.name, deck.cards.size()])
+			list.set_item_metadata(list.item_count - 1, index)
+			list.set_item_tooltip(list.item_count - 1, deck.group)
+	search.text_changed.connect(refill)
+	# The catalogue is read when the window first opens, not when the lobby does.
+	var sheet: Control = parent.get_meta("sg_window")
+	sheet.visibility_changed.connect(func() -> void:
+		if sheet.visible and list.item_count == 0: refill.call(search.text))
+	return use
+
+
+## "" while this computer hosts nothing; "open" or "invitation" for its host.
+func _host_access() -> String:
+	if service == null: return ""
+	return "open" if service.open_to_lan else "invitation"
+
+
+## The invitation of the host this computer runs: the LAN invitation, or
+## the local access code of a same-computer service.
+func _invitation_text() -> String:
+	if service == null: return ""
+	return service.invitation() if not service.lan_address.is_empty() else service.access_code
+
+
+func _copy_invitation() -> void:
+	var text := _invitation_text()
+	if text.is_empty():
+		_notice.text = "Host a table first; the invitation exists once your host is running."
+		return
+	DisplayServer.clipboard_set(text)
+	_notice.text = "Invitation copied. Send it privately; clipboard history may retain it."
+
 
 func _build_browser(page: VBoxContainer) -> void:
 	var body := SgLobbyStyle.column(page, "Find your next opponent")
 	_browser_connection = VBoxContainer.new()
 	_browser_connection.add_theme_constant_override("separation", 12)
 	body.add_child(_browser_connection)
-	_browser_connection.add_child(_label("Search nearby hosts, or connect directly with a friend's private invitation.", 17))
+	_browser_connection.add_child(_label("Tables on your network are listed below. Join an open one with a click; an invitation-only host needs the invitation they send you.", 17))
+	var row := SgLobbyStyle.row(_browser_connection)
 	_scan = _button("Find LAN games", _scan_lan)
-	_browser_connection.add_child(_scan)
-	_browser_connection.add_child(_label("PRIVATE INVITATION", 13))
-	var join_row := SgLobbyStyle.row(_browser_connection)
+	row.add_child(_scan)
+	row.add_child(_button("Join by invitation…", func() -> void: _open_invite_window("")))
+	# The invitation path, in its own window: for invitation-only hosts and
+	# for same-computer testing with a local access code.
+	_invite_window = SgLobbyStyle.window(page, "Join by invitation", "InviteWindow")
+	_invite_prompt = _label("Paste the invitation your host sent you.", 16)
+	_invite_window.add_child(_invite_prompt)
+	var join_row := SgLobbyStyle.row(_invite_window)
 	_code = LineEdit.new()
 	_code.name = "AccessCode"
 	_code.placeholder_text = "Paste the host invitation"
@@ -310,8 +455,8 @@ func _build_browser(page: VBoxContainer) -> void:
 	join_row.add_child(_connect_button)
 	var local_row := HBoxContainer.new()
 	local_row.hide()
-	_browser_connection.add_child(_button("Same-computer testing", func() -> void: local_row.visible = not local_row.visible))
-	_browser_connection.add_child(local_row)
+	_invite_window.add_child(_button("Same-computer testing", func() -> void: local_row.visible = not local_row.visible))
+	_invite_window.add_child(local_row)
 	local_row.add_child(_label("Local test port", 15))
 	var local_port := SpinBox.new()
 	local_port.min_value = 1024
@@ -322,12 +467,20 @@ func _build_browser(page: VBoxContainer) -> void:
 	_port.value_changed.connect(func(value: float) -> void:
 		if value >= local_port.min_value: local_port.value = value)
 	local_row.add_child(local_port)
-	# A private copy action, never a visible credential label.
-	_copy = SgLobbyStyle.button("Copy invitation", func() -> void:
-		DisplayServer.clipboard_set(_code.text)
-		_notice.text = "Invitation copied. Send it privately; clipboard history may retain it.")
-	_copy.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_connection_controls.add_child(_copy)
+
+
+func _open_invite_window(host_name: String) -> void:
+	_invite_prompt.text = "Paste the invitation your host sent you." if host_name.is_empty() \
+		else "%s hosts by invitation only. Ask them for it and paste it here." % host_name
+	SgLobbyStyle.open_window(_invite_window)
+	_code.grab_focus()
+
+
+func _close_windows() -> void:
+	for window in [_host_deck_window, _rules_window, _network_window, _invite_window]:
+		if window != null: SgLobbyStyle.close_window(window)
+	if _tournament_panel != null: _tournament_panel.close_windows()
+
 
 func _save_identity() -> void:
 	if client.has_session() or client.online or client.connecting() or service != null:
@@ -358,6 +511,7 @@ func _show_page(page: String) -> void:
 	_content_scroll.scroll_vertical = 0
 	_notice.text = ""
 	_confirm_close = false
+	_close_windows()
 	_refresh()
 	_close_button.grab_focus()
 
@@ -380,6 +534,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if is_instance_valid(_master_overlay):
 			_close_master()
+		elif _window_open():
+			_close_windows()
 		elif is_instance_valid(_deck_picker):
 			_close_decks()
 		elif is_instance_valid(_duel):
@@ -389,6 +545,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		else:
 			_close()
 		get_viewport().set_input_as_handled()
+
+
+func _window_open() -> bool:
+	for window in [_host_deck_window, _rules_window, _network_window, _invite_window]:
+		if SgLobbyStyle.window_open(window): return true
+	return _tournament_panel != null and _tournament_panel.window_open()
 
 
 func _button(text: String, callback: Callable, minimum := Vector2(180, 38)) -> Button:
@@ -402,7 +564,8 @@ func _label(text: String, font_size := 16) -> Label:
 func _address_summary() -> String:
 	if service != null and not service.lan_address.is_empty():
 		return "Hosting at %s, port %d  ·  %s" % [service.lan_address, service.port,
-			"visible in the LAN game browser" if service.discovery != null and service.discovery.advertising else "invitation only"]
+			("open to the LAN" if service.open_to_lan else "invitation only")
+			+ ("" if service.discovery != null and service.discovery.advertising else ", not listed in game browsers")]
 	if OS.has_feature("web"):
 		return "The browser build cannot host or join. Use the desktop game for LAN play."
 	var addresses := SgLanInvite.local_addresses()
@@ -414,13 +577,23 @@ func _host_game() -> void:
 	if not SgProtocol.short_text(_room_draft.strip_edges()):
 		_notice.text = "Room names use up to 32 letters, numbers, spaces, - and _."
 		return
+	if _host_decks.selected == 1 and _host_deck.is_empty():
+		_notice.text = "Choose the deck both players will use, or switch to Bring your own deck."
+		SgLobbyStyle.open_window(_host_deck_window)
+		return
 	if client.online:
-		_send({"op": "host", "name": _room_draft.strip_edges()})
+		_send(_host_action())
 		return
 	_host_pending = true
-	_start_lan()
+	_start_lan(not _invite_only.button_pressed)
 	if service == null:
 		_host_pending = false
+
+
+func _host_action() -> Dictionary:
+	var fixed := _host_decks.selected == 1
+	return {"op": "host", "name": _room_draft.strip_edges(),
+		"decks": "fixed" if fixed else "own", "deck": _host_deck.duplicate(true) if fixed else {}}
 
 
 func _host_tournament(options: Dictionary, restore_path: String) -> void:
@@ -432,7 +605,7 @@ func _host_tournament(options: Dictionary, restore_path: String) -> void:
 			_notice.text = "Disconnect from the other host before hosting your own tournament."
 			_tournament_pending.clear()
 			return
-		_start_lan()
+		_start_lan(not _tournament_panel.invite_only)
 		if service == null: _tournament_pending.clear()
 	_queue_refresh()
 
@@ -485,6 +658,10 @@ func _open_master() -> void:
 	_master_panel = SgTournamentPanel.new()
 	_master_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_master_panel.action_requested.connect(_send)
+	_master_panel.copy_requested.connect(func() -> void:
+		_copy_invitation()
+		_report_to_master(_notice.text))
+	_master_panel.host_access = _host_access()
 	scroll.add_child(_master_panel)
 	if is_instance_valid(_duel): _duel._tournament_panel_open = true
 	_master_panel.present(client.state.tournament, client.online, client.busy(), service != null)
@@ -504,11 +681,14 @@ func _start_service() -> void:
 	_port.value = service.port
 	_code.text = service.access_code
 	_selected_host = {}
+	SgLobbyStyle.close_window(_network_window)
 	_notice.text = "Local service started. Use its access code and port in a second window on this computer."
 	_connect_local()
 
 
-func _start_lan() -> void:
+## Start this computer's LAN host; [param open] publishes its invitation in
+## the LAN advert so the Game Browser joins without a paste.
+func _start_lan(open := true) -> void:
 	if service != null or not _valid_nickname():
 		return
 	var address := _interfaces.get_item_text(_interfaces.selected)
@@ -518,7 +698,7 @@ func _start_lan() -> void:
 	var candidate := SgLocalServer.new()
 	add_child(candidate)
 	var result := candidate.start_lan(address, int(_port.value), _advertise.button_pressed,
-		_nickname.text.strip_edges())
+		_nickname.text.strip_edges(), SgLanDiscovery.PORT, open)
 	if result != OK:
 		candidate.queue_free()
 		_notice.text = "Cannot host on this address and port. Check the network or choose another port."
@@ -527,7 +707,9 @@ func _start_lan() -> void:
 	_port.value = service.port
 	_code.text = service.invitation()
 	_selected_host = {}
-	_notice.text = "LAN host started. Copy invitation to your opponent. Closing ends all hosted games."
+	_pending_join = ""
+	_notice.text = ("LAN host started. Players on your network join from their Game Browser." if service.open_to_lan \
+		else "LAN host started. Copy invitation and send it to your opponent.") + " Closing ends all hosted games."
 	if service.discovery_error != OK:
 		_notice.text += " Discovery is unavailable; the invitation still connects directly."
 	_connect_local()
@@ -543,8 +725,31 @@ func _scan_lan() -> void:
 		_selected_host = {}
 	else:
 		var result := _discovery.scan()
-		_notice.text = "Searching the LAN. Ask the host for their private invitation." \
+		_notice.text = "Searching the LAN for tables." \
 			if result == OK else "Cannot scan this network. Connect by invitation instead."
+	_refresh()
+
+
+## Join from the Game Browser. An open host published its invitation: the
+## client connects with it and, once the state arrives, sits at the named
+## table. An invitation-only host needs its invitation pasted first.
+func _join_advert(advert: Dictionary, table_name: String) -> void:
+	if client.online or client.busy() or client.connecting() or client.has_session(): return
+	var mismatch := _advert_mismatch(advert)
+	if not mismatch.is_empty():
+		_notice.text = mismatch
+		return
+	if not _valid_nickname(): return
+	_selected_host = advert.duplicate(true)
+	_pending_join = table_name
+	if SgLanDiscovery.open_host(advert):
+		if client.connect_invitation(String(advert.invitation), _nickname.text) == OK:
+			_notice.text = "Connecting to %s…" % advert.name
+		else:
+			_pending_join = ""
+			_notice.text = "Cannot connect to this host. LAN play requires the desktop game."
+	else:
+		_open_invite_window(String(advert.name))
 	_refresh()
 
 
@@ -608,7 +813,8 @@ func _refresh() -> void:
 		var pending := _tournament_pending.duplicate(true)
 		_tournament_pending.clear()
 		var error := service.open_tournament(pending.options, client._resume, pending.folder, pending.path)
-		_notice.text = error if not error.is_empty() else "Tournament opened. Share the invitation; entrants should save their recovery codes."
+		_notice.text = error if not error.is_empty() else ("Tournament opened. Players on your network register from their Game Browser; entrants should save their recovery codes."
+			if service.open_to_lan else "Tournament opened. Copy invitation and send it to every entrant; they should save their recovery codes.")
 	var event: Dictionary = client.state.get("tournament", {})
 	# The host's own seat is the organiser's: a live event on this service
 	# whose chair is empty — the earlier session abandoned with its resume
@@ -623,7 +829,18 @@ func _refresh() -> void:
 		if not event.is_empty(): _page = "tournament"
 	if _host_pending and client.online and not client.busy() and room.is_empty():
 		_host_pending = false
-		_send({"op": "host", "name": _room_draft.strip_edges()})
+		_send(_host_action())
+	if not _pending_join.is_empty() and client.online and not client.busy() and room.is_empty():
+		var wanted := _pending_join
+		_pending_join = ""
+		var found := false
+		for listed: Dictionary in client.state.rooms:
+			if listed.name == wanted and listed.open:
+				found = true
+				_send({"op": "join", "room": listed.id})
+				break
+		if not found and not wanted.is_empty():
+			_notice.text = "The table “%s” is no longer open. Pick another on this host." % wanted
 	if not room.is_empty():
 		_page = "room"
 	elif not _room_id.is_empty():
@@ -651,11 +868,14 @@ func _refresh() -> void:
 		_duel.queue_free()
 		_duel = null
 		_close_master()
+	_tournament_panel.host_access = _host_access()
 	if _page == "tournament":
 		_expand_tournament.visible = not event.is_empty()
 		_expand_tournament.text = "Expand Master Panel" if event.get("organiser", false) else "Expand Tournament Hall"
 		_tournament_panel.present(event, client.online, client.busy(), service != null or not (client.online or client.has_session() or client.connecting() or OS.has_feature("web")))
-	if is_instance_valid(_master_panel): _master_panel.present(event, client.online, client.busy(), service != null)
+	if is_instance_valid(_master_panel):
+		_master_panel.host_access = _host_access()
+		_master_panel.present(event, client.online, client.busy(), service != null)
 	_shell.visible = not playing
 	_connection_controls.visible = not playing
 	_status.text = client.status + ("  ·  " + client.guest if client.online else "")
@@ -670,8 +890,17 @@ func _refresh() -> void:
 	_lan_start.text = "Host a duel" if client.online else "Host on LAN"
 	_interfaces.disabled = locked
 	_advertise.disabled = locked
+	_invite_only.disabled = locked
 	_port.editable = not locked
 	_host_controls.visible = not client.online
+	_network_button_open.disabled = client.online
+	_host_deck_button.visible = _host_decks.selected == 1
+	_host_deck_label.visible = _host_decks.selected == 1
+	_host_deck_label.text = "No deck chosen yet" if _host_deck.is_empty() else String(_host_deck.name)
+	_access_hint.text = "Only players you send the invitation to can join." if _invite_only.button_pressed \
+		else "Anyone on your network sees this table in their Game Browser and joins with a click."
+	_copy.disabled = _invitation_text().is_empty()
+	_copy.tooltip_text = "Available once your host is running." if _copy.disabled else "Copies the invitation to the clipboard."
 	_scan.disabled = client.online or client.has_session() or client.connecting() or OS.has_feature("web")
 	_scan.text = "Stop LAN search" if _discovery != null and _discovery.scanning else "Find LAN games"
 	if (_page != "browser" or client.online) and _discovery != null and _discovery.scanning:
@@ -680,8 +909,7 @@ func _refresh() -> void:
 	_connect_button.text = "Connected" if client.online else ("Connecting…" if client.connecting() else ("Reconnect" if client.has_session() else "Connect"))
 	_code.editable = not locked
 	_browser_connection.visible = not client.online
-	_copy.visible = service != null and not playing
-	_copy.disabled = _code.text.is_empty()
+	if client.online: SgLobbyStyle.close_window(_invite_window)
 	_close_button.text = "Confirm close" if _confirm_close else "Close"
 	_title.text = {"home": "SGManalink", "identity": "Identity", "host": "Host Game",
 		"browser": "Game Browser", "room": "Duel room", "tournament": "LAN Tournament"}[_page]
@@ -735,6 +963,7 @@ func _disconnect() -> void:
 	client.forget()
 	_code.text = ""
 	_selected_host.clear()
+	_pending_join = ""
 	_host_pending = false
 	_tournament_pending.clear()
 	_tournament_id = ""
@@ -742,8 +971,23 @@ func _disconnect() -> void:
 
 
 func _waiting_room(room: Dictionary) -> void:
+	var fixed: bool = room.get("decks", "own") == "fixed"
 	var header := SgLobbyStyle.column(_body, String(room.name), false)
-	header.add_child(SgLobbyStyle.label("Choose your deck. Confirm when you are ready to play.", 17, true))
+	header.add_child(SgLobbyStyle.label(("Both seats play the assigned deck: %s." % room.get("fixed_deck", "") if fixed
+		else "Choose your deck.") + " Confirm when you are ready to play.", 17, true))
+	# The host sees how guests reach this table, and Copy invitation right
+	# there — nobody hunts for it (owner's word, 2026-09-18).
+	if service != null and int(room.seat) == 0:
+		var access := SgLobbyStyle.row(header)
+		var line := SgLobbyStyle.label("Open table — players on your network see “%s” in their Game Browser." % room.name
+			if service.open_to_lan else "Invitation only — send the invitation to your opponent.", 16, true)
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		access.add_child(line)
+		_room_copy = _button("Copy invitation", _copy_invitation, Vector2(170, 38))
+		_room_copy.name = "RoomCopyInvitation"
+		_room_copy.disabled = _invitation_text().is_empty()
+		access.add_child(_room_copy)
 	var players := SgLobbyStyle.row(_body)
 	for seat in 2:
 		var column := VBoxContainer.new()
@@ -765,7 +1009,7 @@ func _waiting_room(room: Dictionary) -> void:
 	var rules := SgLobbyStyle.column(_body, "Duel rules")
 	rules.add_child(_label(TABLE_RULES, 16))
 	var actions := SgLobbyStyle.row(rules)
-	actions.add_child(_network_button("Choose / review deck", _open_decks))
+	actions.add_child(_network_button("Review assigned deck" if fixed else "Choose / review deck", _open_decks))
 	actions.add_child(_network_button("Not ready" if room.ready[int(room.seat)] else "Ready", func() -> void:
 		_send({"op":"ready", "value":not room.ready[int(room.seat)]})))
 	actions.add_child(_network_button("Leave room", func() -> void: _send({"op":"leave"})))
@@ -833,9 +1077,20 @@ func _open_decks() -> void:
 	_deck_panel = SgLobbyStyle.panel(column, true, 20)
 	overlay.add_child(_deck_panel)
 	_layout_window()
+	var fixed: bool = client.state.room.get("decks", "own") == "fixed"
 	var heading := SgLobbyStyle.row(column)
-	heading.add_child(_label("Choose your deck", 26))
+	heading.add_child(_label("The assigned deck" if fixed else "Choose your deck", 26))
 	heading.add_child(_button("Back", _close_decks, Vector2(100,38)))
+	if fixed:
+		# The table deals this deck to both seats; there is nothing to choose.
+		column.add_child(_label("The host assigned this deck to both seats. Review it, then confirm Ready.", 16))
+		var contents := RichTextLabel.new()
+		contents.name = "NetworkDeckContents"
+		contents.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		SgLobbyStyle.rich_text(contents)
+		contents.text = _deck_text(client.state.room.deck) if not client.state.room.deck.is_empty() else "The deck arrives with the next update."
+		column.add_child(contents)
+		return
 	column.add_child(_label("Browse shipped and saved decks. Only your own full list is shown here.", 16))
 	var search := LineEdit.new()
 	search.name = "NetworkDeckSearch"
@@ -907,50 +1162,55 @@ static func _deck_text(deck: Dictionary) -> String:
 
 func _browser() -> void:
 	if not client.online:
-		var nearby := SgLobbyStyle.column(_body, "Nearby hosts")
-		if not _selected_host.is_empty():
-			var selected := SgLobbyStyle.row(nearby)
-			var mismatch := _advert_mismatch(_selected_host)
-			selected.add_child(_label("Selected: %s at %s:%d\n%s" % [_selected_host.name, _selected_host.address, int(_selected_host.port),
-				mismatch if not mismatch.is_empty() else "Paste this host's invitation above and connect."], 16))
-			selected.add_child(_button("Clear selection", func() -> void:
-				_selected_host = {}
-				_refresh(), Vector2(150,38)))
+		var nearby := SgLobbyStyle.column(_body, "Tables on your network")
 		if _discovery == null or _discovery.hosts.is_empty():
-			nearby.add_child(_label("No hosts listed yet", 21))
-			nearby.add_child(_label("Start a LAN search, or paste an invitation above. Your friend must keep their host open on the same network.", 16))
+			nearby.add_child(_label("No tables listed yet", 21))
+			nearby.add_child(_label("Click Find LAN games. Your friend must keep their host open on the same network; "
+				+ "if their table stays unlisted, ask for their invitation.", 16))
 			return
-		var table := _table(nearby, ["NAME", "TYPE", "WHERE", "TABLES", "BUILD", ""])
+		# One row per table, not per host: the duel's name is what a player
+		# looks for (owner's word, 2026-09-18). A tournament is one row.
+		var table := _table(nearby, ["DUEL", "HOST", "DECKS", "ACCESS", "BUILD", ""])
 		var keys := _discovery.hosts.keys()
 		keys.sort()
 		for key in keys:
 			var advert: Dictionary = _discovery.hosts[key].host
-			var rooms := int(advert.rooms)
-			var brief := _advert_brief(advert)
-			_cell(table, String(advert.name), true)
-			_cell(table, "Tournament · " + String(advert.tournament) if advert.has("tournament") else "Duel")
-			_cell(table, "%s:%d" % [advert.address, int(advert.port)])
-			_cell(table, "1 open" if rooms == 1 else "%d open" % rooms)
-			var build := _cell(table, brief if not brief.is_empty() else "Same as yours")
-			build.add_theme_color_override("font_color", UiChrome.ACCENT if not brief.is_empty() else SgLobbyStyle.GOLD.darkened(0.45))
-			table.add_child(_button("Select", func() -> void:
-				_selected_host = advert.duplicate(true)
-				_refresh(), Vector2(100,34)))
+			var rows: Array = []
+			if advert.has("tournament"):
+				rows.append({"name": "Tournament · " + String(advert.tournament), "decks": "", "open": true, "table": ""})
+			for entry: Dictionary in advert.get("tables", []):
+				rows.append({"name": String(entry.name), "table": String(entry.name), "open": bool(entry.open),
+					"decks": "Assigned: " + String(entry.deck) if entry.decks == "fixed" else "Bring your own"})
+			if rows.is_empty():
+				rows.append({"name": "No table yet", "decks": "", "open": true, "table": ""})
+			for entry: Dictionary in rows:
+				_cell(table, String(entry.name), true)
+				var host := _cell(table, String(advert.name))
+				host.tooltip_text = "%s:%d" % [advert.address, int(advert.port)]
+				_cell(table, String(entry.decks))
+				_cell(table, "Open" if SgLanDiscovery.open_host(advert) else "Invitation")
+				var brief := _advert_brief(advert)
+				var build := _cell(table, brief if not brief.is_empty() else "Same as yours")
+				build.add_theme_color_override("font_color", UiChrome.ACCENT if not brief.is_empty() else SgLobbyStyle.GOLD.darkened(0.45))
+				var join := _button("Join" if entry.open else "In play", _join_advert.bind(advert.duplicate(true), String(entry.table)), Vector2(100,34))
+				join.disabled = not entry.open or client.connecting() or client.has_session()
+				table.add_child(join)
 		return
 	if not client.state.get("tournament", {}).is_empty():
 		var event := SgLobbyStyle.column(_body, client.state.tournament.config.name)
 		event.add_child(_label("This host is running a LAN tournament. Open the hall to register or follow the results.", 17))
 		event.add_child(_button("Open Tournament Hall", _show_page.bind("tournament")))
 		return
-	var rooms := SgLobbyStyle.column(_body, "Available duels")
+	var rooms := SgLobbyStyle.column(_body, "Duels on this host")
 	if client.state.rooms.is_empty():
 		rooms.add_child(_label("No open tables yet", 21))
 		rooms.add_child(_label("Open Host Game to create a duel on this host.", 16))
 		return
-	var table := _table(rooms, ["NAME", "HOST", "SEAT", ""])
+	var table := _table(rooms, ["DUEL", "HOST", "DECKS", "SEAT", ""])
 	for room: Dictionary in client.state.rooms:
 		_cell(table, String(room.name), true)
 		_cell(table, String(room.host))
+		_cell(table, "Assigned: " + String(room.deck) if room.get("decks", "own") == "fixed" else "Bring your own")
 		_cell(table, "Open" if room.open else "Taken")
 		table.add_child(_network_button("Join" if room.open else "In use", func() -> void:
 			_send({"op":"join", "room":room.id}), room.open))

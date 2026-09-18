@@ -75,7 +75,11 @@ up to **20 players**, configurable match lengths and deck policies, an
 organiser's Master Panel, graphical advancement and final standings.
 [Computer seats](docs/sgmanalink-computer-players.md) use the same four local
 opponents and separate Unfair challenge; choose how many to add to a tournament.
-Use matching builds and enabled card catalogues on all participants.
+Tables are open by default — the Game Browser lists every duel on the network
+by name, with its deck rule (bring your own or the host's assigned deck), and
+joins with a click; switch on **Invitation only** to admit only the players you
+send the invitation to. Use matching builds and enabled card catalogues on all
+participants.
 Internet play, permanent accounts and MElo are parked for now.
 
 The game also includes an in-game [Booster Draft](docs/booster-draft.md): choose
@@ -107,8 +111,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([The band question](docs/ROADMAP.md#2026-09-18--the-band-question)):
-**7,518 GUT tests / 332,785 assertions**, plus **291 Python tests**
+Latest local verification ([Open tables](docs/ROADMAP.md#2026-09-18--open-tables-the-lan-lobby-uncluttered-protocol-21)):
+**7,529 GUT tests / 333,335 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 

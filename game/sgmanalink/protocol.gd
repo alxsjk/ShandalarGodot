@@ -3,14 +3,17 @@ extends RefCounted
 ## [QoL] Unrated loopback/LAN protocol. Data only; no Variant object decoding or RPC.
 ## Version this independently from the application release and future rated protocol.
 
-const VERSION := 20
-const SUBPROTOCOL := "sgmanalink-local-v20"
+const VERSION := 21
+const SUBPROTOCOL := "sgmanalink-local-v21"
+## THE OPEN TABLE (2026-09-18): a table is hosted with a deck rule — "own"
+## (everyone brings a deck) or "fixed" (the host's deck is dealt to both).
+const DECK_RULES := ["own", "fixed"]
 const NICKNAME_LIMIT := 20
 const MAX_BYTES := 2097152
 const MAX_COMMAND_BYTES := 32768
 const MAX_CARDS := 512
 const FIELDS := {
-	"host": ["name"], "join": ["room"], "ready": ["value"], "leave": [],
+	"host": ["name", "decks", "deck"], "join": ["room"], "ready": ["value"], "leave": [],
 	"keep": [], "mulligan": [], "pass": [], "play": ["card"],
 	"tap": ["card"], "attack": ["cards"], "block": ["pairs"],
 	"damage": ["points"], "discard": ["cards"], "concede": [],
@@ -179,7 +182,10 @@ static func valid(message: Dictionary) -> bool:
 				return false
 			for band in action.bands:
 				if not handles(band): return false
-		"host": return short_text(action.name)
+		"host":
+			if not short_text(action.name) or not action.decks in DECK_RULES or not action.deck is Dictionary:
+				return false
+			return action.deck.is_empty() if action.decks == "own" else SgTournament.valid_deck(action.deck)
 		"join": return short_text(action.room, 16)
 		"ready": return action.value is bool
 		"t_ready": return action.value is bool and integer(action.round, 0, SgTournament.MAX_ROUNDS) and integer(action.game, 0, SgTournament.MAX_GAMES)

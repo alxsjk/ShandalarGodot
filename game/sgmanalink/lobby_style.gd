@@ -47,6 +47,89 @@ static func row(parent: Node) -> HBoxContainer:
 	parent.add_child(line)
 	return line
 
+## THE SUB-WINDOW (2026-09-18). The owner's playtest: *"Online windows
+## should be less cluttered with only the key setting front-center and all
+## the rest in sub menus or windows."* A page keeps its few key settings
+## and puts the rest behind a button that opens one of these: a dimmed
+## sheet over the whole viewport with a stone panel in the middle — the
+## title, a Close button and the caller's column. The window is built once
+## and HIDDEN, as a `top_level` child of its owner: the owner's container
+## does not lay it out, the scroll it sits in does not clip it, and its
+## controls stay in the tree with their state (a deck chosen in the window
+## is still chosen when it opens again; a test seam finds them by name).
+## `z_index` WINDOW_Z lifts it above the Master Panel's opaque sheet (500).
+## Returns the column to fill; the sheet is the column's meta "sg_window".
+const WINDOW_Z := 600
+
+static func window(owner: Control, title: String, node_name := "") -> VBoxContainer:
+	var sheet := ColorRect.new()
+	sheet.name = node_name if not node_name.is_empty() else "SubWindow"
+	sheet.color = Color(0, 0, 0, 0.82)
+	sheet.top_level = true
+	sheet.z_index = WINDOW_Z
+	sheet.focus_mode = Control.FOCUS_ALL
+	sheet.hide()
+	owner.add_child(sheet)
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	var frame := panel(column, false, 20)
+	frame.add_theme_stylebox_override("panel", OriginalDialog.panel_style("panel_dark_stone", 20))
+	frame.set_anchors_preset(Control.PRESET_CENTER)
+	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	frame.grow_vertical = Control.GROW_DIRECTION_BOTH
+	sheet.add_child(frame)
+	var heading := row(column)
+	var caption := label(title, 24, true)
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_child(caption)
+	var close := button("Close", func() -> void: sheet.hide(), Vector2(110, 38))
+	close.name = "CloseWindow"
+	close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	heading.add_child(close)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(scroll)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 12)
+	scroll.add_child(body)
+	body.set_meta("sg_window", sheet)
+	body.set_meta("sg_frame", frame)
+	# The panel takes most of the viewport, never more than a page's width.
+	var fit := func() -> void:
+		if not sheet.is_inside_tree(): return
+		var view := sheet.get_viewport_rect().size
+		frame.size = Vector2(minf(940, maxf(0, view.x - 48)), minf(700, maxf(0, view.y - 64)))
+		frame.position = (view - frame.size) * 0.5
+	sheet.visibility_changed.connect(fit)
+	sheet.resized.connect(fit)
+	# A click on the sheet outside the panel closes it, like Escape.
+	sheet.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			sheet.hide()
+			sheet.accept_event()
+		elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			sheet.hide()
+			sheet.accept_event())
+	frame.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton: frame.accept_event())
+	return body
+
+## Show the sub-window that [method window] built [param body] in.
+static func open_window(body: Control) -> void:
+	var sheet: Control = body.get_meta("sg_window")
+	sheet.show()
+	sheet.grab_focus()
+
+static func close_window(body: Control) -> void:
+	var sheet: Control = body.get_meta("sg_window")
+	sheet.hide()
+
+static func window_open(body: Control) -> bool:
+	return body != null and is_instance_valid(body) and (body.get_meta("sg_window") as Control).visible
+
 ## A BUTTON WEARS ITS SURFACE (2026-09-17): parchment buttons on the paper
 ## sections, the stone-grey window button everywhere else — the dark
 ## sections and the stone frame. No caller chooses: [method panel] marks

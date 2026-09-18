@@ -52,7 +52,7 @@ func _act(client: SgLocalClient, action: Dictionary) -> bool:
 
 func test_a_returning_seat_starts_the_duel_both_players_already_readied() -> void:
 	await _pair()
-	await _act(a, {"op": "host", "name": "Waiting room"})
+	await _act(a, {"op": "host", "name": "Waiting room", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	var room_id: String = a.state.room.id
 	await _act(b, {"op": "ready", "value": true})
@@ -79,7 +79,7 @@ func test_a_returning_seat_starts_the_duel_both_players_already_readied() -> voi
 
 func test_a_returning_seat_leaves_a_half_readied_room_waiting() -> void:
 	await _pair()
-	await _act(a, {"op": "host", "name": "Waiting room"})
+	await _act(a, {"op": "host", "name": "Waiting room", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	var room_id: String = a.state.room.id
 	await _act(a, {"op": "ready", "value": true})
@@ -97,7 +97,7 @@ func test_a_returning_seat_leaves_a_half_readied_room_waiting() -> void:
 
 func test_a_closed_room_leaves_no_cached_view_behind() -> void:
 	await _pair()
-	await _act(a, {"op": "host", "name": "Short duel"})
+	await _act(a, {"op": "host", "name": "Short duel", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	var room_id: String = a.state.room.id
 	await _act(a, {"op": "ready", "value": true})

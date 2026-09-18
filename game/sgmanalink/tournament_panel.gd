@@ -5,6 +5,12 @@ extends VBoxContainer
 
 signal host_requested(options: Dictionary, restore_path: String)
 signal action_requested(action: Dictionary)
+## THE OPEN TABLE (2026-09-18): the organiser asks for the invitation from
+## right beside the Invitation only switch; the lobby owns the clipboard.
+signal copy_requested
+## "" while this computer hosts nothing, else "open" or "invitation"; the
+## lobby sets it before [method present].
+var host_access := ""
 var _view: Dictionary = {}
 var _snapshot: Dictionary = {}
 var _online := false
@@ -35,6 +41,10 @@ var _graph: SgTournamentBracket
 var _graph_state: Dictionary = {}
 var _selected_entrant := 0
 var _bot_draft: Dictionary = {}
+var _invite_only: CheckButton
+var _deck_summary: Label
+var _access_hint: Label
+var _windows: Array = []
 
 
 func present(value: Dictionary, online: bool, busy: bool, can_host: bool) -> void:
@@ -80,15 +90,61 @@ func present(value: Dictionary, online: bool, busy: bool, can_host: bool) -> voi
 	for button in find_children("*", "Button", true, false):
 		if button.has_meta("t_network"): button.disabled = not online or busy or not button.get_meta("available", true)
 		if button.has_meta("t_host"): button.disabled = not can_host or busy
+		if button.name == "TournamentCopyInvitation":
+			button.disabled = host_access.is_empty()
+			button.tooltip_text = "Available once your host is running." if button.disabled else "Copies the invitation to the clipboard."
 	if _setup_built and is_instance_valid(_folder_edit): _folder_edit.editable = can_host and not busy
+	if _setup_built and is_instance_valid(_access_hint): _access_hint.text = _access_text()
 
 
 func _clear() -> void:
 	if is_instance_valid(_graph): _graph_state = _graph.capture_state()
 	_graph = null
+	_windows.clear()
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
+
+
+## The setup's Invitation only switch; false (open) unless the organiser ticked it.
+var invite_only: bool:
+	get: return is_instance_valid(_invite_only) and _invite_only.button_pressed
+
+
+func _window(title: String, node_name: String) -> VBoxContainer:
+	var body := SgLobbyStyle.window(self, title, node_name)
+	_windows.append(body)
+	return body
+
+
+func window_open() -> bool:
+	for body in _windows:
+		if SgLobbyStyle.window_open(body): return true
+	return false
+
+
+func close_windows() -> void:
+	for body in _windows:
+		if is_instance_valid(body): SgLobbyStyle.close_window(body)
+
+
+func _access_text() -> String:
+	if _view.is_empty():
+		return "Only players you send the invitation to can register." if invite_only \
+			else "Players on your network find this tournament in their Game Browser and register with a click."
+	match host_access:
+		"open": return "Open to the LAN — players find “%s” in their Game Browser." % _view.config.name
+		"invitation": return "Invitation only — send the invitation to every entrant."
+	return ""
+
+
+func _copy_button(parent: Node) -> Button:
+	var copy := SgLobbyStyle.button("Copy invitation", func() -> void: copy_requested.emit(), Vector2(170, 38))
+	copy.name = "TournamentCopyInvitation"
+	copy.disabled = host_access.is_empty()
+	copy.tooltip_text = "Available once your host is running." if copy.disabled else "Copies the invitation to the clipboard."
+	parent.add_child(copy)
+	return copy
 
 
 func _button(parent: Node, text: String, op: String, extra := {}, available := true) -> Button:
@@ -122,6 +178,8 @@ func _build_setup() -> void:
 	var header := SgLobbyStyle.column(self, "Host a LAN tournament", false)
 	header.add_child(SgLobbyStyle.label("Random-draw knockout · 2–20 entrants · One trusted local host", 17, true))
 	header.add_child(SgLobbyStyle.label("Your computer runs all tables. You can join the draw or organise without playing.", 15, true))
+	# The key settings stay on the page; the rest opens in a sub-window
+	# (owner's word, 2026-09-18: front-center, uncluttered).
 	var settings := SgLobbyStyle.column(self, "Tournament setup")
 	settings.add_child(SgLobbyStyle.label("TOURNAMENT NAME", 14))
 	_name_edit = LineEdit.new()
@@ -131,26 +189,29 @@ func _build_setup() -> void:
 	_name_edit.tooltip_text = "Up to 32 letters, numbers, spaces, - or _. This name appears in the LAN Game Browser."
 	SgLobbyStyle.field(_name_edit)
 	settings.add_child(_name_edit)
-	settings.add_child(SgLobbyStyle.label("WELCOME MESSAGE · OPTIONAL · UP TO 280 CHARACTERS", 14))
-	_welcome_edit = LineEdit.new()
-	_welcome_edit.name = "TournamentWelcomeEdit"
-	_welcome_edit.max_length = SgTournament.MAX_WELCOME
-	_welcome_edit.placeholder_text = "A short greeting or instructions for your players"
-	SgLobbyStyle.field(_welcome_edit)
-	settings.add_child(_welcome_edit)
-	settings.add_child(SgLobbyStyle.label("Shown to everyone in the Tournament Hall when they connect or join. It stays available there, without interrupting duels.", 14))
 	var limits: Array = []
 	for count in range(2, SgTournament.MAX_PLAYERS + 1): limits.append("%d players" % count)
 	_limit = _option(settings, "ENTRANT LIMIT", limits)
 	_limit.select(6)
 	_wins = _option(settings, "WINS NEEDED TO ADVANCE", ["1 win · single game", "2 wins · best of three", "3 wins · best of five"])
 	_wins.name = "TournamentWins"
-	_policy = _option(settings, "DECK POLICY", ["Players bring their own decks", "One fixed deck for everyone", "Players choose from host-approved decks"])
+	settings.add_child(SgLobbyStyle.label("DECKS", 14))
+	var decks_row := SgLobbyStyle.row(settings)
+	_deck_summary = SgLobbyStyle.label("", 16)
+	_deck_summary.name = "TournamentDeckSummary"
+	_deck_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_deck_summary.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	decks_row.add_child(_deck_summary)
+	var decks_window := _window("Deck policy", "TournamentDecksWindow")
+	var change := SgLobbyStyle.button("Change…", func() -> void: SgLobbyStyle.open_window(decks_window), Vector2(120, 38))
+	change.name = "TournamentDecksChange"
+	decks_row.add_child(change)
+	_policy = _option(decks_window, "DECK POLICY", ["Players bring their own decks", "One fixed deck for everyone", "Players choose from host-approved decks"])
 	_policy.name = "TournamentPolicy"
-	settings.add_child(SgLobbyStyle.label("Drawn games award no wins. Decks lock when registration closes; no sideboarding. Standard LAN rules: 20 life, mana burn on, unrestricted decks, no ante.", 15))
+	decks_window.add_child(SgLobbyStyle.label("Drawn games award no wins. Decks lock when registration closes; no sideboarding. Standard LAN rules: 20 life, mana burn on, unrestricted decks, no ante.", 15))
 	_deck_area = VBoxContainer.new()
 	_deck_area.add_theme_constant_override("separation", 10)
-	settings.add_child(_deck_area)
+	decks_window.add_child(_deck_area)
 	_approved_text = SgLobbyStyle.label("No approved decks selected.", 16)
 	_deck_area.add_child(_approved_text)
 	var clear := SgLobbyStyle.button("Clear approved decks", func() -> void:
@@ -168,8 +229,55 @@ func _build_setup() -> void:
 		_approved.clear()
 		_update_approved())
 	_update_approved()
-	settings.add_child(SgLobbyStyle.label("SAVE FOLDER · LOCAL TO THIS HOST", 14))
-	var storage := SgLobbyStyle.row(settings)
+	# Access: open by default, Copy invitation right beside the switch.
+	settings.add_child(SgLobbyStyle.label("ACCESS", 14))
+	var access_row := SgLobbyStyle.row(settings)
+	_invite_only = CheckButton.new()
+	_invite_only.name = "TournamentInviteOnly"
+	_invite_only.text = "Invitation only"
+	_invite_only.button_pressed = false
+	UiChrome.shadowed_button(_invite_only)
+	_invite_only.toggled.connect(func(_value: bool) -> void: _access_hint.text = _access_text())
+	access_row.add_child(_invite_only)
+	_copy_button(access_row)
+	_access_hint = SgLobbyStyle.label(_access_text(), 15)
+	_access_hint.name = "TournamentAccessHint"
+	settings.add_child(_access_hint)
+	_notice = SgLobbyStyle.label("", 15)
+	_notice.custom_minimum_size.y = 20
+	settings.add_child(_notice)
+	var create := SgLobbyStyle.button("Open registration", func() -> void:
+		var options := {"name": _name_edit.text.strip_edges(), "welcome": _welcome_edit.text.strip_edges(), "limit": _limit.selected + 2,
+			"wins": _wins.selected + 1, "policy": ["own", "fixed", "selection"][_policy.selected],
+			"decks": [] if _policy.selected == 0 else _approved.duplicate(true)}
+		if not SgTournament.valid_config(options):
+			_notice.text = "Use 1–32 letters, numbers, spaces, - or _ for the name. Choose valid decks and a welcome message of at most 280 characters."
+			if _policy.selected != 0 and _approved.is_empty(): SgLobbyStyle.open_window(decks_window)
+			return
+		if not _apply_folder(): return
+		host_requested.emit(options, ""))
+	create.name = "TournamentOpenRegistration"
+	create.set_meta("t_host", true)
+	settings.add_child(create)
+	var more := SgLobbyStyle.row(self)
+	var welcome_window := _window("Welcome message", "TournamentWelcomeWindow")
+	more.add_child(SgLobbyStyle.button("Welcome message…", func() -> void: SgLobbyStyle.open_window(welcome_window)))
+	var folder_window := _window("Save folder", "TournamentFolderWindow")
+	more.add_child(SgLobbyStyle.button("Save folder…", func() -> void: SgLobbyStyle.open_window(folder_window)))
+	var saved_window := _window("Saved tournaments", "TournamentSavedWindow")
+	more.add_child(SgLobbyStyle.button("Saved tournaments…", func() -> void:
+		_refresh_saved()
+		SgLobbyStyle.open_window(saved_window)))
+	welcome_window.add_child(SgLobbyStyle.label("OPTIONAL · UP TO 280 CHARACTERS", 14))
+	_welcome_edit = LineEdit.new()
+	_welcome_edit.name = "TournamentWelcomeEdit"
+	_welcome_edit.max_length = SgTournament.MAX_WELCOME
+	_welcome_edit.placeholder_text = "A short greeting or instructions for your players"
+	SgLobbyStyle.field(_welcome_edit)
+	welcome_window.add_child(_welcome_edit)
+	welcome_window.add_child(SgLobbyStyle.label("Shown to everyone in the Tournament Hall when they connect or join. It stays available there, without interrupting duels.", 14))
+	folder_window.add_child(SgLobbyStyle.label("LOCAL TO THIS HOST", 14))
+	var storage := SgLobbyStyle.row(folder_window)
 	_folder_edit = LineEdit.new()
 	_folder_edit.name = "TournamentSaveFolder"
 	_folder_edit.text = GamePaths.tournaments_folder()
@@ -187,28 +295,13 @@ func _build_setup() -> void:
 	reset.set_meta("t_host", true)
 	storage.add_child(reset)
 	_folder_notice = SgLobbyStyle.label("Remembered on this device. Existing saves are not moved. Keep the folder private: checkpoints include decklists and recovery-code hashes.", 14)
-	settings.add_child(_folder_notice)
+	folder_window.add_child(_folder_notice)
 	_folder_edit.text_submitted.connect(func(_value: String) -> void: _apply_folder())
 	_folder_edit.focus_exited.connect(func() -> void: _apply_folder())
-	_notice = SgLobbyStyle.label("Use the LAN address and port in Host Game. A private invitation is required for every guest.", 15)
-	settings.add_child(_notice)
-	var create := SgLobbyStyle.button("Open registration", func() -> void:
-		var options := {"name": _name_edit.text.strip_edges(), "welcome": _welcome_edit.text.strip_edges(), "limit": _limit.selected + 2,
-			"wins": _wins.selected + 1, "policy": ["own", "fixed", "selection"][_policy.selected],
-			"decks": [] if _policy.selected == 0 else _approved.duplicate(true)}
-		if not SgTournament.valid_config(options):
-			_notice.text = "Use 1–32 letters, numbers, spaces, - or _ for the name. Choose valid decks and a welcome message of at most 280 characters."
-			return
-		if not _apply_folder(): return
-		host_requested.emit(options, ""))
-	create.name = "TournamentOpenRegistration"
-	create.set_meta("t_host", true)
-	settings.add_child(create)
-	var recovery := SgLobbyStyle.column(self, "Resume a saved tournament", false)
-	recovery.add_child(SgLobbyStyle.label("Completed scores are kept. Interrupted games restart from opening hands. Players need their private recovery codes and your new invitation.", 15, true))
+	saved_window.add_child(SgLobbyStyle.label("Completed scores are kept. Interrupted games restart from opening hands. Players need their private recovery codes and your new invitation.", 15))
 	_saved_events = VBoxContainer.new()
 	_saved_events.add_theme_constant_override("separation", 10)
-	recovery.add_child(_saved_events)
+	saved_window.add_child(_saved_events)
 	_listed_folder = ""
 	_refresh_saved()
 
@@ -270,6 +363,12 @@ func _update_approved() -> void:
 	for deck: Dictionary in _approved: names.append(deck.name)
 	_approved_text.text = "Approved decks (%d/%d):\n%s" % [_approved.size(), 1 if _policy.selected == 1 else SgTournament.MAX_DECKS,
 		"None selected" if names.is_empty() else "\n".join(names)]
+	if is_instance_valid(_deck_summary):
+		match _policy.selected:
+			0: _deck_summary.text = "Players bring their own decks"
+			1: _deck_summary.text = "One fixed deck for everyone: " + (names[0] if not names.is_empty() else "choose it")
+			_: _deck_summary.text = "Players choose from %d host-approved deck(s)" % names.size() if not names.is_empty() \
+				else "Players choose from host-approved decks: choose them"
 
 
 func _available_decks() -> Array:
@@ -379,6 +478,16 @@ func _build_hall() -> void:
 		_view.entrants.size(), int(_view.config.limit), int(_view.config.wins)], 18, true))
 	header.add_child(SgLobbyStyle.label({"own": "Players bring their own decks", "fixed": "One fixed deck for everyone",
 		"selection": "Host-approved deck selection"}[_view.config.policy] + "  ·  No ante or ranking points", 15, true))
+	# The organiser's own host: how entrants reach it, and the invitation
+	# right there beside it.
+	if _view.organiser and not host_access.is_empty():
+		var access := SgLobbyStyle.row(header)
+		var line := SgLobbyStyle.label(_access_text(), 16, true)
+		line.name = "TournamentAccessLine"
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		access.add_child(line)
+		_copy_button(access)
 	var bot_count := 0
 	var unfair_count := 0
 	for player: Dictionary in _view.entrants:

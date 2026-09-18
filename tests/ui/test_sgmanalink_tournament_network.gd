@@ -330,7 +330,7 @@ func test_failed_save_blocks_advancement_and_retry_is_explicit() -> void:
 	await _act(owner, "t_close")
 	assert_null(server.tournament)
 	assert_false(owner.state.has("tournament"))
-	await _act(owner, "host", {"name": "Friendly duel"})
+	await _act(owner, "host", {"name": "Friendly duel", "decks": "own", "deck": {}})
 	assert_false(owner.state.room.is_empty(), "ordinary hosting is still available")
 
 
@@ -566,7 +566,7 @@ func test_normal_browser_discovers_named_tournament_and_invited_player_joins_wit
 	server.add_child(advertiser)
 	server.discovery = advertiser
 	assert_eq(advertiser.advertise({"address": "127.0.0.1", "port": server.port, "name": "Organiser",
-		"fingerprint": server._lan_pem.sha256_text(), "rooms": 0,
+		"fingerprint": server._lan_pem.sha256_text(), "rooms": 0, "access": "invitation", "tables": [],
 		"build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}, 0), OK)
 	server.poll()
 	var lobby := SgLobby.new()
@@ -581,14 +581,19 @@ func test_normal_browser_discovers_named_tournament_and_invited_player_joins_wit
 	assert_false(JSON.stringify(discovered).contains(server.access_code))
 	assert_false(discovered.has("welcome"), "welcome is shared inside the invited hall, not broadcast")
 	lobby._refresh()
-	var select: Button
+	var rows := ""
+	for label: Label in lobby._body.find_children("*", "Label", true, false): rows += label.text + "\n"
+	assert_string_contains(rows, "Tournament · Friday LAN Cup")
+	var listed: Button
 	for button: Button in lobby._body.find_children("*", "Button", true, false):
-		if button.text == "Select": select = button
-	assert_not_null(select)
-	if select == null: return
-	select.pressed.emit()
+		if button.text == "Join": listed = button
+	assert_not_null(listed)
+	if listed == null: return
+	listed.pressed.emit()
 	assert_eq(lobby._selected_host.tournament, options.name)
 	assert_false(lobby.client.online, "discovery does not grant access")
+	assert_true(lobby._window_open(), "an invitation-only tournament asks for its invitation")
+	assert_string_contains(lobby._invite_prompt.text, "Organiser hosts by invitation only")
 	lobby._code.text = server.invitation()
 	lobby._connect_local()
 	await _until(func() -> bool: return lobby.client.online and lobby.client.state.has("tournament"))

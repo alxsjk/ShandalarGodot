@@ -15763,6 +15763,94 @@ third bander; the take-back; Cancel; the engine's refusal; the
 opponent's frame). Gate on the tree as committed: 477 scripts, **7,518/7,518 tests,
 332,785 asserts**, exit 0 in 206 s over 6 shards; Python 291, exit 0.
 
+## 2026-09-18 — Open tables: the LAN lobby uncluttered (protocol 21)
+
+THE ORDER, after a LAN playtest: *"This invitation copy paste is too
+complicated. For single game as well as for tournament - the default
+should be open no invitation needed. An "invitation only" setting should
+be present right beside host match or tournament and copy invitation
+should be beside it so players can see it. Now everybody is searching
+for this - not ok. Also various deck preferences for players should be
+in sub menu or sub window as not to clutter the main windows with this
+info. Also in the game browser The duel name is not seen. Fix it. Also
+the simple duel should have a setting bring your own deck or assigned
+deck. This should be seen in game finder also. Online windows should be
+less cluttered with only the key setting front-center and all the rest
+in sub menus or windows. Go."*
+
+**The open table.** Every LAN host — a duel or a tournament — is open by
+default: its discovery advert carries the very `sglan1:` invitation the
+host would have handed out (address, port, certificate, access secret),
+so the Game Browser's **Join** connects with a click and nobody pastes
+anything. The trust boundary is the private network, which is what a
+kitchen-table LAN wants. **Invitation only** — a switch right beside
+**Host on LAN** / **Open registration**, with **Copy invitation** at
+its side — keeps the secret and the certificate out of every advert; the
+listing still names the host, its tables and the certificate
+fingerprint, so a pasted invitation is checked against the host that is
+actually listening. `SgLanDiscovery.valid_advert` requires `access`
+("open" / "invitation") and `tables`, accepts `invitation` only on an
+open advert and only when it parses to the advert's own address, port
+and fingerprint; `MAX_PACKET` grows to 16384 for the certificate. The
+host's `start_lan(...)` takes `open`, and `open_to_lan` decides what the
+advert carries.
+
+**The duel by name.** The Game Browser lists one row per *table*, not per
+host: **DUEL** (the name the host typed), **HOST**, **DECKS**, **ACCESS**,
+**BUILD** and Join; a tournament is one row named after the event; a
+host without a table says so. Adverts carry up to `MAX_ROOMS` table rows
+`{name, decks, deck, open}`. Join on an open host connects with the
+published invitation and, once the first state arrives, sits at the
+named table (`_pending_join`); on an invitation-only host it opens the
+**Join by invitation** window with the host named in the prompt. A
+build mismatch is refused before anything is selected, with the reason
+in the notice.
+
+**Bring your own deck, or the host's.** The `host` command carries the
+table's deck rule (`SgProtocol.DECK_RULES`: "own" or "fixed") and, for
+"fixed", the whole assigned deck. A fixed table deals that deck to both
+seats — on join, after a leave, to a computer opponent — and refuses
+the `deck` command with the deck's name; the room's header says *Both
+seats play the assigned deck: X.* and the chooser becomes **Review
+assigned deck**, the full list and nothing to pick. The rule and the
+deck's name travel in the state's room rows and in the advert, so the
+browser shows *Assigned: Knights* or *Bring your own* before anyone
+connects. Protocol **21** (`sgmanalink-local-v21`): both computers need
+this build.
+
+**Front and centre, the rest in windows.** `SgLobbyStyle.window()` is a
+hidden top-level sheet above the master overlay with a centred stone
+frame, a title, a Close button and a scrolling body; a click outside the
+frame or Escape closes it, and containers skip it in layout. Host Game
+keeps DUEL NAME, DECKS (Bring your own deck / Assigned deck, **Choose
+deck…**), ACCESS (Invitation only + Copy invitation) and Host on LAN;
+**Table rules…**, **Network settings…** (address, port, the game-browser
+listing switch and same-computer testing) and the assigned-deck chooser
+are windows. The Game Browser keeps **Find LAN games** and **Join by
+invitation…** (the invitation field, Connect and the local test port
+inside). Tournament setup keeps name, entrants, wins, the deck-policy
+summary with **Change…**, Invitation only + Copy invitation and Open
+registration; the welcome message, the save folder, saved tournaments
+and the deck policy with its approved-deck browser are windows. The
+duel room's header and the tournament hall's header name the table's
+access and carry Copy invitation for the host. Opening a menu still
+starts no network operation: Find LAN games stays a click.
+
+Tests: `test_sgmanalink_open_tables_2026_09_18.gd` (the advert over real
+UDP: invitation and tables on an open host, neither secret nor PEM on
+an invitation-only one; Join from the browser connecting and seating at
+the named table; the assigned deck dealt, refused and kept through a
+leave; the version-21 `host` schema) and
+`test_sgmanalink_lobby_windows_2026_09_18.gd` (Host Game's controls and
+Copy beside Invitation only; the windows by button, Escape and a click
+on the sheet; the browser's rows; the tournament setup's windows and
+copy-button states). The old privacy invariants moved with the design:
+`test_sgmanalink_lan_pair_2026_09_17.gd` now proves the open advert
+carries the host's own invitation and the invitation-only advert
+carries neither secret nor certificate. Gate on the tree as committed:
+479 scripts, **7,529/7,529 tests, 333,335 asserts**, exit 0
+in 204 s over 6 shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

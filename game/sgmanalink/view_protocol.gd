@@ -40,9 +40,10 @@ static func valid(message: Dictionary) -> bool:
 				or not message.rooms is Array or message.rooms.size() > SgLocalServer.MAX_ROOMS or not room(message.room):
 				return false
 			for item in message.rooms:
-				if not item is Dictionary or not SgProtocol.exact(item, ["id", "name", "host", "open"]) \
+				if not item is Dictionary or not SgProtocol.exact(item, ["id", "name", "host", "open", "decks", "deck"]) \
 					or not SgProtocol.short_text(item.id, 16) or not SgProtocol.short_text(item.name) \
-					or not text(item.host, 40) or not item.open is bool:
+					or not text(item.host, 40) or not item.open is bool \
+					or not item.decks in SgProtocol.DECK_RULES or not text(item.deck, 128):
 					return false
 			return true
 	return false
@@ -63,6 +64,11 @@ static func room(value: Variant) -> bool:
 	if value.is_empty():
 		return true
 	var fields := ["id", "name", "seat", "names", "revision", "ready", "connected", "game", "deck_names", "deck"]
+	# THE OPEN TABLE (2026-09-18): the table's deck rule and the assigned
+	# deck's name. Optional in the DTO so a seat view built by hand stays valid.
+	if value.has("decks") or value.has("fixed_deck"):
+		fields.append_array(["decks", "fixed_deck"])
+		if not value.get("decks") in SgProtocol.DECK_RULES or not text(value.get("fixed_deck"), 128): return false
 	if value.has("bots"):
 		fields.append("bots")
 		if not value.bots is Array or value.bots.size() != 2: return false

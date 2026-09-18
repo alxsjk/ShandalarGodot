@@ -43,7 +43,7 @@ func _connect() -> void:
 	assert_eq(a.connect_local(server.port, server.access_code), OK)
 	assert_eq(b.connect_local(server.port, server.access_code), OK)
 	await _until(func() -> bool: return a.online and b.online)
-	await _command(a, {"op":"host", "name":"Recovery"})
+	await _command(a, {"op": "host", "name": "Recovery", "decks": "own", "deck": {}})
 	await _command(b, {"op":"join", "room":a.state.room.id})
 
 func _install() -> void:

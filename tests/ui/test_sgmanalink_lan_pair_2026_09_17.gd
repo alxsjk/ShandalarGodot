@@ -35,8 +35,8 @@ func _until(predicate: Callable, frames := 600) -> bool:
 ## An ephemeral discovery port: one computer can lend UDP 17898 to one
 ## advertising service, and a suite that takes it would fight a player's
 ## own host — or another checkout — for it.
-func _advertising_host(nickname := "Forest Fox") -> Dictionary:
-	assert_eq(server.start_lan("127.0.0.1", 0, true, nickname, 0), OK)
+func _advertising_host(nickname := "Forest Fox", open := true) -> Dictionary:
+	assert_eq(server.start_lan("127.0.0.1", 0, true, nickname, 0, open), OK)
 	assert_eq(server.discovery_error, OK)
 	assert_eq(scanner.scan(), OK)
 	scanner.query("127.0.0.1", server.discovery._socket.get_local_port())
@@ -59,27 +59,47 @@ func test_the_advert_and_the_invitation_of_one_host_name_the_same_host() -> void
 	assert_eq(String(advert.name), "Forest Fox")
 	assert_eq(String(advert.build), SgCompatibility.fingerprint())
 	assert_eq(advert.stamp, SgCompatibility.stamp())
+	# An open host (the default since 2026-09-18) publishes the invitation
+	# itself, so the Game Browser joins with a click and nobody pastes.
+	assert_eq(String(advert.access), "open")
+	assert_true(SgLanDiscovery.open_host(advert))
+	assert_eq(String(advert.invitation), server.invitation(),
+		"an open host's listing carries the very invitation it would hand out")
+
+
+func test_an_invitation_only_host_never_broadcasts_its_secret_or_certificate() -> void:
+	var advert := await _advertising_host("Forest Fox", false)
+	var invitation := SgLanInvite.parse(server.invitation())
+	if advert.is_empty() or invitation.is_empty(): return
+	assert_eq(String(advert.access), "invitation")
+	assert_false(SgLanDiscovery.open_host(advert))
+	assert_false(advert.has("invitation"), "an invitation-only listing is not an invitation")
+	assert_eq(String(advert.fingerprint), String(invitation.fingerprint),
+		"the listing still pins the certificate so a pasted invitation is checked against it")
 	assert_false(JSON.stringify(scanner.hosts).contains(server.access_code),
-		"a listing is not an invitation: the access secret is never broadcast")
+		"the access secret is never broadcast")
 	assert_false(JSON.stringify(scanner.hosts).contains(server._lan_pem),
 		"the advert carries a fingerprint of the certificate, not the certificate")
 
 
-func test_an_advertised_table_count_moves_without_naming_the_table() -> void:
-	var advert := await _advertising_host("Kitchen host")
+func test_an_advertised_table_names_the_duel_and_its_deck_rule() -> void:
+	var advert := await _advertising_host("Kitchen host", false)
 	if advert.is_empty(): return
 	assert_eq(int(advert.rooms), 0, "a host with no table advertises none")
+	assert_eq(advert.tables, [], "and lists none")
 	var client := SgLocalClient.new()
 	add_child_autofree(client)
 	assert_eq(client.connect_invitation(server.invitation(), "Guest"), OK)
 	await _until(func() -> bool: return client.online)
-	assert_true(client.command({"op": "host", "name": "Kitchen table"}), client.command_error)
+	assert_true(client.command({"op": "host", "name": "Kitchen table", "decks": "own", "deck": {}}), client.command_error)
 	await _until(func() -> bool: return not client.busy())
 	scanner.query("127.0.0.1", server.discovery._socket.get_local_port())
 	await _until(func() -> bool: return int(scanner.hosts.values()[0].host.rooms) == 1)
-	assert_eq(int(scanner.hosts.values()[0].host.rooms), 1, "an open table raises the advertised count")
-	assert_false(JSON.stringify(scanner.hosts).contains("Kitchen table"),
-		"a listing carries how many tables are open, never their names")
+	var listed: Dictionary = scanner.hosts.values()[0].host
+	assert_eq(int(listed.rooms), 1, "an open table raises the advertised count")
+	assert_eq(listed.tables, [{"name": "Kitchen table", "decks": "own", "deck": "", "open": true}],
+		"a listing names the duel and its deck rule: that is what a player looks for")
 	assert_false(JSON.stringify(scanner.hosts).contains(client._resume),
 		"a listing never carries a seat's resume capability")
+	assert_false(JSON.stringify(scanner.hosts).contains(server.access_code))
 	client.forget()

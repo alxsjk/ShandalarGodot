@@ -209,7 +209,7 @@ func test_deck_choice_waits_for_host_confirmation_and_survives_refusal() -> void
 	lobby.client.state = {"room":{}, "rooms":[]}
 	assert_eq(lobby.client.connect_local(host.port, host.access_code), OK)
 	await _until(func() -> bool: return lobby.client.online)
-	assert_true(lobby.client.command({"op":"host", "name":"Deck approval"}))
+	assert_true(lobby.client.command({"op": "host", "name": "Deck approval", "decks": "own", "deck": {}}))
 	await _until(func() -> bool: return not lobby.client.busy())
 	await _pump()
 	lobby._open_decks()

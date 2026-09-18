@@ -24,7 +24,7 @@ func test_lan_discovery_rejects_spoofed_stale_or_oversized_listings() -> void:
 	scanner.scanning = true
 	scanner._nonce = "b".repeat(64)
 	var response := {"v": SgProtocol.VERSION, "type": "sg-lan-host", "nonce": scanner._nonce,
-		"host": {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox",
+		"host": {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox", "access": "invitation", "tables": [],
 			"fingerprint": "a".repeat(64), "rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}}
 	assert_true(scanner.accept_reply(response, "192.168.0.5", 100))
 	assert_false(scanner.accept_reply(response, "192.168.0.6", 100), "no redirected discovery targets")
@@ -34,9 +34,21 @@ func test_lan_discovery_rejects_spoofed_stale_or_oversized_listings() -> void:
 	response.host.name = "[url=bad]host[/url]"
 	assert_false(scanner.accept_reply(response, "192.168.0.5", 100))
 	response.host.name = "Forest Fox"
-	response.host["access"] = "secret"
+	response.host["secret"] = "secret"
+	assert_false(scanner.accept_reply(response, "192.168.0.5", 100), "no field outside the advert's shape")
+	response.host.erase("secret")
+	response.host.invitation = "sglan1:AAAA"
+	assert_false(scanner.accept_reply(response, "192.168.0.5", 100), "an invitation-only host never advertises an invitation")
+	response.host.erase("invitation")
+	response.host.access = "everyone"
 	assert_false(scanner.accept_reply(response, "192.168.0.5", 100))
-	response.host.erase("access")
+	response.host.access = "invitation"
+	response.host.tables = [{"name": "Friendly duel", "decks": "own", "deck": "", "open": true, "secret": 1}]
+	assert_false(scanner.accept_reply(response, "192.168.0.5", 100), "a table row has an exact shape")
+	response.host.tables = [{"name": "Friendly duel", "decks": "borrowed", "deck": "", "open": true}]
+	assert_false(scanner.accept_reply(response, "192.168.0.5", 100))
+	response.host.tables = [{"name": "Friendly duel", "decks": "fixed", "deck": "Knights", "open": true}]
+	assert_true(scanner.accept_reply(response, "192.168.0.5", 100))
 	for i in SgLanDiscovery.MAX_HOSTS + 10:
 		response.host.port = 18000 + i
 		scanner.accept_reply(response, "192.168.0.5", 100)
@@ -173,7 +185,7 @@ func test_compatibility_stamp_is_bounded_and_names_the_first_difference() -> voi
 	assert_string_contains(SgCompatibility.catalogue_mismatch(), "card catalogue differs")
 	assert_eq(SgCompatibility.pack_labels(["pack-1", "pack-3"]), "Packs 1, 3")
 	assert_eq(SgCompatibility.pack_labels([]), "no card packs")
-	var advert := {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox",
+	var advert := {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox", "access": "invitation", "tables": [],
 		"fingerprint": "a".repeat(64), "rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": mine}
 	assert_true(SgLanDiscovery.valid_advert(advert))
 	advert.erase("stamp")
@@ -185,6 +197,19 @@ func test_compatibility_stamp_is_bounded_and_names_the_first_difference() -> voi
 	advert.stamp = oversized.duplicate(true)
 	advert.stamp.packs.resize(SgCompatibility.MAX_PACKS)
 	advert.tournament = "T".repeat(SgProtocol.NICKNAME_LIMIT)
+	# The worst case is an open host: its invitation, a real certificate
+	# inside, and every table named at full length with an assigned deck.
+	var crypto := Crypto.new()
+	var key := crypto.generate_rsa(2048)
+	var certificate := crypto.generate_self_signed_certificate(key, "CN=" + SgLanInvite.COMMON_NAME + ",O=SGManalink,C=XX", "20200101000000", "20400101000000")
+	var pem := SgLanInvite.public_pem(certificate)
+	advert.access = "open"
+	advert.fingerprint = pem.sha256_text()
+	advert.invitation = SgLanInvite.create("192.168.0.5", 17897, "a".repeat(64), pem)
+	for i in SgLocalServer.MAX_ROOMS:
+		advert.tables.append({"name": "T".repeat(32), "decks": "fixed", "deck": "D".repeat(128), "open": i % 2 == 0})
+	assert_true(SgLanDiscovery.valid_advert(advert))
+	assert_true(SgLanDiscovery.open_host(advert))
 	var scanner := SgLanDiscovery.new()
 	scanner._nonce = "n".repeat(64)
 	scanner.scanning = true
@@ -201,7 +226,7 @@ func test_protocol_refuses_unknown_fields_methods_types_and_unbounded_payloads()
 		{"op": "play", "card": 123}, {"op": "ready", "value": 1},
 		{"op": "damage", "points": [["c1", -1]]},
 		{"op": "block", "pairs": [["c1", "c2", "c3"]]},
-		{"op": "host", "name": "[url=bad]spoof[/url]"}]:
+		{"op": "host", "name": "[url=bad]spoof[/url]", "decks": "own", "deck": {}}]:
 		assert_false(SgProtocol.valid(_message(action)), str(action))
 	for value in [-1, 0, 1.5, INF, NAN, "1", true]:
 		var message := _message({"op": "pass"})

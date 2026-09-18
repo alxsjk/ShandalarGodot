@@ -157,11 +157,15 @@ needed); card files have NO class_name (they register by name instead);
   context/view and private checkpoint schemas, pair/roster/lifecycle invariants.
 - `game/sgmanalink/tournament_store.gd` (`SgTournamentStore`): private local JSON
   checkpoint replacement, last-good fallback and compatible saved-event discovery.
-- `game/sgmanalink/tournament_panel.gd` (`SgTournamentPanel`): styled configuration,
-  name/welcome, host-local remembered save-folder picker and saved-event list,
-  full deck review, round scorecards, tabbed Master Panel, standings and entrant hall,
-  the per-seat waiting line that names what each player's hall is waiting for,
-  the pause/resume control and the per-table declare/correct rulings.
+- `game/sgmanalink/tournament_panel.gd` (`SgTournamentPanel`): styled configuration
+  (name, entrant limit, wins, the deck-policy summary, the Invitation only
+  switch with Copy invitation beside it; welcome message, save folder, saved
+  tournaments and the deck policy in sub-windows), host-local remembered
+  save-folder picker and saved-event list, full deck review, round scorecards,
+  tabbed Master Panel, standings and entrant hall with the access line and
+  copy button, the per-seat waiting line that names what each player's hall
+  is waiting for, the pause/resume control and the per-table declare/correct
+  rulings.
 - `game/sgmanalink/tournament_results.gd` (`SgTournamentResults`): read-only shared
   places, separate played/bye/forfeit/ruled accounting and published advancement links.
 - `game/sgmanalink/tournament_bracket.gd` (`SgTournamentBracket`, `BracketCanvas`):
@@ -224,11 +228,13 @@ needed); card files have NO class_name (they register by name instead);
   options, name ownership, consensus and referee trust, privacy, recovery
   and verification gates; documentation only, no selected implementation.
 - `game/sgmanalink/protocol.gd` (`SgProtocol`): bounded ASCII JSON and exact
-  command schemas; bounded temporary nicknames, version-16 handshake (public
+  command schemas; bounded temporary nicknames, version-21 handshake (public
   hack reminders, named damage shields, live ability badges, the readable
   `{game, rules, packs}` stamp beside the fingerprint) and separate message
   limits from per-seat view nesting; `decode_payload(bytes, max_depth)`
-  bounds JSON nesting before parsing.
+  bounds JSON nesting before parsing. The `host` command carries the table's
+  deck rule (`DECK_RULES`: "own" or "fixed") and, for "fixed", the whole
+  assigned deck.
 - `game/sgmanalink/practice_match.gd` (`SgPracticeMatch`): server-side full-pool
   referee, explicit player actions, public/seat-private views and retiring hidden-zone
   handles; retains the Forest practice list as an optional default fixture.
@@ -250,9 +256,13 @@ needed); card files have NO class_name (they register by name instead);
 - `game/sgmanalink/lan_invite.gd` (`SgLanInvite`): private IPv4 validation,
   local adapter addresses and bounded certificate-pinned temporary invitations.
 - `game/sgmanalink/lan_discovery.gd` (`SgLanDiscovery`): opt-in UDP LAN search,
-  bounded untrusted host listings, unicast replies, expiry and secret exclusion;
-  the advert carries the build stamp and tournament name inside `MAX_PACKET`
-  (768) bytes and is decoded four levels deep, no more.
+  bounded untrusted host listings, unicast replies and expiry; the advert
+  carries the build stamp, the tournament name, the `access` mode and up to
+  `MAX_ROOMS` table rows (name, deck rule, assigned deck, open) inside
+  `MAX_PACKET` (16384) bytes, decoded four levels deep, no more. An open
+  host publishes its invitation in the advert (the browser joins with a
+  click); an invitation-only host never broadcasts the secret or the
+  certificate (`open_host`, `valid_table`, `update_tables`).
 - `game/sgmanalink/view_protocol.gd` (`SgViewProtocol`): exact bounded host
   response/room/game/card schemas and consistent card/combat references before
   a client UI sees remote values; bounded, allowlisted public text-effect records
@@ -260,8 +270,11 @@ needed); card files have NO class_name (they register by name instead);
 - `game/sgmanalink/local_server.gd` (`SgLocalServer`): loopback or TLS LAN service,
   room membership, ephemeral capabilities, sequencing/deduplication and
   seat resumption; disambiguated guest labels, bounded in-memory state,
-  ephemeral certificate/invitations, optional LAN advertising, no MElo/public auth;
-  the host's local `open_tournament` / `reclaim_tournament` entry points.
+  ephemeral certificate/invitations, optional LAN advertising (`open_to_lan`
+  decides whether the advert carries the invitation), no MElo/public auth;
+  tables are "own" (bring your own deck) or "fixed" (the host's assigned
+  deck dealt to both seats, the `deck` command refused); the host's local
+  `open_tournament` / `reclaim_tournament` entry points.
 - `game/sgmanalink/local_client.gd` (`SgLocalClient`): value-only WebSocket
   client, pinned native LAN TLS, one outstanding command, retry/reconnect,
   acknowledgement-plus-snapshot completion, stalled-action recovery, bounded
@@ -271,18 +284,29 @@ needed); card files have NO class_name (they register by name instead);
   opt-in local display-name preference; no cryptographic identity or saved credentials.
 - `game/sgmanalink/lobby.gd` (`SgLobby`): separate classic Identity, Host Game,
   Game Browser, deck chooser and waiting-room windows; automatic room creation after hosting,
-  invitation-only hosting, stable waiting-room refreshes, acknowledged deck choices,
+  stable waiting-room refreshes, acknowledged deck choices,
   room-bound chooser lifecycle and no automatic network on opening menus.
   The Overview carries no buttons (the tabs are the map): this computer's
-  version, packs, LAN address and name, and one sentence per page. The
-  game browser lists nearby hosts as a table (name, type, where, tables,
-  build) and names what a host does not match before any connection.
+  version, packs, LAN address and name, and one sentence per page. Host
+  Game keeps the key settings front and centre — duel name, the deck rule
+  (bring your own / assigned deck), the Invitation only switch with Copy
+  invitation right beside it, Host on LAN — and moves table rules, network
+  settings, the assigned-deck chooser and same-computer testing into
+  sub-windows (`SgLobbyStyle.window`). Open tables are the default: the
+  Game Browser lists one row per advertised duel (duel name, host, decks,
+  access, build) and Join connects to an open host with its published
+  invitation and sits at the named table (`_join_advert`, `_pending_join`);
+  an invitation-only host opens the "Join by invitation" window instead.
 - `game/sgmanalink/lobby_style.gd` (`SgLobbyStyle`): shared dark frame,
   parchment sections, readable fields, compact actions and deck-list styling;
   reuses existing fonts, buttons and the vector globe. `button()` builds a
   plain Button and `dress()` gives it the face of the surface it lands on —
   the shell's parchment button on a paper section, the duel window's grey
   one elsewhere — copied from a fresh model so the three never drift.
+  `window()` builds a hidden top-level sub-window (a dimming sheet above the
+  master overlay, a centred stone frame with a title, a Close button and a
+  scrolling body) that `open_window` / `close_window` / `window_open` drive;
+  a click outside the frame or Escape closes it.
 - `game/sgmanalink/card_presentation.gd` (`SgCardPresentation`): detached
   render-only cards for the full registered pool, built from disclosed card DTOs and
   local printed definitions; public hack reminders carried in presentation-only
@@ -334,9 +358,21 @@ needed); card files have NO class_name (they register by name instead);
   masked zones, special actions and hidden-handle retirement.
 - `tests/ui/test_sgmanalink_lan_pair_2026_09_17.gd`: a started LAN host's own
   advert against its own invitation — address, port actually taken, certificate
-  fingerprint, build and stamp — plus the open-table count moving without naming
-  the table and carrying no access or resume secret; an ephemeral discovery port,
-  never the system-wide UDP 17898.
+  fingerprint, build and stamp — the open host's advert carrying that very
+  invitation, the invitation-only host's carrying neither secret nor
+  certificate, and the advertised table naming the duel and its deck rule
+  without any resume secret; an ephemeral discovery port, never the
+  system-wide UDP 17898.
+- `tests/ui/test_sgmanalink_open_tables_2026_09_18.gd`: the open table over
+  real sockets — the advert's invitation and table rows, Join from the Game
+  Browser connecting and sitting at the named table, an assigned deck dealt to
+  both seats and refused as a deck choice, the invitation-only advert without
+  secrets, and the version-21 `host` schema.
+- `tests/ui/test_sgmanalink_lobby_windows_2026_09_18.gd`: the uncluttered
+  lobby — Host Game's front-and-centre controls with Copy invitation beside
+  Invitation only, the sub-windows opening and closing (button, Escape, a click
+  on the sheet), the browser rows naming each duel with its deck rule and
+  access, and the tournament setup's sub-windows and copy-button states.
 - `tests/ui/test_sgmanalink_network.gd`: real sockets, GUI room flow,
   authentication/seat bounds, stale/duplicate commands, disconnects,
   lost acknowledgements, controller replacement, real UDP discovery, TLS LAN

@@ -39,7 +39,7 @@ func test_a_discovery_packet_with_mistyped_fields_is_refused_quietly() -> void:
 	add_child_autofree(scanner)
 	scanner.scanning = true
 	scanner._nonce = "b".repeat(64)
-	var advert := {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox",
+	var advert := {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox", "access": "invitation", "tables": [],
 		"fingerprint": "a".repeat(64), "rooms": 1, "build": SgCompatibility.fingerprint(),
 		"stamp": SgCompatibility.stamp()}
 	var reply := {"v": SgProtocol.VERSION, "type": "sg-lan-host", "nonce": scanner._nonce, "host": advert}

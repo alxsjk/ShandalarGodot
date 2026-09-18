@@ -20,8 +20,10 @@ permanent name reservations. The [authentication and hosting note](sgmanalink-au
 records backend requirements, dated free-tier candidates and decentralized
 alternatives; no official domain or provider has been selected. LAN search
 uses bounded UDP broadcasts and private replies, not a central directory.
-Native clients join using a privately shared invitation that pins an ephemeral
-TLS certificate. Public Internet discovery, NAT traversal and web multiplayer
+Native clients join with an invitation that pins an ephemeral TLS
+certificate: an open table (the default) publishes it in its LAN listing so
+the Game Browser joins with a click; an invitation-only table hands it out
+privately. Public Internet discovery, NAT traversal and web multiplayer
 are separate future work, not supplied by local broadcast discovery.
 
 The goal is dependable online duels behind the familiar Shandalar stone,

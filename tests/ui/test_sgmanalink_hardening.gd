@@ -63,7 +63,7 @@ func _pair() -> void:
 
 func _room() -> void:
 	await _pair()
-	await _act(a, {"op":"host", "name":"Robustness"})
+	await _act(a, {"op": "host", "name": "Robustness", "decks": "own", "deck": {}})
 	await _act(b, {"op":"join", "room":a.state.room.id})
 
 func _sid(client: SgLocalClient) -> int:
@@ -72,11 +72,11 @@ func _sid(client: SgLocalClient) -> int:
 func test_acknowledgement_waits_for_its_resulting_snapshot() -> void:
 	await _pair()
 	server.hold_states = true
-	assert_true(a.command({"op":"host", "name":"Delayed state"}))
+	assert_true(a.command({"op": "host", "name": "Delayed state", "decks": "own", "deck": {}}))
 	await _until(func() -> bool: return server.acknowledgements > 0)
 	for i in 12: await get_tree().process_frame
 	assert_true(a.busy(), "an acknowledgement alone must not unlock stale state")
-	assert_false(a.command({"op":"host", "name":"Too early"}))
+	assert_false(a.command({"op": "host", "name": "Too early", "decks": "own", "deck": {}}))
 	server.release_states()
 	await _until(func() -> bool: return not a.busy())
 	assert_false(a.state.room.is_empty())
@@ -119,7 +119,7 @@ func test_roomless_departure_does_not_rebuild_an_unrelated_duel() -> void:
 
 func test_duplicate_commands_coalesce_their_state_refresh() -> void:
 	await _pair()
-	assert_true(a.command({"op":"host", "name":"Duplicate replies"}))
+	assert_true(a.command({"op": "host", "name": "Duplicate replies", "decks": "own", "deck": {}}))
 	var duplicate := SgProtocol.decode(SgProtocol.encode(a._pending).to_ascii_buffer())
 	await _until(func() -> bool: return not a.busy())
 	for i in 4: await get_tree().process_frame
@@ -151,7 +151,7 @@ func test_host_view_rejects_aliases_and_impossible_combat_references() -> void:
 func test_stalled_snapshot_reconnects_without_repeating_the_applied_action() -> void:
 	await _pair()
 	server.hold_states = true
-	assert_true(a.command({"op":"host", "name":"Stalled state"}))
+	assert_true(a.command({"op": "host", "name": "Stalled state", "decks": "own", "deck": {}}))
 	var sequence: int = a._pending.seq
 	await _until(func() -> bool: return not a._pending_ack.is_empty())
 	a._pending_started = Time.get_ticks_msec() - SgLocalClient.COMMAND_TIMEOUT_MS

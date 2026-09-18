@@ -75,7 +75,7 @@ func _act(client: SgLocalClient, action: Dictionary) -> bool:
 
 func _start_duel() -> void:
 	await _pair()
-	await _act(a, {"op": "host", "name": "Practice room"})
+	await _act(a, {"op": "host", "name": "Practice room", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	await _act(a, {"op": "ready", "value": true})
 	await _act(b, {"op": "ready", "value": true})
@@ -109,7 +109,7 @@ func test_encrypted_full_decks_are_private_and_changes_reset_readiness() -> void
 	server.stop()
 	assert_eq(server.start_lan("127.0.0.1", 0, false), OK)
 	await _pair()
-	await _act(a, {"op": "host", "name": "Full pool"})
+	await _act(a, {"op": "host", "name": "Full pool", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	await _act(a, {"op": "deck", "name": "Knights", "cards": Array(StarterDecks.WHITE_KNIGHTS), "sideboard": ["Terror"]})
 	assert_eq(a.state.room.deck.cards.size(), 40)
@@ -151,7 +151,7 @@ func test_encrypted_full_decks_are_private_and_changes_reset_readiness() -> void
 
 func test_duplicate_host_and_concede_are_not_executed_twice() -> void:
 	await _pair()
-	assert_true(a.command({"op": "host", "name": "One room"}))
+	assert_true(a.command({"op": "host", "name": "One room", "decks": "own", "deck": {}}))
 	var duplicate := a._pending.duplicate(true)
 	await _until(func() -> bool: return not a.busy())
 	a._socket.send_text(JSON.stringify(duplicate))
@@ -237,7 +237,7 @@ func test_invalid_access_or_resume_never_creates_a_session() -> void:
 func test_departing_guests_do_not_exhaust_host_capacity() -> void:
 	assert_eq(a.connect_local(server.port, server.access_code), OK)
 	await _until(func() -> bool: return a.online)
-	await _act(a, {"op": "host", "name": "Stable host"})
+	await _act(a, {"op": "host", "name": "Stable host", "decks": "own", "deck": {}})
 	for i in SgLocalServer.MAX_SESSIONS + 4:
 		assert_eq(b.connect_local(server.port, server.access_code), OK)
 		await _until(func() -> bool: return b.online)
@@ -272,7 +272,7 @@ func test_expired_seat_is_reclaimed_and_retry_explains_the_failure() -> void:
 
 func test_host_can_remove_only_a_disconnected_waiting_guest() -> void:
 	await _pair()
-	await _act(a, {"op": "host", "name": "Waiting room"})
+	await _act(a, {"op": "host", "name": "Waiting room", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	await _act(a, {"op": "remove_guest"})
 	assert_true(server._connected(int(server._rooms[a.state.room.id].seats[1])))
@@ -343,7 +343,7 @@ func test_unrelated_and_refused_commands_reuse_the_cached_room_views() -> void:
 	add_child_autofree(visitor)
 	assert_eq(visitor.connect_local(server.port, server.access_code), OK)
 	await _until(func() -> bool: return visitor.online)
-	await _act(visitor, {"op":"host", "name":"Other room"})
+	await _act(visitor, {"op": "host", "name": "Other room", "decks": "own", "deck": {}})
 	await _act(visitor, {"op":"concede"})
 	assert_eq(match_state.views_built, 2, "unrelated room does not rebuild either duel view")
 	a.state.room.revision = 0
@@ -361,7 +361,7 @@ func test_temporary_names_are_disambiguated_and_cannot_reclaim_a_seat() -> void:
 	assert_true(first_name.begins_with("Forest Fox (Guest "))
 	assert_true(second_name.begins_with("Forest Fox (Guest "))
 	assert_ne(first_name, second_name)
-	await _act(a, {"op": "host", "name": "Guest table"})
+	await _act(a, {"op": "host", "name": "Guest table", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	assert_eq(a.state.room.names, [first_name, second_name])
 	assert_eq(b.state.room.names, a.state.room.names)
@@ -450,14 +450,16 @@ func test_gui_host_browser_join_and_ready_reach_a_private_table() -> void:
 	first._port.min_value = 0
 	first._port.value = 0
 	await _click(first, "Host Game")
-	await _click(first, "Same-computer testing")
+	await _click(first, "Network settings…")
 	await _click(first, "Start local service")
 	assert_not_null(first.service)
 	if first.service == null:
 		return
+	assert_false(first._window_open(), "starting the service closes the settings window")
 	second._port.value = first.service.port
-	second._code.text = first.service.access_code
 	await _click(second, "Game Browser")
+	await _click(second, "Join by invitation…")
+	second._code.text = first.service.access_code
 	await _click(second, "Connect")
 	await _until(func() -> bool: return first.client.online and second.client.online)
 	assert_true(first.client.guest.begins_with("Forest Fox (Guest "))
@@ -612,7 +614,7 @@ func test_lan_discovery_real_udp_reply_has_no_credentials_and_stops() -> void:
 	var scanner := SgLanDiscovery.new()
 	add_child_autofree(advertiser)
 	add_child_autofree(scanner)
-	var advert := {"address": "127.0.0.1", "port": server.port, "name": "Forest Fox",
+	var advert := {"address": "127.0.0.1", "port": server.port, "name": "Forest Fox", "access": "invitation", "tables": [],
 		"fingerprint": "a".repeat(64), "rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}
 	assert_eq(advertiser.advertise(advert, 0), OK)
 	assert_eq(scanner.scan(), OK)
@@ -685,6 +687,7 @@ func test_gui_lan_invitation_flow_and_discovery_selection_mismatch() -> void:
 	assert_true(guest._notice.text.contains("does not match"))
 	guest._selected_host = {}
 	await _click(guest, "Game Browser")
+	await _click(guest, "Join by invitation…")
 	await _click(guest, "Connect")
 	await _until(func() -> bool: return host.client.online and guest.client.online)
 	await _click(host, "Host Game")
@@ -759,7 +762,7 @@ func test_varied_deck_rematches_with_latency_disconnects_and_duplicate_commands(
 	var rounds := maxi(2, mini(20, int(OS.get_environment("SGMANALINK_SOAK_ROUNDS"))))
 	var casts := 0
 	for round_index in rounds:
-		await _act(a, {"op":"host", "name":"Soak duel"})
+		await _act(a, {"op": "host", "name": "Soak duel", "decks": "own", "deck": {}})
 		await _act(b, {"op":"join", "room":a.state.room.id})
 		for seat in 2:
 			await _act(a if seat == 0 else b, {"op":"deck", "name":"Shipped deck",
@@ -859,7 +862,7 @@ func test_a_concession_is_accepted_over_a_revision_the_client_has_not_seen() -> 
 	var refused: Array = []
 	a.refused.connect(func(reason: String) -> void: refused.append(reason))
 	await _pair()
-	await _act(a, {"op": "host", "name": "Practice room"})
+	await _act(a, {"op": "host", "name": "Practice room", "decks": "own", "deck": {}})
 	await _act(b, {"op": "join", "room": a.state.room.id})
 	await _act(a, {"op": "ready", "value": true})
 	await _act(b, {"op": "ready", "value": true})

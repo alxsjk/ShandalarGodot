@@ -9,7 +9,7 @@ The **Tournament** tab adds [LAN knockout events](sgmanalink-tournaments.md)
 with 2–20 entrants, a separate or participating organiser, first to 1/2/3 wins,
 fixed/approved/own deck policies, a live Master Panel, an advancement diagram
 and final standings. [Computer opponents](sgmanalink-computer-players.md) can fill
-duel rooms and a chosen number of tournament seats. Protocol **20** and the
+duel rooms and a chosen number of tournament seats. Protocol **21** and the
 current rules fingerprint require matching updated builds and enabled card
 catalogues on every computer; old LAN development builds cannot join.
 Internet play and MElo are parked.
@@ -34,26 +34,42 @@ Use matching **0.40.0 development builds** and enabled packs on both computers. 
    then **Use this identity**. Names use up to 20 letters, numbers, spaces,
    - or _. This is a temporary display name, not a verified or reserved account.
    You can skip identity creation and play as a guest.
-2. On the host, open **Host Game**, name the duel and choose its LAN IPv4 address. Usually this
-   starts with `192.168.`, `10.` or `172.16.` through `172.31.`. If there
-   are several adapters, choose the address on your opponent's network.
-3. Leave **Visible in the LAN game browser** checked to be discoverable.
-   Uncheck it for an invitation-only host. Choose **Host on LAN**;
-   the host connects itself and creates the duel room automatically.
-4. Choose **Copy invitation** and send it privately to the other player.
-   It is a long, single-line `sglan1:` invitation: host address, port,
-   public certificate and a temporary access secret. Copy the whole thing.
-5. On the other computer, open **Game Browser**, then **Find LAN games**. Select the host,
-   paste their invitation into the invitation field, then **Connect**.
-   Alternatively paste the invitation and Connect directly, without any
-   discovery or manual IP/port entry. The invitation carries both.
-6. In the connected browser, choose **Join** beside the host's duel.
-   Use **Choose / review deck** to search shipped and locally saved decks,
-   inspect the complete list, then **Use this deck**. The chooser stays open
-   until the host confirms the selection; a refusal keeps the selection and
-   shows an explanation. Both choose **Ready**.
+2. On the host, open **Host Game** and name the duel. Under **DECKS** keep
+   **Bring your own deck**, or choose **Assigned deck** and **Choose deck…**
+   to pick the one list both seats will play. Under **ACCESS** the table is
+   **open** by default: anyone on your network sees it in their Game Browser
+   and joins with a click, no invitation needed. Switch on **Invitation
+   only** if only the players you send the invitation to may join; **Copy
+   invitation** sits right beside the switch. Choose **Host on LAN**; the
+   host connects itself and creates the duel room automatically.
+   **Network settings…** holds the LAN IPv4 address (usually `192.168.`,
+   `10.` or `172.16.` through `172.31.`; with several adapters, choose the
+   address on your opponent's network), the port, the **Listed in the LAN
+   game browser** switch and same-computer testing; **Table rules…** shows
+   what the table plays.
+3. On the other computer, open **Game Browser**, then **Find LAN games**.
+   Every duel on the network is listed by name with its host, deck rule
+   (**Bring your own** or **Assigned: …**), access and build. Choose **Join**
+   beside the duel: an open table connects and seats you at once.
+4. For an invitation-only table, the host chooses **Copy invitation** (on
+   Host Game or in the duel room) and sends it privately. It is a long,
+   single-line `sglan1:` invitation: host address, port, public certificate
+   and a temporary access secret. Copy the whole thing. The guest chooses
+   **Join** beside the duel, or **Join by invitation…**, pastes it and
+   chooses **Connect**; no discovery or manual IP/port entry is needed.
+5. In the connected browser, choose **Join** beside the host's duel if you
+   are not seated yet. At a bring-your-own table use **Choose / review deck**
+   to search shipped and locally saved decks, inspect the complete list,
+   then **Use this deck**. The chooser stays open until the host confirms
+   the selection; a refusal keeps the selection and shows an explanation.
+   At an assigned-deck table both seats already hold the host's deck;
+   **Review assigned deck** shows its full list and no other deck is
+   accepted. Both choose **Ready**.
    Changing either deck or replacing an opponent clears both Ready flags so
    both players can review again. Reconnecting the same seat preserves readiness.
+6. The duel room's header names the table's access: an open table reminds
+   the host that players see it in their Game Browser; an invitation-only
+   table keeps **Copy invitation** beside that line.
 7. Review the **online match introduction**: both player/deck names, the actual
    room rules, **Unrated** and **No ante**. Choose **Continue** when ready;
    this appears once before the duel, not every turn. The information stays
@@ -103,10 +119,13 @@ The host must keep its lobby and application open for the whole duel.
 Closing that host stops its service and all rooms. There is no account
 setup, router configuration, automatic port forwarding or external service.
 
-The invitation is a secret, not a public room listing. Clipboard managers
-and the application used to send it may keep their own history. The game
-does not store invitations, private keys or seat credentials in settings or
-logs. Only a display name is saved, and only after explicit confirmation with
+An open table publishes its invitation in its LAN listing on purpose: anyone
+on the network who can see the listing may join, which is what a kitchen-table
+LAN wants. An invitation-only table's listing carries the duel's name, deck rule
+and certificate fingerprint but never the secret or the certificate; its
+invitation is a secret. Clipboard managers and the application used to send it
+may keep their own history. The game does not store invitations, private keys
+or seat credentials in settings or logs. Only a display name is saved, and only after explicit confirmation with
 **Remember** checked. Cancel discards both name and remember-choice edits; using a name with
 Remember unchecked removes the saved preference. Stopping the host invalidates its invitations; starting
 again generates new credentials. Names are not globally reserved.
@@ -269,8 +288,9 @@ always use encrypted `wss://`; they never fall back to plain WebSocket.
   dispatch. Duplicate/contradictory card locations, absent combat-card references
   and unknown keyword values are rejected before replacing the client view.
   Seat authorization comes from the connection, not a player
-  number submitted by the client. The data protocol is version 20 (all players
-  need this updated build, including viewer-specific exile-play permissions,
+  number submitted by the client. The data protocol is version 21 (all players
+  need this updated build, including the table's deck rule and assigned deck,
+  the open host's published invitation, viewer-specific exile-play permissions,
   public hack-effect reminders, live ability badges, the protection-from-
   artifacts badge, each face's printed power/toughness, the turn's
   extra-block permission, the organiser's pause/resume and ruling words,

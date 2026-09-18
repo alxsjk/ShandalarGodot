@@ -124,7 +124,7 @@ func test_seeded_tls_games_replay_identically_through_network_faults() -> void:
 		for stressed in [false, true]:
 			server.duel_seed = first_seed + case_index
 			var decks := _decks(case_index)
-			if not await _command(0, {"op": "host", "name": "Campaign"}): return
+			if not await _command(0, {"op": "host", "name": "Campaign", "decks": "own", "deck": {}}): return
 			if not await _command(1, {"op": "join", "room": peers[0].state.room.id}): return
 			for seat in 2:
 				if not await _command(seat, {"op": "deck", "name": "Fixture %d" % seat, "cards": decks[seat], "sideboard": []}): return
@@ -209,7 +209,7 @@ func _start_fixture() -> SgPracticeMatch:
 		peers.append(peer)
 		assert_eq(peer.connect_invitation(server.invitation()), OK)
 	if not await _until(_settled, "fixture clients connect"): return null
-	if not await _command(0, {"op": "host", "name": "Coverage fixture"}): return null
+	if not await _command(0, {"op": "host", "name": "Coverage fixture", "decks": "own", "deck": {}}): return null
 	if not await _command(1, {"op": "join", "room": peers[0].state.room.id}): return null
 	if not await _command(0, {"op": "ready", "value": true}): return null
 	if not await _command(1, {"op": "ready", "value": true}): return null

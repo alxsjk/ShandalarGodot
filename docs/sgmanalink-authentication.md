@@ -42,8 +42,14 @@ names do not make an Internet-facing service safe: public guest play would
 still require secure transport, session authorization, abuse limits and
 the other public-service gates. The current implementation supports desktop
 private-IPv4 LAN hosting and opt-in local discovery, not public Internet
-hosting. The [playtest guide](sgmanalink-local-playtest.md) documents its
-encrypted invitation transport and host-trust limits.
+hosting. A table is **open** by default: its LAN listing carries the
+invitation itself, so anyone on the private network who sees the listing
+joins with a click — the trust boundary is the network. **Invitation only**
+keeps the secret and the certificate out of every listing; only the players
+the host sends the invitation to can connect, and the listing's certificate
+fingerprint still checks a pasted invitation against the host that is
+actually listening. The [playtest guide](sgmanalink-local-playtest.md)
+documents the encrypted invitation transport and host-trust limits.
 
 ## Do we need a server running all the time?
 

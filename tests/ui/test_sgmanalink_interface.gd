@@ -221,29 +221,38 @@ func test_browser_names_what_a_nearby_host_does_not_match() -> void:
 	lobby._discovery = SgLanDiscovery.new()
 	lobby.add_child(lobby._discovery)
 	var same := {"address": "192.168.0.5", "port": 17897, "name": "Forest Fox", "fingerprint": "a".repeat(64),
-		"rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp()}
+		"rooms": 1, "build": SgCompatibility.fingerprint(), "stamp": SgCompatibility.stamp(), "access": "invitation",
+		"tables": [{"name": "Fox's duel", "decks": "fixed", "deck": "Knights", "open": true}]}
 	var older := same.duplicate(true)
 	older.name = "Old Owl"
 	older.port = 17898
 	older.build = "0".repeat(64)
 	older.stamp.game = "0.31.0"
+	older.tables = [{"name": "Owl's duel", "decks": "own", "deck": "", "open": true}]
 	lobby._discovery.hosts["192.168.0.5:17897"] = {"host": same, "seen": Time.get_ticks_msec()}
 	lobby._discovery.hosts["192.168.0.5:17898"] = {"host": older, "seen": Time.get_ticks_msec()}
 	lobby._refresh()
 	var table: GridContainer = lobby._body.find_children("*", "GridContainer", true, false)[0]
-	assert_eq(table.columns, 6, "name, type, where, tables, build, select")
+	assert_eq(table.columns, 6, "duel, host, decks, access, build, join")
 	var rows := ""
 	for label in table.find_children("*", "Label", true, false): rows += label.text + "\n"
-	for cell in ["NAME", "TYPE", "WHERE", "TABLES", "BUILD", "Forest Fox", "Duel", "192.168.0.5:17897", "1 open", "Same as yours", "Old Owl", "Shandalar 0.31.0"]:
+	for cell in ["DUEL", "HOST", "DECKS", "ACCESS", "BUILD", "Fox's duel", "Forest Fox", "Assigned: Knights", "Invitation",
+			"Same as yours", "Owl's duel", "Old Owl", "Bring your own", "Shandalar 0.31.0"]:
 		assert_string_contains(rows, cell)
-	var selects: Array = []
+	assert_false(rows.contains("192.168.0.5"), "the address is a tooltip, not a column")
+	var joins: Array = []
 	for node in table.find_children("*", "Button", true, false):
-		if node.text == "Select": selects.append(node)
-	assert_eq(selects.size(), 2)
-	selects[1].pressed.emit()
+		if node.text == "Join": joins.append(node)
+	assert_eq(joins.size(), 2)
+	joins[1].pressed.emit()
 	await get_tree().process_frame
-	assert_eq(lobby._selected_host.name, "Old Owl")
-	var explanation := ""
-	for label in lobby._body.find_children("*", "Label", true, false): explanation += label.text + "\n"
-	assert_string_contains(explanation, "This host runs Shandalar 0.31.0; you run " + SgCompatibility.game_version())
+	assert_true(lobby._selected_host.is_empty(), "a mismatched host is refused before it is selected")
+	assert_string_contains(lobby._notice.text, "This host runs Shandalar 0.31.0; you run " + SgCompatibility.game_version())
 	assert_false(lobby.client._wanted)
+	joins[0].pressed.emit()
+	await get_tree().process_frame
+	assert_eq(lobby._selected_host.name, "Forest Fox")
+	assert_eq(lobby._pending_join, "Fox's duel")
+	assert_true(lobby._window_open(), "an invitation-only host asks for the invitation")
+	assert_string_contains(lobby._invite_prompt.text, "Forest Fox hosts by invitation only")
+	assert_false(lobby.client._wanted, "no socket until the invitation is pasted")

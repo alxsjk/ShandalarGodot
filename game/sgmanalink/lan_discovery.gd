@@ -1,12 +1,21 @@
 class_name SgLanDiscovery
 extends Node
 ## [QoL] Explicit, bounded IPv4 LAN discovery. UDP announcements are UNTRUSTED.
-## Broadcast queries + unicast replies; no accounts, directory or secret broadcast.
-## Desktop only. Joining always uses a separately shared, certificate-pinned invite.
+## Broadcast queries + unicast replies; no accounts or directory. Desktop only.
+## Joining always uses a certificate-pinned invitation. THE OPEN TABLE
+## (2026-09-18): an OPEN host publishes that invitation in its own advert, by
+## design — anyone on the LAN may sit down, so the Game Browser's Join button
+## connects without a paste. An INVITATION-ONLY host advertises its name and
+## tables but never the access secret or the certificate; its guests paste
+## the invitation the host handed them. Either way the browser learns each
+## table's duel name and deck rule, so a player picks a table, not a host.
 
 signal changed
 const PORT := 17898
-const MAX_PACKET := 768
+## An open advert carries the invitation (up to SgLanInvite.MAX_LENGTH) and
+## ten table rows; well inside one UDP datagram, fragmented or not on a LAN.
+const MAX_PACKET := 16384
+const ACCESS := ["open", "invitation"]
 const MAX_HOSTS := 64
 const EXPIRES_MS := 7000
 var hosts: Dictionary = {}
@@ -54,6 +63,24 @@ func update_rooms(count: int) -> void:
 		_advert.rooms = clampi(count, 0, SgLocalServer.MAX_ROOMS)
 
 
+## The tables of the host as the browser lists them: `name`, `decks` ("own"
+## or "fixed"), `deck` (the assigned deck's name, "" for bring-your-own) and
+## `open` (a seat is free). Rows that fail the advert check are dropped.
+func update_tables(tables: Array) -> void:
+	if not advertising: return
+	var rows: Array = []
+	for row in tables:
+		if rows.size() >= SgLocalServer.MAX_ROOMS: break
+		if valid_table(row): rows.append(row.duplicate(true))
+	_advert.tables = rows
+
+
+static func valid_table(row: Variant) -> bool:
+	return row is Dictionary and SgProtocol.exact(row, ["name", "decks", "deck", "open"]) \
+		and SgProtocol.short_text(row.name) and row.decks in SgProtocol.DECK_RULES \
+		and SgViewProtocol.text(row.deck, 128) and row.open is bool
+
+
 func update_tournament(tournament_name: String) -> void:
 	if not advertising: return
 	if tournament_name.is_empty(): _advert.erase("tournament")
@@ -86,16 +113,35 @@ func query(destination := "255.255.255.255", discovery_port := PORT) -> void:
 
 
 static func valid_advert(data: Dictionary) -> bool:
-	var fields := ["address", "port", "name", "fingerprint", "rooms", "build", "stamp"]
+	var fields := ["address", "port", "name", "fingerprint", "rooms", "build", "stamp", "access", "tables"]
 	if data.has("tournament"):
 		fields.append("tournament")
 		if not SgProtocol.short_text(data.tournament): return false
-	return SgProtocol.exact(data, fields) \
-		and SgLanInvite.address(data.get("address")) \
-		and SgProtocol.integer(data.get("port"), 1, 65535) \
-		and SgProtocol.short_text(data.get("name"), SgProtocol.NICKNAME_LIMIT) \
-		and SgProtocol.token(data.get("fingerprint")) and SgProtocol.integer(data.get("rooms"), 0, SgLocalServer.MAX_ROOMS) \
-		and SgProtocol.token(data.get("build")) and SgCompatibility.valid_stamp(data.get("stamp"))
+	if data.has("invitation"): fields.append("invitation")
+	if not SgProtocol.exact(data, fields) \
+		or not SgLanInvite.address(data.get("address")) \
+		or not SgProtocol.integer(data.get("port"), 1, 65535) \
+		or not SgProtocol.short_text(data.get("name"), SgProtocol.NICKNAME_LIMIT) \
+		or not SgProtocol.token(data.get("fingerprint")) or not SgProtocol.integer(data.get("rooms"), 0, SgLocalServer.MAX_ROOMS) \
+		or not SgProtocol.token(data.get("build")) or not SgCompatibility.valid_stamp(data.get("stamp")) \
+		or not data.access in ACCESS or not data.tables is Array or data.tables.size() > SgLocalServer.MAX_ROOMS:
+		return false
+	for row in data.tables:
+		if not valid_table(row): return false
+	# Only an open host publishes its invitation, and only its own: the
+	# address, port and certificate inside it must be the advert's.
+	if data.has("invitation"):
+		if data.access != "open" or not data.invitation is String: return false
+		var invite := SgLanInvite.parse(data.invitation)
+		if invite.is_empty() or invite.address != data.address or int(invite.port) != int(data.port) \
+			or invite.fingerprint != data.fingerprint:
+			return false
+	return true
+
+
+## True for a listing whose Join needs no paste.
+static func open_host(advert: Dictionary) -> bool:
+	return advert.get("access") == "open" and advert.get("invitation") is String
 
 
 func accept_reply(data: Dictionary, source: String, now: int) -> bool:
