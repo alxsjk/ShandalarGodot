@@ -824,6 +824,8 @@ func test_the_deck_builder_page_names_every_command_and_key() -> void:
 	for label in DeckBuilderScreen.EXTRA_COMMANDS:
 		assert_true(text.contains(label), "[QoL] command '%s'" % label)
 	assert_true(text.contains(DeckBuilderScreen.AI_COMMAND), "AutoDeck, at the top of the menu")
+	for wish in ["up to five", "a gold deck", "common-pauper", "only rares", "classic lands", "non-classic"]:
+		assert_true(text.contains(wish), "AutoDeck's wishes of 2026-09-18: '%s'" % wish)
 	for label in DeckBuilderScreen.STATS_PAGES:
 		assert_true(text.contains(label), "Stats page '%s'" % label)
 	for keycode in DeckBuilderScreen.SHORTCUTS:

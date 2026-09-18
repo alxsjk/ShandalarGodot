@@ -15588,6 +15588,96 @@ old name quote the new one; nothing else moved. Gate on the tree as
 committed: 476 scripts, **7,500/7,500 tests, 332,199 asserts**, exit 0
 in 200 s over 6 shards; Python 291, exit 0.
 
+## 2026-09-18 — AutoDeck's rarity, five colours, gold and the non-classic lands
+
+THE ORDER: *"AutoDeck: Rarity add "only rares" - only rare and legendary,
+"uncommon up" - cards that are uncommon, rare, legendary, common only
+cards - rename to "common-pauper"; for the color options make also at
+most 5 colors (some players build 5 color decks) and add another
+option: gold/multicolor deck (therein the AutoDeck prefers gold
+-multicolor cards)! Add an option for lands also: classic lands/non-
+classic lands (in non-classic lands the AutoDeck prefers powerful dual
+lands, lands with abilities etc.)."*
+
+**The rarity is a floor and a ceiling now** (`AutoDeck.RARITY_RANGE`),
+five wishes on the window's Rarity row: Any; Common-pauper (commons
+only — the old "Common" renamed); No rares (commons and uncommons); the
+new Uncommon up (uncommons, rares and legends, no commons) and Only
+rares (rares and legends). The rank is `DeckStats.rarity_tier` — the
+LEGENDARY supertype ranks above rare — and the wish holds for every
+card of the pool but the basics, lands included, so a pauper deck lays
+basics alone and an only-rares deck from the library still finds its
+duals. The saved words of the first release (`""`, `common`,
+`uncommon`) still read; a stranger falls back to Any. The notes say
+`Rarity: uncommons, rares and legends.` when a wish is set.
+
+**Five colours at most.** The At most row runs 1 to 5; five ticked
+colours build a five-colour deck (each basic with pips gets its two at
+least, the pip strain of the fill grown a hair per colour beyond the
+first — `_pip_strain` — so a five-colour deck does not stack triple
+pips). The builder's own choice, capped at five, still settles on fewer
+when the pool is not deep enough to pay the per-colour discount.
+
+**A gold deck** (`AutoDeck.gold`, the `GoldLine` tick under At most):
+every multicoloured card — two colours or more in its cost,
+`AutoDeck.is_gold` — gets `GOLD_BONUS` (2.5, a whole curve nudge) on
+its `worth`, which is what the colour choice and the fill go by; so
+with colours of the builder's own choosing the gold deck goes where the
+gold cards are (red-green in the library, Scarwood Goblins and the
+legends of the mountain, 13 gold in 36), and in blue-black it takes the
+seven blue-black legends of Legends within the curve (all five-drops
+and up, `LEGEND_CAP` two of each: 7 in 36). A point and a half, the
+first try, left blue-black five gold cards in thirty-six. A gold deck is
+two colours at least — `max_colors` widened and `_choose_colors` skips
+the mono masks — even from a pool with no gold card in it (Fourth
+Edition has none), and the notes say either `A gold deck: multicoloured
+cards preferred; 7 of the 36 spells are gold.` or `…, but the pool had
+none the deck could cast.`
+
+**Classic and non-classic lands** (`AutoDeck.land_kind`, the Lands
+row). Classic — the default, and what every deck was until now — is the
+five basics alone, whatever the pool holds; the Taiga in the pool stays
+in the pool. Non-classic lays the pool's non-basic lands first, best
+first by `land_worth`: a point for each of the deck's colours a land
+makes and half more for two or more (a dual of the deck's colours 2.5,
+City of Brass in three colours 3.0 and in two a dual that hurts, 2.0),
+four tenths for colourless mana, half a point off for none, half a
+point per activated ability beyond the mana, a share of `ROLE_WORTH`
+for the roles the duel AI reads off the land, `LAND_NOTES` for what it
+cannot read (the Factory is a creature, the Library a card a turn, Strip
+Mine a land a turn, the Maze 1.2, Sorrow's Path −1.0) and half a point
+off for `damage to you`. A land that makes only colours the deck is not
+(Taiga in blue-black, Karakas) is worth nothing to it, and a non-basic
+must be worth more than a basic (`LAND_FLOOR` 1.0) to take a basic's
+slot — a Tundra in blue-black is an Island with a white side, City of
+Brass in one colour an Island that hurts, and neither is laid. Up to
+half the lands (`NONBASIC_SHARE`), four of one (`NONBASIC_CAP`), the
+lands that make no colour of the deck within `COLORLESS_ROOM` (2 in 40,
+4 in 60) and those that make no mana within `NO_MANA_ROOM` (1, 2), so
+the basics still carry the colours; the basics then fall by the pips as
+before. Blue-black from the library: 4 Underground Sea, the Factory,
+one Library of Alexandria (restricted), Urborg, Tolaria; the band-lands,
+the Tabernacle, Sorrow's Path and the lone Urza's lands never. The notes
+say `Non-classic lands: 12 of the 24 lands are not basics.`
+
+The window (`AutoDeckWindow`, 680×700 of the 800) shows the At most row
+of five, the gold tick, the Rarity row of five and the Lands row of two,
+and the summary line grows a sentence — `A gold deck, only rares,
+non-classic lands.` — when any is set; the Help page's AutoDeck
+paragraph names them all. Screenshot-checked under Xvfb: the window
+fits with the footer clear.
+
+Tests: `test_auto_deck.gd` 27 tests (the rarity wish all four ways with
+the saved words; five colours; the gold deck against the plain one, its
+own choice of colours, mono widened, Fourth Edition's none; classic
+lands the basics alone; non-classic lands from Fourth Edition with a
+Taiga and from the whole library with the rooms; `land_worth` orderings),
+`test_auto_deck_window.gd` 12 (the new controls, their defaults, the
+summary sentence, the notes, the window remembering), `test_help_screen`
+quotes the wishes. Gate on the tree as committed: 476 scripts,
+**7,504/7,504 tests, 332,953 asserts**, exit 0 in 201 s over 6 shards;
+Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

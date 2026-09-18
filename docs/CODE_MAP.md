@@ -24,7 +24,13 @@ needed); card files have NO class_name (they register by name instead);
   legal deck out — score, choose the colours, fill the spells, lay the lands;
   the method is at the head of the file. Seeded, so a test can hold it still.
   The speed is the cost of the cards: `TEMPO` prices the mana value and the
-  curve is held firmly (fast: three spells in ten first-turn castables).
+  curve is held firmly (fast: three spells in ten first-turn castables). The
+  wishes of 2026-09-18: up to five colours; a gold deck (`GOLD_BONUS` on every
+  multicoloured card, two colours at least); the rarity as a floor and a
+  ceiling (`RARITY_RANGE`: common-pauper, no rares, uncommon up, only rares);
+  classic lands (the basics alone) or non-classic (`land_worth` prices the
+  pool's duals, City of Brass and the lands with abilities; `_lay_nonbasics`
+  lays the best up to half the lands, the colourless ones within a room).
 - `game/deck_builder/auto_deck_window.gd` (`AutoDeckWindow`): the dialog — the pool
   (sets, the dealt cards, a file or a paste), the wishes, a summary line, `Build
   me a deck`; the wishes remembered under `auto_deck_options`.
@@ -6754,9 +6760,11 @@ shandalar/
 │   │   │                      (`pool_from_sets`, `pool_from_names`,
 │   │   │                      `pool_from_text` — the DeckList parser's
 │   │   │                      leniency, unknown names reported) and the
-│   │   │                      wishes (colours and how many at most, 40 or
-│   │   │                      60, creatures / balanced / spells, fast /
-│   │   │                      medium / slow, a rarity ceiling, tournament
+│   │   │                      wishes (colours and how many at most, up
+│   │   │                      to five, a gold deck, 40 or 60, creatures /
+│   │   │                      balanced / spells, fast / medium / slow,
+│   │   │                      the rarity as a floor and a ceiling,
+│   │   │                      classic or non-classic lands, tournament
 │   │   │                      rules, a deck to build around, a seed) in;
 │   │   │                      `build()` a legal DeckModel out, named by
 │   │   │                      its colours and shape (`deck_name`), its
@@ -6792,9 +6800,12 @@ shandalar/
 │   │   │                      pool medallion: the pool (the sets ticked,
 │   │   │                      the dealt cards or the pool in force, a
 │   │   │                      file or a paste), the five colours as icon
-│   │   │                      toggles, at most 1/2/3, 40/60, the lean,
-│   │   │                      the speed, the rarity ceiling, tournament
-│   │   │                      rules, build around the surface; a summary
+│   │   │                      toggles, at most 1 to 5, a gold deck,
+│   │   │                      40/60, the lean, the speed, the rarity
+│   │   │                      (any, common-pauper, no rares, uncommon
+│   │   │                      up, only rares), classic or non-classic
+│   │   │                      lands, tournament rules, build around the
+│   │   │                      surface; a summary
 │   │   │                      line that says what the build will be and
 │   │   │                      a `Build me a deck` greyed with nothing to
 │   │   │                      build from. Remembers its wishes under

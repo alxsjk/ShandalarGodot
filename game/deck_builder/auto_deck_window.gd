@@ -15,14 +15,17 @@ extends RefCounted
 ## draft pool file or a plain collection list all read.
 ##
 ## THE WISHES: which colours (none = the builder's choice) and how many
-## at most; 40 or 60 cards; more creatures or more spells; fast, medium
-## or slow; a rarity ceiling for a pauper-style build; the tournament
-## rules on or off; and whether to build around the cards already on the
-## surface. All of it is remembered between visits under one settings
-## key, the way the Sealed Deck window's numbers are.
+## at most, up to five; a gold deck, multicoloured cards preferred; 40
+## or 60 cards; more creatures or more spells; fast, medium or slow; a
+## rarity — commons only, no rares, uncommons and up, rares and legends
+## only; classic lands (the basics) or non-classic (the pool's duals and
+## lands with abilities preferred); the tournament rules on or off; and
+## whether to build around the cards already on the surface. All of it
+## is remembered between visits under one settings key, the way the
+## Sealed Deck window's numbers are.
 
 const TITLE := "AutoDeck"
-const WINDOW_SIZE := Vector2(680, 640)
+const WINDOW_SIZE := Vector2(680, 700)
 ## The `[Settings]` key the wishes are kept under.
 const OPTIONS_SETTING := "auto_deck_options"
 ## The three pools.
@@ -31,10 +34,17 @@ const SOURCE_DEALT := "dealt"
 const SOURCE_LIST := "list"
 ## The wishes as saved, and their defaults.
 const DEFAULTS := {
-	"source": SOURCE_SETS, "sets": ["4ed"], "colors": 0, "max_colors": 2,
+	"source": SOURCE_SETS, "sets": ["4ed"], "colors": 0, "max_colors": 2, "gold": false,
 	"size": 60, "lean": AutoDeck.LEAN_BALANCED, "speed": AutoDeck.SPEED_MEDIUM,
-	"rarity": AutoDeck.RARITY_ANY, "tournament": true, "keep": false,
+	"rarity": AutoDeck.RARITY_ANY, "lands": AutoDeck.LANDS_CLASSIC,
+	"tournament": true, "keep": false,
 }
+## The rarity wishes as the window words them, in the row's order.
+const RARITY_LABELS := {AutoDeck.RARITY_ANY: "Any", AutoDeck.RARITY_PAUPER: "Common-pauper",
+	AutoDeck.RARITY_NO_RARES: "No rares", AutoDeck.RARITY_UNCOMMON_UP: "Uncommon up",
+	AutoDeck.RARITY_RARES: "Only rares"}
+const GOLD_TEXT := "Gold deck — multicoloured cards preferred"
+
 const BRIEF := "Pick a card pool, say what you like, and the builder lays out a deck. Basic lands are always free."
 const NO_LIST := "No list yet — a file or a paste of card lines, `4 Lightning Bolt` a line."
 const PASTE_TITLE := "Paste a card list"
@@ -54,6 +64,7 @@ var _set_lines: Dictionary = {}
 var _groups: Dictionary = {}
 var _color_buttons: Dictionary = {}
 var _tournament_line: Button
+var _gold_line: Button
 var _keep_line: Button
 var _list_line: Label
 var _summary: Label
@@ -169,7 +180,14 @@ func _build() -> void:
 		color_row.add_child(button)
 	body.add_child(color_row)
 	_choice_row(body, "At most", "max_colors", [[1, "1 colour", "Mono-coloured."],
-		[2, "2 colours", "Two colours — the norm."], [3, "3 colours", "Three colours; the lands will be thin."]])
+		[2, "2 colours", "Two colours — the norm."], [3, "3 colours", "Three colours; the lands will be thin."],
+		[4, "4 colours", "Up to four colours; tick the four to make sure of them."],
+		[5, "5 colours", "Up to five colours — tick all five to make sure of a five-colour deck."]])
+	_gold_line = _tick_line(GOLD_TEXT, "GoldLine", func() -> void:
+		options["gold"] = not bool(options["gold"])
+		_refresh())
+	_gold_line.tooltip_text = "Cards of two colours or more come first; two colours at least."
+	body.add_child(_gold_line)
 
 	# --- the deck ---
 	body.add_child(_head("Deck"))
@@ -184,9 +202,14 @@ func _build() -> void:
 		[AutoDeck.SPEED_MEDIUM, "Medium", "A curve that peaks at two and three; %d lands in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_MEDIUM])],
 		[AutoDeck.SPEED_SLOW, "Slow", "Hardly a one-drop; big spells and the lands to cast them, %d in 60." % int(AutoDeck.LANDS[60][AutoDeck.SPEED_SLOW])]])
 	_choice_row(body, "Rarity", "rarity", [
-		[AutoDeck.RARITY_ANY, "Any", "Every card in the pool."],
-		["uncommon", "No rares", "Commons and uncommons only — no rares, no legends."],
-		["common", "Commons only", "A pauper deck."]])
+		[AutoDeck.RARITY_ANY, RARITY_LABELS[AutoDeck.RARITY_ANY], "Every card in the pool."],
+		[AutoDeck.RARITY_PAUPER, RARITY_LABELS[AutoDeck.RARITY_PAUPER], "Commons only — a pauper deck."],
+		[AutoDeck.RARITY_NO_RARES, RARITY_LABELS[AutoDeck.RARITY_NO_RARES], "Commons and uncommons — no rares, no legends."],
+		[AutoDeck.RARITY_UNCOMMON_UP, RARITY_LABELS[AutoDeck.RARITY_UNCOMMON_UP], "Uncommons, rares and legends — no commons."],
+		[AutoDeck.RARITY_RARES, RARITY_LABELS[AutoDeck.RARITY_RARES], "Rares and legends only."]])
+	_choice_row(body, "Lands", "lands", [
+		[AutoDeck.LANDS_CLASSIC, "Classic", "Basic lands only — Plains, Island, Swamp, Mountain and Forest in the proportion of the pips."],
+		[AutoDeck.LANDS_NONCLASSIC, "Non-classic", "Dual lands, City of Brass and lands with abilities from the pool first, up to half the lands; the basics fill the rest."]])
 	_tournament_line = _tick_line("Tournament rules — no banned cards, restricted cards once", "TournamentLine",
 		func() -> void:
 			options["tournament"] = not bool(options["tournament"])
@@ -368,6 +391,7 @@ func _refresh() -> void:
 		AutoDeck.pool_total(list_pool), list_pool.size(), list_label]
 	_tournament_line.text = _tick_text(bool(options["tournament"]),
 		"Tournament rules — no banned cards, restricted cards once")
+	_gold_line.text = _tick_text(bool(options["gold"]), GOLD_TEXT)
 	var keepable := _keepable()
 	_keep_line.text = _tick_text(bool(options["keep"]) and keepable > 0,
 		"Build around the %d non-land card%s already on the surface" % [keepable, "" if keepable == 1 else "s"]
@@ -377,10 +401,23 @@ func _refresh() -> void:
 	var total := AutoDeck.pool_total(pool)
 	var colors := int(options["colors"])
 	var color_words := "the builder's choice of colours" if colors == 0 else AutoDeck.color_phrase(colors).to_lower()
+	var most := maxi(int(options["max_colors"]), AutoDeck._count_colors(colors))
+	if bool(options["gold"]):
+		most = maxi(most, 2)
 	_summary.text = "%d cards from %s — %d on offer, %d names; %s, up to %d; %s, %s." % [
-		int(options["size"]), pool_label(), total, pool.size(), color_words,
-		maxi(int(options["max_colors"]), AutoDeck._count_colors(colors)),
+		int(options["size"]), pool_label(), total, pool.size(), color_words, most,
 		String(options["lean"]), String(options["speed"])]
+	# The wishes beyond the defaults, in a sentence of their own.
+	var extras: PackedStringArray = []
+	if bool(options["gold"]):
+		extras.append("a gold deck")
+	if String(options["rarity"]) != AutoDeck.RARITY_ANY:
+		extras.append(String(RARITY_LABELS.get(options["rarity"], "")).to_lower())
+	if String(options["lands"]) == AutoDeck.LANDS_NONCLASSIC:
+		extras.append("non-classic lands")
+	if not extras.is_empty():
+		var sentence := ", ".join(extras)
+		_summary.text += " %s%s." % [sentence.left(1).to_upper(), sentence.substr(1)]
 	_build_button.disabled = total == 0
 	if total == 0:
 		_summary.text += " Nothing to build from yet."
@@ -453,9 +490,11 @@ func builder() -> AutoDeck:
 	auto.size = int(options["size"])
 	auto.colors = int(options["colors"])
 	auto.max_colors = int(options["max_colors"])
+	auto.gold = bool(options["gold"])
 	auto.lean = String(options["lean"])
 	auto.speed = String(options["speed"])
-	auto.rarity_cap = String(options["rarity"])
+	auto.rarity = String(options["rarity"])
+	auto.land_kind = String(options["lands"])
 	auto.tournament = bool(options["tournament"])
 	if bool(options["keep"]) and _keepable() > 0:
 		auto.keep = screen.deck.duplicate_model()

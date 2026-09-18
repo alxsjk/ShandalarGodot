@@ -127,10 +127,21 @@ func test_the_window_shows_the_pool_and_the_wishes_with_their_defaults() -> void
 			# The symbols are the skin's; the bare clone has none to wear.
 			assert_not_null(button.icon, "%s wears its mana symbol" % letter)
 	assert_true((_in("MaxColors_2") as Button).button_pressed, "two colours at most")
+	for n in [1, 2, 3, 4, 5]:
+		assert_not_null(_in("MaxColors_%d" % n), "up to five colours (2026-09-18)")
+	assert_eq((_in("GoldLine") as Button).text, "[  ] " + AutoDeckWindow.GOLD_TEXT, "not a gold deck")
 	assert_true((_in("Size_60") as Button).button_pressed, "sixty")
 	assert_true((_in("Lean_balanced") as Button).button_pressed)
 	assert_true((_in("Speed_medium") as Button).button_pressed)
 	assert_true((_in("Rarity_") as Button).button_pressed, "any rarity")
+	for value in AutoDeck.RARITIES:
+		var button: Button = _in("Rarity_" + value)
+		assert_not_null(button, "a rarity button for %s" % value)
+		assert_eq(button.text, String(AutoDeckWindow.RARITY_LABELS[value]))
+	assert_eq((_in("Rarity_common") as Button).text, "Common-pauper")
+	assert_eq((_in("Rarity_rares") as Button).text, "Only rares")
+	assert_true((_in("Lands_classic") as Button).button_pressed, "classic lands")
+	assert_false((_in("Lands_nonclassic") as Button).button_pressed)
 	assert_false((_in("Size_40") as Button).button_pressed)
 	assert_true((_in("TournamentLine") as Button).text.begins_with("[x] Tournament rules"))
 	var keep: Button = _in("KeepLine")
@@ -205,7 +216,14 @@ func test_the_wishes_reach_the_builder() -> void:
 	var summary: Label = _in("SummaryLine")
 	assert_true(summary.text.begins_with("40 cards from Fourth Edition — "), summary.text)
 	assert_true(summary.text.contains("blue-black, up to 2; creatures, fast."), summary.text)
+	assert_true(summary.text.ends_with("creatures, fast."), "nothing beyond the defaults yet: " + summary.text)
 	assert_true((_in("TournamentLine") as Button).text.begins_with("[  ]"), "the rules off")
+	# The wishes of 2026-09-18: a gold deck, a rarity, the lands.
+	_in("GoldLine").pressed.emit()
+	_in("Rarity_uncommon_up").pressed.emit()
+	_in("Lands_nonclassic").pressed.emit()
+	assert_eq((_in("GoldLine") as Button).text, "[x] " + AutoDeckWindow.GOLD_TEXT)
+	assert_true(summary.text.ends_with("creatures, fast. A gold deck, uncommon up, non-classic lands."), summary.text)
 	_in("BuildButton").pressed.emit()
 	await get_tree().process_frame
 	assert_eq(screen.deck.total(), 40)
@@ -213,8 +231,17 @@ func test_the_wishes_reach_the_builder() -> void:
 	assert_true(screen.deck.deck_name.begins_with("Blue-Black "), screen.deck.deck_name)
 	assert_true(screen.deck.deck_name.ends_with(" Rush"), screen.deck.deck_name)
 	assert_true(screen.deck.notes.contains("Built without the tournament rules"), screen.deck.notes)
+	assert_true(screen.deck.notes.contains("A gold deck: multicoloured cards preferred, but the pool had none the deck could cast."),
+		"Fourth Edition has no gold card: " + screen.deck.notes)
+	assert_true(screen.deck.notes.contains("Rarity: uncommons, rares and legends."), screen.deck.notes)
+	assert_true(screen.deck.notes.contains("Non-classic lands:"), screen.deck.notes)
 	for land in ["Plains", "Mountain", "Forest"]:
 		assert_eq(screen.deck.count_of(land), 0, "no %s" % land)
+	for name in screen.deck.names():
+		if AutoDeck.BASICS.has(name):
+			continue
+		var tier := DeckStats.rarity_tier(DeckModel._card(name))
+		assert_true(tier != "common", "%s is %s: no commons in an uncommon-up deck" % [name, tier])
 	# Reopened, the window remembers.
 	await _open()
 	assert_true((_in("Color_U") as Button).button_pressed)
@@ -224,6 +251,23 @@ func test_the_wishes_reach_the_builder() -> void:
 	assert_true((_in("Lean_creatures") as Button).button_pressed)
 	assert_true((_in("Speed_fast") as Button).button_pressed)
 	assert_true((_in("TournamentLine") as Button).text.begins_with("[  ]"))
+	assert_true((_in("GoldLine") as Button).text.begins_with("[x]"))
+	assert_true((_in("Rarity_uncommon_up") as Button).button_pressed)
+	assert_true((_in("Lands_nonclassic") as Button).button_pressed)
+	# A gold deck is two colours at least, whatever the cap says.
+	_in("Color_U").pressed.emit()
+	_in("Color_B").pressed.emit()
+	_in("MaxColors_1").pressed.emit()
+	assert_true((_in("SummaryLine") as Label).text.contains("the builder's choice of colours, up to 2;"),
+		(_in("SummaryLine") as Label).text)
+	_in("GoldLine").pressed.emit()
+	assert_true((_in("SummaryLine") as Label).text.contains("the builder's choice of colours, up to 1;"),
+		(_in("SummaryLine") as Label).text)
+	_in("MaxColors_5").pressed.emit()
+	assert_true((_in("SummaryLine") as Label).text.contains("up to 5;"), (_in("SummaryLine") as Label).text)
+	_in("MaxColors_2").pressed.emit()
+	_in("Color_U").pressed.emit()
+	_in("Color_B").pressed.emit()
 	# A third colour asked for widens the cap in the summary.
 	_in("Color_R").pressed.emit()
 	assert_true((_in("SummaryLine") as Label).text.contains("blue-black-red, up to 3;"),

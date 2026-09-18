@@ -255,25 +255,61 @@ func test_the_lean_sets_the_creature_share() -> void:
 	assert_almost_eq(float(shares[AutoDeck.LEAN_SPELLS]), 0.38, 0.12, "under four in ten")
 
 
-func test_the_rarity_cap_holds() -> void:
-	var commons := _builder(_library())
-	commons.rarity_cap = "common"
-	var deck := commons.build()
-	_assert_legal(deck, commons, 60)
+## The tiers of a deck's non-basic cards, `tier -> copies`.
+func _tiers(deck: DeckModel) -> Dictionary:
+	var out := {}
 	for name in deck.names():
 		if AutoDeck.BASICS.has(name):
 			continue
 		var tier := DeckStats.rarity_tier(DeckModel._card(name))
-		assert_true(tier == "common" or tier == "", "%s is %s" % [name, tier])
+		out[tier] = int(out.get(tier, 0)) + int(deck.counts[name])
+	return out
+
+
+## The rarity wish is a floor and a ceiling (2026-09-18): commons only,
+## no rares, uncommons and up, rares and legends only.
+func test_the_rarity_wish_holds() -> void:
+	var commons := _builder(_library())
+	commons.rarity = AutoDeck.RARITY_PAUPER
+	var deck := commons.build()
+	_assert_legal(deck, commons, 60)
+	var tiers := _tiers(deck)
+	for tier in tiers:
+		assert_true(tier == "common" or tier == "", "a pauper deck: %s" % str(tiers))
+	assert_true(deck.notes.contains("Rarity: commons only."), deck.notes)
 	var uncommons := _builder(_library())
-	uncommons.rarity_cap = "uncommon"
+	uncommons.rarity = AutoDeck.RARITY_NO_RARES
 	deck = uncommons.build()
-	var seen_uncommon := false
-	for name in deck.names():
-		var tier := DeckStats.rarity_tier(DeckModel._card(name))
-		assert_true(tier != "rare" and tier != "legendary", "%s is %s" % [name, tier])
-		seen_uncommon = seen_uncommon or tier == "uncommon"
-	assert_true(seen_uncommon, "the uncommons are allowed in")
+	tiers = _tiers(deck)
+	assert_false(tiers.has("rare") or tiers.has("legendary"), "no rares, no legends: %s" % str(tiers))
+	assert_true(tiers.has("uncommon"), "the uncommons are allowed in: %s" % str(tiers))
+	assert_true(deck.notes.contains("Rarity: no rares, no legends."), deck.notes)
+	var uncommon_up := _builder(_library())
+	uncommon_up.rarity = AutoDeck.RARITY_UNCOMMON_UP
+	deck = uncommon_up.build()
+	_assert_legal(deck, uncommon_up, 60)
+	tiers = _tiers(deck)
+	assert_false(tiers.has("common") or tiers.has(""), "uncommon up: no commons in %s" % str(tiers))
+	assert_true(tiers.has("uncommon") and tiers.has("rare"), "uncommons and rares both: %s" % str(tiers))
+	assert_eq(uncommon_up.short_by, 0, "the library has uncommons enough")
+	assert_true(deck.notes.contains("Rarity: uncommons, rares and legends."), deck.notes)
+	var rares := _builder(_library())
+	rares.rarity = AutoDeck.RARITY_RARES
+	deck = rares.build()
+	_assert_legal(deck, rares, 60)
+	tiers = _tiers(deck)
+	for tier in tiers:
+		assert_true(tier == "rare" or tier == "legendary", "only rares: %s" % str(tiers))
+	assert_true(tiers.has("rare"), "and there are rares: %s" % str(tiers))
+	assert_eq(rares.short_by, 0, "the library has rares enough for sixty")
+	assert_true(deck.notes.contains("Rarity: rares and legends only."), deck.notes)
+	# The old ceiling words still read, and a stranger falls back to any.
+	var odd := _builder({"Lightning Bolt": 4})
+	odd.rarity = "mythic"
+	odd.build()
+	assert_eq(odd.rarity, AutoDeck.RARITY_ANY)
+	assert_eq(AutoDeck.RARITY_PAUPER, "common", "the saved words of the first release")
+	assert_eq(AutoDeck.RARITY_NO_RARES, "uncommon")
 
 
 func test_the_tournament_rules_bar_the_banned_and_cap_the_restricted() -> void:
@@ -356,18 +392,125 @@ func test_a_bad_size_falls_back_to_sixty() -> void:
 	var auto := _builder(_library())
 	auto.size = 53
 	auto.max_colors = 9
+	auto.land_kind = "snow"
 	var deck := auto.build()
 	assert_eq(auto.size, 60)
-	assert_eq(auto.max_colors, 3)
+	assert_eq(auto.max_colors, 5, "five colours at most")
+	assert_eq(auto.land_kind, AutoDeck.LANDS_CLASSIC, "a land kind the builder does not know is classic")
 	assert_eq(deck.total(), 60)
 
 
-func test_dual_lands_of_the_deck_s_colours_come_first_and_capped() -> void:
+func test_five_colours_when_asked_for() -> void:
+	var auto := _builder(_library())
+	auto.colors = Mtg.ManaColor.W | Mtg.ManaColor.U | Mtg.ManaColor.B | Mtg.ManaColor.R | Mtg.ManaColor.G
+	var deck := auto.build()
+	assert_eq(auto.chosen_colors, auto.colors, "all five")
+	_assert_legal(deck, auto, 60)
+	assert_true(deck.deck_name.begins_with("White-Blue-Black-Red-Green "), deck.deck_name)
+	for land in AutoDeck.BASICS:
+		assert_gte(deck.count_of(land), 2, "%s: every colour with pips gets at least two" % land)
+	assert_eq(_lands(deck), 24)
+	# At most five with nothing ticked: the builder may still settle on
+	# fewer — the per-colour discount is what keeps a deep pool from
+	# always ending five colours — but never on more.
+	var free := _builder(_library())
+	free.max_colors = 5
+	deck = free.build()
+	assert_lte(AutoDeck._count_colors(free.chosen_colors), 5)
+	_assert_legal(deck, free, 60)
+	# Four colours asked for and a cap of one: the cap widens.
+	var four := _builder(_library())
+	four.colors = Mtg.ManaColor.W | Mtg.ManaColor.U | Mtg.ManaColor.B | Mtg.ManaColor.R
+	four.max_colors = 1
+	four.build()
+	assert_eq(four.chosen_colors, four.colors)
+
+
+## A gold deck (2026-09-18): multicoloured cards get [constant
+## AutoDeck.GOLD_BONUS] on their worth, so the colour choice and the
+## fill reach for them; and it is two colours at least.
+func _gold_cards(deck: DeckModel) -> int:
+	var n := 0
+	for name in deck.names():
+		if AutoDeck.is_gold(DeckModel._card(name)):
+			n += int(deck.counts[name])
+	return n
+
+
+func test_a_gold_deck_prefers_multicoloured_cards() -> void:
+	assert_true(AutoDeck.is_gold(_card("Tetsuo Umezawa")), "three colours")
+	assert_true(AutoDeck.is_gold(_card("Marsh Goblins")), "two")
+	assert_false(AutoDeck.is_gold(_card("Lightning Bolt")), "one")
+	assert_false(AutoDeck.is_gold(_card("Black Lotus")), "none")
+	var plain := _builder(_library())
+	plain.colors = Mtg.ManaColor.U | Mtg.ManaColor.B
+	var plain_deck := plain.build()
+	var gold := _builder(_library())
+	gold.colors = Mtg.ManaColor.U | Mtg.ManaColor.B
+	gold.gold = true
+	var gold_deck := gold.build()
+	_assert_legal(gold_deck, gold, 60)
+	assert_gt(_gold_cards(gold_deck), _gold_cards(plain_deck),
+		"the gold deck holds more gold cards: %d against %d" % [_gold_cards(gold_deck), _gold_cards(plain_deck)])
+	assert_gte(_gold_cards(gold_deck), 6,
+		"the blue-black legends of Legends, all five-drops and up, two of each: %d" % _gold_cards(gold_deck))
+	# Colours of its own choosing, the gold deck goes where the gold
+	# cards are — red-green in the library, Scarwood Goblins and the
+	# legends of the mountain.
+	var free := _builder(_library())
+	free.gold = true
+	var free_deck := free.build()
+	_assert_legal(free_deck, free, 60)
+	assert_gte(_gold_cards(free_deck), 10, "%s: %d gold" % [free_deck.deck_name, _gold_cards(free_deck)])
+	assert_true(gold_deck.notes.contains("A gold deck: multicoloured cards preferred; %d of the 36 spells are gold." % _gold_cards(gold_deck)),
+		gold_deck.notes)
+	assert_false(plain_deck.notes.contains("A gold deck"), plain_deck.notes)
+	var goblins := _card("Marsh Goblins")
+	assert_almost_eq(gold.worth(goblins), plain.worth(goblins) + AutoDeck.GOLD_BONUS, 0.001, "the bonus")
+	assert_eq(gold.worth(_card("Lightning Bolt")), plain.worth(_card("Lightning Bolt")), "and none for a plain card")
+	assert_eq(gold.score(goblins), plain.score(goblins), "the score is the card's own")
+	# Mono-coloured and gold cannot both be: two colours at least.
+	var mono := _builder(_library())
+	mono.max_colors = 1
+	mono.gold = true
+	mono.build()
+	assert_eq(mono.max_colors, 2)
+	assert_gte(AutoDeck._count_colors(mono.chosen_colors), 2, "a gold deck is never mono")
+	# Even from a pool with no gold card in it — Fourth Edition has none
+	# — and the notes say so.
+	var none := _builder(AutoDeck.pool_from_sets(["4ed"]))
+	none.gold = true
+	none.rarity = AutoDeck.RARITY_RARES
+	var none_deck := none.build()
+	assert_eq(AutoDeck._count_colors(none.chosen_colors), 2, "two colours, not mono-red: %s" % none_deck.deck_name)
+	assert_eq(_gold_cards(none_deck), 0)
+	assert_true(none_deck.notes.contains("A gold deck: multicoloured cards preferred, but the pool had none the deck could cast."),
+		none_deck.notes)
+
+
+## Classic lands (2026-09-18) are the five basics alone, whatever the
+## pool holds; non-classic lands take the pool's duals and the lands
+## with abilities first.
+func test_classic_lands_are_the_basics_alone() -> void:
+	var pool := AutoDeck.pool_from_sets(["4ed"])
+	pool["Taiga"] = 4
+	var auto := _builder(pool)
+	auto.colors = Mtg.ManaColor.R | Mtg.ManaColor.G
+	var deck := auto.build()
+	_assert_legal(deck, auto, 60)
+	assert_eq(auto.land_kind, AutoDeck.LANDS_CLASSIC, "the default")
+	assert_eq(_nonbasics(deck), 0, "no Taiga, no Mishra's Factory: %s" % str(deck.counts))
+	assert_eq(deck.count_of("Mountain") + deck.count_of("Forest"), 24)
+	assert_false(deck.notes.contains("Non-classic"), deck.notes)
+
+
+func test_non_classic_lands_take_the_duals_and_the_lands_with_abilities_first() -> void:
 	var pool := AutoDeck.pool_from_sets(["4ed"])
 	pool["Taiga"] = 4
 	pool["Tundra"] = 4
 	var auto := _builder(pool)
 	auto.colors = Mtg.ManaColor.R | Mtg.ManaColor.G
+	auto.land_kind = AutoDeck.LANDS_NONCLASSIC
 	var deck := auto.build()
 	_assert_legal(deck, auto, 60)
 	assert_eq(deck.count_of("Taiga"), 4, "the red-green dual, all four")
@@ -375,6 +518,80 @@ func test_dual_lands_of_the_deck_s_colours_come_first_and_capped() -> void:
 	assert_true(_nonbasics(deck) <= int(floor(AutoDeck.NONBASIC_SHARE * 24)),
 		"%d non-basic lands within the share" % _nonbasics(deck))
 	assert_eq(_lands(deck), 24)
+	assert_true(deck.notes.contains("Non-classic lands: %d of the 24 lands are not basics." % _nonbasics(deck)), deck.notes)
+	# The whole library, blue-black: the dual first, then the Factory
+	# and the Library within the colourless room, the Maze within the
+	# room for lands that make no mana, the restricted ones once.
+	var wide := _builder(_library())
+	wide.colors = Mtg.ManaColor.U | Mtg.ManaColor.B
+	wide.land_kind = AutoDeck.LANDS_NONCLASSIC
+	deck = wide.build()
+	_assert_legal(deck, wide, 60)
+	assert_eq(deck.count_of("Underground Sea"), 4, "the blue-black dual, all four")
+	assert_gte(deck.count_of("Mishra's Factory"), 1, "the Factory is in: %s" % str(deck.counts))
+	assert_eq(deck.count_of("Library of Alexandria"), 1, "restricted: once")
+	assert_eq(deck.count_of("Tundra") + deck.count_of("Taiga") + deck.count_of("Karakas"), 0,
+		"nothing that makes only colours the deck is not")
+	for name in ["Sorrow's Path", "The Tabernacle at Pendrell Vale", "Seafarer's Quay", "Urza's Tower"]:
+		assert_eq(deck.count_of(name), 0, "%s is not worth a slot" % name)
+	var colorless := 0
+	var no_mana := 0
+	for name in deck.names():
+		var data := DeckModel._card(name)
+		if not data.is_land() or AutoDeck.BASICS.has(name):
+			continue
+		if (AutoDeck.produces(data) & wide.chosen_colors) == 0:
+			colorless += int(deck.counts[name])
+		if AutoDeck.produces(data) == 0:
+			no_mana += int(deck.counts[name])
+	assert_lte(colorless, int(AutoDeck.COLORLESS_ROOM[60]), "%d lands making no colour of the deck" % colorless)
+	assert_lte(no_mana, int(AutoDeck.NO_MANA_ROOM[60]), "%d lands making no mana" % no_mana)
+	assert_lte(_nonbasics(deck), 12, "half the lands at most: %d" % _nonbasics(deck))
+	assert_true(deck.count_of("Island") >= 2 and deck.count_of("Swamp") >= 2, "the basics still carry the colours")
+	# In forty, the rooms are smaller.
+	wide.size = 40
+	deck = wide.build()
+	_assert_legal(deck, wide, 40)
+	colorless = 0
+	for name in deck.names():
+		var data := DeckModel._card(name)
+		if data.is_land() and not AutoDeck.BASICS.has(name) and (AutoDeck.produces(data) & wide.chosen_colors) == 0:
+			colorless += int(deck.counts[name])
+	assert_lte(colorless, int(AutoDeck.COLORLESS_ROOM[40]))
+	assert_lte(_nonbasics(deck), 8, "half of 16: %d" % _nonbasics(deck))
+
+
+func test_a_land_s_worth_to_the_deck() -> void:
+	var auto := _builder({})
+	auto.chosen_colors = Mtg.ManaColor.U | Mtg.ManaColor.B
+	var sea := auto.land_worth(_card("Underground Sea"))
+	assert_almost_eq(sea, 2.5, 0.001, "a dual of the deck's colours: two and a half")
+	assert_eq(auto.land_worth(_card("Taiga")), 0.0, "a dual of two other colours is worth nothing to it")
+	assert_eq(auto.land_worth(_card("Karakas")), 0.0, "an ability on a colour the deck is not, neither")
+	assert_eq(auto.land_worth(_card("Tundra")), AutoDeck.LAND_FLOOR, "an Island with a white side is an Island, no more")
+	var city := auto.land_worth(_card("City of Brass"))
+	assert_lt(city, sea, "City of Brass in two colours is a dual that hurts: %.2f" % city)
+	assert_gt(city, 1.5, "but well worth a slot")
+	var factory := auto.land_worth(_card("Mishra's Factory"))
+	assert_lt(factory, sea, "the Factory comes after the dual")
+	assert_gt(factory, auto.land_worth(_card("Strip Mine")), "and before the Strip Mine")
+	assert_gt(auto.land_worth(_card("Strip Mine")), auto.land_worth(_card("Desert")))
+	assert_gt(auto.land_worth(_card("Urborg")), 1.0, "a Swamp with abilities is more than a Swamp")
+	assert_lt(auto.land_worth(_card("Urborg")), sea)
+	var maze := auto.land_worth(_card("Maze of Ith"))
+	assert_gte(maze, AutoDeck.LAND_FLOOR, "the Maze makes no mana and is worth a slot: %.2f" % maze)
+	assert_lt(maze, factory)
+	assert_lt(auto.land_worth(_card("Sorrow's Path")), AutoDeck.LAND_FLOOR, "the Path hurts its owner")
+	assert_lt(auto.land_worth(_card("The Tabernacle at Pendrell Vale")), AutoDeck.LAND_FLOOR)
+	assert_lt(auto.land_worth(_card("Seafarer's Quay")), AutoDeck.LAND_FLOOR, "a band-land does nothing here")
+	assert_lt(auto.land_worth(_card("Urza's Tower")), AutoDeck.LAND_FLOOR, "one Urza's land alone is a colourless land")
+	auto.chosen_colors = Mtg.ManaColor.W | Mtg.ManaColor.U | Mtg.ManaColor.B
+	assert_gt(auto.land_worth(_card("City of Brass")), auto.land_worth(_card("Underground Sea")),
+		"in three colours the City is the best land there is")
+	auto.chosen_colors = Mtg.ManaColor.U
+	assert_lt(auto.land_worth(_card("City of Brass")), AutoDeck.LAND_FLOOR, "and in one it is an Island that hurts")
+	auto.chosen_colors = Mtg.ManaColor.U | Mtg.ManaColor.B
+	assert_lt(auto.land_worth(_card("Bazaar of Baghdad")), auto.land_worth(_card("Maze of Ith")))
 
 
 # ------------------------------------------------------------ the score --

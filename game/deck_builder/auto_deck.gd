@@ -23,9 +23,12 @@ extends RefCounted
 ##    turn and discounts what it cannot cast before the fourth, a slow
 ##    deck the other way round.
 ## 2. CHOOSE THE COLOURS ([method _choose_colors]): every colour set the
-##    wishes allow is rated by the sum of its best castable cards, a few
-##    per cent off for every extra colour, and the best one wins; the
-##    colours asked for are always in it.
+##    wishes allow — up to five colours — is rated by the sum of its best
+##    castable cards, a few per cent off for every extra colour, and the
+##    best one wins; the colours asked for are always in it. A GOLD deck
+##    ([member gold]) adds [constant GOLD_BONUS] to every multicoloured
+##    card's worth, so the colours with the gold cards win and the fill
+##    reaches for them.
 ## 3. FILL THE SPELLS ([method _fill_spells]) greedily, one card at a
 ##    time: the best worth after two firm nudges — towards the speed's
 ##    mana curve ([constant CURVES]: a fast deck is three parts in ten
@@ -33,10 +36,15 @@ extends RefCounted
 ##    towards the creature share asked for — and a growing reluctance to
 ##    take a third and fourth copy of the same card. The four-of rule is
 ##    [method DeckModel.duplicates_allowed]'s, restricted cards are one
-##    copy and banned cards never come under tournament rules.
-## 4. LAY THE LANDS ([method _lay_lands]): the count the speed asks for,
-##    dual lands of the deck's colours first, then basic lands in the
-##    proportion of the coloured pips. Basic lands are never scarce.
+##    copy and banned cards never come under tournament rules. The
+##    RARITY wish ([member rarity]) is a floor and a ceiling on the pool:
+##    commons only, no rares, uncommons and up, rares and legends only.
+## 4. LAY THE LANDS ([method _lay_lands]): the count the speed asks for.
+##    CLASSIC lands are the five basics alone, in the proportion of the
+##    coloured pips; NON-CLASSIC lands take the pool's dual lands, City
+##    of Brass and lands with abilities first, best first ([method
+##    land_worth]), up to half the lands, and the basics fill the rest.
+##    Basic lands are never scarce.
 ##
 ## Nothing here consults an opponent or a game: the same pool, wishes
 ## and [member seed] build the same deck, which is what makes it a
@@ -89,16 +97,56 @@ const TEMPO := {
 ## junk left where it wants more.
 const NUDGE := 3.0
 const NUDGE_CAP := 2.5
-## The rarity ceilings: anything, no rares (and no legends), commons only.
+## The rarity wishes — each a floor and a ceiling on [constant
+## RARITY_RANK] ([constant RARITY_RANGE]): any card; commons only, the
+## pauper deck; commons and uncommons, no rares and no legends;
+## uncommons and up; rares and legends only. A card the game has no
+## rarity for ranks as a common.
 const RARITY_ANY := ""
-const RARITY_CAPS: Array[String] = [RARITY_ANY, "uncommon", "common"]
+const RARITY_PAUPER := "common"
+const RARITY_NO_RARES := "uncommon"
+const RARITY_UNCOMMON_UP := "uncommon_up"
+const RARITY_RARES := "rares"
+const RARITIES: Array[String] = [RARITY_ANY, RARITY_PAUPER, RARITY_NO_RARES,
+	RARITY_UNCOMMON_UP, RARITY_RARES]
 const RARITY_RANK := {"common": 0, "uncommon": 1, "rare": 2, "legendary": 3}
+const RARITY_RANGE := {RARITY_ANY: [0, 3], RARITY_PAUPER: [0, 0], RARITY_NO_RARES: [0, 1],
+	RARITY_UNCOMMON_UP: [1, 3], RARITY_RARES: [2, 3]}
+## What a gold deck adds to a multicoloured card's worth ([method
+## worth]) — a whole curve nudge ([constant NUDGE_CAP]), most of what a
+## good card scores, so a fair gold card beats a good plain one and the
+## gold cards fill their part of the curve before the plain ones get a
+## look in. (A point and a half left a blue-black deck of the library
+## five gold cards in thirty-six.)
+const GOLD_BONUS := 2.5
 ## The five basic lands and the colour each makes.
 const BASICS := {"Plains": Mtg.ManaColor.W, "Island": Mtg.ManaColor.U,
 	"Swamp": Mtg.ManaColor.B, "Mountain": Mtg.ManaColor.R, "Forest": Mtg.ManaColor.G}
-## Copies of one non-basic land, and the share of the lands they may be.
-const DUAL_CAP := 4
-const NONBASIC_SHARE := 0.34
+## The two mana bases: the classic five basics alone, or the pool's
+## non-basic lands preferred ([method _lay_nonbasics]).
+const LANDS_CLASSIC := "classic"
+const LANDS_NONCLASSIC := "nonclassic"
+const LAND_KINDS: Array[String] = [LANDS_CLASSIC, LANDS_NONCLASSIC]
+## Copies of one non-basic land, and the share of the lands they may be
+## in a non-classic deck.
+const NONBASIC_CAP := 4
+const NONBASIC_SHARE := 0.5
+## Of those, the lands that make no colour of the deck (Mishra's
+## Factory, Strip Mine) at most this many by deck size, and the lands
+## that make no mana at all (Maze of Ith) at most this many of them, so
+## the basics still carry the colours.
+const COLORLESS_ROOM := {40: 2, 60: 4}
+const NO_MANA_ROOM := {40: 1, 60: 2}
+## What a basic land is worth ([method land_worth]): a non-basic must be
+## worth more than that to take a basic's slot, so a Tundra in a
+## blue-black deck — an Island with a white side — and City of Brass in
+## one colour — an Island that hurts — stay in the pool.
+const LAND_FLOOR := 1.0
+## What the reader cannot price in a land ([method land_worth]): a land
+## that is a creature, a card a turn, a land killed a turn, the Maze —
+## and the path that hurts its owner more than anyone.
+const LAND_NOTES := {"Mishra's Factory": 0.4, "Library of Alexandria": 0.6,
+	"Strip Mine": 0.6, "Maze of Ith": 1.2, "Bazaar of Baghdad": 0.6, "Sorrow's Path": -1.0}
 ## A legend is one in play at a time; two in the deck is plenty.
 const LEGEND_CAP := 2
 ## The reluctance to take another copy of the same card: nothing for the
@@ -137,6 +185,10 @@ const LEAN_ROLE_SCALE := {
 	LEAN_BALANCED: {},
 	LEAN_SPELLS: {"sweeper": 1.3, "counter": 1.2, "draw": 1.2, "pump": 0.6},
 }
+## The rarity wishes in words, for the notes and the window.
+const RARITY_WORDS := {RARITY_ANY: "any rarity", RARITY_PAUPER: "commons only",
+	RARITY_NO_RARES: "no rares, no legends", RARITY_UNCOMMON_UP: "uncommons, rares and legends",
+	RARITY_RARES: "rares and legends only"}
 ## The answer keys ([method AiSideboard.answers]) that make a card BROAD
 ## — it answers creatures, which every deck has.
 const BROAD_ANSWERS: Array[String] = ["creature", "flying"]
@@ -152,11 +204,15 @@ var size := 60
 ## The colours asked for, a [enum Mtg.ManaColor] mask; 0 lets the builder
 ## choose them all.
 var colors := 0
-## How many colours the deck may have, 1 to 3.
+## How many colours the deck may have, 1 to 5.
 var max_colors := 2
+## A gold deck: multicoloured cards preferred ([constant GOLD_BONUS]),
+## and two colours at least.
+var gold := false
 var lean := LEAN_BALANCED
 var speed := SPEED_MEDIUM
-var rarity_cap := RARITY_ANY
+var rarity := RARITY_ANY
+var land_kind := LANDS_CLASSIC
 ## Tournament rules: no banned card (the nine ante cards among them),
 ## restricted cards one copy.
 var tournament := true
@@ -243,6 +299,14 @@ static func pool_from_text(text: String, out_report: Array) -> Dictionary:
 	return pool_from_counts(counts)
 
 
+## The basic lands a deck holds.
+static func _basics_in(deck: DeckModel) -> int:
+	var n := 0
+	for land in BASICS:
+		n += deck.count_of(String(land))
+	return n
+
+
 ## Copies on offer, all names together.
 static func pool_total(counts: Dictionary) -> int:
 	var n := 0
@@ -276,7 +340,13 @@ func build() -> DeckModel:
 	_rng.seed = roll
 	if not SIZES.has(size):
 		size = 60
-	max_colors = clampi(max_colors, 1, 3)
+	max_colors = clampi(max_colors, 1, 5)
+	if gold:
+		max_colors = maxi(max_colors, 2)
+	if not RARITIES.has(rarity):
+		rarity = RARITY_ANY
+	if not LAND_KINDS.has(land_kind):
+		land_kind = LANDS_CLASSIC
 	var out := DeckModel.new()
 	var limit := DeckModel.duplicates_allowed(size)
 	if limit <= 0:
@@ -340,9 +410,10 @@ func _candidates(limit: int) -> Array:
 		var data := DeckModel._card(card_name)
 		if data == null:
 			continue
-		if rarity_cap != RARITY_ANY:
-			var tier := DeckStats.rarity_tier(data)
-			if int(RARITY_RANK.get(tier, 0)) > int(RARITY_RANK[rarity_cap]):
+		if rarity != RARITY_ANY:
+			var rank := int(RARITY_RANK.get(DeckStats.rarity_tier(data), 0))
+			var span: Array = RARITY_RANGE[rarity]
+			if rank < int(span[0]) or rank > int(span[1]):
 				continue
 		var cap := mini(int(pool[card_name]), limit)
 		if tournament:
@@ -362,14 +433,18 @@ func _candidates(limit: int) -> Array:
 ## fill will find), with a few per cent off for every extra colour so a
 ## deep pool does not always end three colours. The colours asked for
 ## are in every set; asking for more than [member max_colors] widens it.
+## A gold deck is two colours at least, even from a pool with no gold
+## card in it — a mono-coloured gold deck is a contradiction.
 func _choose_colors(candidates: Array, required: int) -> int:
 	var must := required & ~Mtg.ManaColor.C
 	var most := maxi(max_colors, _count_colors(must))
+	var least := 2 if gold else 1
 	var best_mask := must
 	var best_worth := -1.0
 	var spells := int(size - int(LANDS[size][speed]))
 	for mask in range(1, 32):
-		if (mask & must) != must or _count_colors(mask) > most:
+		var n := _count_colors(mask)
+		if (mask & must) != must or n > most or n < least:
 			continue
 		var worth := _mask_worth(candidates, mask, spells)
 		worth *= 1.0 - 0.06 * (_count_colors(mask) - 1)
@@ -503,46 +578,30 @@ func _off_color_mana(data: CardData) -> float:
 
 
 ## Double and triple pips of one colour are harder to have in a deck of
-## two or three colours; a mono-coloured deck does not mind.
+## two colours, harder again in one of five; a mono-coloured deck does
+## not mind.
 func _pip_strain(data: CardData) -> float:
-	if _count_colors(chosen_colors) <= 1:
+	var colors_used := _count_colors(chosen_colors)
+	if colors_used <= 1:
 		return 0.0
 	var strain := 0.0
 	for color in data.cost.colored:
 		var pips := int(data.cost.colored[color])
 		if pips > 1:
-			strain += 0.15 * (pips - 1)
+			strain += 0.15 * (pips - 1) * (colors_used - 1)
 	return strain
 
 
-## The lands: non-basic lands of the deck's colours first, dual lands
-## before single ones and at most [constant NONBASIC_SHARE] of the total,
-## then basics in the proportion of the coloured pips, every colour with
-## a pip getting at least two. A deck the pool could not fill takes the
+## The lands: in a non-classic deck the pool's non-basic lands first
+## ([method _lay_nonbasics]), then — or, in a classic deck, only —
+## basics in the proportion of the coloured pips, every colour with a
+## pip getting at least two. A deck the pool could not fill takes the
 ## difference in basics as well.
 func _lay_lands(out: DeckModel, candidates: Array, land_total: int) -> void:
 	var total := land_total + short_by
-	var nonbasic_room := int(floor(NONBASIC_SHARE * land_total))
-	var duals: Array = []
-	for entry in candidates:
-		var data: CardData = entry[0]
-		if not data.is_land():
-			continue
-		var made := produces(data) & ~Mtg.ManaColor.C
-		if made == 0 or (made & ~chosen_colors) != 0:
-			continue
-		duals.append([data, mini(int(entry[1]), DUAL_CAP), _count_colors(made)])
-	duals.sort_custom(func(a: Array, b: Array) -> bool:
-		if a[2] != b[2]:
-			return a[2] > b[2]
-		return (a[0] as CardData).card_name < (b[0] as CardData).card_name)
 	var laid := 0
-	for row in duals:
-		for i in int(row[1]):
-			if laid >= nonbasic_room:
-				break
-			out.add((row[0] as CardData).card_name)
-			laid += 1
+	if land_kind == LANDS_NONCLASSIC:
+		laid = _lay_nonbasics(out, candidates, land_total)
 	# The basics, by the pips.
 	var pips := {}
 	var pip_total := 0
@@ -607,6 +666,91 @@ static func _basic_for(color: int) -> String:
 	return "Plains"
 
 
+## The non-classic mana base: the pool's non-basic lands worth laying
+## ([method land_worth], more than [constant LAND_FLOOR]), best first —
+## the deck's dual lands and City of Brass before the lands with
+## abilities — up to [constant NONBASIC_SHARE] of the lands and
+## [constant NONBASIC_CAP] copies of one; the lands that make no colour
+## of the deck within [constant COLORLESS_ROOM] and those that make no
+## mana within [constant NO_MANA_ROOM], so the basics still carry the
+## colours. Returns how many were laid.
+func _lay_nonbasics(out: DeckModel, candidates: Array, land_total: int) -> int:
+	var room := int(floor(NONBASIC_SHARE * land_total))
+	var colorless_room := int(COLORLESS_ROOM[size])
+	var no_mana_room := int(NO_MANA_ROOM[size])
+	var lands: Array = []
+	for entry in candidates:
+		var data: CardData = entry[0]
+		if not data.is_land():
+			continue
+		var worth := land_worth(data)
+		if worth <= LAND_FLOOR:
+			continue
+		lands.append([data, mini(int(entry[1]), NONBASIC_CAP), worth,
+			_count_colors(produces(data) & chosen_colors)])
+	lands.sort_custom(func(a: Array, b: Array) -> bool:
+		if a[2] != b[2]:
+			return a[2] > b[2]
+		if a[3] != b[3]:
+			return a[3] > b[3]
+		return (a[0] as CardData).card_name < (b[0] as CardData).card_name)
+	var laid := 0
+	for row in lands:
+		var data: CardData = row[0]
+		var off_color: bool = int(row[3]) == 0
+		var no_mana := produces(data) == 0
+		for i in int(row[1]):
+			if laid >= room:
+				return laid
+			if off_color and (colorless_room <= 0 or (no_mana and no_mana_room <= 0)):
+				break
+			out.add(data.card_name)
+			laid += 1
+			if off_color:
+				colorless_room -= 1
+				if no_mana:
+					no_mana_room -= 1
+	return laid
+
+
+## What a non-basic land is worth to the deck, for the non-classic mana
+## base: a point for each of the deck's colours it makes and half a
+## point more when it makes two or more (a dual of the deck's colours is
+## two and a half, City of Brass in a three-colour deck three and a
+## half); four tenths for colourless mana and half a point off for
+## making no mana at all; half a point for each ability beyond the mana
+## (Mishra's Factory's two, Karakas's one) and a share of [constant
+## ROLE_WORTH] for the roles the duel AI reads off them; [constant
+## LAND_NOTES] for what it cannot read; half a point off for a land that
+## hurts its owner (City of Brass, a painland). A land that makes only
+## colours the deck is not is worth nothing to it, and a basic is worth
+## one ([constant LAND_FLOOR]).
+func land_worth(data: CardData) -> float:
+	var made := produces(data)
+	var colored := made & ~Mtg.ManaColor.C
+	var ours := _count_colors(colored & chosen_colors)
+	if colored != 0 and ours == 0:
+		return 0.0
+	var worth := float(ours)
+	if ours >= 2:
+		worth += 0.5
+	elif made != 0 and ours == 0:
+		worth += 0.4
+	elif made == 0:
+		worth -= 0.5
+	worth += 0.5 * data.activated_abilities.size()
+	for role in AiDeckStudy.classify(data):
+		if role == "tap_payoff":
+			continue
+		if role == "removal" and AiSideboard.answers(data).is_empty():
+			continue
+		worth += 0.3 * float(ROLE_WORTH.get(role, 0.0))
+	worth += float(LAND_NOTES.get(data.card_name, 0.0))
+	if "damage to you" in data.oracle_text.to_lower():
+		worth -= 0.5
+	return maxf(worth, 0.0)
+
+
 ## The colours a card's mana abilities make, as a mask.
 static func produces(data: CardData) -> int:
 	var mask := 0
@@ -629,12 +773,21 @@ func score(data: CardData) -> float:
 
 
 ## The score priced for the speed: [method score] times the speed's
-## [constant TEMPO] for the card's mana value. This is what the colour
-## choice and the fill go by, so a fast deck is drawn to the colours
-## with the best one-drops and a slow deck to the colours with the best
-## big spells.
+## [constant TEMPO] for the card's mana value, and [constant GOLD_BONUS]
+## on top for a multicoloured card in a gold deck. This is what the
+## colour choice and the fill go by, so a fast deck is drawn to the
+## colours with the best one-drops, a slow deck to the colours with the
+## best big spells and a gold deck to the colours with the gold cards.
 func worth(data: CardData) -> float:
-	return score(data) * float(TEMPO[speed][_bucket(data)])
+	var value := score(data) * float(TEMPO[speed][_bucket(data)])
+	if gold and is_gold(data):
+		value += GOLD_BONUS
+	return value
+
+
+## A multicoloured card: two colours or more in its cost.
+static func is_gold(data: CardData) -> bool:
+	return _count_colors(data.color_mask() & ~Mtg.ManaColor.C) >= 2
 
 
 ## Power counts for more than toughness — the deck is built to win —
@@ -812,6 +965,20 @@ func _write_report(out: DeckModel, kept: int) -> void:
 	report.append("%d spells: %d creatures, %d others; mana values 1: %d, 2: %d, 3: %d, 4: %d, 5+: %d; average %.1f." % [
 		spells, creatures, spells - creatures, curve[0], curve[1], curve[2], curve[3], curve[4],
 		float(mana) / maxi(spells, 1)])
+	if gold:
+		var gold_cards := 0
+		for name in out.names():
+			var data := DeckModel._card(String(name))
+			if data != null and is_gold(data):
+				gold_cards += int(out.counts[name])
+		if gold_cards > 0:
+			report.append("A gold deck: multicoloured cards preferred; %d of the %d spells are gold." % [gold_cards, spells])
+		else:
+			report.append("A gold deck: multicoloured cards preferred, but the pool had none the deck could cast.")
+	if rarity != RARITY_ANY:
+		report.append("Rarity: %s." % String(RARITY_WORDS[rarity]))
+	if land_kind == LANDS_NONCLASSIC:
+		report.append("Non-classic lands: %d of the %d lands are not basics." % [land_count - _basics_in(out), land_count])
 	if kept > 0:
 		report.append("Built around the %d card%s already on the surface." % [kept, "" if kept == 1 else "s"])
 	if short_by > 0:
