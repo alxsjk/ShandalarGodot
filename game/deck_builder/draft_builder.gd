@@ -25,6 +25,8 @@ func _ready() -> void:
 	_command_row.get_node("LoadButton").hide()
 	_dice_button.disabled = true
 	_dice_button.tooltip_text = "Your dealt pool is locked for this session."
+	_pool_button.disabled = true
+	_pool_button.tooltip_text = _dice_button.tooltip_text
 	refresh()
 
 

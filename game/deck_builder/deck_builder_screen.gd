@@ -211,6 +211,16 @@ const EXTRA_COMMANDS: Array[String] = [
 	"Undo", "Big cards", "Filters", "Add basic land", "Add proxy card", "Copy deck to",
 	"Deck notes", "Sideboard", "Import deck", "Export deck", "Booster Draft",
 ]
+## [QoL] THE AI DECK BUILDER (2026-09-18), the mini-menu's FIRST line and
+## the one lettered in [constant UiChrome.CHOSEN] gold — the owner asked
+## for *"a top menu entry ... emphasized color in the menu"*. It opens
+## [AutoDeckWindow]; the deck it builds arrives by [method
+## _take_auto_deck] and its pool sits under the pool medallion
+## ([member _pool_button]). Not in [constant EXTRA_COMMANDS] because it
+## is not one line among the rest: it has its own place and its own
+## colour, and [DraftBuilder] leaves it out altogether — a draft builds
+## from the dealt cards by hand, that being the game.
+const AI_COMMAND := "AI deck builder"
 
 ## [QoL] The heading over the format analysis, in the three places that
 ## report it: the legality line, the Stats window and the save dialog. Ours
@@ -339,6 +349,14 @@ var _rarity_button: Button
 var _cost_button: Button
 ## [QoL] The dice medallion at the bar's left end — see [member sealed].
 var _dice_button: Button
+## [QoL] THE POOL MEDALLION, beside the dice (2026-09-18): the card pool
+## the AI deck builder last built from, so the player can go on building
+## from it by hand. Down and lit while that pool is the one in force
+## ([member sealed] is [member _auto_pool]); up, a click puts it in force
+## again, or opens the builder when there is no pool yet. See [method
+## _on_pool_pressed].
+var _pool_button: Button
+var _auto_pool: SealedPool = null
 ## [QoL] THE SEALED DECK POOL IN FORCE, or null while the Inventory is the
 ## whole library. While it is set the Inventory offers only what the
 ## packs dealt ([method _refresh_inventory]), a card leaves it as its
@@ -517,6 +535,14 @@ func _layout() -> void:
 		_dice_button.size = Vector2(dice, dice)
 		_command_row.position.x += dice + 4.0
 		_command_row.size.x = maxf(0.0, _command_row.size.x - dice - 4.0)
+	# [QoL] The pool medallion, right of the dice, the same way.
+	if _pool_button != null:
+		var disc := float(FilterBar.DICE_SIZE)
+		_pool_button.position = Vector2(_command_row.position.x,
+			_command_row.position.y - (disc - COMMAND_BAR_H) / 2.0)
+		_pool_button.size = Vector2(disc, disc)
+		_command_row.position.x += disc + 4.0
+		_command_row.size.x = maxf(0.0, _command_row.size.x - disc - 4.0)
 
 	_header_slab.position = Vector2(MARGIN, MARGIN)
 	# AS WIDE AS THE CARD UNDER IT, not the column. The slab took the
@@ -790,6 +816,19 @@ func _build_command_bar() -> void:
 	_dice_button.pressed.connect(_on_dice_pressed)
 	add_child(_dice_button)
 
+	# [QoL] The pool medallion (2026-09-18) — the AI deck builder's card
+	# pool, beside the dice and dressed by the same hand: DOWN while that
+	# pool is in force, up while it is not. See [member _pool_button].
+	_pool_button = Button.new()
+	_pool_button.name = "PoolButton"
+	_pool_button.toggle_mode = true
+	_pool_button.focus_mode = Control.FOCUS_ALL
+	_pool_button.tooltip_text = "Card pool — the cards the AI deck builder built from, in the Inventory"
+	FilterBar.dress_medallion(_pool_button, FilterBar.POOL_CELL, "Pool",
+		Vector2(FilterBar.DICE_SIZE, FilterBar.DICE_SIZE))
+	_pool_button.pressed.connect(_on_pool_pressed)
+	add_child(_pool_button)
+
 	var extras := OriginalDialog.button("Extras", Vector2(72, COMMAND_BAR_H))
 	extras.name = "ExtrasButton"
 	extras.tooltip_text = "Live set filters for enabled expansion packs"
@@ -826,7 +865,11 @@ func _build_command_bar() -> void:
 	_cost_button.toggled.connect(_set_cost_marks)
 	_command_row.add_child(_cost_button)
 
-	var menu := OriginalDialog.button("Deck", Vector2(72, COMMAND_BAR_H))
+	# Deck and Load are four-letter buttons at Cost's 64 since the pool
+	# medallion took its 34 px off the row's left (2026-09-18): at 72 each
+	# the row's minimum stood ten pixels past the screen's edge, and Done
+	# is the button that should keep the spare width, not lose it.
+	var menu := OriginalDialog.button("Deck", Vector2(64, COMMAND_BAR_H))
 	menu.tooltip_text = "@DECKSURFACE_STANDALONE — the deck surface's mini-menu"
 	menu.pressed.connect(_open_mini_menu)
 	_command_row.add_child(menu)
@@ -839,7 +882,7 @@ func _build_command_bar() -> void:
 	# the one that was already there — the 318 shipped and saved decks
 	# under [constant DeckGroups.ORDER]'s headings — and it now carries the
 	# other half of the ask as well ([method _open_deck_file_browser]).
-	var load_button := OriginalDialog.button("Load", Vector2(72, COMMAND_BAR_H))
+	var load_button := OriginalDialog.button("Load", Vector2(64, COMMAND_BAR_H))
 	load_button.name = "LoadButton"
 	load_button.tooltip_text = "@LOADDECKDIALOG — a deck of ours, or any file on disk"
 	load_button.pressed.connect(_run_command.bind("Load deck"))
@@ -1898,6 +1941,7 @@ func _run_command(label: String) -> void:
 		"Import deck": _open_import_dialog()
 		"Export deck": _open_export_dialog()
 		"Booster Draft": DraftSetup.open_on(self)
+		AI_COMMAND: AutoDeckWindow.open_on(self)
 
 
 # ------------------------------------------------- [QoL] the deck slots --
@@ -2158,6 +2202,43 @@ func _on_dice_pressed() -> void:
 	_open_sealed_window()
 
 
+## [QoL] The pool medallion's click: with the builder's pool in force it
+## puts the library back; with another pool or none in force it puts the
+## builder's pool in force; with no pool built yet it opens the builder
+## and stays up.
+func _on_pool_pressed() -> void:
+	if _auto_pool == null:
+		_pool_button.set_pressed_no_signal(false)
+		AutoDeckWindow.open_on(self)
+		return
+	if sealed == _auto_pool:
+		_leave_sealed()
+		return
+	_enter_sealed(_auto_pool)
+
+
+## [QoL] THE AI DECK BUILDER'S DELIVERY ([AutoDeckWindow]): the deck
+## [param auto] builds goes on the surface as one undoable step, and its
+## pool goes under the pool medallion and into force, so the Inventory
+## shows what the deck was built from less what it took — the player
+## modifies from there, saves or plays. Nothing asks about the deck that
+## was on the surface: `Undo` puts it back, which is cheaper than a
+## question.
+func _take_auto_deck(auto: AutoDeck) -> void:
+	var before := deck.duplicate_model()
+	var built := auto.build()
+	_set_deck(built)
+	_remember(before, AI_COMMAND)
+	_cleared = null
+	_sorted = false
+	_dirty = true
+	_clear_button.text = "Clear deck"
+	refresh()
+	_auto_pool = auto.to_sealed_pool()
+	_enter_sealed(_auto_pool)
+	_say("%s — %d cards built from %s" % [built.deck_name, built.total(), auto.pool_label])
+
+
 ## Why the pool refuses [param card_name] into the deck or the sideboard,
 ## or "" — the one gate every door into the deck passes through
 ## ([method _add_one], [method _add_playset], [method _add_one_side],
@@ -2209,7 +2290,11 @@ func _copies_listed() -> int:
 ## manual's *"tiny number on the single representative card"*.
 func _enter_sealed(pool: SealedPool, fresh := false) -> void:
 	sealed = pool
-	_dice_button.set_pressed_no_signal(true)
+	# One medallion down at a time: the dice for a dealt pool, the pool
+	# disc for the AI deck builder's.
+	_dice_button.set_pressed_no_signal(pool != _auto_pool)
+	if _pool_button != null:
+		_pool_button.set_pressed_no_signal(pool == _auto_pool)
 	if fresh and deck.total() + deck.side_total() > 0:
 		# `Clear deck`'s own route, so `Restore deck` can undo it.
 		_cleared = deck.duplicate_model()
@@ -2220,7 +2305,7 @@ func _enter_sealed(pool: SealedPool, fresh := false) -> void:
 	_inventory.badge_min = 2
 	_drawn_revision = -1
 	_refresh_inventory()
-	_say("Sealed Deck — %s" % pool.summary())
+	_say(("Card pool — %s" if pool == _auto_pool else "Sealed Deck — %s") % pool.summary())
 
 
 ## The whole library back, the badge back to copies in the deck. The deck
@@ -2228,6 +2313,8 @@ func _enter_sealed(pool: SealedPool, fresh := false) -> void:
 func _leave_sealed() -> void:
 	sealed = null
 	_dice_button.set_pressed_no_signal(false)
+	if _pool_button != null:
+		_pool_button.set_pressed_no_signal(false)
 	_inventory.badge_min = 1
 	_inventory.count_source = func(card_name: String) -> int:
 		return deck.count_of(card_name)
@@ -3051,6 +3138,9 @@ func _open_mini_menu() -> void:
 	dialog.body().add_theme_constant_override("separation", int(gap))
 	for label in labels:
 		var line := _menu_line(_menu_text(label))
+		if label == AI_COMMAND:
+			# The one emphasised line — see [constant AI_COMMAND].
+			line.add_theme_color_override("font_color", UiChrome.CHOSEN)
 		line.pressed.connect(func() -> void:
 			dialog.dismiss()
 			_run_command(label))
@@ -3372,11 +3462,12 @@ func _menu_line(text: String) -> Button:
 	return line
 
 
-## The mini-menu's lines: `@DECKSURFACE_STANDALONE` first, the two 1997
-## commands from the tags beside it ([constant MENU_COMMANDS]), then this
-## screen's own additions marked `[QoL]` so the three are never confused.
+## The mini-menu's lines: the AI deck builder at the top ([constant
+## AI_COMMAND]), then `@DECKSURFACE_STANDALONE`, the two 1997 commands
+## from the tags beside it ([constant MENU_COMMANDS]), then this screen's
+## own additions marked `[QoL]` so the three are never confused.
 func _command_labels() -> Array[String]:
-	var out: Array[String] = []
+	var out: Array[String] = [AI_COMMAND]
 	for label in COMMANDS:
 		out.append("Restore deck" if label == "Clear deck" and _cleared != null else label)
 	out.append_array(MENU_COMMANDS)
@@ -4445,42 +4536,101 @@ func _stats_page_draws(page: VBoxContainer) -> void:
 ## [QoL] PAGE THREE: whether the mana can actually cast the deck.
 ##
 ## Colour counts say what is in the deck; PIPS say what it asks for, and
-## the two come apart badly in a deck whose splash is double-costed.
+## the two come apart badly in a deck whose splash is double-costed. The
+## page is the four questions a mana base exists to answer, in the order a
+## builder asks them — what does it want, is each colour covered, is there
+## enough land at all, and what is still stuck — and every figure on it
+## comes out of [ManaAnalysis], which states its model rather than leaving
+## the reader to guess at it.
 func _stats_page_mana(page: VBoxContainer) -> void:
 	if deck.total() == 0:
 		page.add_child(OriginalDialog.label("Add some cards first.", 13))
 		return
-	var pips := DeckStats.color_pips(deck)
-	var sources := deck.mana_sources()
+	var rows := ManaAnalysis.color_requirements(deck)
+	var by_color := {}
+	for row in rows:
+		by_color[int(row["color"])] = row
+
 	page.add_child(_stats_head("What the deck asks for, and what it has"))
 	page.add_child(OriginalDialog.label(
 		"Pips are mana SYMBOLS in costs: {B}{B} asks twice.", 12))
 	for column in DeckModel.STAT_COLUMNS:
-		var color := int(column[1])
-		var pip := int(pips.get(color, 0))
-		var src := int(sources.get(color, 0))
-		if pip == 0 and src == 0:
+		var row: Dictionary = by_color.get(int(column[1]), {})
+		if row.is_empty():
 			continue
+		var pip := int(row["pips"])
+		var src := int(row["sources"])
 		page.add_child(_stats_line("   %s" % String(column[0]),
 			"%d pip%s from %d source%s" % [pip, "" if pip == 1 else "s",
 				src, "" if src == 1 else "s"]))
+	var demand := ManaAnalysis.mana_demand(deck)
+	page.add_child(_stats_line("   generic and colourless",
+		"%d of %d symbols — %s" % [int(demand["generic"]),
+			int(demand["total"]), _pct(float(demand["share"]))]))
 
-	page.add_child(_stats_head("Having the colour when you need it"))
+	page.add_child(_stats_head("Sources needed to cast on curve"))
+	page.add_child(OriginalDialog.label(
+		"The hardest ask each colour makes, at 90%, on the play.", 12))
+	var asked := false
 	for column in DeckModel.STAT_COLUMNS:
-		var color := int(column[1])
-		if int(pips.get(color, 0)) == 0:
+		var row: Dictionary = by_color.get(int(column[1]), {})
+		if row.is_empty() or int(row["need_pips"]) == 0:
 			continue
-		var by := PackedStringArray()
-		for turn in range(1, 4):
-			by.append("T%d %s" % [turn, _pct(DeckStats.color_by_turn(deck, color, turn))])
-		page.add_child(_stats_line("   %s" % String(column[0]), "   ".join(by)))
+		asked = true
+		page.add_child(_stats_line("   %s  %s by turn %d" % [
+			String(column[0]), _pip_text(int(column[1]), int(row["need_pips"])),
+			int(row["need_turn"])], _source_verdict(row)))
+	if not asked:
+		page.add_child(OriginalDialog.label(
+			"   Nothing coloured — any land in the deck casts it.", 12))
 
-	var worst := DeckStats.hardest_cast(deck)
-	if not worst.is_empty():
-		page.add_child(_stats_head("The hardest thing to cast"))
-		page.add_child(_stats_line("   %s" % String(worst["card"]),
-			"%d pips of one colour, mana value %d" % [
-				int(worst["pips"]), int(worst["cost"])]))
+	var advice := ManaAnalysis.land_advice(deck)
+	var accelerants := int(advice["accelerants"])
+	page.add_child(_stats_head("Land count"))
+	page.add_child(_stats_line("   in the deck", "%d" % int(advice["lands"])))
+	page.add_child(_stats_line("   the curve wants",
+		"%.1f" % float(advice["want"])))
+	page.add_child(OriginalDialog.label(
+		"   From %.2f average cost and %d cheap accelerant%s." % [
+			float(advice["average_cost"]), accelerants,
+			"" if accelerants == 1 else "s"], 12))
+
+	var casts := ManaAnalysis.castability(deck)
+	page.add_child(_stats_head("Casting on curve"))
+	page.add_child(OriginalDialog.label(
+		"The chance a card's colours are in hand on its own turn.", 12))
+	page.add_child(_stats_line("   the whole deck",
+		_pct(ManaAnalysis.average_castability(casts))))
+	var stuck := ManaAnalysis.worst_casts(casts)
+	if stuck.is_empty():
+		page.add_child(OriginalDialog.label(
+			"   Nothing under 95% — the colours are there.", 12))
+	for row in stuck:
+		page.add_child(_stats_line("      %s" % String(row["card"]),
+			"%s by turn %d" % [_pct(float(row["odds"])), int(row["turn"])]))
+
+
+## `{B}{B}` — one colour's ask written the way a card writes it.
+func _pip_text(color: int, pips: int) -> String:
+	var letter := "C"
+	match color:
+		Mtg.ManaColor.W: letter = "W"
+		Mtg.ManaColor.U: letter = "U"
+		Mtg.ManaColor.B: letter = "B"
+		Mtg.ManaColor.R: letter = "R"
+		Mtg.ManaColor.G: letter = "G"
+	return ("{%s}" % letter).repeat(maxi(pips, 1))
+
+
+## `13 of 18 — short 5`: what the deck has against what that ask wants.
+## The shortfall is spelled out rather than left as a subtraction, because
+## it is the number the builder is about to act on.
+func _source_verdict(row: Dictionary) -> String:
+	var missing := int(row["short"])
+	if missing <= 0:
+		return "%d of %d — enough" % [int(row["sources"]), int(row["need"])]
+	return "%d of %d — short %d" % [int(row["sources"]), int(row["need"]),
+		missing]
 
 
 ## [QoL] PAGE FOUR: how fast the deck actually does something.

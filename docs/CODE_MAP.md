@@ -18,6 +18,21 @@ needed); card files have NO class_name (they register by name instead);
 - Release builder metadata includes a generated Pack 1 `base_assignments.json`
   snapshot of the source registry, so players need no `cards/sets/` scripts.
 
+## AI deck builder and mana analysis (2026-09-18)
+
+- `game/deck_builder/auto_deck.gd` (`AutoDeck`): a card pool and the wishes in, a
+  legal deck out — score, choose the colours, fill the spells, lay the lands;
+  the method is at the head of the file. Seeded, so a test can hold it still.
+- `game/deck_builder/auto_deck_window.gd` (`AutoDeckWindow`): the dialog — the pool
+  (sets, the dealt cards, a file or a paste), the wishes, a summary line, `Build
+  me a deck`; the wishes remembered under `auto_deck_options`.
+- `game/deck_builder/mana_analysis.gd` (`ManaAnalysis`): the Stats window's Mana
+  page — sources needed at 90% for the deck's own size, exact joint odds over
+  overlapping sources, Karsten's land count, castability on curve.
+- `tests/unit/test_auto_deck.gd`, `tests/ui/test_auto_deck_window.gd`,
+  `tests/ui/test_mana_analysis.gd`: the three held to the words above; none
+  needs the skin.
+
 ## Packs + SGManalink integration (2026-09-16)
 
 - `docs/packs-sgmanalink-integration.md`: merge basis, reproduced boundary
@@ -4428,6 +4443,21 @@ shandalar/
 │    promises more than it has, a turn draws the top card and stops at an
 │    empty library, lands are the registry's word and a proxy is not one,
 │    no-land and all-land are the 1997 hands and an empty hand is neither;
+│    tests/unit/test_auto_deck.gd — THE AI DECK BUILDER held to the
+│    wishes without a screen: the three pool readers (sets, names, a
+│    text with counts, comments, a sideboard and an unknown name
+│    reported), every deck LEGAL (the size, no sideboard, every card in
+│    the pool and within the copy limit, castable in the chosen
+│    colours), the colours asked for the deck's and mono when one at
+│    most, three asked widening the cap, the speed's lands and curve,
+│    the lean's creature share within twelve points, the rarity cap,
+│    the tournament rules (Contract from Below never, Black Lotus once,
+│    and four with the rules off), a legend twice at most, the kept
+│    cards first and setting the colours, a seed a deck and a fresh
+│    roll when none, an empty pool sixty Mountains and a note, a bad
+│    size and cap corrected, duals first and capped, the score order
+│    (Savannah Lions over Grizzly Bears over Wall of Wood, Serra over
+│    Bears, Terror over Shatter over a Circle of Protection), the words;
 │    tests/ui/test_deck_builder.gd — the screen: every region and every
 │    @DECKSURFACE_STANDALONE command present, add/remove, the paged
 │    Inventory, Clear/Restore, Stats, Load, Save, and that the main
@@ -4506,6 +4536,28 @@ shandalar/
 │    the seventh, Next turn greys on an empty library), the 1997 advice
 │    is spoken for the two hands only and enforced never, and the deal
 │    survives a page swap but not a reopening. Runs without the skin;
+│    tests/ui/test_auto_deck_window.gd — the AI deck builder's window
+│    and the pool medallion through the screen: the gold first line of
+│    the mini-menu, the defaults and the summary line, a build (sixty
+│    cards, the lands, the name in the header, the notes, the pool in
+│    force under the disc, the options saved) and its undo, the wishes
+│    remembered, the sets (none ticked greys the button), a pasted list
+│    (bad text refused, a good one built from and filled with basics),
+│    the dealt pool, the kept cards, the disc's geometry (the dice's
+│    size, right of the dice, left of Stats) and its behaviour (no pool
+│    opens the builder; toggling library and pool), one medallion down
+│    at a time, the glossary entry. Runs without the skin;
+│    tests/ui/test_mana_analysis.gd — the Mana page's arithmetic held to
+│    hand-worked values: cards seen by turn on the play and the draw,
+│    sources needed reproducing 12/20/26 for sixty and scaling to forty,
+│    the joint colour odds exact over a Tundra (one never pays {W}{U}),
+│    the hardest ask per colour and its shortfall, castability worst
+│    first with a ceiling, the land count from Karsten's regression
+│    scaled by size with only cheap mana makers counted (a Dark Ritual
+│    is, a City of Brass is not), the generic share; and the page itself: the
+│    four headings, the colour that is short named with its odds, the
+│    verdict spelled out when the mana is enough, an empty deck asking
+│    for cards. Runs without the skin;
 │    tests/ui/test_help_screen.gd — the paged reference: every page
 │    renders and shows its title, titles are unique, every QUOTE cites a
 │    source, paging cannot run off either end by button or key, the Help
@@ -6464,6 +6516,33 @@ shandalar/
 │   │   │                      first, by supertype, because the pool's 61
 │   │   │                      legends were printed at uncommon and rare
 │   │   │                      both)
+│   │   ├── mana_analysis.gd class ManaAnalysis — **[QoL]** the Stats
+│   │   │                      window's MANA PAGE measured against
+│   │   │                      edhcheck's mana analysis (2026-09-18), pure
+│   │   │                      and static, its model stated: a seven-card
+│   │   │                      hand, on the play, no mulligan, 90%.
+│   │   │                      `sources_needed` is Karsten's question
+│   │   │                      solved from the hypergeometric for the
+│   │   │                      deck's own size (12/20/26 for one, two and
+│   │   │                      three pips by turn four in sixty fall out
+│   │   │                      of it; a no-mulligan floor, cached);
+│   │   │                      `color_available` is the EXACT joint
+│   │   │                      probability over overlapping sources —
+│   │   │                      Hall's condition over the disjoint groups
+│   │   │                      of what each land makes, so one Tundra
+│   │   │                      never pays {W}{U} where a product says 11%;
+│   │   │                      `color_requirements` names each colour's
+│   │   │                      hardest ask and its shortfall;
+│   │   │                      `castability` / `worst_casts` /
+│   │   │                      `average_castability` the odds a card's
+│   │   │                      colours are in hand on its own turn;
+│   │   │                      `land_advice` Karsten's regression (19.59 +
+│   │   │                      1.90 × average cost − 0.28 × cheap
+│   │   │                      accelerants) scaled by size over sixty — 17
+│   │   │                      lands at an average of three in forty —
+│   │   │                      with `cheap_acceleration` counting mana
+│   │   │                      only; `mana_demand` the generic share. The
+│   │   │                      page is DeckBuilderScreen._stats_page_mana
 │   │   ├── sample_hand.gd   class SampleHand — **[QoL]** the Stats
 │   │   │                      window's sixth page, Hand (2026-09-17), as
 │   │   │                      a MODEL: seven names off a shuffled copy of
@@ -6582,6 +6661,50 @@ shandalar/
 │   │   │                      one question, `summary()` the tally line. The
 │   │   │                      per-card ceiling is enforced at the SCREEN
 │   │   │                      (`_sealed_refusal`), not here
+│   │   ├── auto_deck.gd     class AutoDeck — **[QoL]** THE AI DECK
+│   │   │                      BUILDER'S HEAD (2026-09-18): a card pool
+│   │   │                      (`pool_from_sets`, `pool_from_names`,
+│   │   │                      `pool_from_text` — the DeckList parser's
+│   │   │                      leniency, unknown names reported) and the
+│   │   │                      wishes (colours and how many at most, 40 or
+│   │   │                      60, creatures / balanced / spells, fast /
+│   │   │                      medium / slow, a rarity ceiling, tournament
+│   │   │                      rules, a deck to build around, a seed) in;
+│   │   │                      `build()` a legal DeckModel out, named by
+│   │   │                      its colours and shape (`deck_name`), its
+│   │   │                      reasoning in the notes. Four steps, each
+│   │   │                      its own method: `score` every card alone
+│   │   │                      (a creature by body per mana with the duel
+│   │   │                      AI's keyword prices, drawbacks off, big
+│   │   │                      mana values discounted; a spell by the
+│   │   │                      roles AiDeckStudy reads — removal without
+│   │   │                      an answer key is no slot, burn priced by
+│   │   │                      its damage, a steal Aura removal — and a
+│   │   │                      narrow answer marked down), `_choose_colors`
+│   │   │                      (every set the wishes allow, rated by its
+│   │   │                      best castable cards), `_fill_spells`
+│   │   │                      (greedy, nudged towards the curve and the
+│   │   │                      lean, copies dearer each time, a legend
+│   │   │                      twice at most), `_lay_lands` (the speed's
+│   │   │                      count, duals first, basics by pip share;
+│   │   │                      basics fill what the pool cannot, `short_by`
+│   │   │                      says how many). `to_sealed_pool` is what
+│   │   │                      the pool medallion holds. No node, no game
+│   │   ├── auto_deck_window.gd class AutoDeckWindow — **[QoL]** the AI
+│   │   │                      deck builder's dialog (2026-09-18), opened
+│   │   │                      by the mini-menu's gold first line or the
+│   │   │                      pool medallion: the pool (the sets ticked,
+│   │   │                      the dealt cards or the pool in force, a
+│   │   │                      file or a paste), the five colours as icon
+│   │   │                      toggles, at most 1/2/3, 40/60, the lean,
+│   │   │                      the speed, the rarity ceiling, tournament
+│   │   │                      rules, build around the surface; a summary
+│   │   │                      line that says what the build will be and
+│   │   │                      a `Build me a deck` greyed with nothing to
+│   │   │                      build from. Remembers its wishes under
+│   │   │                      `auto_deck_options`; hands the deck to
+│   │   │                      DeckBuilderScreen._take_auto_deck, one
+│   │   │                      undoable step
 │   │   ├── card_area.gd     class CardArea — the Deck area and the
 │   │   │                      Inventory area, one widget twice: a PAGED
 │   │   │                      grid of MiniCards (s30's ScrollableList

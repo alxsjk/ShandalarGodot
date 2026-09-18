@@ -190,6 +190,11 @@ const DICE_CELL := [-2, -2]
 ## medallion of 30 sits on the bar's own centre line two pixels clear of
 ## the sideboard's ground above and the strip below.
 const DICE_SIZE := 30
+## [QoL] THE CARD POOL, the Deck Builder's second bar medallion beside
+## the dice (2026-09-18): the pool the AI deck builder built from, on and
+## off in the Inventory. Three cards fanned on the same blank stone at
+## the same [constant DICE_SIZE] ([method _pool_cell]).
+const POOL_CELL := [-3, -3]
 ## The six sets the original drew a filter medallion for. Unlimited and
 ## the promos have none — as the printed cards have no set symbol either
 ## (game/skin.gd SET_LABELS) — so those two toggles are lettered.
@@ -1244,6 +1249,8 @@ static func sheet_cell(key: String, row: int, col: int) -> Texture2D:
 	var result: Texture2D = null
 	if row == DICE_CELL[0]:
 		result = _dice_cell(key)
+	elif row == POOL_CELL[0]:
+		result = _pool_cell(key)
 	elif row < 0:
 		result = _funnel_cell(key)
 	else:
@@ -1305,6 +1312,38 @@ static func _dice_cell(key: String) -> Texture2D:
 			cut.erase(at)
 			light.erase(at)
 	_cut_die(cut, light, front)
+	return _engrave(disc, cut, light)
+
+
+## [QoL] THE POOL MEDALLION — see [constant POOL_CELL]. Three cards, each
+## eight by eleven, fanned down and to the right on the dice's blank disc
+## in the dice's own manner: solid silhouettes in the ink, each behind a
+## one-pixel gap of stone from the one in front of it so the stack reads
+## as a stack; the front card alone carries a picture — a small box of
+## the disc's light — and a line of text under it, so it reads as a card
+## and not a domino.
+static func _pool_cell(key: String) -> Texture2D:
+	var disc := _blank_disc(key, DICE_SIZE)
+	if disc.is_empty():
+		return null
+	var card := Vector2i(8, 11)
+	var cut := {}
+	var light := {}
+	for corner in [Vector2i(8, 7), Vector2i(11, 9), Vector2i(14, 11)]:
+		var box := Rect2i(corner, card)
+		var gap := box.grow(1)
+		for at in cut.keys():
+			if gap.has_point(at):
+				cut.erase(at)
+		for y in box.size.y:
+			for x in box.size.x:
+				cut[box.position + Vector2i(x, y)] = true
+	var front := Vector2i(14, 11)
+	for y in range(2, 5):
+		for x in range(2, 6):
+			light[front + Vector2i(x, y)] = true
+	for x in range(2, 6):
+		light[front + Vector2i(x, 7)] = true
 	return _engrave(disc, cut, light)
 
 

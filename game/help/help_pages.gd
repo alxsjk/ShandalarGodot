@@ -1049,21 +1049,41 @@ static func _page_builder() -> Dictionary:
 			+ "dueling table."),
 		_heading("The bar under the deck"),
 		_text("STATS opens the statistics window — six pages: Deck, "
-			+ "Draws, Mana, Speed, Matchups and Hand, the last a sample "
-			+ "opening hand dealt from the deck, with the duel's own "
-			+ "mulligan and a card a turn — and carries the deck's "
-			+ "card count on its face. RARITY letters every card on "
+			+ "Draws, Mana, Speed, Matchups and Hand. MANA is the mana "
+			+ "base audited: what each color asks for in pips against "
+			+ "the sources that answer them, how many sources a 90% cast "
+			+ "on curve actually needs and whether the deck has them, "
+			+ "the land count the curve wants, and the cards still stuck "
+			+ "on color. HAND is a sample opening hand dealt from the "
+			+ "deck, with the duel's own mulligan and a card a turn — "
+			+ "and the window carries the deck's card count on its "
+			+ "face. RARITY letters every card on "
 			+ "the deck surface C, U, R or L for common, uncommon, rare or "
 			+ "legendary; COST lays every card's mana cost on its "
 			+ "face. Both are switches: they stay down while their marks "
 			+ "are up, and they remember."),
 		_text("DECK opens the menu, also available by right-clicking "
-			+ "over the deck: New deck, Load deck, Save "
+			+ "over the deck: AI deck builder at the top, in gold, then New deck, Load deck, Save "
 			+ "deck, Consolidate duplicate cards, Clear deck, Sort deck, "
 			+ "Stats, Music, Sound Effects, Exit deck builder, Extra "
 			+ "Cards, Move by color out of deck, Undo, Big cards, Filters, Add basic land, Add proxy card, "
 			+ "Copy deck to, Deck notes, Sideboard, Import deck and Export "
 			+ "deck, plus Booster Draft."),
+		_text("AI deck builder builds a deck for you from a card pool: "
+			+ "the cards of the sets you tick, the cards dealt to you by "
+			+ "the Sealed Deck window, or a list of cards from a file or "
+			+ "a paste — decklist lines, `4 Lightning Bolt` a line, main "
+			+ "and sideboard both counted. Say which colors you like, or "
+			+ "none and it picks the strongest in the pool; how many "
+			+ "colors at most; 40 or 60 cards; more creatures or more "
+			+ "spells; fast, medium or slow; a rarity ceiling; whether the "
+			+ "tournament rules hold; and whether to build around the "
+			+ "cards already on the surface. Build me a deck puts the deck "
+			+ "on the surface — Undo brings the old one back — with its "
+			+ "reasoning in Deck notes, and puts the pool it built from "
+			+ "under the pool medallion beside the dice, so the Inventory "
+			+ "shows what is left of it to swap in by hand. Basic lands "
+			+ "are always free."),
 		_text("Booster Draft opens a timed, sealed-style challenge. Choose "
 			+ "eligible sets and cards, pack counts, extra lands, random extras, "
 			+ "a time limit and a save folder, then Launch draft. It is also in "
@@ -1315,6 +1335,16 @@ static func _page_icons_builder_types() -> Dictionary:
 			+ "brings the whole library back.",
 			{"src": SRC_FILTER, "row": FilterBar.DICE_CELL[0],
 				"col": FilterBar.DICE_CELL[1]}, "D"),
+		_icon("Card pool — three cards",
+			"Beside the dice on the command bar: the card pool the AI "
+			+ "deck builder last built from. Down, the Inventory shows "
+			+ "that pool less what the deck took, so the deck can be "
+			+ "modified from what it was built from; press it to bring "
+			+ "the whole library back, and again to have the pool back. "
+			+ "With no pool built yet, pressing it opens the AI deck "
+			+ "builder.",
+			{"src": SRC_FILTER, "row": FilterBar.POOL_CELL[0],
+				"col": FilterBar.POOL_CELL[1]}, "P"),
 	]
 	var pages: Array = [
 		_icon("Abilities — an eye",

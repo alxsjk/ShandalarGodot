@@ -15186,6 +15186,203 @@ Gate on the tree as committed: 471 scripts, **7,401/7,401 tests,
 13 + 10); Python 291, exit 0; boot 0 errors; the two new scripts also
 green on the bare clone, no skin.
 
+## 2026-09-18 — The AI deck builder, the pool medallion, and a mana base audited
+
+THE ORDER: *"take an inspiration in source code of the tool
+deck-lotus ... build a lightweight but effective AI/automatic deck
+builder. On rightclick in our Deck Builder there is a top menu entry AI
+deck builder (emphasized color in the menu). That opens a window where
+you click a card pool (sets or cards like draft) or you upload a card
+pool in text file ... various options like: prefferred colour(s). More
+creatures like or spell like; preferred speed and 40 Or 60 card deck
+(no sideboard). And you click Build me a deck button. And you are
+presented with a bespoke built deck in the deck builder ... (Suggest
+what settings would be useful for the deck builder and inplement
+them)."* Then: *"the specific card pool is available below to select
+and modify the deck. There should be a new small medallion button
+besides simulate draft on the left of stats and extras that turns on or
+off the specific uploaded or clicked card pool on the bottom strip."*
+And: *"fire off another agent to optimise stats tool according to
+analyses like done here: edhcheck.com/mana-analysis"*.
+
+WHAT DECK-LOTUS GAVE, HONESTLY: the tool was read before a line was
+written and it has NO automatic builder — it is a collection manager
+with a plain-text list importer and a stats-first deck view. Two things
+were taken from it: a pasted or uploaded list is read with the same
+leniency as its importer (`4x` counts, `#` comments, a sideboard
+marker, unknown names reported rather than refused — our `DeckList`
+already did all of that, so the window reuses it), and the built deck
+is handed over with its reasoning where the player can read it. The
+method of the build is our own, written at the head of
+`game/deck_builder/auto_deck.gd` so it can be argued with.
+
+THE MENU LINE. `AI deck builder` is the mini-menu's first line, lettered
+in the chosen gold (`UiChrome.CHOSEN`) the mode buttons wear since
+yesterday — the one emphasised line, above `New deck`. It is not in
+`EXTRA_COMMANDS`: it has its own place and its own colour, and the
+Booster Draft's builder leaves it out, a draft being built by hand from
+the dealt cards or it is not a draft.
+
+THE WINDOW (`AutoDeckWindow`, `auto_deck_window.gd`): one dialog in the
+deck builder's own dress. THE POOL first, three sources — the sets you
+tick (every set the Extras window admits, ticked by the Inventory's
+rules, Fourth Edition alone by default); the cards dealt by the Sealed
+Deck window when one is in force, or the pool already in force under
+the medallion; or a list from a file or a paste, decklist lines, main
+and sideboard both counted, the cards the game does not have named in
+the status line. Then THE WISHES, and this is the answer to *"suggest
+what settings would be useful"* — every one of them changes the deck,
+none is decoration:
+
+- COLOURS: the five as toggles with their mana icons; none ticked and
+  the builder picks the strongest colours in the pool. A colour asked
+  for is always in the deck.
+- AT MOST 1, 2 or 3 colours (asking for three colours widens a smaller
+  cap rather than being refused).
+- 40 OR 60 CARDS — the 1997 floor and the tournament norm; a 40-card
+  deck takes up to three copies of a card, a 60 up to four, by the
+  manual's own table (`DeckModel.DUPLICATE_TABLE`).
+- MORE CREATURES / BALANCED / MORE SPELLS: 70%, 55% or 38% of the
+  non-land cards creatures, held to within a card or two.
+- FAST / MEDIUM / SLOW: the land count (15/16/17 in forty, 22/24/25 in
+  sixty) and the curve the fill leans towards — a fast deck's average
+  cost lands under 2.6, a slow deck's over 2.8.
+- RARITY CEILING: anything, no rares, commons only — a common-only deck
+  from a pool of rares is a real 1997 ask.
+- TOURNAMENT RULES on or off: banned cards never (the ante cards among
+  them), restricted cards one copy; off, and Black Lotus comes as four.
+- BUILD AROUND WHAT IS ON THE SURFACE: the deck's non-land cards go in
+  first and set the colours, so a player with four Lightning Bolts and
+  an idea gets a deck around them rather than instead of them.
+
+A summary line under the choices says what the build will be before the
+button is pressed — *"60 cards from Fourth Edition — N on offer, M
+names; blue and black, up to 2; balanced, medium."* — and `Build me a
+deck` is greyed while there is nothing to build from. The wishes are
+remembered (`auto_deck_options`) so the window reopens as it was left.
+
+THE METHOD (`AutoDeck`, `auto_deck.gd`), four steps. SCORE every card
+on its own: a creature by its body per mana, power before toughness,
+with the duel AI's own keyword prices (`Evaluator.KEYWORD_VALUE` —
+flying 1.5, first strike 1.0, trample 1.0 ...) and three the AI does
+not price (haste, unblockable, fear), a little for each ability, less
+its drawbacks (a Lord of the Pit is not a 7/7 for seven), and less
+again past five mana (`CAST_EASE`: a seven-drop is a dead card in a
+third of games); a spell by the roles the duel AI already reads off it
+(`AiDeckStudy.classify` — removal 2.4, burn 2.2, sweeper, draw, counter
+... down to a sacrifice outlet at 0.3), the best role plus a quarter for
+each further one, cheaper better. Three corrections the first probe
+forced: "removal" the sideboard reads NO ANSWER off (Tunnel kills a
+Wall, Stone Rain a land, Pyramids an Aura on a land) is no slot at all
+— Tunnel fell from 3.48 to 0.96; BURN IS PRICED BY ITS DAMAGE with
+Lightning Bolt's three as the unit, so Psychic Purge's one point is a
+third of a card and an X spell is whatever the mana is; and a steal
+Aura (Control Magic) is removal and a creature in one, which the duel
+AI's role reader had left at nothing. A narrow answer — colour hate, a
+Circle of Protection — is marked down, the deck being built blind to
+its opponent. CHOOSE THE COLOURS: every colour set the wishes allow is
+rated by the sum of its best castable cards, a few per cent off for each
+extra colour so a deep pool does not always end three colours; the
+colours asked for are in every set. FILL THE SPELLS greedily, one card
+at a time: the best score after a nudge towards the speed's curve and
+the creature share asked for, and a growing reluctance to take the
+third and fourth copy (a fast deck minds less — it wants its best card
+every game); a legend twice at most, it being one in play at a time; a
+mana rock that makes none of the deck's colours is a rock. The lean's
+nudge is FIRM — a full share over the wish costs a card about what a
+good card scores — because at a gentler weight a "more spells" deck
+came out at the balanced share, the library's creatures being that much
+deeper than its spells. LAY THE LANDS: the speed's count, dual lands of
+the deck's colours first (four of one, a third of the lands at most),
+then basics in the proportion of the coloured pips. Basics are never
+scarce; when the pool runs out of spells the deck is filled with them
+and the notes say so. The same pool, wishes and seed build the same
+deck — the seed is in the notes, so a deck can be built again — and a
+build takes under a tenth of a second.
+
+THE DELIVERY: the deck lands on the surface as ONE UNDOABLE STEP — the
+deck that was there comes back with `Undo`, which is cheaper than a
+question — named by its colours and its shape (*"Red-Green Midrange"*,
+*"Mono-Red Rush"*, *"Blue-Black Control"*), the reasoning in `Deck
+notes` (the pool, the colours and why, the shares, what ran out), the
+header carrying the name and the deck marked dirty so `Exit` asks about
+saving. Then save it, play it, or modify it — which is what the
+medallion is for.
+
+THE POOL MEDALLION. Beside the dice, the same size and the same dress,
+a disc of three cards: the pool the AI deck builder last built from.
+DOWN while that pool is in force — the Inventory then shows the pool
+less what the deck took, the count line says *"pool cards"*, and the
+Filters work within it exactly as they do within a sealed deal; press
+it and the whole library is back; press it again and the pool is back.
+One medallion is down at a time — a Sealed deal puts the dice down and
+the disc up, the disc brings its own pool back. With no pool built yet
+the disc opens the builder and stays up. The Booster Draft locks it
+with the dice. The help's icon glossary has the disc, and the DECK
+BUILDER page has the paragraph. The disc's 34 px came off the command
+row's left, and the row's minimum then stood ten pixels past the
+screen's edge (`test_deck_layout` caught it on the full gate): `Deck`
+and `Load` are four-letter buttons at `Cost`'s 64 now, not 72, so
+`Done` keeps the spare width rather than losing it.
+
+MANA ANALYSIS IN THE STATS WINDOW (the agent's work, merged after the
+builder). The Mana page had pips against sources and a colour-by-turn
+row; it now answers the four questions a mana base exists to answer, in
+the order a builder asks them, every figure out of `ManaAnalysis`
+(`game/deck_builder/mana_analysis.gd`), which STATES ITS MODEL — a
+seven-card hand, on the play, no mulligan, 90% — rather than leaving
+the reader to guess. WHAT THE DECK ASKS FOR AND WHAT IT HAS: pips
+against sources per colour, and the generic share a splash lives on.
+SOURCES NEEDED TO CAST ON CURVE: Karsten's question — how many sources
+of a colour to have its pips on the turn the card is cast, nine times
+in ten — solved from the hypergeometric for the deck's OWN SIZE the
+way edhcheck does it rather than from a table for sixty, and written
+against the hardest ask each colour makes (*"Black {B}{B} by turn 5 —
+14 of 18 — short 4"*): the classic 12/20/26 for one, two and three
+pips by turn four in sixty fall out of it, and the figures sit a
+little above edhcheck's, which simulates with a free mulligan; ours
+is the floor, no mulligan being the harder case. THE OVERLAP, which
+nobody else computes: a dual land is a source of both its colours, and
+the chance of having {W} AND {U} is not the product of the two chances
+— one Tundra alone pays for {W}{U} never, where the product says 11%.
+The joint probability is exact over the deck's overlapping sources
+(Hall's condition over the disjoint groups of what each land makes).
+LAND COUNT: what the deck has against what the curve wants, from
+Karsten's regression (19.59 + 1.90 × average cost − 0.28 × cheap
+accelerants) scaled by the deck's size over sixty — 17 in forty at an
+average of three — with only MANA acceleration counted, on purpose:
+Karsten's term is "cheap card draw or mana ramp", but the era's cheap
+draw is symmetrical (Howling Mine), conditional (Sindbad) or restricted
+(Ancestral Recall), and a detector reaching for the word "draw" catches
+Fasting and Nafs Asp, which accelerate nobody; counting mana alone
+recommends a little more land, the safe side to be wrong on. CASTING
+ON CURVE: the chance a card's
+colours are in hand on its own turn, the deck's average, and the four
+worst under 95% named with their odds. The help's STATS line says what
+MANA and HAND are. Twenty-nine tests hold the arithmetic to hand-worked
+values and the page to its words.
+
+THE TESTS: `tests/unit/test_auto_deck.gd` (22) holds the builder to the
+wishes without a screen — every deck legal (the size, no sideboard,
+every card in the pool and within the copy limit, castable in the
+chosen colours), the colours asked for the deck's, the speed's lands and
+curve, the lean's shares within twelve points, the rarity cap, the
+tournament rules (Contract from Below never, Black Lotus once), the
+legend cap, the kept cards first, the seed a deck, an empty pool sixty
+Mountains and a note, the score order (Savannah Lions over Grizzly
+Bears over Wall of Wood; Terror over Shatter over a Circle of
+Protection). `tests/ui/test_auto_deck_window.gd` (12) works the window
+and the medallion through the screen — the gold line, the defaults, a
+build and its undo, the wishes remembered, the sets, a pasted list, the
+dealt pool, the kept cards, the disc's geometry and its behaviour, one
+medallion down at a time, the glossary entry. `tests/ui/test_mana_analysis.gd`
+(29) as above. None of the three needs the skin.
+
+Gate on the tree as committed: 474 scripts, **7,464/7,464 tests,
+331,701 asserts**, exit 0 in 199 s over 6 shards (the three new scripts
+22 + 12 + 29, none needing the skin, so the bare clone's gate is 457);
+Python 291, exit 0; boot 0 errors.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

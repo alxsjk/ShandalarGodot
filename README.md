@@ -53,7 +53,9 @@ opponents, local hotseat, Gauntlet, sealed decks and best-of matches with
 sideboarding. Optional `Pack-1-DotP-complete.zip` finishes the eight set
 checklists: its title-screen `1-tDotP` button can enable 373 additional set
 entries, for **1,270 set entries / 901 unique rules identities**. The Deck Builder
-supports large cards, live filters and keyboard browsing. Further optional packs
+supports large cards, live filters and keyboard browsing, an **AI deck builder**
+that builds a deck from a set, a dealt pool or a pasted list to your wishes, and
+a Stats window that audits the mana base. Further optional packs
 add **Fallen Empires, Ice Age, Homelands and Alliances**, with engine and AI support.
 Adventure and public Internet matchmaking remain future work.
 
@@ -101,8 +103,8 @@ has its own documented implementation, and changes are checked through
 regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
-Latest local verification ([A sample hand in the Deck Builder](docs/ROADMAP.md#2026-09-17--a-sample-hand-in-the-deck-builder)):
-**7,401 GUT tests / 329,280 assertions**, plus **291 Python tests**
+Latest local verification ([The AI deck builder, the pool medallion, and a mana base audited](docs/ROADMAP.md#2026-09-18--the-ai-deck-builder-the-pool-medallion-and-a-mana-base-audited)):
+**7,464 GUT tests / 331,701 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 
