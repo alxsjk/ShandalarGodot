@@ -16069,6 +16069,28 @@ off it names the overflow: 1092px and 1190px popups in a 640px room.
 Gate: 483 scripts, **7,549/7,549 tests, 334,302 asserts**, exit 0 in 204 s
 over 6 shards; Python 291, exit 0.
 
+## 2026-09-18 — Gold Roman II for Unlimited (0.40.3)
+
+*"In deck builder all cards have our own gold glyphs for car edition
+except 2nd ! Make also a gold roman II (similar as for fourth) and use
+that for 2nd edition cards."* — the enlarged card wears a set symbol at
+the end of its type line: the printed one for the five expansions, this
+project's gold Roman `IV` for Fourth Edition, and for a set with no
+picture a short label — which left Unlimited lettered `2ⁿᵈ` as the one
+card in the Deck Builder without a glyph. `tools/draw_our_art.gd` now
+draws `set_icon_2ed.png` too, `_roman_two`: two of the `IV`'s
+slab-serif bars, the same rim, gold and 48×48 canvas, so the pair reads
+as siblings at 22px; the other twenty-three pictures regenerate
+byte-identical. `GameSkin.set_icon("2ed")` finds it, so `CardPreview`
+shows it and letters only the promos (`PR`) now; the help page's icon
+table gains the `II` beside the `IV`; the title row (`SetBadges`) and
+the Deck Builder's filter strip keep lettering `2ⁿᵈ`/`4ᵗʰ` by their own
+rules, as before. Pins: `game/art/README.md` carries the picture's
+SHA-256, `test_our_art` regenerates it, `test_skin` sizes it,
+`test_stack_hand` shows Island wearing the `II` and a HarperPrism promo
+still lettered. Gate: 483 scripts, **7,549/7,549 tests, 334,273
+asserts**, exit 0 in 202 s over 6 shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

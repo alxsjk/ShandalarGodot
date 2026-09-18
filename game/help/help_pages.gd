@@ -997,7 +997,12 @@ static func _page_icons_table() -> Dictionary:
 			{"src": SRC_SET, "code": "leg"}, "LEG"),
 		_icon("The Dark — a crescent moon", "A small, grim expansion.",
 			{"src": SRC_SET, "code": "drk"}, "DRK"),
-		_icon("Fourth Edition — IV", "An all-reprint base set.",
+		_icon("Unlimited — II", "The base set the game's own cards come "
+			+ "from: the printed card has no symbol, so this numeral is "
+			+ "this game's own mark for it.",
+			{"src": SRC_SET, "code": "2ed"}, "2ED"),
+		_icon("Fourth Edition — IV", "An all-reprint base set. Blank on the "
+			+ "printed card as well; the IV is this game's.",
 			{"src": SRC_SET, "code": "4ed"}, "4ED"),
 		_icon("Astral — a shooting star", "This game's OWN cards, made for "
 			+ "it and found nowhere in paper Magic: Aswan Jaguar, Faerie "
@@ -1020,10 +1025,10 @@ static func _page_icons_table() -> Dictionary:
 		]},
 		_heading("Card set icons"),
 		_text("Every card shows which set it came from, at the right-hand "
-			+ "end of its type line. Six of this game's eight sets have a "
-			+ "symbol. Unlimited and the promotional cards never had one "
-			+ "printed, so those two are lettered instead — 2nd, 4th and "
-			+ "PR — exactly as the printed cards leave them blank."),
+			+ "end of its type line. The five expansions wear their printed "
+			+ "symbol; Unlimited and Fourth Edition never had one printed, "
+			+ "so they wear the Roman numerals this game drew for them; the "
+			+ "promotional cards are lettered PR."),
 		{"kind": ICONS, "entries": sets},
 	]}
 

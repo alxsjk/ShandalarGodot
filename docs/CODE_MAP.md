@@ -2940,8 +2940,9 @@ shandalar/
 │   │                          skin/cardart/ as skin/cardart.zip, an empty
 │   │                          folder refused
 │   ├── draw_our_art.gd      THE PICTURES THIS PROJECT DRAWS FOR ITSELF
-│   │                          (SceneTree script) — game/art/'s six set
-│   │                          glyphs and the damage dagger. Every glyph is
+│   │                          (SceneTree script) — game/art/'s seven set
+│   │                          glyphs (a Roman II for Unlimited since
+│   │                          2026-09-18) and the damage dagger. Every glyph is
 │   │                          add/sub polygons, ellipses and capsules in
 │   │                          unit coordinates, scanline-filled 8x
 │   │                          supersampled, turned into a signed distance

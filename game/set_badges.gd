@@ -139,7 +139,11 @@ const SYMBOL_SLOT := {
 # slot for it, exactly as a printed Fourth Edition card has no expansion
 # symbol. So on this row 4ed letters itself `4ᵗʰ`, which is also the form
 # the owner asked for by name. Unlimited and the promos are absent from
-# both sheets and have never been in question.
+# both sheets and have never been in question. (The enlarged CARD is a
+# different matter: there `GameSkin.set_icon` hands Fourth Edition and,
+# since 2026-09-18, Unlimited the gold Roman IV and II this project drew
+# for them — the owner: *"In deck builder all cards have our own gold
+# glyphs for car edition except 2nd !"* — while this row keeps lettering.)
 
 ## Set icons on, i.e. the skin is allowed to dress the row. Tests turn it
 ## off to exercise the shipped lettered path on a machine that HAS the

@@ -269,7 +269,7 @@ func test_every_imported_set_icon_loses_its_ground() -> void:
 	# Whichever skin this machine imported. Both cuts must end the same
 	# way: nothing of the backdrop in the corners, and a symbol left.
 	var found := 0
-	for code in ["atq", "arn", "past", "drk", "4ed", "leg"]:
+	for code in ["atq", "arn", "past", "drk", "2ed", "4ed", "leg"]:
 		var tex := GameSkin.set_icon(code)
 		if tex == null:
 			continue
@@ -304,6 +304,7 @@ const OURS := {
 	"set_icon_arn": Vector2i(48, 48),
 	"set_icon_past": Vector2i(48, 48),
 	"set_icon_drk": Vector2i(48, 48),
+	"set_icon_2ed": Vector2i(48, 48),
 	"set_icon_4ed": Vector2i(48, 48),
 	"set_icon_leg": Vector2i(48, 48),
 	"set_icon_fem": Vector2i(48, 48),

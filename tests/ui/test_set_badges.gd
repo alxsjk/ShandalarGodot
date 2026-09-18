@@ -315,7 +315,10 @@ func test_the_sets_the_original_drew_no_symbol_for_never_take_the_icon_path() ->
 	# `Program/DBArt/Fourth.pic` (a Roman IV) exists and is imported as
 	# `set_icon_4ed`, but it is a DECK BUILDER FILTER medallion — the
 	# `Cardsets` strip the game stamps on cards has no slot for it, exactly
-	# as a printed Fourth Edition card has no expansion symbol.
+	# as a printed Fourth Edition card has no expansion symbol. (The
+	# enlarged CARD wears this project's own Roman IV and, since
+	# 2026-09-18, Roman II — `GameSkin.set_icon` — but the title row's
+	# rule is the printed strip's, and stays lettered.)
 	for code in ["2ed", "4ed", "phpr"]:
 		assert_false(SetBadges.SYMBOL_SLOT.has(code),
 			"%s has no slot on the 1997 strip" % code)

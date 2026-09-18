@@ -10,7 +10,7 @@ extends SceneTree
 ## Manalink install carries are a THIRD PARTY'S RESTYLE of MicroProse's
 ## drawings — not ours to copy either. So the shapes below are DRAWN HERE,
 ## from scratch, by this file: an anvil, a scimitar, a comet, a crescent,
-## a Roman IV, a broken column and a dagger, described as polygons and
+## a Roman II and a Roman IV, a broken column and a dagger, described as polygons and
 ## arcs in unit coordinates and rasterised by the little signed-distance
 ## renderer in this script. Fallen Empires follows the owner's supplied
 ## crown silhouette, redrawn here as geometry. No reference image is read
@@ -116,7 +116,7 @@ const OUT_DIR := "res://game/art"
 func _init() -> void:
 	var dir := ProjectSettings.globalize_path(OUT_DIR)
 	DirAccess.make_dir_recursive_absolute(dir)
-	for code in ["atq", "arn", "past", "drk", "4ed", "leg", "fem", "ice", "hml", "all"]:
+	for code in ["atq", "arn", "past", "drk", "2ed", "4ed", "leg", "fem", "ice", "hml", "all"]:
 		var img := _render(Vector2i(GLYPH_SIZE, GLYPH_SIZE),
 			[[_glyph(code), GOLD_LIT, GOLD_DARK]], RIM)
 		_write(img, dir, "set_icon_%s.png" % code)
@@ -176,6 +176,8 @@ func _glyph(code: String) -> Array:
 			return _comet()
 		"drk":
 			return _crescent()
+		"2ed":
+			return _roman_two()
 		"4ed":
 			return _roman_four()
 		"leg":
@@ -475,6 +477,29 @@ func _roman_four() -> Array:
 		Vector2(0.605, 0.865), Vector2(0.44, 0.265), Vector2(0.395, 0.265),
 	])
 	return [{"op": "add", "poly": i_bar}, {"op": "add", "poly": v}]
+
+
+## UNLIMITED — a Roman `II`, the Fourth Edition numeral's sibling
+## (2026-09-18, the owner: *"Make also a gold roman II (similar as for
+## fourth) and use that for 2nd edition cards"*). No printed Unlimited
+## card wears a symbol and the 1997 game drew none, so until today an
+## Unlimited card was the one card in the Deck Builder lettered `2ⁿᵈ`
+## while every neighbour wore gold. The same slab-serif `I` as the IV's,
+## twice, centred in the square with a gap of one stem between them, so
+## the pair still reads as two strokes at fourteen pixels.
+func _roman_two() -> Array:
+	var bars: Array = []
+	for left in [0.155, 0.55]:
+		var right: float = left + 0.295
+		var stem_l: float = left + 0.09
+		var stem_r: float = right - 0.09
+		bars.append({"op": "add", "poly": PackedVector2Array([
+			Vector2(left, 0.135), Vector2(right, 0.135), Vector2(right, 0.265),
+			Vector2(stem_r, 0.265), Vector2(stem_r, 0.735), Vector2(right, 0.735),
+			Vector2(right, 0.865), Vector2(left, 0.865), Vector2(left, 0.735),
+			Vector2(stem_l, 0.735), Vector2(stem_l, 0.265), Vector2(left, 0.265),
+		])})
+	return bars
 
 
 ## LEGENDS — a BROKEN COLUMN. Hard flat facets and not one curve: a wide

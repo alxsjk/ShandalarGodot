@@ -79,6 +79,7 @@ with the same gold card emblem and bevelled stone on/off tiles as the other pack
 | `set_icon_atq.png` | Antiquities — an anvil, 48x48 | `tools/draw_our_art.gd` (`_anvil`) | GPL-3.0 | `9a59e3a87a1e480b65c022dd4d3c5d26d998ad11d8d49a5c348dac3755574f7c` |
 | `set_icon_leg.png` | Legends — a broken column, 48x48 | `tools/draw_our_art.gd` (`_column`) | GPL-3.0 | `94911cc3d00508aeb43988d481e8b9c2f7849cf7466aa054f3b82e2285a73732` |
 | `set_icon_drk.png` | The Dark — a crescent moon, 48x48 | `tools/draw_our_art.gd` (`_crescent`) | GPL-3.0 | `34c59d84623f7cab65e6a094721008caf7322af53bba892806a821e2788eacbe` |
+| `set_icon_2ed.png` | Unlimited — a Roman `II`, the IV's sibling, 48x48 | `tools/draw_our_art.gd` (`_roman_two`) | GPL-3.0 | `a5aa2e8bdd611a26fb1fb94865c9838ba8c6dda690f60145a2f88a50255012e5` |
 | `set_icon_4ed.png` | Fourth Edition — a Roman `IV`, 48x48 | `tools/draw_our_art.gd` (`_roman_four`) | GPL-3.0 | `5f96fd74203791f0dd19b873eae13f38b6c2f120831915a7654fabf19a7b5654` |
 | `set_icon_past.png` | Astral — a comet trailing sparks, 48x48 | `tools/draw_our_art.gd` (`_comet`) | GPL-3.0 | `c2df70e8fad0f9d4512fe0218d2643f0bf7c9c21f0e3abbbc4fb8049bc8c7ec0` |
 | `set_icon_fem.png` | Fallen Empires — gold three-point crown, oval opening and detached base, 48x48 | `tools/draw_our_art.gd` (`_crown`) | GPL-3.0 | `c0530b7529fa800099b3f1903103b0aef2f006bf1d810954d50af8d6bdbb1970` |

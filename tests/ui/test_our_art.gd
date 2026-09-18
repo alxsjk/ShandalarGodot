@@ -149,7 +149,7 @@ func test_the_readme_names_at_least_the_seven_we_promised() -> void:
 	# them one by one.
 	var named := _named_files()
 	for name in ["set_icon_arn.png", "set_icon_atq.png", "set_icon_leg.png",
-			"set_icon_drk.png", "set_icon_4ed.png", "set_icon_past.png",
+			"set_icon_drk.png", "set_icon_2ed.png", "set_icon_4ed.png", "set_icon_past.png",
 			"damage_marker.png", "set_icon_fem.png", "filter_fem_on.png",
 			"filter_fem_off.png", "filter_source_on.png", "filter_source_off.png",
 			"filter_pack1_on.png", "filter_pack1_off.png", "set_icon_ice.png",

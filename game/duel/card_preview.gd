@@ -849,7 +849,9 @@ func show_card(inst: CardInstance, printing_set := "") -> void:
 		_fit_one_line(_title_font, _type_label.text, type_w,
 			[_type_size, _type_size - 2, _type_size - 4, _type_size - 6,
 				_type_size - 8]))
-	# The set symbol (none for Unlimited/promos, as printed).
+	# The set symbol: the printed one for the five expansions, this
+	# project's Roman II and IV for Unlimited and Fourth Edition, and
+	# none for the promos, which letter themselves `PR`.
 	_set_icon.texture = GameSkin.set_icon(shown_set)
 	_set_icon.visible = _set_icon.texture != null
 	_set_text.text = "" if _set_icon.visible else GameSkin.set_label(shown_set)

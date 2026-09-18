@@ -235,16 +235,25 @@ func test_big_card_writes_star_pt_for_dynamic_creatures() -> void:
 
 
 func test_every_card_shows_its_set_icon_or_a_short_label() -> void:
-	# Sets the original never gave a symbol still name themselves.
+	# A set the original never gave a symbol still names itself — the
+	# promos letter `PR`. Unlimited used to be lettered `2ⁿᵈ` the same way,
+	# the one card in the Deck Builder without a gold glyph; since
+	# 2026-09-18 it wears this project's Roman II beside the IV (the
+	# owner: *"Make also a gold roman II (similar as for fourth) and use
+	# that for 2nd edition cards"*).
 	var preview := CardPreview.new()
 	add_child_autofree(preview)
-	preview.show_card(_instance("Island"))          # 2ed — no symbol
-	assert_false(preview._set_icon.visible)
-	assert_eq(preview._set_text.text, "2")
-	assert_eq(preview._set_suffix.text, "nd", "the ordinal rides raised")
+	preview.show_card(_instance("Island"))          # 2ed — our Roman II
+	assert_true(preview._set_icon.visible, "Unlimited wears the II")
+	assert_eq(preview._set_text.text, "")
+	assert_eq(preview._set_suffix.text, "")
 	preview.show_card(_instance("Moat"))            # leg — has a symbol
 	assert_true(preview._set_icon.visible)
 	assert_eq(preview._set_text.text, "")
+	preview.show_card(_instance("Sewers of Estark"))  # phpr — lettered
+	assert_false(preview._set_icon.visible)
+	assert_eq(preview._set_text.text, "PR")
+	assert_eq(preview._set_suffix.text, "")
 
 
 func test_protection_shows_a_badge_in_play() -> void:

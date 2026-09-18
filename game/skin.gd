@@ -367,9 +367,11 @@ static func card_art(card_name: String) -> Texture2D:
 	return result
 
 
-## Short label for a set the original gave NO symbol (Unlimited and the
-## promos never printed one). Every card still shows its set: an icon
-## when one exists, this text otherwise.
+## Short label for a set that has NO symbol to show. Every card still
+## shows its set: an icon when one exists, this text otherwise. Since
+## 2026-09-18 that is the promos alone on a CARD — Unlimited wears this
+## project's Roman II — while the title row ([SetBadges]) and the Deck
+## Builder's filter strip still letter `2ⁿᵈ` and `4ᵗʰ` by their own rules.
 ## Split into [stem, SUPERSCRIPT suffix] so an edition renders the way it
 ## is written — 2 with a raised "nd", 4 with a raised "th" — rather than
 ## as flat text.
@@ -411,8 +413,9 @@ const MEDALLION_RADIUS := 0.45
 
 ## The ORIGINAL's set symbol for a set code (DBArt icons imported as
 ## set_icon_*), with its backdrop taken away so the symbol sits on a
-## card's type strip without a box behind it. Null for sets the original
-## gave no symbol (Unlimited, the promos) — as the printed cards have none.
+## card's type strip without a box behind it. Null for the promos, which
+## no drawing ever stood for; Unlimited and Fourth Edition, blank on the
+## printed card, wear the Roman II and IV this project drew for them.
 ##
 ## TWO SKINS HAND OVER TWO DIFFERENT DRAWINGS, and the file says which.
 ## `[1997]`, 2026-09-09: now that the importer decodes every skin key out
@@ -465,8 +468,9 @@ static func set_icon(set_code: String) -> Texture2D:
 	# 897 — ITS GLYPH MUST BE DRAWN, in `tools/draw_our_art.gd`, beside
 	# the six that are there. There is no import to fall back on any more:
 	# an undrawn set letters itself through `SetBadges`, which is the
-	# printed truth for Unlimited and Fourth Edition and a MISSING PIECE
-	# for anything else.
+	# printed truth for the promos and a MISSING PIECE for anything else
+	# (Unlimited had its II drawn on 2026-09-18, the owner's order, so the
+	# Deck Builder's cards all wear gold).
 	var result := our_art("set_icon_%s" % set_code)
 	_set_icon_cache[set_code] = result
 	return result
