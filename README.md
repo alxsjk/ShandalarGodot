@@ -107,7 +107,7 @@ regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
 Latest local verification ([AutoDeck's rarity, five colours, gold and the non-classic lands](docs/ROADMAP.md#2026-09-18--autodecks-rarity-five-colours-gold-and-the-non-classic-lands)):
-**7,504 GUT tests / 332,953 assertions**, plus **291 Python tests**
+**7,505 GUT tests / 333,003 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 

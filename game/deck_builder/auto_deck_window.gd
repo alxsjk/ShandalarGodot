@@ -19,13 +19,17 @@ extends RefCounted
 ## or 60 cards; more creatures or more spells; fast, medium or slow; a
 ## rarity — commons only, no rares, uncommons and up, rares and legends
 ## only; classic lands (the basics) or non-classic (the pool's duals and
-## lands with abilities preferred); the tournament rules on or off; and
-## whether to build around the cards already on the surface. All of it
-## is remembered between visits under one settings key, the way the
-## Sealed Deck window's numbers are.
+## lands with abilities preferred); the tournament rules on or off;
+## whether to build around the cards already on the surface; and a seed
+## — blank for a fresh roll every build, a number for the same deck
+## again, since the builder is seeded and its notes give the roll back
+## (`Seed 565933: …`). All of it is remembered between visits under one
+## settings key, the way the Sealed Deck window's numbers are — the seed
+## too, so the summary line says out loud when the next build will be
+## the same deck.
 
 const TITLE := "AutoDeck"
-const WINDOW_SIZE := Vector2(680, 700)
+const WINDOW_SIZE := Vector2(680, 730)
 ## The `[Settings]` key the wishes are kept under.
 const OPTIONS_SETTING := "auto_deck_options"
 ## The three pools.
@@ -37,8 +41,13 @@ const DEFAULTS := {
 	"source": SOURCE_SETS, "sets": ["4ed"], "colors": 0, "max_colors": 2, "gold": false,
 	"size": 60, "lean": AutoDeck.LEAN_BALANCED, "speed": AutoDeck.SPEED_MEDIUM,
 	"rarity": AutoDeck.RARITY_ANY, "lands": AutoDeck.LANDS_CLASSIC,
-	"tournament": true, "keep": false,
+	"tournament": true, "keep": false, "seed": 0, "last_seed": 0,
 }
+## The seed field's word for a blank, and the most a seed may be — what
+## [method AutoDeck.build] rolls.
+const SEED_BLANK := "random"
+const SEED_MOST := 999_999
+const SEED_TIP := "A number: the same pool, wishes and seed build the same deck again. Blank for a fresh roll every build — the deck notes say which seed was rolled."
 ## The rarity wishes as the window words them, in the row's order.
 const RARITY_LABELS := {AutoDeck.RARITY_ANY: "Any", AutoDeck.RARITY_PAUPER: "Common-pauper",
 	AutoDeck.RARITY_NO_RARES: "No rares", AutoDeck.RARITY_UNCOMMON_UP: "Uncommon up",
@@ -66,6 +75,8 @@ var _color_buttons: Dictionary = {}
 var _tournament_line: Button
 var _gold_line: Button
 var _keep_line: Button
+var _seed_edit: LineEdit
+var _last_seed_button: Button
 var _list_line: Label
 var _summary: Label
 var _build_button: Button
@@ -99,7 +110,8 @@ func _build() -> void:
 		options["source"] = SOURCE_SETS
 	dialog = OriginalDialog.create(TITLE, WINDOW_SIZE)
 	dialog.name = "AutoDeckWindow"
-	dialog.set_meta("auto_deck_window", true)
+	# The dialog carries its window, so a test can reach the wishes.
+	dialog.set_meta("auto_deck_window", self)
 	var body := dialog.body()
 	body.add_theme_constant_override("separation", 4)
 	var brief := OriginalDialog.label(BRIEF, 13)
@@ -219,6 +231,7 @@ func _build() -> void:
 		options["keep"] = not bool(options["keep"])
 		_refresh())
 	body.add_child(_keep_line)
+	_seed_row(body)
 
 	# --- the summary and the foot ---
 	var spacer := Control.new()
@@ -257,6 +270,58 @@ func _tick_line(text: String, node_name: String, on_press: Callable) -> Button:
 
 static func _tick_text(on: bool, text: String) -> String:
 	return ("[x] " if on else "[  ] ") + text
+
+
+## The seed row: a field for a number, blank for a fresh roll, and a
+## button that puts the last build's seed back in it.
+func _seed_row(body: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.name = "Row_seed"
+	row.add_theme_constant_override("separation", 6)
+	var label := OriginalDialog.label("Seed", 14)
+	label.custom_minimum_size.x = 64
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	label.tooltip_text = SEED_TIP
+	label.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.add_child(label)
+	_seed_edit = LineEdit.new()
+	_seed_edit.name = "SeedEdit"
+	_seed_edit.custom_minimum_size = Vector2(120, 26)
+	_seed_edit.placeholder_text = SEED_BLANK
+	_seed_edit.tooltip_text = SEED_TIP
+	_seed_edit.max_length = 6
+	if int(options["seed"]) > 0:
+		_seed_edit.text = str(int(options["seed"]))
+	_seed_edit.text_changed.connect(_seed_typed)
+	row.add_child(_seed_edit)
+	_last_seed_button = OriginalDialog.button("", Vector2(0, 26))
+	_last_seed_button.name = "LastSeedButton"
+	_last_seed_button.tooltip_text = "The seed of the last deck built — press to build it again."
+	_last_seed_button.pressed.connect(func() -> void:
+		set_seed(int(options["last_seed"])))
+	row.add_child(_last_seed_button)
+	body.add_child(row)
+
+
+## The field keeps to digits; what it says is the seed, 0 for blank.
+func _seed_typed(text: String) -> void:
+	var digits := ""
+	for c in text:
+		if c >= "0" and c <= "9":
+			digits += c
+	if digits != text:
+		_seed_edit.text = digits
+		_seed_edit.caret_column = digits.length()
+	options["seed"] = mini(int(digits) if digits != "" else 0, SEED_MOST)
+	_refresh()
+
+
+## Put [param value] in the seed field — 0 blanks it.
+func set_seed(value: int) -> void:
+	value = clampi(value, 0, SEED_MOST)
+	_seed_edit.text = "" if value == 0 else str(value)
+	options["seed"] = value
+	_refresh()
 
 
 ## A titled row of toggles, one of which is lit ([method
@@ -397,6 +462,9 @@ func _refresh() -> void:
 		"Build around the %d non-land card%s already on the surface" % [keepable, "" if keepable == 1 else "s"]
 		if keepable > 0 else "Build around the cards already on the surface (none yet)")
 	_keep_line.disabled = keepable == 0
+	var last_seed := int(options["last_seed"])
+	_last_seed_button.visible = last_seed > 0
+	_last_seed_button.text = "Last build: %d" % last_seed
 	var pool := current_pool()
 	var total := AutoDeck.pool_total(pool)
 	var colors := int(options["colors"])
@@ -418,6 +486,8 @@ func _refresh() -> void:
 	if not extras.is_empty():
 		var sentence := ", ".join(extras)
 		_summary.text += " %s%s." % [sentence.left(1).to_upper(), sentence.substr(1)]
+	if int(options["seed"]) > 0:
+		_summary.text += " Seed %d — the same deck again." % int(options["seed"])
 	_build_button.disabled = total == 0
 	if total == 0:
 		_summary.text += " Nothing to build from yet."
@@ -496,15 +566,21 @@ func builder() -> AutoDeck:
 	auto.rarity = String(options["rarity"])
 	auto.land_kind = String(options["lands"])
 	auto.tournament = bool(options["tournament"])
+	auto.seed = int(options["seed"])
 	if bool(options["keep"]) and _keepable() > 0:
 		auto.keep = screen.deck.duplicate_model()
 	return auto
 
 
+## The window rolls a blank seed itself, so it can remember the roll
+## for the `Last build` button; the builder would roll the same range.
 func _build_deck() -> void:
 	var auto := builder()
 	if AutoDeck.pool_total(auto.pool) == 0:
 		return
+	if auto.seed == 0:
+		auto.seed = randi_range(1, SEED_MOST)
+	options["last_seed"] = auto.seed
 	Settings.set_value(OPTIONS_SETTING, options.duplicate(true))
 	dialog.dismiss()
 	screen._take_auto_deck(auto)

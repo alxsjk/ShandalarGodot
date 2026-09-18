@@ -15667,16 +15667,40 @@ non-classic lands.` — when any is set; the Help page's AutoDeck
 paragraph names them all. Screenshot-checked under Xvfb: the window
 fits with the footer clear.
 
+**The seed in the window** — the owner's question, the same morning:
+*"Is the AutoDeck seeded? Would it be sensible to have also the seed in
+the AutoDeck window?"* It was seeded from the first (`AutoDeck.seed`, 0
+for a fresh roll, and the notes' last line `Seed 565933: the same pool
+and wishes build this deck again.`), but the roll could only be read,
+never given back. The window's last row is `Seed` now: a field of
+digits (`SeedEdit`, blank for a fresh roll every build, `SEED_MOST`
+999,999 — the builder's own range) and a `Last build: 565933` button
+that puts the last roll back in it. The window rolls a blank seed
+itself, so it can remember the roll (`last_seed`, saved with the
+wishes). The seed is remembered between visits like every other wish,
+which would be a trap — the same deck every morning — were the summary
+line not saying so out loud: `Seed 565933 — the same deck again.` The
+Help paragraph says what a seed is for: leave it blank for a fresh deck
+every time, type a number to share a build. The dialog now carries its
+window in the `auto_deck_window` meta (it was `true`), so a test can
+reach the wishes. The Help paragraph also had a clause fall out in the
+first commit of the day ("whether the tournament rules hold; and
+whether to build around" read "whether the cards already on the
+surface") — restored and now quoted by the test.
+
 Tests: `test_auto_deck.gd` 27 tests (the rarity wish all four ways with
 the saved words; five colours; the gold deck against the plain one, its
 own choice of colours, mono widened, Fourth Edition's none; classic
 lands the basics alone; non-classic lands from Fourth Edition with a
 Taiga and from the whole library with the rooms; `land_worth` orderings),
-`test_auto_deck_window.gd` 12 (the new controls, their defaults, the
-summary sentence, the notes, the window remembering), `test_help_screen`
-quotes the wishes. Gate on the tree as committed: 476 scripts,
-**7,504/7,504 tests, 332,953 asserts**, exit 0 in 201 s over 6 shards;
-Python 291, exit 0.
+`test_auto_deck_window.gd` 13 (the new controls, their defaults, the
+summary sentence, the notes, the window remembering; the seed typed,
+digits only, the same deck twice, blanked, the last roll put back, the
+range held), `test_help_screen` quotes the wishes. Gate on the tree as
+committed, the first commit: 476 scripts, **7,504/7,504 tests, 332,953
+asserts**, exit 0 in 201 s over 6 shards; Python 291, exit 0. The seed
+commit: 476 scripts, **7,505/7,505 tests, 333,003 asserts**, exit 0 in 198 s
+over 6 shards; Python 291, exit 0.
 
 ## Standing quality gates
 

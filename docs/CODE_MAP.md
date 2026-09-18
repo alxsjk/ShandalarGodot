@@ -32,8 +32,9 @@ needed); card files have NO class_name (they register by name instead);
   pool's duals, City of Brass and the lands with abilities; `_lay_nonbasics`
   lays the best up to half the lands, the colourless ones within a room).
 - `game/deck_builder/auto_deck_window.gd` (`AutoDeckWindow`): the dialog — the pool
-  (sets, the dealt cards, a file or a paste), the wishes, a summary line, `Build
-  me a deck`; the wishes remembered under `auto_deck_options`.
+  (sets, the dealt cards, a file or a paste), the wishes, the seed (blank for a
+  fresh roll, `Last build` puts the roll back), a summary line, `Build me a
+  deck`; the wishes remembered under `auto_deck_options`.
 - `game/deck_builder/mana_analysis.gd` (`ManaAnalysis`): the Stats window's Mana
   page — sources needed at 90% for the deck's own size, exact joint odds over
   overlapping sources, Karsten's land count, castability on curve.
@@ -6805,7 +6806,8 @@ shandalar/
 │   │   │                      (any, common-pauper, no rares, uncommon
 │   │   │                      up, only rares), classic or non-classic
 │   │   │                      lands, tournament rules, build around the
-│   │   │                      surface; a summary
+│   │   │                      surface, a seed (blank for a fresh roll;
+│   │   │                      `Last build` puts the roll back); a summary
 │   │   │                      line that says what the build will be and
 │   │   │                      a `Build me a deck` greyed with nothing to
 │   │   │                      build from. Remembers its wishes under

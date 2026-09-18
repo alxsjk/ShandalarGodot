@@ -35,6 +35,11 @@ func _window() -> OriginalDialog:
 	return null
 
 
+## The window behind the dialog, for the wishes and the seed.
+func _window_of() -> AutoDeckWindow:
+	return _window().get_meta("auto_deck_window")
+
+
 func _paste() -> OriginalDialog:
 	for dialog in screen.open_dialogs():
 		if dialog.name == "AutoDeckPaste":
@@ -142,6 +147,9 @@ func test_the_window_shows_the_pool_and_the_wishes_with_their_defaults() -> void
 	assert_eq((_in("Rarity_rares") as Button).text, "Only rares")
 	assert_true((_in("Lands_classic") as Button).button_pressed, "classic lands")
 	assert_false((_in("Lands_nonclassic") as Button).button_pressed)
+	assert_eq((_in("SeedEdit") as LineEdit).text, "", "no seed: a fresh roll every build")
+	assert_eq((_in("SeedEdit") as LineEdit).placeholder_text, AutoDeckWindow.SEED_BLANK)
+	assert_false((_in("LastSeedButton") as Button).visible, "nothing built yet")
 	assert_false((_in("Size_40") as Button).button_pressed)
 	assert_true((_in("TournamentLine") as Button).text.begins_with("[x] Tournament rules"))
 	var keep: Button = _in("KeepLine")
@@ -272,6 +280,59 @@ func test_the_wishes_reach_the_builder() -> void:
 	_in("Color_R").pressed.emit()
 	assert_true((_in("SummaryLine") as Label).text.contains("blue-black-red, up to 3;"),
 		(_in("SummaryLine") as Label).text)
+
+
+## The builder is seeded and its notes give the roll back; the window's
+## seed field (2026-09-18) takes it, so the same pool, wishes and seed
+## build the same deck again — and `Last build` puts the roll back.
+func test_a_seed_builds_the_same_deck_again() -> void:
+	await _open()
+	var edit: LineEdit = _in("SeedEdit")
+	var summary: Label = _in("SummaryLine")
+	edit.text = "12ab3"
+	edit.text_changed.emit(edit.text)
+	assert_eq(edit.text, "123", "digits only")
+	assert_eq(int(_window_of().options["seed"]), 123)
+	assert_true(summary.text.ends_with("balanced, medium. Seed 123 — the same deck again."), summary.text)
+	_in("BuildButton").pressed.emit()
+	await get_tree().process_frame
+	var first := screen.deck.duplicate_model()
+	assert_true(first.notes.contains("Seed 123: the same pool and wishes build this deck again."), first.notes)
+	# Reopened, the seed is remembered and said out loud; the same deck
+	# comes of it.
+	await _open()
+	assert_eq((_in("SeedEdit") as LineEdit).text, "123")
+	assert_true((_in("SummaryLine") as Label).text.ends_with("Seed 123 — the same deck again."),
+		(_in("SummaryLine") as Label).text)
+	var last: Button = _in("LastSeedButton")
+	assert_true(last.visible)
+	assert_eq(last.text, "Last build: 123")
+	_in("BuildButton").pressed.emit()
+	await get_tree().process_frame
+	assert_eq(screen.deck.counts, first.counts, "the same deck again")
+	assert_eq(screen.deck.deck_name, first.deck_name)
+	# Blanked, every build is a fresh roll — and the roll is the last
+	# build's, for the button to put back.
+	await _open()
+	_window_of().set_seed(0)
+	assert_eq((_in("SeedEdit") as LineEdit).text, "")
+	assert_false((_in("SummaryLine") as Label).text.contains("Seed"), (_in("SummaryLine") as Label).text)
+	_in("BuildButton").pressed.emit()
+	await get_tree().process_frame
+	var rolled := int(Settings.get_value(AutoDeckWindow.OPTIONS_SETTING, {})["last_seed"])
+	assert_gt(rolled, 0, "the roll remembered")
+	assert_ne(rolled, 123)
+	assert_true(screen.deck.notes.contains("Seed %d:" % rolled), screen.deck.notes)
+	await _open()
+	assert_eq((_in("SeedEdit") as LineEdit).text, "", "blank stays blank")
+	assert_eq((_in("LastSeedButton") as Button).text, "Last build: %d" % rolled)
+	_in("LastSeedButton").pressed.emit()
+	assert_eq((_in("SeedEdit") as LineEdit).text, str(rolled), "the last roll put back")
+	assert_true((_in("SummaryLine") as Label).text.ends_with("Seed %d — the same deck again." % rolled))
+	# A seed beyond the builder's own range is held to it.
+	_window_of().set_seed(5_000_000)
+	assert_eq(int(_window_of().options["seed"]), AutoDeckWindow.SEED_MOST)
+	assert_eq(_window_of().builder().seed, AutoDeckWindow.SEED_MOST)
 
 
 func test_the_sets_tick_and_untick_and_no_set_builds_nothing() -> void:
