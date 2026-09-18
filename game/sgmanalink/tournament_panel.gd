@@ -236,7 +236,7 @@ func _build_setup() -> void:
 	_invite_only.name = "TournamentInviteOnly"
 	_invite_only.text = "Invitation only"
 	_invite_only.button_pressed = false
-	UiChrome.shadowed_button(_invite_only)
+	SgLobbyStyle.check(_invite_only)
 	_invite_only.toggled.connect(func(_value: bool) -> void: _access_hint.text = _access_text())
 	access_row.add_child(_invite_only)
 	_copy_button(access_row)

@@ -377,6 +377,12 @@ needed); card files have NO class_name (they register by name instead);
   Invitation only, the sub-windows opening and closing (button, Escape, a click
   on the sheet), the browser rows naming each duel with its deck rule and
   access, and the tournament setup's sub-windows and copy-button states.
+- `tests/ui/test_sgmanalink_lettering_2026_09_18.gd`: lettering wears its
+  surface — every label, rich text, check box and check button on every lobby
+  page, in every sub-window, in the deck choosers and on every tab of a live
+  hall read against the ground they sit on (a luminance gap of 0.4 or more);
+  a label re-inked when it lands on parchment or stone, a caller's own colour
+  kept, a check button pale on the stone and seated on the parchment.
 - `tests/ui/test_sgmanalink_network.gd`: real sockets, GUI room flow,
   authentication/seat bounds, stale/duplicate commands, disconnects,
   lost acknowledgements, controller replacement, real UDP discovery, TLS LAN

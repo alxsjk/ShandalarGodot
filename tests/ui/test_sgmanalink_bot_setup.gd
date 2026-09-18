@@ -8,7 +8,8 @@ func _decks() -> Array:
 
 func test_bot_setup_restores_the_fair_level_and_publishes_explicit_options() -> void:
 	var setup := SgBotSetup.new()
-	add_child_autofree(setup)
+	# On a parchment section, as in the organiser's controls: dark ink.
+	add_child_autofree(SgLobbyStyle.panel(setup, true))
 	setup.build(8, _decks())
 	assert_eq(setup._level.item_count, 4)
 	assert_eq(setup._level.get_item_text(3), "Wizard")

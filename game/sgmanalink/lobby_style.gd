@@ -2,6 +2,21 @@ class_name SgLobbyStyle
 extends RefCounted
 ## [QoL] SGManalink's restrained stone frame, parchment sections and shared controls.
 ## Reuses the game's fonts and chrome; no downloaded art or platform-native dialogs.
+##
+## LETTERING WEARS ITS SURFACE (2026-09-18). The owner's playtest: *"In
+## SGManalink some menus have black letters on dark (stone looking
+## windows). That cannot be read. Please change so all lettering is
+## contrasting brighter on dark windows."* A label used to take its ink
+## from a flag the caller passed, and the sub-windows of the same day
+## moved a dozen labels from paper sections onto the stone with the flag
+## left at its default — INK on dark stone, the very thing. Now a label,
+## a check box or a check button reads the surface it sits on when it
+## enters the tree, the way a button does ([method dress]): [constant
+## PALE] on a dark section, the stone frame or a window, [constant
+## UiChrome.INK] on paper ([method seat]). A colour the caller set itself
+## — gold facts, an accent warning, a green Ready — is kept. A rich text
+## (a decklist) sits in a parchment well of its own, like the list beside
+## it, and reads the same everywhere.
 
 const PAPER := Color8(216, 203, 174)
 const WELL := Color8(234, 223, 198)
@@ -10,17 +25,58 @@ const PALE := Color8(235, 222, 191)
 const MUTED := Color8(180, 180, 157)
 const DARK := Color8(27, 34, 29)
 
+## The colours a control's lettering may wear: INK on paper, PALE on
+## the dark sections, the stone frame and the windows.
+const INKS := ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color",
+	"font_focus_color"]
+
+## A label. [param dark_surface] is the caller's guess before the label
+## is in the tree; the surface it lands on has the last word ([method
+## seat]).
 static func label(text: String, size := 16, dark_surface := false) -> Label:
 	var node := UiChrome.body_label(text, size)
 	node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	node.add_theme_color_override("font_color", PALE if dark_surface else UiChrome.INK)
+	_ink(node, dark_surface)
 	node.add_theme_color_override("font_shadow_color", Color(0,0,0,0))
 	node.add_theme_constant_override("shadow_outline_size", 0)
 	if size >= 24:
 		var font := GameSkin.font("font_title")
 		if font != null: node.add_theme_font_override("font", font)
+	node.tree_entered.connect(seat.bind(node))
 	return node
+
+
+## A check box or a check button: the game's tick, and lettering that
+## follows the surface like a label's.
+static func check(node: Button) -> void:
+	UiChrome.shadowed_button(node)
+	node.set_meta("sg_ink", UiChrome.INK)
+	node.tree_entered.connect(seat.bind(node))
+
+
+## Give [param node] the ink of the surface it sits on — [constant PALE]
+## off paper, [constant UiChrome.INK] on it — unless the caller has set
+## a colour of its own since the last seating: that one is kept.
+static func seat(node: Control) -> void:
+	if node.has_meta("sg_ink") and node.has_theme_color_override("font_color") \
+			and node.get_theme_color("font_color") != node.get_meta("sg_ink"):
+		return
+	_ink(node, not on_paper(node))
+
+
+static func _ink(node: Control, pale: bool) -> void:
+	var colour: Color = PALE if pale else UiChrome.INK
+	if node is Button:
+		for state in INKS:
+			node.add_theme_color_override(state, colour)
+		# The seat is INK's: a pale one-pixel outline lifts dark letters
+		# off the stone, and would smear pale ones.
+		node.add_theme_color_override("font_shadow_color", UiChrome.SEAT if not pale else Color(0,0,0,0))
+		node.add_theme_color_override("font_disabled_color", Color8(74, 66, 60) if not pale else MUTED)
+	else:
+		node.add_theme_color_override("font_color", colour)
+	node.set_meta("sg_ink", colour)
 
 static func panel(inner: Control, light := true, margin := 18.0) -> PanelContainer:
 	var box := StyleBoxFlat.new()
@@ -275,6 +331,10 @@ static func deck_list(list: ItemList) -> void:
 	if font != null: list.add_theme_font_override("font", font)
 
 static func rich_text(node: RichTextLabel) -> void:
+	var box := StyleBoxFlat.new()
+	box.bg_color = WELL
+	box.set_content_margin_all(8)
+	node.add_theme_stylebox_override("normal", box)
 	node.add_theme_color_override("default_color", UiChrome.INK)
 	node.add_theme_font_size_override("normal_font_size", 17)
 	node.add_theme_constant_override("line_separation", 3)

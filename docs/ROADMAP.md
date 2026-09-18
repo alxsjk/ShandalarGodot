@@ -15997,6 +15997,42 @@ between visits, the fit), `test_help_screen.gd`. Gate: 481 scripts,
 **7,541/7,541 tests, 333,439 asserts**, exit 0 in 207 s over 6 shards;
 Python 291, exit 0.
 
+## 2026-09-18 — Lettering on the stone (0.40.1)
+
+*"In SGManalink some menus have black letters on dark (stone looking
+windows). That cannot be read. Please change so all lettering is
+contrasting brighter on dark windows."* — The sub-windows of the morning
+(`SgLobbyStyle.window`) are dark stone frames, and every label inside
+them came from `SgLobbyStyle.label` with its `dark_surface` flag left at
+its default: INK on stone, in Network settings, Table rules, Assigned
+deck, Join by invitation and the tournament's Change…, Welcome message…
+and Save folder…; the decklists there were rich text with no ground of
+their own, the same ink on the same stone; and the `Listed in the game
+browser` switch wore the parchment button's dark ink and pale seat. Now
+lettering wears its surface the way a button already did (`dress`): a
+label, a check box or a check button reads the surface it sits on when
+it enters the tree (`SgLobbyStyle.seat` — `PALE` on a dark section, the
+frame or a window, `UiChrome.INK` on parchment, `on_paper` deciding as
+for the buttons), and a colour the caller chose itself — a gold fact, an
+accent warning, the status line's MUTED — is kept. `SgLobbyStyle.check`
+replaces the six `UiChrome.shadowed_button` calls on check controls
+(Remember me, Invitation only ×2, Listed in the game browser, the
+browser's ticks, the bot chooser's Unfair): on parchment the dark ink
+and its pale seat as before, on stone pale lettering, no seat, MUTED
+when disabled. `SgLobbyStyle.rich_text` gives a decklist a parchment
+well of its own (the list beside it always had one), so INK reads
+wherever the text is shown. The caller's flag stays as a hint, the
+surface has the last word. Test: `test_sgmanalink_lettering_2026_09_18.gd`
+walks every page, every sub-window, both deck choosers and every tab of
+a live eight-player hall and reads each label, rich text, check box,
+check button, field, list, tree and option against the ground behind it
+(its own well where it has one, else the nearest painted section) — a
+luminance gap of 0.4 or more; with the seating switched off it names
+twenty-odd INK-on-stone labels in seven windows, with it none. The
+version: every commit now bumps the patch number (owner's word, the same
+day), so `config/version` reads 0.40.1. Gate: 482 scripts, **7,544/7,544 tests,
+334,159 asserts**, exit 0 in 209 s over 6 shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

@@ -61,8 +61,7 @@ func build(maximum: int, decks: Array, previous: Dictionary = {}) -> void:
 	for state in ["normal", "hover", "pressed", "hover_pressed"]:
 		_unfair.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	_unfair.add_theme_stylebox_override("focus", OriginalDialog.focus_ring())
-	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
-		_unfair.add_theme_color_override(state, UiChrome.INK)
+	SgLobbyStyle.check(_unfair)
 	_unfair.add_theme_font_size_override("font_size", 17)
 	var font := GameSkin.font("font_body")
 	if font != null: _unfair.add_theme_font_override("font", font)

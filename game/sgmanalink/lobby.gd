@@ -235,7 +235,7 @@ func _build_identity(page: VBoxContainer) -> void:
 	_remember.text = "Remember this name on this device"
 	_remember.button_pressed = not _nickname.text.is_empty()
 	_identity_remember = _remember.button_pressed
-	UiChrome.shadowed_button(_remember)
+	SgLobbyStyle.check(_remember)
 	body.add_child(_remember)
 	body.add_child(_label("Up to 20 letters, numbers, spaces, - or _. No email or SSH key needed.", 15))
 	var actions := SgLobbyStyle.row(body)
@@ -290,7 +290,7 @@ func _build_host(page: VBoxContainer) -> void:
 	_invite_only.name = "InviteOnly"
 	_invite_only.text = "Invitation only"
 	_invite_only.button_pressed = false
-	UiChrome.shadowed_button(_invite_only)
+	SgLobbyStyle.check(_invite_only)
 	_invite_only.toggled.connect(func(_value: bool) -> void: _refresh())
 	access_row.add_child(_invite_only)
 	_copy = SgLobbyStyle.button("Copy invitation", _copy_invitation, Vector2(170, 38))
@@ -340,7 +340,7 @@ func _build_host(page: VBoxContainer) -> void:
 	_advertise = CheckButton.new()
 	_advertise.text = "Listed in the LAN game browser"
 	_advertise.button_pressed = true
-	UiChrome.shadowed_button(_advertise)
+	SgLobbyStyle.check(_advertise)
 	_host_controls.add_child(_advertise)
 	_host_controls.add_child(_label("Switch off to keep this host off every game browser; only the invitation reaches it then.", 15))
 	var advanced := SgLobbyStyle.column(_network_window, "Same-computer testing", false)
@@ -1250,7 +1250,7 @@ func _invite_only_mark(ticked: bool) -> CheckBox:
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mark.focus_mode = Control.FOCUS_NONE
 	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	UiChrome.shadowed_button(mark)
+	SgLobbyStyle.check(mark)
 	return mark
 
 
