@@ -98,11 +98,20 @@ static func window(owner: Control, title: String, node_name := "") -> VBoxContai
 	body.set_meta("sg_window", sheet)
 	body.set_meta("sg_frame", frame)
 	# The panel takes most of the viewport, never more than a page's width.
+	# Offsets around the centre anchor, never `size`: a hidden sheet's
+	# minimum sizes are stale (an autowrapped label with no width yet reads
+	# one word per line) and `size` clamps to them for good — on a runner
+	# without the skin the wider font made a 705 px frame on a 600 px
+	# viewport. Offsets hold the wanted rect; a transient minimum only
+	# grows the frame both ways until the layout settles.
 	var fit := func() -> void:
 		if not sheet.is_inside_tree(): return
 		var view := sheet.get_viewport_rect().size
-		frame.size = Vector2(minf(940, maxf(0, view.x - 48)), minf(700, maxf(0, view.y - 64)))
-		frame.position = (view - frame.size) * 0.5
+		var wanted := Vector2(minf(940, maxf(0, view.x - 48)), minf(700, maxf(0, view.y - 64))) * 0.5
+		frame.offset_left = -wanted.x
+		frame.offset_right = wanted.x
+		frame.offset_top = -wanted.y
+		frame.offset_bottom = wanted.y
 	sheet.visibility_changed.connect(fit)
 	sheet.resized.connect(fit)
 	# A click on the sheet outside the panel closes it, like Escape.

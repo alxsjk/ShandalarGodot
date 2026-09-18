@@ -15796,8 +15796,10 @@ host's `start_lan(...)` takes `open`, and `open_to_lan` decides what the
 advert carries.
 
 **The duel by name.** The Game Browser lists one row per *table*, not per
-host: **DUEL** (the name the host typed), **HOST**, **DECKS**, **ACCESS**,
-**BUILD** and Join; a tournament is one row named after the event; a
+host: **DUEL** (the name the host typed), **HOST**, **DECKS**, **INVITE
+ONLY** (a read-only tick — the owner asked for a box, not a word, so a
+player sees at a glance which Join will ask for an invitation), **BUILD**
+and Join; a tournament is one row named after the event; a
 host without a table says so. Adverts carry up to `MAX_ROOMS` table rows
 `{name, decks, deck, open}`. Join on an open host connects with the
 published invitation and, once the first state arrives, sits at the
@@ -15850,6 +15852,27 @@ carries the host's own invitation and the invitation-only advert
 carries neither secret nor certificate. Gate on the tree as committed:
 479 scripts, **7,529/7,529 tests, 333,335 asserts**, exit 0
 in 204 s over 6 shards; Python 291, exit 0.
+
+**The tick and the skinless frame (same day).** The owner, after the
+first LAN try: *"when you find games in game browser it should just be
+join and you are in. If it is invite only it should open a window to
+paste the invite. Browser should show invite only checkbox for such
+games!"* The first two were already the design; the third replaced the
+ACCESS word with an **INVITE ONLY** column of read-only ticks
+(`SgLobby._invite_only_mark`: a CheckBox that ignores the mouse and
+takes no focus — a *disabled* box fades its tick into the stone). The
+GitHub gate on the first commit failed one geometry assertion the
+skinned gate passes: on the runner without the skin the network
+window's frame stood 705 px tall on a 600 px viewport. Cause: the
+sheet's first `fit` runs on `visibility_changed`, when a hidden
+autowrapped label with no width yet reports one word per line, and
+`frame.size = …` clamps to that stale minimum and bakes it into the
+offsets for good. `SgLobbyStyle.window()` now sets the offsets around
+the centre anchor instead, so the wanted rect holds and a transient
+minimum only grows the frame until the layout settles. Reproduced and
+verified on a bare clone (no `assets/`) before pushing — the lesson of
+2026-09-18 06:00 again. Gate: 479 scripts, **7,529/7,529 tests,
+333,313 asserts**, exit 0 in 204 s over 6 shards; Python 291, exit 0.
 
 ## Standing quality gates
 

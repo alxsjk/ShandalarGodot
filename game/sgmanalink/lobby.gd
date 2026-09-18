@@ -1170,7 +1170,7 @@ func _browser() -> void:
 			return
 		# One row per table, not per host: the duel's name is what a player
 		# looks for (owner's word, 2026-09-18). A tournament is one row.
-		var table := _table(nearby, ["DUEL", "HOST", "DECKS", "ACCESS", "BUILD", ""])
+		var table := _table(nearby, ["DUEL", "HOST", "DECKS", "INVITE ONLY", "BUILD", ""])
 		var keys := _discovery.hosts.keys()
 		keys.sort()
 		for key in keys:
@@ -1188,7 +1188,7 @@ func _browser() -> void:
 				var host := _cell(table, String(advert.name))
 				host.tooltip_text = "%s:%d" % [advert.address, int(advert.port)]
 				_cell(table, String(entry.decks))
-				_cell(table, "Open" if SgLanDiscovery.open_host(advert) else "Invitation")
+				table.add_child(_invite_only_mark(not SgLanDiscovery.open_host(advert)))
 				var brief := _advert_brief(advert)
 				var build := _cell(table, brief if not brief.is_empty() else "Same as yours")
 				build.add_theme_color_override("font_color", UiChrome.ACCENT if not brief.is_empty() else SgLobbyStyle.GOLD.darkened(0.45))
@@ -1238,6 +1238,20 @@ func _cell(table: GridContainer, text: String, wide := false, font_size := 16) -
 	cell.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wide else TextServer.AUTOWRAP_OFF
 	table.add_child(cell)
 	return cell
+
+
+## The browser's INVITE ONLY column: a ticked box on a host that asks for
+## its invitation before Join, an empty one where Join connects straight
+## away (owner's word, 2026-09-18). It reports and takes no clicks; a
+## disabled box would fade the tick into the stone.
+func _invite_only_mark(ticked: bool) -> CheckBox:
+	var mark := CheckBox.new()
+	mark.button_pressed = ticked
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.focus_mode = Control.FOCUS_NONE
+	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UiChrome.shadowed_button(mark)
+	return mark
 
 
 ## An advert is untrusted; it only previews the hello check the host repeats.

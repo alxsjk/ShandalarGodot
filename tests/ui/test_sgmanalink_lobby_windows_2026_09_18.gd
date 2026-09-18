@@ -237,13 +237,22 @@ func test_the_browser_keeps_find_and_join_by_invitation_and_names_each_duel() ->
 	assert_eq(table.columns, 6)
 	var cells: Array = []
 	for label: Label in table.find_children("*", "Label", true, false): cells.append(label.text)
-	assert_eq(cells.slice(0, 6), ["DUEL", "HOST", "DECKS", "ACCESS", "BUILD", ""])
-	assert_eq(cells.slice(6, 11), ["Kitchen table", "Forest Fox", "Bring your own", "Open", "Same as yours"])
-	assert_eq(cells.slice(11, 16), ["Knights only", "Forest Fox", "Assigned: White Knights", "Open", "Same as yours"])
-	assert_eq(cells.slice(16, 21), ["Tournament · Friday Cup", "Old Owl", "", "Invitation", "Same as yours"])
-	assert_eq(cells.slice(21, 26), ["No table yet", "Quiet Hare", "", "Invitation", "Same as yours"])
+	assert_eq(cells.slice(0, 6), ["DUEL", "HOST", "DECKS", "INVITE ONLY", "BUILD", ""])
+	assert_eq(cells.slice(6, 10), ["Kitchen table", "Forest Fox", "Bring your own", "Same as yours"])
+	assert_eq(cells.slice(10, 14), ["Knights only", "Forest Fox", "Assigned: White Knights", "Same as yours"])
+	assert_eq(cells.slice(14, 18), ["Tournament · Friday Cup", "Old Owl", "", "Same as yours"])
+	assert_eq(cells.slice(18, 22), ["No table yet", "Quiet Hare", "", "Same as yours"])
+	# The access rule is a ticked box, not a word (owner's word, 2026-09-18):
+	# ticked where Join asks for the invitation, empty where Join connects.
+	var marks: Array = []
+	for mark: CheckBox in table.find_children("*", "CheckBox", true, false):
+		marks.append(mark.button_pressed)
+		assert_eq(mark.mouse_filter, Control.MOUSE_FILTER_IGNORE, "the tick reports; it takes no clicks")
+		assert_eq(mark.focus_mode, Control.FOCUS_NONE)
+	assert_eq(marks, [false, false, true, true])
 	var buttons: Array = []
-	for button: Button in table.find_children("*", "Button", true, false): buttons.append([button.text, button.disabled])
+	for button: Button in table.find_children("*", "Button", true, false):
+		if not button is CheckBox: buttons.append([button.text, button.disabled])
 	assert_eq(buttons, [["Join", false], ["In play", true], ["Join", false], ["Join", false]])
 	assert_false(lobby.client._wanted)
 

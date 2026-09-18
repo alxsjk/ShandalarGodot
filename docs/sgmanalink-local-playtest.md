@@ -49,8 +49,9 @@ Use matching **0.40.0 development builds** and enabled packs on both computers. 
    what the table plays.
 3. On the other computer, open **Game Browser**, then **Find LAN games**.
    Every duel on the network is listed by name with its host, deck rule
-   (**Bring your own** or **Assigned: …**), access and build. Choose **Join**
-   beside the duel: an open table connects and seats you at once.
+   (**Bring your own** or **Assigned: …**), an **INVITE ONLY** tick and
+   build. Choose **Join** beside the duel: an open table connects and seats
+   you at once; a ticked table opens the window to paste the invitation.
 4. For an invitation-only table, the host chooses **Copy invitation** (on
    Host Game or in the duel room) and sends it privately. It is a long,
    single-line `sglan1:` invitation: host address, port, public certificate

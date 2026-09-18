@@ -236,9 +236,12 @@ func test_browser_names_what_a_nearby_host_does_not_match() -> void:
 	assert_eq(table.columns, 6, "duel, host, decks, access, build, join")
 	var rows := ""
 	for label in table.find_children("*", "Label", true, false): rows += label.text + "\n"
-	for cell in ["DUEL", "HOST", "DECKS", "ACCESS", "BUILD", "Fox's duel", "Forest Fox", "Assigned: Knights", "Invitation",
+	for cell in ["DUEL", "HOST", "DECKS", "INVITE ONLY", "BUILD", "Fox's duel", "Forest Fox", "Assigned: Knights",
 			"Same as yours", "Owl's duel", "Old Owl", "Bring your own", "Shandalar 0.31.0"]:
 		assert_string_contains(rows, cell)
+	var marks: Array = []
+	for mark: CheckBox in table.find_children("*", "CheckBox", true, false): marks.append(mark.button_pressed)
+	assert_eq(marks, [true, true], "both hosts ask for their invitation: the box is ticked")
 	assert_false(rows.contains("192.168.0.5"), "the address is a tooltip, not a column")
 	var joins: Array = []
 	for node in table.find_children("*", "Button", true, false):

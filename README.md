@@ -112,7 +112,7 @@ regression tests and reproducible simulations. Godot keeps the project
 independent and the source accessible.
 
 Latest local verification ([Open tables](docs/ROADMAP.md#2026-09-18--open-tables-the-lan-lobby-uncluttered-protocol-21)):
-**7,529 GUT tests / 333,335 assertions**, plus **291 Python tests**
+**7,529 GUT tests / 333,313 assertions**, plus **291 Python tests**
 (one platform-specific skip). The same gate runs on GitHub Actions for
 every push and pull request.
 

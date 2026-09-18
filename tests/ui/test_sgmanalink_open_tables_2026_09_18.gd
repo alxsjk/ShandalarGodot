@@ -149,8 +149,11 @@ func test_the_browser_joins_an_open_table_by_name_without_a_paste() -> void:
 	lobby._refresh()
 	var rows := ""
 	for label: Label in lobby._body.find_children("*", "Label", true, false): rows += label.text + "\n"
-	for cell in ["DUEL", "Kitchen table", "Forest Fox", "Bring your own", "Open", "Same as yours"]:
+	for cell in ["DUEL", "Kitchen table", "Forest Fox", "Bring your own", "INVITE ONLY", "Same as yours"]:
 		assert_string_contains(rows, cell)
+	var marks: Array = []
+	for mark: CheckBox in lobby._body.find_children("*", "CheckBox", true, false): marks.append(mark.button_pressed)
+	assert_eq(marks, [false], "an open table's INVITE ONLY box is empty")
 	var join: Button
 	for button: Button in lobby._body.find_children("*", "Button", true, false):
 		if button.text == "Join": join = button
