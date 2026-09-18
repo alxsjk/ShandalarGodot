@@ -1,6 +1,6 @@
 class_name AutoDeckWindow
 extends RefCounted
-## [QoL] THE AI DECK BUILDER'S WINDOW — the mini-menu's `AI deck builder`
+## [QoL] AUTODECK'S WINDOW — the mini-menu's `AutoDeck`
 ## entry (2026-09-18). A card pool at the top, the wishes under it, one
 ## button at the foot, and the deck it builds lands on the surface with
 ## the pool under the pool medallion so the player can go on from there
@@ -21,7 +21,7 @@ extends RefCounted
 ## surface. All of it is remembered between visits under one settings
 ## key, the way the Sealed Deck window's numbers are.
 
-const TITLE := "AI deck builder"
+const TITLE := "AutoDeck"
 const WINDOW_SIZE := Vector2(680, 640)
 ## The `[Settings]` key the wishes are kept under.
 const OPTIONS_SETTING := "auto_deck_options"

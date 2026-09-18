@@ -18,7 +18,7 @@ needed); card files have NO class_name (they register by name instead);
 - Release builder metadata includes a generated Pack 1 `base_assignments.json`
   snapshot of the source registry, so players need no `cards/sets/` scripts.
 
-## AI deck builder and mana analysis (2026-09-18)
+## AutoDeck and mana analysis (2026-09-18)
 
 - `game/deck_builder/auto_deck.gd` (`AutoDeck`): a card pool and the wishes in, a
   legal deck out — score, choose the colours, fill the spells, lay the lands;
@@ -4494,7 +4494,7 @@ shandalar/
 │    promises more than it has, a turn draws the top card and stops at an
 │    empty library, lands are the registry's word and a proxy is not one,
 │    no-land and all-land are the 1997 hands and an empty hand is neither;
-│    tests/unit/test_auto_deck.gd — THE AI DECK BUILDER held to the
+│    tests/unit/test_auto_deck.gd — AUTODECK held to the
 │    wishes without a screen: the three pool readers (sets, names, a
 │    text with counts, comments, a sideboard and an unknown name
 │    reported), every deck LEGAL (the size, no sideboard, every card in
@@ -4591,7 +4591,7 @@ shandalar/
 │    the seventh, Next turn greys on an empty library), the 1997 advice
 │    is spoken for the two hands only and enforced never, and the deal
 │    survives a page swap but not a reopening. Runs without the skin;
-│    tests/ui/test_auto_deck_window.gd — the AI deck builder's window
+│    tests/ui/test_auto_deck_window.gd — AutoDeck's window
 │    and the pool medallion through the screen: the gold first line of
 │    the mini-menu, the defaults and the summary line, a build (sixty
 │    cards, the lands, the name in the header, the notes, the pool in
@@ -6749,8 +6749,8 @@ shandalar/
 │   │   │                      one question, `summary()` the tally line. The
 │   │   │                      per-card ceiling is enforced at the SCREEN
 │   │   │                      (`_sealed_refusal`), not here
-│   │   ├── auto_deck.gd     class AutoDeck — **[QoL]** THE AI DECK
-│   │   │                      BUILDER'S HEAD (2026-09-18): a card pool
+│   │   ├── auto_deck.gd     class AutoDeck — **[QoL]** AUTODECK'S
+│   │   │                      HEAD (2026-09-18): a card pool
 │   │   │                      (`pool_from_sets`, `pool_from_names`,
 │   │   │                      `pool_from_text` — the DeckList parser's
 │   │   │                      leniency, unknown names reported) and the
@@ -6786,8 +6786,8 @@ shandalar/
 │   │   │                      basics fill what the pool cannot, `short_by`
 │   │   │                      says how many). `to_sealed_pool` is what
 │   │   │                      the pool medallion holds. No node, no game
-│   │   ├── auto_deck_window.gd class AutoDeckWindow — **[QoL]** the AI
-│   │   │                      deck builder's dialog (2026-09-18), opened
+│   │   ├── auto_deck_window.gd class AutoDeckWindow — **[QoL]** the
+│   │   │                      AutoDeck dialog (2026-09-18), opened
 │   │   │                      by the mini-menu's gold first line or the
 │   │   │                      pool medallion: the pool (the sets ticked,
 │   │   │                      the dealt cards or the pool in force, a

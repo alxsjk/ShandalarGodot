@@ -1,6 +1,6 @@
 class_name AutoDeck
 extends RefCounted
-## [QoL] THE AI DECK BUILDER'S HEAD: a card pool and a handful of wishes
+## [QoL] AUTODECK'S HEAD: a card pool and a handful of wishes
 ## in, a playable deck out. The 1997 program had nothing like it — its
 ## computer opponents played decks a designer had typed in — and the
 ## deck-lotus tool the owner pointed at (2026-09-18) turns out to have
@@ -259,7 +259,7 @@ func to_sealed_pool(basics := 0) -> SealedPool:
 	out.counts = pool.duplicate()
 	for land in BASICS:
 		out.counts[land] = maxi(basics, size)
-	out.packs.append({"title": "AI deck builder", "cards": out.names()})
+	out.packs.append({"title": "AutoDeck", "cards": out.names()})
 	return out
 
 
@@ -777,7 +777,7 @@ static func _narrowness(data: CardData) -> float:
 func _write_report(out: DeckModel, kept: int) -> void:
 	var lean_words := {LEAN_CREATURES: "mostly creatures",
 		LEAN_BALANCED: "creatures and spells in balance", LEAN_SPELLS: "mostly spells"}
-	report.append("Built by the AI deck builder: %d cards, %s, %s speed, %s." % [
+	report.append("Built by AutoDeck: %d cards, %s, %s speed, %s." % [
 		out.total(), color_phrase(chosen_colors), speed, String(lean_words[lean])])
 	report.append("Card pool: %s (%d cards on offer)." % [pool_label, pool_total(pool)])
 	var lands: Array[String] = []

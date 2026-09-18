@@ -1066,13 +1066,13 @@ static func _page_builder() -> Dictionary:
 			+ "face. Both are switches: they stay down while their marks "
 			+ "are up, and they remember."),
 		_text("DECK opens the menu, also available by right-clicking "
-			+ "over the deck: AI deck builder at the top, in gold, then New deck, Load deck, Save "
+			+ "over the deck: AutoDeck at the top, in gold, then New deck, Load deck, Save "
 			+ "deck, Consolidate duplicate cards, Clear deck, Sort deck, "
 			+ "Stats, Music, Sound Effects, Exit deck builder, Extra "
 			+ "Cards, Move by color out of deck, Undo, Big cards, Filters, Add basic land, Add proxy card, "
 			+ "Copy deck to, Deck notes, Sideboard, Import deck and Export "
 			+ "deck, plus Booster Draft."),
-		_text("AI deck builder builds a deck for you from a card pool: "
+		_text("AutoDeck builds a deck for you from a card pool: "
 			+ "the cards of the sets you tick, the cards dealt to you by "
 			+ "the Sealed Deck window, or a list of cards from a file or "
 			+ "a paste — decklist lines, `4 Lightning Bolt` a line, main "

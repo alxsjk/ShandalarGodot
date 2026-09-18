@@ -353,7 +353,7 @@ func test_timed_builder_enforces_pool_and_blocks_escape_commands() -> void:
 	assert_eq(builder._slot, 0)
 	assert_not_null(builder.sealed)
 	assert_true(builder._dice_button.disabled)
-	assert_true(builder._pool_button.disabled, "the AI deck builder's pool medallion is locked too")
+	assert_true(builder._pool_button.disabled, "AutoDeck's pool medallion is locked too")
 
 
 func test_done_finishes_once_and_saves_partial_deck() -> void:

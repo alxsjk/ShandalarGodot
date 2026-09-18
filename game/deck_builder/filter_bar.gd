@@ -191,7 +191,7 @@ const DICE_CELL := [-2, -2]
 ## the sideboard's ground above and the strip below.
 const DICE_SIZE := 30
 ## [QoL] THE CARD POOL, the Deck Builder's second bar medallion beside
-## the dice (2026-09-18): the pool the AI deck builder built from, on and
+## the dice (2026-09-18): the pool AutoDeck built from, on and
 ## off in the Inventory. Three cards fanned on the same blank stone at
 ## the same [constant DICE_SIZE] ([method _pool_cell]).
 const POOL_CELL := [-3, -3]

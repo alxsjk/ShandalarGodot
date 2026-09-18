@@ -15576,6 +15576,18 @@ Gate on the tree as committed: 476 scripts, **7,500/7,500 tests,
 23 + 10, plus two in the pause suite, none needing the skin, so the
 bare clone's gate is 459); Python 291, exit 0; boot 0 errors.
 
+## 2026-09-18 — AutoDeck is the name
+
+THE ORDER: *"rename AI deck builder to AutoDeck :) - better :)"*. The
+mini-menu's gold line, the window's title, the undo label, the pool
+medallion's tooltip, the deck notes (`Built by AutoDeck: …`), the pool
+pack's title, the Help page's two paragraphs and the README now say
+AutoDeck — the class's own name, given to the player. The sections
+above keep the words they were written with. The tests that quoted the
+old name quote the new one; nothing else moved. Gate on the tree as
+committed: 476 scripts, **7,500/7,500 tests, 332,199 asserts**, exit 0
+in 200 s over 6 shards; Python 291, exit 0.
+
 ## Standing quality gates
 
 - `./run_tests.sh` green on every commit; new code ships with tests.

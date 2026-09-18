@@ -823,7 +823,7 @@ func test_the_deck_builder_page_names_every_command_and_key() -> void:
 		assert_true(text.contains(label), "1997 command '%s'" % label)
 	for label in DeckBuilderScreen.EXTRA_COMMANDS:
 		assert_true(text.contains(label), "[QoL] command '%s'" % label)
-	assert_true(text.contains(DeckBuilderScreen.AI_COMMAND), "the AI deck builder, at the top of the menu")
+	assert_true(text.contains(DeckBuilderScreen.AI_COMMAND), "AutoDeck, at the top of the menu")
 	for label in DeckBuilderScreen.STATS_PAGES:
 		assert_true(text.contains(label), "Stats page '%s'" % label)
 	for keycode in DeckBuilderScreen.SHORTCUTS:

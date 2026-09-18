@@ -1,5 +1,5 @@
 extends GutTest
-## THE AI DECK BUILDER'S WINDOW AND THE POOL MEDALLION (2026-09-18): the
+## AUTODECK'S WINDOW AND THE POOL MEDALLION (2026-09-18): the
 ## gold line at the top of the mini-menu, the window it opens
 ## ([AutoDeckWindow]), the deck `Build me a deck` puts on the surface as
 ## one undoable step, and the three-card disc beside the dice that puts
@@ -57,7 +57,7 @@ func _foot(text: String) -> Button:
 func _open() -> void:
 	screen._run_command(DeckBuilderScreen.AI_COMMAND)
 	await get_tree().process_frame
-	assert_not_null(_window(), "the AI deck builder's window")
+	assert_not_null(_window(), "AutoDeck's window")
 
 
 func _lands() -> int:
@@ -160,7 +160,7 @@ func test_build_me_a_deck_puts_the_deck_on_the_surface_and_the_pool_in_force() -
 	assert_eq(screen.deck.side_total(), 0)
 	assert_eq(_lands(), 24, "medium: 24 lands")
 	assert_true(screen.deck.deck_name.ends_with(" Midrange"), screen.deck.deck_name)
-	assert_true(screen.deck.notes.begins_with("Built by the AI deck builder: 60 cards, "), screen.deck.notes)
+	assert_true(screen.deck.notes.begins_with("Built by AutoDeck: 60 cards, "), screen.deck.notes)
 	assert_true(screen.deck.notes.contains("Card pool: Fourth Edition ("), screen.deck.notes)
 	assert_eq(screen._header_label.text, screen.deck.deck_name, "the header letters the name")
 	assert_true(screen._dirty, "unsaved work")

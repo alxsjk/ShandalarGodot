@@ -1,5 +1,5 @@
 extends GutTest
-## THE AI DECK BUILDER'S HEAD ([AutoDeck], 2026-09-18): the pools it reads,
+## AUTODECK'S HEAD ([AutoDeck], 2026-09-18): the pools it reads,
 ## the deck it builds from a pool and a handful of wishes — legal, in the
 ## colours asked for, the lands the speed asks for, the caps the rules
 ## set — and the report it writes into the notes. Nothing here opens the
@@ -124,7 +124,7 @@ func test_the_pool_becomes_a_sealed_pool_with_free_basics() -> void:
 	for land in AutoDeck.BASICS:
 		assert_eq(pool.copies_of(land), 40, "%s, as many as the deck is big" % land)
 	assert_eq(pool.packs.size(), 1)
-	assert_eq(String(pool.packs[0]["title"]), "AI deck builder")
+	assert_eq(String(pool.packs[0]["title"]), "AutoDeck")
 	assert_eq(pool.total(), 6 + 5 * 40)
 	assert_eq(auto.to_sealed_pool(60).copies_of("Plains"), 60, "or more, when asked")
 
@@ -140,7 +140,7 @@ func test_sixty_from_the_library_is_legal_and_two_coloured() -> void:
 	assert_eq(auto.short_by, 0, "the library never runs short")
 	assert_eq(deck.deck_name, auto.deck_name())
 	assert_true(deck.deck_name.ends_with(" Midrange"), deck.deck_name)
-	assert_true(deck.notes.begins_with("Built by the AI deck builder: 60 cards, "), deck.notes)
+	assert_true(deck.notes.begins_with("Built by AutoDeck: 60 cards, "), deck.notes)
 	assert_true(deck.notes.contains("Card pool: the library (%d cards on offer)." % AutoDeck.pool_total(auto.pool)))
 	assert_true(deck.notes.contains("24 lands: "), deck.notes)
 	assert_true(deck.notes.contains("36 spells: "), deck.notes)
@@ -160,7 +160,7 @@ func test_forty_from_a_set_is_legal_with_three_of_a_card() -> void:
 	for name in deck.names():
 		if not AutoDeck.BASICS.has(name):
 			assert_true(int(deck.counts[name]) <= 3, "%s: three copies at most in 40 (manual ch.10)" % name)
-	assert_true(deck.notes.begins_with("Built by the AI deck builder: 40 cards, "), deck.notes)
+	assert_true(deck.notes.begins_with("Built by AutoDeck: 40 cards, "), deck.notes)
 
 
 func test_the_colours_asked_for_are_the_deck_s() -> void:

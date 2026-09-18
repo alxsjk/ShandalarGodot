@@ -211,7 +211,7 @@ const EXTRA_COMMANDS: Array[String] = [
 	"Undo", "Big cards", "Filters", "Add basic land", "Add proxy card", "Copy deck to",
 	"Deck notes", "Sideboard", "Import deck", "Export deck", "Booster Draft",
 ]
-## [QoL] THE AI DECK BUILDER (2026-09-18), the mini-menu's FIRST line and
+## [QoL] AUTODECK (2026-09-18), the mini-menu's FIRST line and
 ## the one lettered in [constant UiChrome.CHOSEN] gold — the owner asked
 ## for *"a top menu entry ... emphasized color in the menu"*. It opens
 ## [AutoDeckWindow]; the deck it builds arrives by [method
@@ -220,7 +220,7 @@ const EXTRA_COMMANDS: Array[String] = [
 ## is not one line among the rest: it has its own place and its own
 ## colour, and [DraftBuilder] leaves it out altogether — a draft builds
 ## from the dealt cards by hand, that being the game.
-const AI_COMMAND := "AI deck builder"
+const AI_COMMAND := "AutoDeck"
 
 ## [QoL] The heading over the format analysis, in the three places that
 ## report it: the legality line, the Stats window and the save dialog. Ours
@@ -350,7 +350,7 @@ var _cost_button: Button
 ## [QoL] The dice medallion at the bar's left end — see [member sealed].
 var _dice_button: Button
 ## [QoL] THE POOL MEDALLION, beside the dice (2026-09-18): the card pool
-## the AI deck builder last built from, so the player can go on building
+## AutoDeck last built from, so the player can go on building
 ## from it by hand. Down and lit while that pool is the one in force
 ## ([member sealed] is [member _auto_pool]); up, a click puts it in force
 ## again, or opens the builder when there is no pool yet. See [method
@@ -816,14 +816,14 @@ func _build_command_bar() -> void:
 	_dice_button.pressed.connect(_on_dice_pressed)
 	add_child(_dice_button)
 
-	# [QoL] The pool medallion (2026-09-18) — the AI deck builder's card
+	# [QoL] The pool medallion (2026-09-18) — AutoDeck's card
 	# pool, beside the dice and dressed by the same hand: DOWN while that
 	# pool is in force, up while it is not. See [member _pool_button].
 	_pool_button = Button.new()
 	_pool_button.name = "PoolButton"
 	_pool_button.toggle_mode = true
 	_pool_button.focus_mode = Control.FOCUS_ALL
-	_pool_button.tooltip_text = "Card pool — the cards the AI deck builder built from, in the Inventory"
+	_pool_button.tooltip_text = "Card pool — the cards AutoDeck built from, in the Inventory"
 	FilterBar.dress_medallion(_pool_button, FilterBar.POOL_CELL, "Pool",
 		Vector2(FilterBar.DICE_SIZE, FilterBar.DICE_SIZE))
 	_pool_button.pressed.connect(_on_pool_pressed)
@@ -2220,7 +2220,7 @@ func _on_pool_pressed() -> void:
 	_enter_sealed(_auto_pool)
 
 
-## [QoL] THE AI DECK BUILDER'S DELIVERY ([AutoDeckWindow]): the deck
+## [QoL] AUTODECK'S DELIVERY ([AutoDeckWindow]): the deck
 ## [param auto] builds goes on the surface as one undoable step, and its
 ## pool goes under the pool medallion and into force, so the Inventory
 ## shows what the deck was built from less what it took — the player
@@ -2294,7 +2294,7 @@ func _copies_listed() -> int:
 func _enter_sealed(pool: SealedPool, fresh := false) -> void:
 	sealed = pool
 	# One medallion down at a time: the dice for a dealt pool, the pool
-	# disc for the AI deck builder's.
+	# disc for AutoDeck's.
 	_dice_button.set_pressed_no_signal(pool != _auto_pool)
 	if _pool_button != null:
 		_pool_button.set_pressed_no_signal(pool == _auto_pool)
@@ -3465,7 +3465,7 @@ func _menu_line(text: String) -> Button:
 	return line
 
 
-## The mini-menu's lines: the AI deck builder at the top ([constant
+## The mini-menu's lines: AutoDeck at the top ([constant
 ## AI_COMMAND]), then `@DECKSURFACE_STANDALONE`, the two 1997 commands
 ## from the tags beside it ([constant MENU_COMMANDS]), then this screen's
 ## own additions marked `[QoL]` so the three are never confused.
